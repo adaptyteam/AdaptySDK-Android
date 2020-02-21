@@ -1,0 +1,2 @@
+include ':app', ':adapty'
+rootProject.name='AdaptyExample'
