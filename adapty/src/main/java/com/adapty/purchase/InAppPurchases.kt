@@ -2,27 +2,33 @@ package com.adapty.purchase
 
 import android.app.Activity
 import com.adapty.R
+import com.adapty.api.AdaptyCallback
 import com.adapty.api.AdaptyPurchaseCallback
+import com.adapty.api.AdaptyRestoreCallback
 import com.android.billingclient.api.*
 import java.util.concurrent.TimeUnit
 
-class InAppPurchases(var activity: Activity, var purchaseType: String, chosenPurchase: String, var adaptyCallback: AdaptyPurchaseCallback) {
+class InAppPurchases(var activity: Activity, var isRestore: Boolean, var purchaseType: String, chosenPurchase: String, var adaptyCallback: AdaptyCallback) {
 
     private lateinit var billingClient: BillingClient
 
-    fun setupBilling(chosenPurchase: String, isRestore: Boolean) {
+    init {
+        setupBilling(chosenPurchase)
+    }
+
+    fun setupBilling(chosenPurchase: String) {
         if (!::billingClient.isInitialized) {
             billingClient =
                 BillingClient.newBuilder(activity).enablePendingPurchases()
                     .setListener { billingResult, purchases ->
                         if (billingResult?.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
                             for (purchase in purchases) {
-                                adaptyCallback.success(purchase, -1)
+                                success(purchase)
                             }
                         } else if (billingResult?.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-                            adaptyCallback.fail("Purchase: USER_CANCELED", -1)
+                            fail("Purchase: USER_CANCELED")
                         } else {
-                            adaptyCallback.fail("Purchase: ${billingResult?.responseCode.toString()}", -1)
+                            fail("Purchase: ${billingResult?.responseCode.toString()}")
                         }
                     }
                     .build()
@@ -38,7 +44,7 @@ class InAppPurchases(var activity: Activity, var purchaseType: String, chosenPur
                 }
 
                 override fun onBillingServiceDisconnected() {
-                    adaptyCallback.fail("onBillingServiceDisconnected", -1)
+                    fail("onBillingServiceDisconnected")
                 }
             })
         }
@@ -76,10 +82,27 @@ class InAppPurchases(var activity: Activity, var purchaseType: String, chosenPur
         billingClient.queryPurchaseHistoryAsync(purchaseType) { billingResult, purchasesList ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 if (purchasesList.isNullOrEmpty())
-                    adaptyCallback.fail("You have no purchases", -1)
+                    fail("You have no purchases")
                 else
-                    adaptyCallback.success(null, -1)
+                    success(null)
             }
+        }
+    }
+
+
+    private fun success(purchase: Purchase?) {
+        if (isRestore) {
+            (adaptyCallback as AdaptyRestoreCallback).onResult(null)
+        } else {
+            (adaptyCallback as AdaptyPurchaseCallback).onResult(purchase, null)
+        }
+    }
+
+    private fun fail(error: String) {
+        if (isRestore) {
+            (adaptyCallback as AdaptyRestoreCallback).onResult(error)
+        } else {
+            (adaptyCallback as AdaptyPurchaseCallback).onResult(null, error)
         }
     }
 }

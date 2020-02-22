@@ -2,9 +2,7 @@ package com.adapty
 
 import android.app.Activity
 import android.content.Context
-import com.adapty.api.ApiClientRepository
-import com.adapty.api.AdaptyCallback
-import com.adapty.api.AdaptyPurchaseCallback
+import com.adapty.api.*
 import com.adapty.utils.PreferenceManager
 import com.adapty.api.responses.CreateProfileResponse
 import com.adapty.purchase.InAppPurchases
@@ -22,7 +20,7 @@ class Adapty {
             this.preferenceManager.appKey = appKey
 
             ApiClientRepository.getInstance(preferenceManager)
-                .createProfile(object : AdaptyCallback {
+                .createProfile(object : AdaptySystemCallback {
                     override fun success(response: Any?, reqID: Int) {
                         if (response is CreateProfileResponse) {
                             response.data?.attributes?.profileId?.let {
@@ -46,7 +44,7 @@ class Adapty {
 
         fun sendSyncMetaInstallRequest() {
             ApiClientRepository.getInstance(preferenceManager)
-                .syncMetaInstall(object : AdaptyCallback {
+                .syncMetaInstall(object : AdaptySystemCallback {
                     override fun success(response: Any?, reqID: Int) {
                     }
 
@@ -67,7 +65,7 @@ class Adapty {
             firstName: String?,
             lastName: String?,
             gender: String?,
-            birthday: String?, adaptyCallback: AdaptyCallback
+            birthday: String?, adaptyCallback: AdaptyProfileCallback
         ) {
             ApiClientRepository.getInstance(preferenceManager).updateProfile(
                 customerUserId,
@@ -91,21 +89,19 @@ class Adapty {
             productId: String,
             adaptyCallback: AdaptyPurchaseCallback
         ) {
-            val inAppPurchases = InAppPurchases(activity, type, productId, adaptyCallback)
-            inAppPurchases.setupBilling(productId, false)
+            InAppPurchases(activity, false, type, productId, adaptyCallback)
         }
 
         fun restore(
             activity: Activity,
             type: String,
             productId: String,
-            adaptyCallback: AdaptyPurchaseCallback
+            adaptyCallback: AdaptyRestoreCallback
         ) {
-            val inAppPurchases = InAppPurchases(activity, type, productId, adaptyCallback)
-            inAppPurchases.setupBilling(productId, true)
+            InAppPurchases(activity, true, type, productId, adaptyCallback)
         }
 
-        fun validateReceipt(purchaseToken: String, adaptyCallback: AdaptyCallback) {
+        fun validateReceipt(purchaseToken: String, adaptyCallback: AdaptyValidateCallback) {
             ApiClientRepository.getInstance(preferenceManager)
                 .validatePurchase(purchaseToken, adaptyCallback)
         }

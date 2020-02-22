@@ -56,9 +56,7 @@ class ApiClient(private var context: Context) {
 
             try {
 
-
                 val req = gson.toJson(request)
-
 
                 val myUrl = URL(url)
 
@@ -101,7 +99,6 @@ class ApiClient(private var context: Context) {
 
                 } else {
                     rString = toStringUtf8(conn.errorStream)
-                    val re = gson.fromJson(rString, BaseRequest::class.java)
 
                     fail("Request is unsuccessful", reqID, adaptyCallback)
                     return@Runnable
@@ -142,24 +139,46 @@ class ApiClient(private var context: Context) {
     private fun success(response: Any?, reqID: Int, adaptyCallback : AdaptyCallback?) {
         try {
             val mainHandler = Handler(context.mainLooper)
-            val myRunnble = Runnable {
-                    adaptyCallback?.success(response, reqID)
+            val myRunnable = Runnable {
+                adaptyCallback?.let {
+                    when (it) {
+                        is AdaptySystemCallback -> {
+                            it.success(response, reqID)
+                        }
+                        is AdaptyProfileCallback -> {
+                            it.onResult(null)
+                        }
+                        is AdaptyValidateCallback -> {
+                            it.onResult((response as ValidateReceiptResponse), null)
+                        }
+                    }
+                }
             }
-            mainHandler.post(myRunnble)
+            mainHandler.post(myRunnable)
         } catch (e: Exception) {
             Log.e("$TAG success", e.localizedMessage)
         }
-
     }
 
     private fun fail(error: String, reqID: Int, adaptyCallback : AdaptyCallback?) {
         try {
-            val mainHandlerE = Handler(context.getMainLooper())
-            val myRunnbleE = Runnable {
-
-                adaptyCallback?.fail(error, reqID)
+            val mainHandlerE = Handler(context.mainLooper)
+            val myRunnableE = Runnable {
+                adaptyCallback?.let {
+                    when (it) {
+                        is AdaptySystemCallback -> {
+                            it.fail(error, reqID)
+                        }
+                        is AdaptyProfileCallback -> {
+                            it.onResult(error)
+                        }
+                        is AdaptyValidateCallback -> {
+                            it.onResult(null, error)
+                        }
+                    }
+                }
             }
-            mainHandlerE.post(myRunnbleE)
+            mainHandlerE.post(myRunnableE)
         } catch (e: Exception) {
             Log.e("$TAG fail", e.localizedMessage)
         }
