@@ -82,5 +82,5 @@ Adapty.validateReceipt(productId, purchaseToken, adaptyValidateCallback) { respo
 }
 ```
 
-**`receiptEncoded`** is required and can't be empty.
+**`productId`** and **`purchaseToken`** are required and can't be empty.
 
