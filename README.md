@@ -27,19 +27,10 @@ Add the following to `Application` class:
 ```Kotlin
 override fun onCreate() {
     super.onCreate()
-    Adapty.activate("YOUR_APP_KEY")
+    Adapty.activate(сontext, "YOUR_APP_KEY", customerUserId: "YOUR_USER_ID")
 }
 ```
-
-### Get customer profile and subscription status
-
-```Kotlin
-Adapty.getProfile() { error, profile ->
-    if (profile.paidAccessLevels["level_configured_in_dashboard"]?.isActive == true) {
-        /* Grant user access to paid functions of the app */
-    }
-}
-```
+If your app doesn't have user IDs, you can use **`.activate("YOUR_APP_KEY")`** or pass null for the **`customerUserId`**. Anyway, you can update **`customerUserId`** later within user update request.
 
 ### Update customer profile
 
@@ -56,7 +47,7 @@ Adapty.updateProfile(
     lastName: "Doe",
     gender: "m",
     birthday: Date
-) { error, profile ->
+) { error ->
     /* ... */
 }
 ```
@@ -67,20 +58,28 @@ For **`gender`** possible values are: **`m`**, **`f`**, but you can also pass cu
 ### Make purchase
 
 ```Kotlin
-Adapty.makePurchase(product) { error, profile, purchaseData ->
-    if (profile.paidAccessLevels["level_configured_in_dashboard"]?.isActive == true) {
-        /* Grant user access to paid functions of the app */
+Adapty.makePurchase(activity, purchaseType, productId) { purchaseData, response, error ->
+    if (error == null) {
+     // successful purchase
     }
-    
-    /* purchaseData is a Dictionary, containing all info about purchase from Play Store */
 }
 ```
 
 ### Restore purchases
 
 ```Kotlin
-Adapty.restorePurchases() { error, profile ->
+Adapty.restorePurchases(activity, purchasesType) { error ->
     /* ... */
 }
 ```
+
+### Validate your receipt
+
+```Kotlin
+Adapty.validateReceipt(productId, purchaseToken) { response, error -> {
+   /* ... */
+}
+```
+
+**`productId`** and **`purchaseToken`** are required and can't be empty.
 
