@@ -46,8 +46,7 @@ Adapty.updateProfile(
     firstName: "John",
     lastName: "Doe",
     gender: "m",
-    birthday: Date,
-    adaptyProfileCallback
+    birthday: Date
 ) { error ->
     /* ... */
 }
@@ -59,7 +58,7 @@ For **`gender`** possible values are: **`m`**, **`f`**, but you can also pass cu
 ### Make purchase
 
 ```Kotlin
-Adapty.makePurchase(activity, purchaseType, productId, adaptyPurchaseCallback) { purchaseData, error ->
+Adapty.makePurchase(activity, purchaseType, productId) { purchaseData, response, error ->
     if (error == null) {
      // successful purchase
     }
@@ -69,7 +68,7 @@ Adapty.makePurchase(activity, purchaseType, productId, adaptyPurchaseCallback) {
 ### Restore purchases
 
 ```Kotlin
-Adapty.restorePurchases(activity, purchasesType, adaptyRestoreCallback) { error ->
+Adapty.restorePurchases(activity, purchasesType) { error ->
     /* ... */
 }
 ```
@@ -77,7 +76,7 @@ Adapty.restorePurchases(activity, purchasesType, adaptyRestoreCallback) { error 
 ### Validate your receipt
 
 ```Kotlin
-Adapty.validateReceipt(productId, purchaseToken, adaptyValidateCallback) { response, error -> {
+Adapty.validateReceipt(productId, purchaseToken) { response, error -> {
    /* ... */
 }
 ```
