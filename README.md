@@ -11,11 +11,22 @@ Adapty helps you track business metrics, and lets you run ad campaigns targeted 
 ## Installation
 
 ### Gradle
+Add it in your root build.gradle at the end of repositories:
+```
+allprojects {
+		repositories {
+			...
+			maven { url 'https://jitpack.io' }
+		}
+	}
+```
+
+Add the dependency:
 
 ```
 dependencies {
-    implementation 'com.adapty:1.0.0’
-}
+	        implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.0'
+	}
 ```
 
 ## Usage
@@ -64,6 +75,7 @@ Adapty.makePurchase(activity, purchaseType, productId) { purchaseData, response,
     }
 }
 ```
+**`purchaseType`** and **`productID`** are required and can't be empty. **`purchaseType`** can be of two types: **`SUBS`** and **`INAPP`**. Adapty handles subscription offers signing for you as well.
 
 ### Restore purchases
 
