@@ -5,7 +5,10 @@ import android.content.Context
 import com.adapty.api.*
 import com.adapty.utils.PreferenceManager
 import com.adapty.api.responses.CreateProfileResponse
+import com.adapty.api.responses.SyncMetaInstallResponse
+import com.adapty.api.responses.ValidateReceiptResponse
 import com.adapty.purchase.InAppPurchases
+import com.android.billingclient.api.Purchase
 import java.util.*
 
 class Adapty {
@@ -14,13 +17,15 @@ class Adapty {
         lateinit var applicationContext: Context
         lateinit var preferenceManager: PreferenceManager
 
-        fun activate(applicationContext: Context, appKey: String) {
+        fun activate(applicationContext: Context, appKey: String) = activate(applicationContext, appKey, null)
+
+        fun activate(applicationContext: Context, appKey: String, customerUserId: String?) {
             this.applicationContext = applicationContext
             this.preferenceManager = PreferenceManager(applicationContext)
             this.preferenceManager.appKey = appKey
 
             ApiClientRepository.getInstance(preferenceManager)
-                .createProfile(object : AdaptySystemCallback {
+                .createProfile(customerUserId, object : AdaptySystemCallback {
                     override fun success(response: Any?, reqID: Int) {
                         if (response is CreateProfileResponse) {
                             response.data?.attributes?.profileId?.let {
@@ -41,11 +46,15 @@ class Adapty {
                 })
         }
 
-
         fun sendSyncMetaInstallRequest() {
             ApiClientRepository.getInstance(preferenceManager)
                 .syncMetaInstall(object : AdaptySystemCallback {
                     override fun success(response: Any?, reqID: Int) {
+                        if (response is SyncMetaInstallResponse) {
+                            response.data?.id?.let {
+                                preferenceManager.installationMetaID = it
+                            }
+                        }
                     }
 
                     override fun fail(msg: String, reqID: Int) {
@@ -65,7 +74,7 @@ class Adapty {
             firstName: String?,
             lastName: String?,
             gender: String?,
-            birthday: String?, adaptyCallback: AdaptyProfileCallback
+            birthday: String?, adaptyCallback: (String?) -> Unit
         ) {
             ApiClientRepository.getInstance(preferenceManager).updateProfile(
                 customerUserId,
@@ -78,7 +87,12 @@ class Adapty {
                 lastName,
                 gender,
                 birthday,
-                adaptyCallback
+                object : AdaptyProfileCallback {
+                    override fun onResult(error: String?) {
+                        adaptyCallback.invoke(error)
+                    }
+
+                }
             )
 
         }
@@ -87,23 +101,34 @@ class Adapty {
             activity: Activity,
             type: String,
             productId: String,
-            adaptyCallback: AdaptyPurchaseCallback
+            adaptyCallback: (Purchase?, String?) -> Unit
         ) {
-            InAppPurchases(activity, false, type, productId, adaptyCallback)
+            InAppPurchases(activity, false, type, productId, object : AdaptyPurchaseCallback {
+                override fun onResult(response: Purchase?, error: String?) {
+                    adaptyCallback.invoke(response, error)
+                }
+            })
         }
 
         fun restore(
             activity: Activity,
             type: String,
-            productId: String,
-            adaptyCallback: AdaptyRestoreCallback
+            adaptyCallback: (String?) -> Unit
         ) {
-            InAppPurchases(activity, true, type, productId, adaptyCallback)
+            InAppPurchases(activity, true, type, "", object : AdaptyRestoreCallback {
+                override fun onResult(error: String?) {
+                    adaptyCallback.invoke(error)
+                }
+            })
         }
 
-        fun validateReceipt(purchaseToken: String, adaptyCallback: AdaptyValidateCallback) {
+        fun validateReceipt(productId: String, purchaseToken: String, adaptyCallback: (ValidateReceiptResponse?, error: String?) -> Unit) {
             ApiClientRepository.getInstance(preferenceManager)
-                .validatePurchase(purchaseToken, adaptyCallback)
+                .validatePurchase(productId, purchaseToken, object : AdaptyValidateCallback {
+                    override fun onResult(response: ValidateReceiptResponse?, error: String?) {
+                        adaptyCallback.invoke(response, error)
+                    }
+                })
         }
     }
 }

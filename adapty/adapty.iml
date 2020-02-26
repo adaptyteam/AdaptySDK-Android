@@ -26,7 +26,7 @@
       </configuration>
     </facet>
     <facet type="kotlin-language" name="Kotlin">
-      <configuration version="3" platform="JVM 1.6" allPlatforms="JVM [1.6]" useProjectSettings="false" pureKotlinSourceFolders="$MODULE_DIR$/src/debug/kotlin;/Users/edgarairapetov/Projects/AdaptySDK-Android/adapty/src/debug/java;/Users/edgarairapetov/Projects/AdaptySDK-Android/adapty/src/release/kotlin;/Users/edgarairapetov/Projects/AdaptySDK-Android/adapty/src/release/java;/Users/edgarairapetov/Projects/AdaptySDK-Android/adapty/src/debugAndroidTest/kotlin;/Users/edgarairapetov/Projects/AdaptySDK-Android/adapty/src/debugUnitTest/kotlin;/Users/edgarairapetov/Projects/AdaptySDK-Android/adapty/src/releaseUnitTest/kotlin">
+      <configuration version="3" platform="JVM 1.6" allPlatforms="JVM [1.6]" useProjectSettings="false">
         <compilerSettings>
           <option name="additionalArguments" value="-Xallow-no-source-files" />
         </compilerSettings>

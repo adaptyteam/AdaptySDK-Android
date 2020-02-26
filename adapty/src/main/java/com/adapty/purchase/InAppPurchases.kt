@@ -62,8 +62,8 @@ class InAppPurchases(var activity: Activity, var isRestore: Boolean, var purchas
                         val responseCode =
                             billingClient.launchBillingFlow(activity, flowParams)
                         break
-                    } else if ("gas" == sku) {
-                    }
+                    } else
+                        fail("This product_id not found with this purchase type")
                 }
             }
         }

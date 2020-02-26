@@ -9,6 +9,9 @@ open class AttributeValidateReceiptReq {
     @SerializedName("token")
     var token: String? = null
 
+    @SerializedName("product_id")
+    var productId: String? = null
+
     @SerializedName("variationId")
     var variationId: Int? = null
 

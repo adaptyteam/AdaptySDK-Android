@@ -18,7 +18,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
 
     private var apiClient = ApiClient(applicationContext)
 
-    fun createProfile(adaptyCallback: AdaptyCallback) {
+    fun createProfile(customerUserId: String?, adaptyCallback: AdaptyCallback) {
 
         var uuid = preferenceManager.profileID
         if (uuid.isEmpty()) {
@@ -31,6 +31,10 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         profileRequest.data = DataProfileReq()
         profileRequest.data?.id = uuid
         profileRequest.data?.type = "adapty_analytics_profile"
+        if (!customerUserId.isNullOrEmpty()) {
+            profileRequest.data?.attributes = AttributeProfileReq()
+            profileRequest.data?.attributes?.customerUserId = customerUserId
+        }
 
         apiClient.createProfile(profileRequest, adaptyCallback)
     }
@@ -91,7 +95,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         apiClient.syncMeta(syncMetaRequest, adaptyCallback)
     }
 
-    fun validatePurchase(purchaseToken: String, adaptyCallback: AdaptyCallback? = null) {
+    fun validatePurchase(productId: String, purchaseToken: String, adaptyCallback: AdaptyCallback? = null) {
         var uuid = preferenceManager.profileID
         if (uuid.isEmpty()) {
             uuid = UUIDTimeBased.generateId().toString()
@@ -103,6 +107,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         validateReceiptRequest.data = DataValidateReceiptReq()
         validateReceiptRequest.data?.id = uuid
         validateReceiptRequest.data?.attributes = AttributeValidateReceiptReq()
+        validateReceiptRequest.data?.attributes?.productId = productId
         validateReceiptRequest.data?.attributes?.token = purchaseToken
         validateReceiptRequest.data?.attributes?.profileId = uuid
 
