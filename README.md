@@ -2,8 +2,6 @@
 
 ![Adapty: CRM for mobile apps with subscriptions](/adapty.png)
 
-Adapty helps you track business metrics, and lets you run ad campaigns targeted at churned users faster, written in Kotlin. https://adapty.io/
-
 ## Requirements
 
 - Android 5.0+
@@ -12,9 +10,22 @@ Adapty helps you track business metrics, and lets you run ad campaigns targeted 
 
 ### Gradle
 
+Add it in your root build.gradle at the end of repositories:
+
+```Kotlin
+allprojects {
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+    }
+}
 ```
+
+Add dependency:
+
+```Kotlin
 dependencies {
-    implementation 'com.adapty:1.0.0’
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.0'
 }
 ```
 
@@ -27,16 +38,15 @@ Add the following to `Application` class:
 ```Kotlin
 override fun onCreate() {
     super.onCreate()
-    Adapty.activate(сontext, "YOUR_APP_KEY", customerUserId: "YOUR_USER_ID")
+    Adapty.activate(сontext, "PUBLIC_SDK_KEY", customerUserId: "PUBLIC_SDK_KEY")
 }
 ```
-If your app doesn't have user IDs, you can use **`.activate("YOUR_APP_KEY")`** or pass null for the **`customerUserId`**. Anyway, you can update **`customerUserId`** later within user update request.
+If your app doesn't have user IDs, you can use **`.activate("PUBLIC_SDK_KEY")`** or pass null for the **`customerUserId`**. 
 
 ### Update customer profile
 
 ```Kotlin
 Adapty.updateProfile(
-    customerUserId: "<id-in-your-system>",
     email: "user@adapty.io",
     advertisingId: "###############",
     phoneNumber: "+1-###-###-####",
@@ -64,6 +74,7 @@ Adapty.makePurchase(activity, purchaseType, productId) { purchaseData, response,
     }
 }
 ```
+**`purchaseType`** and **`productID`** are required and can't be empty. **`purchaseType`** can be one of: **`SUBS`** and **`INAPP`**. Adapty handles subscription offers signing for you as well.
 
 ### Restore purchases
 
