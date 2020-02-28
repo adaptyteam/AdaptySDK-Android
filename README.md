@@ -2,8 +2,6 @@
 
 ![Adapty: CRM for mobile apps with subscriptions](/adapty.png)
 
-Adapty helps you track business metrics, and lets you run ad campaigns targeted at churned users faster, written in Kotlin. https://adapty.io/
-
 ## Requirements
 
 - Android 5.0+
@@ -11,22 +9,24 @@ Adapty helps you track business metrics, and lets you run ad campaigns targeted 
 ## Installation
 
 ### Gradle
+
 Add it in your root build.gradle at the end of repositories:
-```
+
+```Kotlin
 allprojects {
-		repositories {
-			...
-			maven { url 'https://jitpack.io' }
-		}
-	}
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+    }
+}
 ```
 
-Add the dependency:
+Add dependency:
 
-```
+```Kotlin
 dependencies {
-	        implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.0'
-	}
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.0'
+}
 ```
 
 ## Usage
@@ -75,7 +75,7 @@ Adapty.makePurchase(activity, purchaseType, productId) { purchaseData, response,
     }
 }
 ```
-**`purchaseType`** and **`productID`** are required and can't be empty. **`purchaseType`** can be of two types: **`SUBS`** and **`INAPP`**. Adapty handles subscription offers signing for you as well.
+**`purchaseType`** and **`productID`** are required and can't be empty. **`purchaseType`** can be one of: **`SUBS`** and **`INAPP`**. Adapty handles subscription offers signing for you as well.
 
 ### Restore purchases
 
