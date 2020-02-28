@@ -1,4 +1,4 @@
-package com.adapty.api.entity.receipt
+package com.adapty.api.entity.validate
 
 import com.adapty.api.entity.BaseData
 import com.google.gson.annotations.SerializedName

@@ -3,16 +3,16 @@ package com.adapty.api
 import com.adapty.Adapty.Companion.applicationContext
 import com.adapty.api.entity.profile.AttributeProfileReq
 import com.adapty.api.entity.profile.DataProfileReq
-import com.adapty.api.entity.receipt.AttributeValidateReceiptReq
-import com.adapty.api.entity.receipt.DataValidateReceiptReq
+import com.adapty.api.entity.restore.RestoreItem
+import com.adapty.api.entity.validate.AttributeRestoreReceiptReq
+import com.adapty.api.entity.validate.DataRestoreReceiptReq
 import com.adapty.api.entity.syncmeta.DataSyncMetaReq
-import com.adapty.api.requests.CreateProfileRequest
-import com.adapty.api.requests.SyncMetaInstallRequest
-import com.adapty.api.requests.UpdateProfileRequest
-import com.adapty.api.requests.ValidateReceiptRequest
+import com.adapty.api.entity.validate.AttributeValidateReceiptReq
+import com.adapty.api.entity.validate.DataValidateReceiptReq
+import com.adapty.api.requests.*
+import com.adapty.purchase.SUBS
 import com.adapty.utils.PreferenceManager
 import com.adapty.utils.UUIDTimeBased
-import java.util.*
 
 class ApiClientRepository(var preferenceManager: PreferenceManager) {
 
@@ -95,7 +95,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         apiClient.syncMeta(syncMetaRequest, adaptyCallback)
     }
 
-    fun validatePurchase(productId: String, purchaseToken: String, adaptyCallback: AdaptyCallback? = null) {
+    fun validatePurchase(purchaseType: String, productId: String, purchaseToken: String, adaptyCallback: AdaptyCallback? = null) {
         var uuid = preferenceManager.profileID
         if (uuid.isEmpty()) {
             uuid = UUIDTimeBased.generateId().toString()
@@ -106,12 +106,32 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         val validateReceiptRequest = ValidateReceiptRequest()
         validateReceiptRequest.data = DataValidateReceiptReq()
         validateReceiptRequest.data?.id = uuid
+        validateReceiptRequest.data?.type = "google_receipt_validation_result"
         validateReceiptRequest.data?.attributes = AttributeValidateReceiptReq()
         validateReceiptRequest.data?.attributes?.productId = productId
-        validateReceiptRequest.data?.attributes?.token = purchaseToken
+        validateReceiptRequest.data?.attributes?.purchaseToken = purchaseToken
         validateReceiptRequest.data?.attributes?.profileId = uuid
+        validateReceiptRequest.data?.attributes?.isSubscription = (purchaseType == SUBS)
 
         apiClient.validatePurchase(validateReceiptRequest, adaptyCallback)
+    }
+
+    fun restore(purchases: ArrayList<RestoreItem>, adaptyCallback: AdaptyCallback? = null) {
+        var uuid = preferenceManager.profileID
+        if (uuid.isEmpty()) {
+            uuid = UUIDTimeBased.generateId().toString()
+            preferenceManager.profileID = uuid
+            preferenceManager.installationMetaID = uuid
+        }
+
+        val restoreReceiptRequest = RestoreReceiptRequest()
+        restoreReceiptRequest.data = DataRestoreReceiptReq()
+        restoreReceiptRequest.data?.type = "google_receipt_validation_result"
+        restoreReceiptRequest.data?.attributes = AttributeRestoreReceiptReq()
+        restoreReceiptRequest.data?.attributes?.profileId = uuid
+        restoreReceiptRequest.data?.attributes?.restoreItems = purchases
+
+        apiClient.restorePurchase(restoreReceiptRequest, adaptyCallback)
     }
 
     companion object Factory {

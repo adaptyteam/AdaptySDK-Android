@@ -1,5 +1,6 @@
 package com.adapty.api
 
+import com.adapty.api.responses.RestoreReceiptResponse
 import com.adapty.api.responses.ValidateReceiptResponse
 import com.android.billingclient.api.Purchase
 
@@ -16,7 +17,7 @@ interface AdaptySystemCallback : AdaptyCallback {
 
 interface AdaptyPurchaseCallback : AdaptyCallback {
 
-    fun onResult(response: Purchase?, error: String?)
+    fun onResult(purchase: Purchase?, response: ValidateReceiptResponse?, error: String?)
 
 }
 
@@ -28,7 +29,7 @@ interface AdaptyProfileCallback : AdaptyCallback {
 
 interface AdaptyRestoreCallback : AdaptyCallback {
 
-    fun onResult(error: String?)
+    fun onResult(response: RestoreReceiptResponse?, error: String?)
 
 }
 

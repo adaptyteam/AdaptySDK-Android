@@ -4,8 +4,8 @@ import com.adapty.api.entity.validate.DataRestoreReceiptRes
 import com.adapty.api.entity.validate.DataValidateReceiptRes
 import com.google.gson.annotations.SerializedName
 
-class ValidateReceiptResponse {
+class RestoreReceiptResponse {
     @SerializedName("data")
-    var data: DataValidateReceiptRes? = null
+    var data: DataRestoreReceiptRes? = null
 
 }

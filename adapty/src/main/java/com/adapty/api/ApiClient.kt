@@ -26,6 +26,7 @@ class ApiClient(private var context: Context) {
         const val UPDATE_PROFILE_REQ_ID = 1
         const val SYNC_META_REQ_ID = 2
         const val VALIDATE_PURCHASE_REQ_ID = 3
+        const val RESTORE_PURCHASE_REQ_ID = 4
         const val POST = "POST"
         const val PATCH = "PATCH"
         const val GET = "GET"
@@ -46,6 +47,11 @@ class ApiClient(private var context: Context) {
     fun validatePurchase(request: ValidateReceiptRequest, adaptyCallback : AdaptyCallback?) {
         post(generateUrl(VALIDATE_PURCHASE_REQ_ID), request, ValidateReceiptResponse(), VALIDATE_PURCHASE_REQ_ID, adaptyCallback)
     }
+
+    fun restorePurchase(request: RestoreReceiptRequest, adaptyCallback : AdaptyCallback?) {
+        post(generateUrl(RESTORE_PURCHASE_REQ_ID), request, RestoreReceiptResponse(), RESTORE_PURCHASE_REQ_ID, adaptyCallback)
+    }
+
     val gson = Gson()
 
     private fun request(type: String, url: String, request: Any, oresponse: Any?, reqID: Int, adaptyCallback : AdaptyCallback?) {
@@ -96,10 +102,11 @@ class ApiClient(private var context: Context) {
                     val inputStream = conn.inputStream
 
                     rString = toStringUtf8(inputStream)
+                    Log.e("Response $myUrl: ", rString)
 
                 } else {
                     rString = toStringUtf8(conn.errorStream)
-
+                    Log.e("Response $myUrl: ", rString)
                     fail("Request is unsuccessful. Response Code: $response", reqID, adaptyCallback)
                     return@Runnable
                 }
@@ -151,6 +158,9 @@ class ApiClient(private var context: Context) {
                         is AdaptyValidateCallback -> {
                             it.onResult((response as ValidateReceiptResponse), null)
                         }
+                        is AdaptyRestoreCallback -> {
+                            it.onResult((response as RestoreReceiptResponse), null)
+                        }
                     }
                 }
             }
@@ -173,6 +183,9 @@ class ApiClient(private var context: Context) {
                             it.onResult(error)
                         }
                         is AdaptyValidateCallback -> {
+                            it.onResult(null, error)
+                        }
+                        is AdaptyRestoreCallback -> {
                             it.onResult(null, error)
                         }
                     }
@@ -203,6 +216,8 @@ class ApiClient(private var context: Context) {
                 serverUrl + "sdk/analytics/profiles/" + preferenceManager.profileID + "/installation-metas/" + preferenceManager.installationMetaID + "/"
             VALIDATE_PURCHASE_REQ_ID ->
                 serverUrl + "sdk/in-apps/google/token/validate/"
+            RESTORE_PURCHASE_REQ_ID ->
+                serverUrl + "sdk/in-apps/google/token/restore/"
             else -> serverUrl
         }
     }
