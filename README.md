@@ -38,16 +38,15 @@ Add the following to `Application` class:
 ```Kotlin
 override fun onCreate() {
     super.onCreate()
-    Adapty.activate(сontext, "YOUR_APP_KEY", customerUserId: "YOUR_USER_ID")
+    Adapty.activate(сontext, "PUBLIC_SDK_KEY", customerUserId: "PUBLIC_SDK_KEY")
 }
 ```
-If your app doesn't have user IDs, you can use **`.activate("YOUR_APP_KEY")`** or pass null for the **`customerUserId`**. Anyway, you can update **`customerUserId`** later within user update request.
+If your app doesn't have user IDs, you can use **`.activate("PUBLIC_SDK_KEY")`** or pass null for the **`customerUserId`**. 
 
 ### Update customer profile
 
 ```Kotlin
 Adapty.updateProfile(
-    customerUserId: "<id-in-your-system>",
     email: "user@adapty.io",
     advertisingId: "###############",
     phoneNumber: "+1-###-###-####",
