@@ -79,7 +79,7 @@ Adapty.makePurchase(activity, purchaseType, productId) { purchaseData, response,
 ### Restore purchases
 
 ```Kotlin
-Adapty.restorePurchases(activity, purchasesType) { error ->
+Adapty.restorePurchases(activity) { response, error ->
     /* ... */
 }
 ```
@@ -87,7 +87,7 @@ Adapty.restorePurchases(activity, purchasesType) { error ->
 ### Validate your receipt
 
 ```Kotlin
-Adapty.validateReceipt(productId, purchaseToken) { response, error -> {
+Adapty.validatePurchases(productId, purchaseToken) { response, error -> {
    /* ... */
 }
 ```
