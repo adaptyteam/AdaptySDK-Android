@@ -68,6 +68,30 @@ class Adapty {
                 })
         }
 
+        fun identify(customerUserId: String?, adaptyCallback: (String?) -> Unit) {
+
+            ApiClientRepository.getInstance(preferenceManager)
+                .createProfile(customerUserId, object : AdaptySystemCallback {
+                    override fun success(response: Any?, reqID: Int) {
+                        if (response is CreateProfileResponse) {
+                            response.data?.attributes?.profileId?.let {
+                                preferenceManager.profileID = it
+                            }
+                            response.data?.attributes?.customerUserId?.let {
+                                preferenceManager.customerUserID = it
+                            }
+                        }
+
+                        adaptyCallback.invoke(null)
+                    }
+
+                    override fun fail(msg: String, reqID: Int) {
+                        adaptyCallback.invoke(msg)
+                    }
+
+                })
+        }
+
         fun updateProfile(
             customerUserId: String?,
             email: String?,
@@ -118,7 +142,7 @@ class Adapty {
             })
         }
 
-        fun restore(
+        fun restorePurchases (
             activity: Activity,
             adaptyCallback: (RestoreReceiptResponse?, String?) -> Unit
         ) {
@@ -149,6 +173,25 @@ class Adapty {
                             adaptyCallback.invoke(response, error)
                         }
                     })
+        }
+
+        fun logout(adaptyCallback: (String?) -> Unit) {
+            if (!::applicationContext.isInitialized) {
+                adaptyCallback.invoke("Adapty was not initialized")
+                return
+            }
+
+            if (!::preferenceManager.isInitialized) {
+                preferenceManager = PreferenceManager(applicationContext)
+            }
+
+            preferenceManager.customerUserID = ""
+            preferenceManager.installationMetaID = ""
+            preferenceManager.profileID = ""
+
+            adaptyCallback.invoke(null)
+
+            activate(applicationContext, preferenceManager.appKey)
         }
     }
 }

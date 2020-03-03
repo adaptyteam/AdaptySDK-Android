@@ -18,7 +18,7 @@ const val API_KEY_PREFIX = "Api-Key "
 
 class ApiClient(private var context: Context) {
 
-    private val serverUrl = "https://api-dev.adapty.io/api/v1/"
+    private val serverUrl = "https://api.adapty.io/api/v1"
     private val preferenceManager = PreferenceManager(context)
 
     companion object {
