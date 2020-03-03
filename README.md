@@ -25,7 +25,7 @@ Add dependency:
 
 ```Kotlin
 dependencies {
-    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.0'
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.1'
 }
 ```
 
@@ -79,15 +79,15 @@ Adapty.makePurchase(activity, purchaseType, productId) { purchaseData, response,
 ### Restore purchases
 
 ```Kotlin
-Adapty.restorePurchases(activity, purchasesType) { error ->
+Adapty.restorePurchases(activity) { response, error ->
     /* ... */
 }
 ```
 
-### Validate your receipt
+### Validate purchase
 
 ```Kotlin
-Adapty.validateReceipt(productId, purchaseToken) { response, error -> {
+Adapty.validatePurchases(productId, purchaseToken) { response, error -> {
    /* ... */
 }
 ```
