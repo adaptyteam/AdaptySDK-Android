@@ -25,7 +25,7 @@ Add dependency:
 
 ```Kotlin
 dependencies {
-    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.2'
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.4'
 }
 ```
 
@@ -61,7 +61,6 @@ Adapty.identify("YOUR_USER_ID") { error ->
 ```Kotlin
 Adapty.updateProfile(
     email: "user@adapty.io",
-    advertisingId: "###############",
     phoneNumber: "+1-###-###-####",
     facebookUserId: "###############",
     mixpanelUserId: "###############",
