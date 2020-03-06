@@ -25,7 +25,7 @@ Add dependency:
 
 ```Kotlin
 dependencies {
-    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.1'
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.2'
 }
 ```
 
@@ -42,6 +42,19 @@ override fun onCreate() {
 }
 ```
 If your app doesn't have user IDs, you can use **`.activate("PUBLIC_SDK_KEY")`** or pass null for the **`customerUserId`**. 
+Anyway, you can update **`customerUserId`** later within **`.identify()`** request.
+
+### Convert anonymous user to identifiable user
+
+If you don't have an customerUserId on instantiation, you can set it later at any time with the .identify() method. The most common cases are after registration, when a user switches from being an anonymous user (with a undefined customerUserId) to an authenticated user with some ID.
+
+```Kotlin
+Adapty.identify("YOUR_USER_ID") { error ->
+    if (error == null) {
+        // successful identify
+    }
+}
+```
 
 ### Update customer profile
 
@@ -87,8 +100,20 @@ Adapty.restorePurchases(activity) { response, error ->
 ### Validate purchase
 
 ```Kotlin
-Adapty.validatePurchases(productId, purchaseToken) { response, error -> {
+Adapty.validatePurchase(productId, purchaseToken) { response, error -> {
    /* ... */
+}
+```
+
+### Logout user
+
+Makes your user anonymous.
+
+```Kotlin
+Adapty.logout { error ->
+    if (error == null) {
+        // successful logout
+    }
 }
 ```
 
