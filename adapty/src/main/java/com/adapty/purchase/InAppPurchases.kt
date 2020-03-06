@@ -33,12 +33,38 @@ class InAppPurchases(
                     .setListener { billingResult, purchases ->
                         if (billingResult?.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
                             for (purchase in purchases) {
-                                Adapty.validatePurchase(
-                                    purchaseType,
-                                    purchase.sku,
-                                    purchase.purchaseToken
-                                ) { response, error ->
-                                    success(purchase, response, error)
+
+                                if (purchaseType == SUBS) {
+                                    val acknowledgePurchaseParams =
+                                        AcknowledgePurchaseParams.newBuilder()
+                                            .setPurchaseToken(purchase.purchaseToken)
+                                            .build()
+                                    billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingRes ->
+
+                                        Adapty.validatePurchase(
+                                            purchaseType,
+                                            purchase.sku,
+                                            purchase.purchaseToken
+                                        ) { response, error ->
+                                            success(purchase, response, error)
+                                        }
+                                    }
+                                } else {
+                                    val consumeParams = ConsumeParams.newBuilder()
+                                        .setPurchaseToken(purchase.purchaseToken)
+                                        .build()
+
+                                    billingClient.consumeAsync(
+                                        consumeParams
+                                    ) { p0, p1 ->
+                                        Adapty.validatePurchase(
+                                            purchaseType,
+                                            purchase.sku,
+                                            purchase.purchaseToken
+                                        ) { response, error ->
+                                            success(purchase, response, error)
+                                        }
+                                    }
                                 }
                             }
                         } else if (billingResult?.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {

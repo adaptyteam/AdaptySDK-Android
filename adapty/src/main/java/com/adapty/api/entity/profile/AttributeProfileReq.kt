@@ -48,4 +48,7 @@ open class AttributeProfileReq {
 
     @SerializedName("updatedAt")
     var updatedAt: Date? = null
+
+    @SerializedName("advertising_id")
+    var advertisingId: String? = null
 }
