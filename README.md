@@ -104,6 +104,9 @@ Adapty.validatePurchase(productId, purchaseToken) { response, error -> {
 }
 ```
 
+**`productId`** and **`purchaseToken`** are required and can't be empty.
+
+
 ### Logout user
 
 Makes your user anonymous.
@@ -115,6 +118,4 @@ Adapty.logout { error ->
     }
 }
 ```
-
-**`productId`** and **`purchaseToken`** are required and can't be empty.
 
