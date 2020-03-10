@@ -1,6 +1,5 @@
 package com.adapty.api
 
-import android.content.ContentValues.TAG
 import android.content.Context
 import android.os.Handler
 import android.util.Log
@@ -15,10 +14,11 @@ import java.net.URL
 
 const val AUTHORIZATION_KEY = "Authorization"
 const val API_KEY_PREFIX = "Api-Key "
+const val TAG = "[Adapty]"
 
 class ApiClient(private var context: Context) {
 
-    private val serverUrl = "https://api.adapty.io/api/v1"
+    private val serverUrl = "https://api.adapty.io/api/v1/"
     private val preferenceManager = PreferenceManager(context)
 
     companion object {
@@ -102,11 +102,11 @@ class ApiClient(private var context: Context) {
                     val inputStream = conn.inputStream
 
                     rString = toStringUtf8(inputStream)
-                    Log.e("Response $myUrl: ", rString)
+                    Log.e(TAG,"Response $myUrl: $rString")
 
                 } else {
                     rString = toStringUtf8(conn.errorStream)
-                    Log.e("Response $myUrl: ", rString)
+                    Log.e(TAG, "Response $myUrl: $rString")
                     fail("Request is unsuccessful. Response Code: $response", reqID, adaptyCallback)
                     return@Runnable
                 }
