@@ -3,16 +3,16 @@ package com.adapty.api.entity.syncmeta
 import com.google.gson.annotations.SerializedName
 
 open class AttributeSyncMetaReq {
-    @SerializedName("adaptySdkVersion")
+    @SerializedName("adapty_sdk_version")
     var adaptySdkVersion: String? = null
 
-    @SerializedName("adaptySdkVersionBuild")
+    @SerializedName("adapty_sdk_version_int")
     var adaptySdkVersionBuild: Int? = null
 
-    @SerializedName("appBuild")
+    @SerializedName("app_build")
     var appBuild: String? = null
 
-    @SerializedName("appVersion")
+    @SerializedName("app_version")
     var appVersion: String? = null
 
     @SerializedName("device")
@@ -30,27 +30,27 @@ open class AttributeSyncMetaReq {
     @SerializedName("timezone")
     var timezone: String? = null
 
-    @SerializedName("attributionNetwork")
+    @SerializedName("attribution_network")
     var attributionNetwork: String? = null
 
-    @SerializedName("attributionCampaign")
+    @SerializedName("attribution_campaign")
     var attributionCampaign: String? = null
 
-    @SerializedName("attributionTrackerToken")
+    @SerializedName("attribution_tracker_token")
     var attributionTrackerToken: String? = null
 
-    @SerializedName("attributionTrackerName")
+    @SerializedName("attribution_tracker_name")
     var attributionTrackerName: String? = null
 
-    @SerializedName("attributionAdgroup")
+    @SerializedName("attribution_adgroup")
     var attributionAdgroup: String? = null
 
-    @SerializedName("attributionCreative")
+    @SerializedName("attribution_creative")
     var attributionCreative: String? = null
 
-    @SerializedName("attributionClickLabel")
+    @SerializedName("attribution_click_label")
     var attributionClickLabel: String? = null
 
-    @SerializedName("attributionAdid")
+    @SerializedName("attribution_adid")
     var attributionAdid: String? = null
 }

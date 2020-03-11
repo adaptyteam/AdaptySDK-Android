@@ -6,36 +6,36 @@ class GoogleValidationResult {
     @SerializedName("kind")
     var kind: String? = null
 
-    @SerializedName("startTimeMillis")
+    @SerializedName("start_time_millis")
     var startTimeMillis: String? = null
 
-    @SerializedName("expiryTimeMillis")
+    @SerializedName("expiry_time_millis")
     var expiryTimeMillis: String? = null
 
-    @SerializedName("autoRenewing")
+    @SerializedName("auto_renewing")
     var autoRenewing: Boolean? = null
 
-    @SerializedName("priceCurrencyCode")
+    @SerializedName("price_currency_code")
     var priceCurrencyCode: String? = null
 
-    @SerializedName("priceAmountMicros")
+    @SerializedName("price_amount_micros")
     var priceAmountMicros: String? = null
 
-    @SerializedName("countryCode")
+    @SerializedName("country_code")
     var countryCode: String? = null
 
-    @SerializedName("developerPayload")
+    @SerializedName("developer_payload")
     var developerPayload: String? = null
 
-    @SerializedName("paymentState")
+    @SerializedName("payment_state")
     var paymentState: Int? = null
 
-    @SerializedName("orderId")
+    @SerializedName("order_id")
     var orderId: String? = null
 
-    @SerializedName("purchaseType")
+    @SerializedName("purchase_type")
     var purchaseType: Int? = null
 
-    @SerializedName("acknowledgementState")
+    @SerializedName("acknowledgement_state")
     var acknowledgementState: Int? = null
 }

@@ -3,39 +3,39 @@ package com.adapty.api.entity.syncmeta
 import com.google.gson.annotations.SerializedName
 
 open class AttributeSyncMetaRes : AttributeSyncMetaReq() {
-    @SerializedName("appId")
+    @SerializedName("app_id")
     var appId: String? = null
 
-    @SerializedName("profileId")
+    @SerializedName("profile_id")
     var profileId: String? = null
 
-    @SerializedName("adaptySdkVersionInt")
+    @SerializedName("adapty_sdk_version_int")
     var adaptySdkVersionInt: String? = null
 
-    @SerializedName("deviceToken")
+    @SerializedName("device_token")
     var deviceToken: String? = null
 
-    @SerializedName("cognitoId")
+    @SerializedName("cognito_id")
     var cognitoId: String? = null
 
-    @SerializedName("iamAccessKeyId")
+    @SerializedName("iam_access_key_id")
     var iamAccessKeyId: String? = null
 
-    @SerializedName("iamSecretKey")
+    @SerializedName("iam_secret_key")
     var iamSecretKey: String? = null
 
-    @SerializedName("iamSessionToken")
+    @SerializedName("iam_session_token")
     var iamSessionToken: String? = null
 
-    @SerializedName("iamExpiration")
+    @SerializedName("iam_expiration")
     var iamExpiration: String? = null
 
-    @SerializedName("lastActiveAt")
+    @SerializedName("last_active_at")
     var lastActiveAt: String? = null
 
-    @SerializedName("createdAt")
+    @SerializedName("created_at")
     var createdAt: String? = null
 
-    @SerializedName("updatedAt")
+    @SerializedName("updated_at")
     var updatedAt: String? = null
 }

@@ -39,7 +39,7 @@ object UUIDTimeBased {
         }
 
     fun generateId(): UUID {
-        return generateIdFromTimestamp(System.currentTimeMillis())
+        return UUID.randomUUID()
     }
 
     private fun generateIdFromTimestamp(currentTimeMillis: Long): UUID {

@@ -4,25 +4,25 @@ import com.google.gson.annotations.SerializedName
 import java.util.*
 
 open class AttributeProfileReq {
-    @SerializedName("customerUserId")
+    @SerializedName("customer_user_id")
     var customerUserId: String? = null
 
     @SerializedName("email")
     var email: String? = null
 
-    @SerializedName("phoneNumber")
+    @SerializedName("phone_number")
     var phoneNumber: String? = null
 
     @SerializedName("idfa")
     var idfa: String? = null
 
-    @SerializedName("facebookUserId")
+    @SerializedName("facebook_user_id")
     var facebookUserId: String? = null
 
-    @SerializedName("firstName")
+    @SerializedName("first_name")
     var firstName: String? = null
 
-    @SerializedName("lastName")
+    @SerializedName("last_name")
     var lastName: String? = null
 
     @SerializedName("gender")
@@ -31,22 +31,22 @@ open class AttributeProfileReq {
     @SerializedName("birthday")
     var birthday: String? = null
 
-    @SerializedName("appId")
+    @SerializedName("app_id")
     var appId: String? = null
 
-    @SerializedName("amplitudeUserId")
+    @SerializedName("amplitude_user_id")
     var amplitudeUserId: String? = null
 
-    @SerializedName("mixpanelUserId")
+    @SerializedName("mixpanel_user_id")
     var mixpanelUserId: String? = null
 
-    @SerializedName("cognitoId")
+    @SerializedName("cognito_id")
     var cognitoId: String? = null
 
-    @SerializedName("createdAt")
+    @SerializedName("created_at")
     var createdAt: Date? = null
 
-    @SerializedName("updatedAt")
+    @SerializedName("updated_at")
     var updatedAt: Date? = null
 
     @SerializedName("advertising_id")
