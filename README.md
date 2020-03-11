@@ -25,7 +25,7 @@ Add dependency:
 
 ```Kotlin
 dependencies {
-    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.6'
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.7'
 }
 ```
 
