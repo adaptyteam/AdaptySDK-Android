@@ -27,6 +27,7 @@ class ApiClient(private var context: Context) {
         const val SYNC_META_REQ_ID = 2
         const val VALIDATE_PURCHASE_REQ_ID = 3
         const val RESTORE_PURCHASE_REQ_ID = 4
+        const val GET_PROFILE_REQ_ID = 5
         const val POST = "POST"
         const val PATCH = "PATCH"
         const val GET = "GET"
@@ -38,6 +39,10 @@ class ApiClient(private var context: Context) {
 
     fun updateProfile(request: UpdateProfileRequest, adaptyCallback : AdaptyCallback?) {
         patch(generateUrl(UPDATE_PROFILE_REQ_ID), request, UpdateProfileResponse(), UPDATE_PROFILE_REQ_ID, adaptyCallback)
+    }
+
+    fun getProfile(request: PurchaserInfoRequest, adaptyCallback : AdaptyCallback?) {
+        get(generateUrl(UPDATE_PROFILE_REQ_ID), request, PurchaserInfoResponse(), UPDATE_PROFILE_REQ_ID, adaptyCallback)
     }
 
     fun syncMeta(request: SyncMetaInstallRequest, adaptyCallback : AdaptyCallback?) {
@@ -80,12 +85,14 @@ class ApiClient(private var context: Context) {
 
                 conn.doInput = true
 
-                val os = conn.outputStream
-                val writer = BufferedWriter(OutputStreamWriter(os, "UTF-8"))
-                writer.write(req)
-                writer.flush()
-                writer.close()
-                os.close()
+                if (type != GET) {
+                    val os = conn.outputStream
+                    val writer = BufferedWriter(OutputStreamWriter(os, "UTF-8"))
+                    writer.write(req)
+                    writer.flush()
+                    writer.close()
+                    os.close()
+                }
 
                 conn.connect()
 
@@ -143,6 +150,10 @@ class ApiClient(private var context: Context) {
         request(PATCH, url, request, oresponse, reqID, adaptyCallback)
     }
 
+    private fun get(url: String, request: Any, oresponse: Any?, reqID: Int, adaptyCallback : AdaptyCallback?) {
+        request(GET, url, request, oresponse, reqID, adaptyCallback)
+    }
+
     private fun success(response: Any?, reqID: Int, adaptyCallback : AdaptyCallback?) {
         try {
             val mainHandler = Handler(context.mainLooper)
@@ -160,6 +171,10 @@ class ApiClient(private var context: Context) {
                         }
                         is AdaptyRestoreCallback -> {
                             it.onResult((response as RestoreReceiptResponse), null)
+                        }
+                        is AdaptyPurchaserInfoCallback -> {
+                            val res = (response as PurchaserInfoResponse).data?.attributes
+                            it.onResult(res, null)
                         }
                     }
                 }
@@ -188,6 +203,9 @@ class ApiClient(private var context: Context) {
                         is AdaptyRestoreCallback -> {
                             it.onResult(null, error)
                         }
+                        is AdaptyPurchaserInfoCallback -> {
+                            it.onResult(null, error)
+                        }
                     }
                 }
             }
@@ -210,7 +228,7 @@ class ApiClient(private var context: Context) {
 
     private fun generateUrl(reqId: Int): String{
         return when (reqId) {
-            CREATE_PROFILE_REQ_ID, UPDATE_PROFILE_REQ_ID ->
+            CREATE_PROFILE_REQ_ID, UPDATE_PROFILE_REQ_ID, GET_PROFILE_REQ_ID ->
                 serverUrl + "sdk/analytics/profiles/" + preferenceManager.profileID + "/"
             SYNC_META_REQ_ID ->
                 serverUrl + "sdk/analytics/profiles/" + preferenceManager.profileID + "/installation-metas/" + preferenceManager.installationMetaID + "/"

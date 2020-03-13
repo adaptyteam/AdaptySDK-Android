@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.os.AsyncTask
 import android.util.Log
 import com.adapty.Adapty.Companion.applicationContext
+import com.adapty.api.entity.BaseData
 import com.adapty.api.entity.profile.AttributeProfileReq
 import com.adapty.api.entity.profile.DataProfileReq
 import com.adapty.api.entity.restore.RestoreItem
@@ -132,6 +133,22 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
                 }
             }
         task.execute()
+    }
+
+    fun getProfile(
+        adaptyCallback: AdaptyCallback
+    ) {
+        var uuid = preferenceManager.profileID
+        if (uuid.isEmpty()) {
+            uuid = UUIDTimeBased.generateId().toString()
+            preferenceManager.profileID = uuid
+        }
+
+        val purchaserInfoRequest = PurchaserInfoRequest()
+        purchaserInfoRequest.data = BaseData()
+        purchaserInfoRequest.data?.id = uuid
+
+        apiClient.getProfile(purchaserInfoRequest, adaptyCallback)
     }
 
     fun syncMetaInstall(adaptyCallback: AdaptyCallback? = null) {

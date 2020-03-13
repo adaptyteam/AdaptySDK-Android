@@ -3,6 +3,7 @@ package com.adapty
 import android.app.Activity
 import android.content.Context
 import com.adapty.api.*
+import com.adapty.api.entity.purchaserInfo.AttributePurchaserInfoRes
 import com.adapty.api.entity.restore.RestoreItem
 import com.adapty.utils.PreferenceManager
 import com.adapty.api.responses.CreateProfileResponse
@@ -48,6 +49,18 @@ class Adapty {
                     }
 
                 })
+        }
+
+        fun getPurchaserInfo(
+            adaptyCallback: (AttributePurchaserInfoRes?, String?) -> Unit
+        ) {
+            ApiClientRepository.getInstance(preferenceManager).getProfile(
+                object : AdaptyPurchaserInfoCallback {
+                    override fun onResult(response: AttributePurchaserInfoRes?, error: String?) {
+                        adaptyCallback.invoke(response, error)
+                    }
+                }
+            )
         }
 
         fun sendSyncMetaInstallRequest() {

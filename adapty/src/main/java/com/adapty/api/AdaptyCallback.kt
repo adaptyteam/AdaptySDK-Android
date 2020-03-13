@@ -1,5 +1,6 @@
 package com.adapty.api
 
+import com.adapty.api.entity.purchaserInfo.AttributePurchaserInfoRes
 import com.adapty.api.responses.RestoreReceiptResponse
 import com.adapty.api.responses.ValidateReceiptResponse
 import com.android.billingclient.api.Purchase
@@ -36,5 +37,11 @@ interface AdaptyRestoreCallback : AdaptyCallback {
 interface AdaptyValidateCallback : AdaptyCallback {
 
     fun onResult(response: ValidateReceiptResponse?, error: String?)
+
+}
+
+interface AdaptyPurchaserInfoCallback : AdaptyCallback {
+
+    fun onResult(response: AttributePurchaserInfoRes?, error: String?)
 
 }
