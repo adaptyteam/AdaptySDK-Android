@@ -188,6 +188,7 @@ Adapty.getPurchaserInfo { purchaserInfo, error ->
     
     }
 }
+```
 
 ### Logout user
 
