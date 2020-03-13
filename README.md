@@ -38,7 +38,7 @@ Add the following to `Application` class:
 ```Kotlin
 override fun onCreate() {
     super.onCreate()
-    Adapty.activate(сontext, "PUBLIC_SDK_KEY", customerUserId: "PUBLIC_SDK_KEY")
+    Adapty.activate(сontext, "PUBLIC_SDK_KEY", customerUserId: "YOUR_USER_ID")
 }
 ```
 If your app doesn't have user IDs, you can use **`.activate("PUBLIC_SDK_KEY")`** or pass null for the **`customerUserId`**. 
