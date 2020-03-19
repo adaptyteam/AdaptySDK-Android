@@ -44,10 +44,10 @@ open class AttributeProfileReq {
     var cognitoId: String? = null
 
     @SerializedName("created_at")
-    var createdAt: Date? = null
+    var createdAt: String? = null
 
     @SerializedName("updated_at")
-    var updatedAt: Date? = null
+    var updatedAt: String? = null
 
     @SerializedName("advertising_id")
     var advertisingId: String? = null

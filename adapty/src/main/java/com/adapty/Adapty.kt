@@ -21,10 +21,10 @@ class Adapty {
         lateinit var applicationContext: Context
         lateinit var preferenceManager: PreferenceManager
 
-        fun activate(applicationContext: Context, appKey: String) =
-            activate(applicationContext, appKey, null)
+        fun activate(applicationContext: Context, appKey: String, adaptyCallback: (String?) -> Unit) =
+            activate(applicationContext, appKey, null, adaptyCallback)
 
-        fun activate(applicationContext: Context, appKey: String, customerUserId: String?) {
+        fun activate(applicationContext: Context, appKey: String, customerUserId: String?, adaptyCallback: (String?) -> Unit) {
             this.applicationContext = applicationContext
             this.preferenceManager = PreferenceManager(applicationContext)
             this.preferenceManager.appKey = appKey
@@ -41,11 +41,13 @@ class Adapty {
                             }
                         }
 
-                        sendSyncMetaInstallRequest()
+                        adaptyCallback.invoke(null)
+
+                        sendSyncMetaInstallRequest(applicationContext)
                     }
 
                     override fun fail(msg: String, reqID: Int) {
-
+                        adaptyCallback.invoke(msg)
                     }
 
                 })
@@ -63,9 +65,9 @@ class Adapty {
             )
         }
 
-        fun sendSyncMetaInstallRequest() {
+        fun sendSyncMetaInstallRequest(applicationContext: Context) {
             ApiClientRepository.getInstance(preferenceManager)
-                .syncMetaInstall(object : AdaptySystemCallback {
+                .syncMetaInstall(applicationContext, object : AdaptySystemCallback {
                     override fun success(response: Any?, reqID: Int) {
                         if (response is SyncMetaInstallResponse) {
                             response.data?.id?.let {
@@ -202,9 +204,9 @@ class Adapty {
             preferenceManager.installationMetaID = ""
             preferenceManager.profileID = ""
 
-            adaptyCallback.invoke(null)
+//            adaptyCallback.invoke(null)
 
-            activate(applicationContext, preferenceManager.appKey)
+            activate(applicationContext, preferenceManager.appKey, adaptyCallback)
         }
     }
 }

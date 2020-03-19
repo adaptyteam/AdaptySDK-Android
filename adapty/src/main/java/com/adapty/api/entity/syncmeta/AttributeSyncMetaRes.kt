@@ -9,9 +9,6 @@ open class AttributeSyncMetaRes : AttributeSyncMetaReq() {
     @SerializedName("profile_id")
     var profileId: String? = null
 
-    @SerializedName("adapty_sdk_version_int")
-    var adaptySdkVersionInt: String? = null
-
     @SerializedName("device_token")
     var deviceToken: String? = null
 

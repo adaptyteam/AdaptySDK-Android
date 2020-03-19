@@ -6,7 +6,7 @@ open class AttributeSyncMetaReq {
     @SerializedName("adapty_sdk_version")
     var adaptySdkVersion: String? = null
 
-    @SerializedName("adapty_sdk_version_int")
+    @SerializedName("adapty_sdk_version_build")
     var adaptySdkVersionBuild: Int? = null
 
     @SerializedName("app_build")

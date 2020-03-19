@@ -1,13 +1,17 @@
 package com.adapty.api
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageInfo
 import android.os.AsyncTask
+import android.os.Build
 import android.util.Log
 import com.adapty.Adapty.Companion.applicationContext
 import com.adapty.api.entity.BaseData
 import com.adapty.api.entity.profile.AttributeProfileReq
 import com.adapty.api.entity.profile.DataProfileReq
 import com.adapty.api.entity.restore.RestoreItem
+import com.adapty.api.entity.syncmeta.AttributeSyncMetaReq
 import com.adapty.api.entity.syncmeta.DataSyncMetaReq
 import com.adapty.api.entity.validate.AttributeRestoreReceiptReq
 import com.adapty.api.entity.validate.AttributeValidateReceiptReq
@@ -15,15 +19,16 @@ import com.adapty.api.entity.validate.DataRestoreReceiptReq
 import com.adapty.api.entity.validate.DataValidateReceiptReq
 import com.adapty.api.requests.*
 import com.adapty.purchase.SUBS
-import com.adapty.utils.PreferenceManager
-import com.adapty.utils.UUIDTimeBased
+import com.adapty.utils.*
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures.addCallback
 import java.io.IOException
 import java.lang.Exception
+import java.util.*
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import kotlin.collections.ArrayList
 
 class ApiClientRepository(var preferenceManager: PreferenceManager) {
 
@@ -33,7 +38,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
 
         var uuid = preferenceManager.profileID
         if (uuid.isEmpty()) {
-            uuid = UUIDTimeBased.generateId().toString()
+            uuid = generateUuid().toString()
             preferenceManager.profileID = uuid
             preferenceManager.installationMetaID = uuid
         }
@@ -88,7 +93,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
 
         var uuid = preferenceManager.profileID
         if (uuid.isEmpty()) {
-            uuid = UUIDTimeBased.generateId().toString()
+            uuid = generateUuid().toString()
             preferenceManager.profileID = uuid
         }
 
@@ -140,7 +145,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
     ) {
         var uuid = preferenceManager.profileID
         if (uuid.isEmpty()) {
-            uuid = UUIDTimeBased.generateId().toString()
+            uuid = generateUuid().toString()
             preferenceManager.profileID = uuid
         }
 
@@ -151,11 +156,11 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         apiClient.getProfile(purchaserInfoRequest, adaptyCallback)
     }
 
-    fun syncMetaInstall(adaptyCallback: AdaptyCallback? = null) {
+    fun syncMetaInstall(applicationContext: Context, adaptyCallback: AdaptyCallback? = null) {
 
         var uuid = preferenceManager.profileID
         if (uuid.isEmpty()) {
-            uuid = UUIDTimeBased.generateId().toString()
+            uuid = generateUuid().toString()
             preferenceManager.profileID = uuid
             preferenceManager.installationMetaID = uuid
         }
@@ -164,6 +169,32 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         syncMetaRequest.data = DataSyncMetaReq()
         syncMetaRequest.data?.id = uuid
         syncMetaRequest.data?.type = "adapty_analytics_profile_installation_meta"
+        syncMetaRequest.data?.attributes = AttributeSyncMetaReq()
+        syncMetaRequest.data?.attributes?.apply {
+            adaptySdkVersion = com.adapty.BuildConfig.VERSION_NAME
+            adaptySdkVersionBuild = ADAPTY_SDK_VERSION_INT
+            try {
+                applicationContext.applicationContext?.let { ctx ->
+                    val mainPackageName = applicationContext.applicationContext?.packageName
+                    val packageInfo: PackageInfo =
+                        ctx.packageManager.getPackageInfo(mainPackageName, 0)
+                    val versionCode: Long =
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            packageInfo.longVersionCode
+                        } else {
+                            packageInfo.versionCode.toLong()
+                        }
+                    appBuild = versionCode.toString()
+                    appVersion = packageInfo.versionName
+                }
+            } catch (e : java.lang.Exception) { }
+
+            device = getDeviceName()
+            locale = Locale.getDefault().toLanguageTag()
+            os = getDeviceOsVersion()
+            platform = "Android"
+            timezone = TimeZone.getDefault().displayName
+        }
 
         apiClient.syncMeta(syncMetaRequest, adaptyCallback)
     }
@@ -176,7 +207,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
     ) {
         var uuid = preferenceManager.profileID
         if (uuid.isEmpty()) {
-            uuid = UUIDTimeBased.generateId().toString()
+            uuid = generateUuid().toString()
             preferenceManager.profileID = uuid
             preferenceManager.installationMetaID = uuid
         }
@@ -197,7 +228,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
     fun restore(purchases: ArrayList<RestoreItem>, adaptyCallback: AdaptyCallback? = null) {
         var uuid = preferenceManager.profileID
         if (uuid.isEmpty()) {
-            uuid = UUIDTimeBased.generateId().toString()
+            uuid = generateUuid().toString()
             preferenceManager.profileID = uuid
             preferenceManager.installationMetaID = uuid
         }
