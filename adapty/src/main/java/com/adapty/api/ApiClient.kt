@@ -3,9 +3,9 @@ package com.adapty.api
 import android.content.Context
 import android.os.Handler
 import android.util.Log
-import android.widget.Toast
 import com.adapty.api.requests.*
 import com.adapty.api.responses.*
+import com.adapty.utils.ADAPTY_SDK_VERSION_INT
 import com.adapty.utils.PreferenceManager
 import com.google.gson.Gson
 import java.io.*
@@ -15,6 +15,7 @@ import java.net.URL
 const val AUTHORIZATION_KEY = "Authorization"
 const val API_KEY_PREFIX = "Api-Key "
 const val TAG = "[Adapty]"
+const val TIMEOUT = 30 * 1000
 
 class ApiClient(private var context: Context) {
 
@@ -28,6 +29,7 @@ class ApiClient(private var context: Context) {
         const val VALIDATE_PURCHASE_REQ_ID = 3
         const val RESTORE_PURCHASE_REQ_ID = 4
         const val GET_PROFILE_REQ_ID = 5
+        const val GET_CONTAINERS_REQ_ID = 6
         const val POST = "POST"
         const val PATCH = "PATCH"
         const val GET = "GET"
@@ -42,7 +44,11 @@ class ApiClient(private var context: Context) {
     }
 
     fun getProfile(request: PurchaserInfoRequest, adaptyCallback : AdaptyCallback?) {
-        get(generateUrl(UPDATE_PROFILE_REQ_ID), request, PurchaserInfoResponse(), UPDATE_PROFILE_REQ_ID, adaptyCallback)
+        get(generateUrl(GET_PROFILE_REQ_ID), request, PurchaserInfoResponse(), GET_PROFILE_REQ_ID, adaptyCallback)
+    }
+
+    fun getPurchaseContainers(request: PurchaseContainersRequest, adaptyCallback : AdaptyCallback?) {
+        get(generateUrl(GET_CONTAINERS_REQ_ID), request, PurchaseContainersResponse(), GET_CONTAINERS_REQ_ID, adaptyCallback)
     }
 
     fun syncMeta(request: SyncMetaInstallRequest, adaptyCallback : AdaptyCallback?) {
@@ -73,14 +79,16 @@ class ApiClient(private var context: Context) {
 
                 val conn = myUrl.openConnection() as HttpURLConnection
 
-                conn.readTimeout = 10000 * 6
-                conn.connectTimeout = 15000 * 4
+                conn.readTimeout = TIMEOUT
+                conn.connectTimeout = TIMEOUT
                 conn.requestMethod = type
 
                 conn.setRequestProperty("Content-type", "application/vnd.api+json")
 
                 conn.setRequestProperty("ADAPTY-SDK-PROFILE-ID", preferenceManager.profileID)
                 conn.setRequestProperty("ADAPTY-SDK-PLATFORM", "Android")
+                conn.setRequestProperty("ADAPTY-SDK-VERSION", com.adapty.BuildConfig.VERSION_NAME)
+                conn.setRequestProperty("ADAPTY-SDK-VERSION-BUILD", ADAPTY_SDK_VERSION_INT.toString())
                 conn.setRequestProperty(AUTHORIZATION_KEY, API_KEY_PREFIX.plus(preferenceManager.appKey))
 
                 conn.doInput = true
@@ -109,12 +117,12 @@ class ApiClient(private var context: Context) {
                     val inputStream = conn.inputStream
 
                     rString = toStringUtf8(inputStream)
-                    Log.e(TAG,"Response $myUrl: $rString")
+                    Log.e(com.adapty.api.TAG,"Response $myUrl: $rString")
 
                 } else {
                     rString = toStringUtf8(conn.errorStream)
-                    Log.e(TAG, "Response $myUrl: $rString")
-                    fail("Request is unsuccessful. Response Code: $response", reqID, adaptyCallback)
+                    Log.e(com.adapty.api.TAG, "Response $myUrl: $rString")
+                    fail("Request is unsuccessful. Response Code: $response, Message: $rString", reqID, adaptyCallback)
                     return@Runnable
                 }
             } catch (e: Exception) {
@@ -176,12 +184,22 @@ class ApiClient(private var context: Context) {
                             val res = (response as PurchaserInfoResponse).data?.attributes
                             it.onResult(res, null)
                         }
+                        is AdaptyPurchaseContainersCallback -> {
+                            var data = (response as PurchaseContainersResponse).data
+                            if (data == null)
+                                data = arrayListOf()
+
+                            var meta = (response).meta?.products
+                            if (meta == null)
+                                meta = arrayListOf()
+                            it.onResult(data, meta, null)
+                        }
                     }
                 }
             }
             mainHandler.post(myRunnable)
         } catch (e: Exception) {
-            Log.e("$TAG success", e.localizedMessage)
+            Log.e("${com.adapty.api.TAG} success", e.localizedMessage)
         }
     }
 
@@ -206,12 +224,15 @@ class ApiClient(private var context: Context) {
                         is AdaptyPurchaserInfoCallback -> {
                             it.onResult(null, error)
                         }
+                        is AdaptyPurchaseContainersCallback -> {
+                            it.onResult(arrayListOf(), arrayListOf(), error)
+                        }
                     }
                 }
             }
             mainHandlerE.post(myRunnableE)
         } catch (e: Exception) {
-            Log.e("$TAG fail", e.localizedMessage)
+            Log.e("${com.adapty.api.TAG} fail", e.localizedMessage)
         }
     }
 
@@ -236,6 +257,8 @@ class ApiClient(private var context: Context) {
                 serverUrl + "sdk/in-apps/google/token/validate/"
             RESTORE_PURCHASE_REQ_ID ->
                 serverUrl + "sdk/in-apps/google/token/restore/"
+            GET_CONTAINERS_REQ_ID ->
+                serverUrl + "sdk/in-apps/purchase-containers/?profile_id=" + preferenceManager.profileID
             else -> serverUrl
         }
     }

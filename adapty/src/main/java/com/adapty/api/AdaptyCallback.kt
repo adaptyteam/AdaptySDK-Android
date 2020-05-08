@@ -1,5 +1,7 @@
 package com.adapty.api
 
+import com.adapty.api.entity.containers.DataContainer
+import com.adapty.api.entity.containers.Product
 import com.adapty.api.entity.purchaserInfo.AttributePurchaserInfoRes
 import com.adapty.api.responses.RestoreReceiptResponse
 import com.adapty.api.responses.ValidateReceiptResponse
@@ -43,5 +45,17 @@ interface AdaptyValidateCallback : AdaptyCallback {
 interface AdaptyPurchaserInfoCallback : AdaptyCallback {
 
     fun onResult(response: AttributePurchaserInfoRes?, error: String?)
+
+}
+
+interface AdaptyPurchaseContainersCallback : AdaptyCallback {
+
+    fun onResult(containers: ArrayList<DataContainer>, products: ArrayList<Product>, error: String?)
+
+}
+
+interface AdaptyPurchaseContainersInfoCallback : AdaptyCallback {
+
+    fun onResult(data: ArrayList<Any>, error: String?)
 
 }

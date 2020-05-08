@@ -5,9 +5,10 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import android.os.AsyncTask
 import android.os.Build
-import android.util.Log
-import com.adapty.Adapty.Companion.applicationContext
+import com.adapty.Adapty
+import com.adapty.Adapty.Companion.activity
 import com.adapty.api.entity.BaseData
+import com.adapty.api.entity.containers.Product
 import com.adapty.api.entity.profile.AttributeProfileReq
 import com.adapty.api.entity.profile.DataProfileReq
 import com.adapty.api.entity.restore.RestoreItem
@@ -21,18 +22,14 @@ import com.adapty.api.requests.*
 import com.adapty.purchase.SUBS
 import com.adapty.utils.*
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
-import com.google.common.util.concurrent.FutureCallback
-import com.google.common.util.concurrent.Futures.addCallback
-import java.io.IOException
-import java.lang.Exception
+import java.time.ZoneId
 import java.util.*
-import java.util.concurrent.Executor
-import java.util.concurrent.Executors
 import kotlin.collections.ArrayList
+
 
 class ApiClientRepository(var preferenceManager: PreferenceManager) {
 
-    private var apiClient = ApiClient(applicationContext)
+    private var apiClient = ApiClient(activity)
 
     fun createProfile(customerUserId: String?, adaptyCallback: AdaptyCallback) {
 
@@ -52,29 +49,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
             profileRequest.data?.attributes?.customerUserId = customerUserId
         }
 
-        val task: AsyncTask<Void?, Void?, String?> =
-            @SuppressLint("StaticFieldLeak")
-            object : AsyncTask<Void?, Void?, String?>() {
-
-                override fun doInBackground(vararg params: Void?): String? {
-                    var idInfo: AdvertisingIdClient.Info? = null
-                    var advertId: String? = null
-                    try {
-                        idInfo = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext)
-                        advertId = idInfo!!.id
-                    } catch (e: Exception) { }
-
-                    return advertId
-                }
-
-                override fun onPostExecute(advertId: String?) {
-                    if (advertId != null) {
-                        profileRequest.data?.attributes?.advertisingId = advertId
-                    }
-                    apiClient.createProfile(profileRequest, adaptyCallback)
-                }
-            }
-        task.execute()
+        apiClient.createProfile(profileRequest, adaptyCallback)
     }
 
     fun updateProfile(
@@ -84,6 +59,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         facebookUserId: String?,
         mixpanelUserId: String?,
         amplitudeUserId: String?,
+        appsflyerId: String?,
         firstName: String?,
         lastName: String?,
         gender: String?,
@@ -109,35 +85,14 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
             this.facebookUserId = facebookUserId
             this.mixpanelUserId = mixpanelUserId
             this.amplitudeUserId = amplitudeUserId
+            this.appsflyerId = appsflyerId
             this.firstName = firstName
             this.lastName = lastName
             this.gender = gender
             this.birthday = birthday
         }
 
-        val task: AsyncTask<Void?, Void?, String?> =
-            @SuppressLint("StaticFieldLeak")
-            object : AsyncTask<Void?, Void?, String?>() {
-
-                override fun doInBackground(vararg params: Void?): String? {
-                    var idInfo: AdvertisingIdClient.Info? = null
-                    var advertId: String? = null
-                    try {
-                        idInfo = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext)
-                        advertId = idInfo!!.id
-                    } catch (e: Exception) { }
-
-                    return advertId
-                }
-
-                override fun onPostExecute(advertId: String?) {
-                    if (advertId != null) {
-                        profileRequest.data?.attributes?.advertisingId = advertId
-                    }
-                    apiClient.updateProfile(profileRequest, adaptyCallback)
-                }
-            }
-        task.execute()
+        apiClient.updateProfile(profileRequest, adaptyCallback)
     }
 
     fun getProfile(
@@ -154,6 +109,22 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         purchaserInfoRequest.data?.id = uuid
 
         apiClient.getProfile(purchaserInfoRequest, adaptyCallback)
+    }
+
+    fun getPurchaseContainers(
+        adaptyCallback: AdaptyCallback
+    ) {
+        var uuid = preferenceManager.profileID
+        if (uuid.isEmpty()) {
+            uuid = generateUuid().toString()
+            preferenceManager.profileID = uuid
+        }
+
+        val request = PurchaseContainersRequest()
+        request.data = BaseData()
+        request.data?.id = uuid
+
+        apiClient.getPurchaseContainers(request, adaptyCallback)
     }
 
     fun syncMetaInstall(applicationContext: Context, adaptyCallback: AdaptyCallback? = null) {
@@ -193,16 +164,41 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
             locale = Locale.getDefault().toLanguageTag()
             os = getDeviceOsVersion()
             platform = "Android"
-            timezone = TimeZone.getDefault().displayName
+            timezone = TimeZone.getDefault().id
         }
 
-        apiClient.syncMeta(syncMetaRequest, adaptyCallback)
+        val task: AsyncTask<Void?, Void?, String?> =
+            @SuppressLint("StaticFieldLeak")
+            object : AsyncTask<Void?, Void?, String?>() {
+
+                override fun doInBackground(vararg params: Void?): String? {
+                    var idInfo: AdvertisingIdClient.Info? = null
+                    var advertId: String? = null
+                    try {
+                        idInfo = AdvertisingIdClient.getAdvertisingIdInfo(activity)
+                        advertId = idInfo!!.id
+                    } catch (e: Exception) { }
+
+                    return advertId
+                }
+
+                override fun onPostExecute(advertId: String?) {
+                    if (advertId != null) {
+                        syncMetaRequest.data?.attributes?.advertisingId = advertId
+                    }
+                    apiClient.syncMeta(syncMetaRequest, adaptyCallback)
+                }
+            }
+        task.execute()
+
     }
 
     fun validatePurchase(
         purchaseType: String,
         productId: String,
         purchaseToken: String,
+        purchaseOrderId: String?,
+        product: Product?,
         adaptyCallback: AdaptyCallback? = null
     ) {
         var uuid = preferenceManager.profileID
@@ -217,10 +213,23 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         validateReceiptRequest.data?.id = uuid
         validateReceiptRequest.data?.type = "google_receipt_validation_result"
         validateReceiptRequest.data?.attributes = AttributeValidateReceiptReq()
-        validateReceiptRequest.data?.attributes?.productId = productId
-        validateReceiptRequest.data?.attributes?.purchaseToken = purchaseToken
-        validateReceiptRequest.data?.attributes?.profileId = uuid
-        validateReceiptRequest.data?.attributes?.isSubscription = (purchaseType == SUBS)
+        validateReceiptRequest.data?.attributes?.apply {
+            profileId = uuid
+            this.productId = productId
+            this.purchaseToken = purchaseToken
+            isSubscription = (purchaseType == SUBS)
+
+            purchaseOrderId?.let {
+                transactionId = it
+            }
+
+            product?.let { p ->
+                variationId = p.variationId
+                priceLocale = p.currencyCode
+                originalPrice = p.price
+            }
+        }
+
 
         apiClient.validatePurchase(validateReceiptRequest, adaptyCallback)
     }

@@ -37,6 +37,9 @@ open class AttributeProfileReq {
     @SerializedName("amplitude_user_id")
     var amplitudeUserId: String? = null
 
+    @SerializedName("appsflyer_id")
+    var appsflyerId: String? = null
+
     @SerializedName("mixpanel_user_id")
     var mixpanelUserId: String? = null
 
@@ -49,6 +52,4 @@ open class AttributeProfileReq {
     @SerializedName("updated_at")
     var updatedAt: String? = null
 
-    @SerializedName("advertising_id")
-    var advertisingId: String? = null
 }

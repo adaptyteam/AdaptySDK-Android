@@ -53,4 +53,7 @@ open class AttributeSyncMetaReq {
 
     @SerializedName("attribution_adid")
     var attributionAdid: String? = null
+
+    @SerializedName("advertising_id")
+    var advertisingId: String? = null
 }

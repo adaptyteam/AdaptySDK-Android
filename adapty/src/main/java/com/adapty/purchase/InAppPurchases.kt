@@ -6,6 +6,7 @@ import com.adapty.api.AdaptyCallback
 import com.adapty.api.AdaptyPurchaseCallback
 import com.adapty.api.AdaptyRestoreCallback
 import com.adapty.api.ApiClientRepository
+import com.adapty.api.entity.containers.Product
 import com.adapty.api.entity.restore.RestoreItem
 import com.adapty.api.responses.RestoreReceiptResponse
 import com.adapty.api.responses.ValidateReceiptResponse
@@ -14,19 +15,20 @@ import com.android.billingclient.api.*
 class InAppPurchases(
     var activity: Activity,
     var isRestore: Boolean,
-    var purchaseType: String,
-    chosenPurchase: String,
+    var product: Product,
+    var variationId: String?,
     var apiClientRepository: ApiClientRepository?,
     var adaptyCallback: AdaptyCallback
 ) {
 
     private lateinit var billingClient: BillingClient
+    private var purchaseType = product.skuDetails?.type
 
     init {
-        setupBilling(chosenPurchase)
+        setupBilling(product.vendorProductId)
     }
 
-    private fun setupBilling(chosenPurchase: String) {
+    private fun setupBilling(chosenPurchase: String?) {
         if (!::billingClient.isInitialized) {
             billingClient =
                 BillingClient.newBuilder(activity).enablePendingPurchases()
@@ -40,16 +42,20 @@ class InAppPurchases(
                                             .setPurchaseToken(purchase.purchaseToken)
                                             .build()
                                     billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingRes ->
+                                        if (!variationId.isNullOrEmpty())
+                                            product.variationId
 
                                         Adapty.validatePurchase(
-                                            purchaseType,
+                                            purchaseType!!,
                                             purchase.sku,
-                                            purchase.purchaseToken
+                                            purchase.purchaseToken,
+                                            purchase.orderId,
+                                            product
                                         ) { response, error ->
                                             success(purchase, response, error)
                                         }
                                     }
-                                } else {
+                                } else if (purchaseType == INAPP) {
                                     val consumeParams = ConsumeParams.newBuilder()
                                         .setPurchaseToken(purchase.purchaseToken)
                                         .build()
@@ -57,14 +63,22 @@ class InAppPurchases(
                                     billingClient.consumeAsync(
                                         consumeParams
                                     ) { p0, p1 ->
+
+                                        if (!variationId.isNullOrEmpty())
+                                            product.variationId
+
                                         Adapty.validatePurchase(
-                                            purchaseType,
+                                            purchaseType!!,
                                             purchase.sku,
-                                            purchase.purchaseToken
+                                            p1,
+                                            purchase.orderId,
+                                            product
                                         ) { response, error ->
                                             success(purchase, response, error)
                                         }
                                     }
+                                } else if (purchaseType == null) {
+                                    fail("Product type is null")
                                 }
                             }
                         } else if (billingResult?.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
@@ -76,18 +90,30 @@ class InAppPurchases(
                     .build()
         }
         if (billingClient.isReady) {
-            if (isRestore) queryPurchaseHistory(SUBS) else querySkuDetails(
-                chosenPurchase,
-                purchaseType
-            )
+            if (isRestore) queryPurchaseHistory(SUBS) else {
+                if (chosenPurchase == null) {
+                    fail("Product Id is null")
+                    return
+                }
+                querySkuDetails(
+                    chosenPurchase,
+                    purchaseType
+                )
+            }
         } else {
             billingClient.startConnection(object : BillingClientStateListener {
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                        if (isRestore) queryPurchaseHistory(SUBS) else querySkuDetails(
-                            chosenPurchase,
-                            purchaseType
-                        )
+                        if (isRestore) queryPurchaseHistory(SUBS) else {
+                            if (chosenPurchase == null) {
+                                fail("Product Id is null")
+                                return
+                            }
+                            querySkuDetails(
+                                chosenPurchase,
+                                purchaseType
+                            )
+                        }
                     }
                 }
 
@@ -98,7 +124,11 @@ class InAppPurchases(
         }
     }
 
-    fun querySkuDetails(chosenPurchase: String, type: String) {
+    fun querySkuDetails(chosenPurchase: String, type: String?) {
+        if (type == null) {
+            fail("Product type is null")
+            return
+        }
         billingClient.querySkuDetailsAsync(
             getSkuList(
                 chosenPurchase,

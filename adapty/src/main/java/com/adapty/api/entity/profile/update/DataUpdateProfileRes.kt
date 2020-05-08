@@ -1,10 +1,11 @@
-package com.adapty.api.entity.profile
+package com.adapty.api.entity.profile.update
 
 import com.adapty.api.entity.BaseData
+import com.adapty.api.entity.profile.AttributeProfileRes
 import com.adapty.api.entity.purchaserInfo.AttributePurchaserInfoRes
 import com.google.gson.annotations.SerializedName
 
-class DataProfileRes : BaseData() {
+class DataUpdateProfileRes : BaseData() {
     @SerializedName("attributes")
-    var attributes: AttributePurchaserInfoRes? = null
+    var attributes: AttributeProfileRes? = null
 }

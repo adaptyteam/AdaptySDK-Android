@@ -2,9 +2,12 @@ package com.adapty.api.entity.purchaserInfo
 
 import com.google.gson.annotations.SerializedName
 
-class AttributePurchaserInfoRes {
+open class AttributePurchaserInfoRes {
     @SerializedName("app_id")
     var appId: String? = null
+
+    @SerializedName("profile_id")
+    var profileId: String? = null
 
     @SerializedName("customer_user_id")
     var customerUserId: String? = null
@@ -30,12 +33,6 @@ class AttributePurchaserInfoRes {
     @SerializedName("mixpanel_user_id")
     var mixpanelUserId: String? = null
 
-    @SerializedName("promotional_offer_eligibility")
-    var promotionalOfferEligibility: Boolean? = null
-
-    @SerializedName("introductory_offer_eligibility")
-    var introductoryOfferEligibility: Boolean? = null
-
     @SerializedName("cognito_id")
     var cognitoId: String? = null
 
@@ -59,5 +56,4 @@ class AttributePurchaserInfoRes {
 
     @SerializedName("non_subscriptions")
     var nonSubscriptions: HashMap<String, ArrayList<NonSubscriptionsPurchaserInfoRes>>? = null
-
 }

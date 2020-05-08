@@ -29,4 +29,7 @@ open class AttributeValidateReceiptReq {
 
     @SerializedName("purchase_token")
     var purchaseToken: String? = null
+
+    @SerializedName("transaction_id")
+    var transactionId: String? = null
 }
