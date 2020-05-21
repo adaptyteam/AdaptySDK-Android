@@ -25,7 +25,7 @@ Add dependency:
 
 ```Kotlin
 dependencies {
-    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.1.9'
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.2.0'
 }
 ```
 
@@ -33,12 +33,12 @@ dependencies {
 
 ### Configure your app
 
-Add the following to `Application` class:
+Add the following to `Activity`:
 
 ```Kotlin
 override fun onCreate() {
     super.onCreate()
-    Adapty.activate(сontext, "PUBLIC_SDK_KEY", customerUserId: "YOUR_USER_ID")
+    Adapty.activate(activity, "PUBLIC_SDK_KEY", customerUserId: "YOUR_USER_ID")
 }
 ```
 If your app doesn't have user IDs, you can use **`.activate("PUBLIC_SDK_KEY")`** or pass null for the **`customerUserId`**. 
@@ -76,6 +76,15 @@ Adapty.updateProfile(
 
 All properties are optional.  
 For **`gender`** possible values are: **`m`**, **`f`**, but you can also pass custom string value.
+
+### Get purchase containers (paywalls)
+
+```Kotlin
+Adapty.getPurchaseContainers(activity) { containers, products, state, error ->
+    // if error is empty, containers should contain info about your paywalls, products contains info about all your products
+}
+For state possible values are: cached, synced. First means that data was taken from local cache, second means that data was updated from remote server.
+```
 
 ### Make purchase
 
@@ -188,6 +197,16 @@ Adapty.getPurchaserInfo { purchaserInfo, error ->
     
     }
 }
+```
+
+### Listening for purchaser info updates
+You can respond to any changes in purchaser info by conforming to an optional delegate method, didReceivePurchaserInfo. This will fire whenever we receive a change in purchaser info.
+```Kotlin
+Adapty.setOnPurchaserInfoUpdatedListener(object : OnPurchaserInfoUpdatedListener {
+            override fun didReceiveUpdatedPurchaserInfo(purchaserInfo: PurchaserInfoModel) {
+                // handle any changes to purchaserInfo
+            }
+        })
 ```
 
 ### Logout user
