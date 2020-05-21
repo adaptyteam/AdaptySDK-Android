@@ -25,7 +25,7 @@ Add dependency:
 
 ```Kotlin
 dependencies {
-    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.2.0'
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.2.1'
 }
 ```
 
@@ -33,12 +33,12 @@ dependencies {
 
 ### Configure your app
 
-Add the following to `Activity`:
+Add the following to your `Application` class:
 
 ```Kotlin
 override fun onCreate() {
     super.onCreate()
-    Adapty.activate(activity, "PUBLIC_SDK_KEY", customerUserId: "YOUR_USER_ID")
+    Adapty.activate(applicationContext, "PUBLIC_SDK_KEY", customerUserId: "YOUR_USER_ID")
 }
 ```
 If your app doesn't have user IDs, you can use **`.activate("PUBLIC_SDK_KEY")`** or pass null for the **`customerUserId`**. 
@@ -54,6 +54,15 @@ Adapty.identify("YOUR_USER_ID") { error ->
         // successful identify
     }
 }
+```
+
+### Observer mode
+In some cases, if you have already built a functioning subscription system, it may not be possible or feasible to use the Adapty SDK to make purchases. However, you can still use the SDK to get access to the data.
+
+To do so, at any purchase or restore in your application, you need to call the .syncPurchases() method to record the action in Adapty
+
+```Kotlin
+Adapty.syncPurchases()
 ```
 
 ### Update customer profile
