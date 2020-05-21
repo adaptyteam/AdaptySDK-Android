@@ -1,20 +1,25 @@
 package com.adapty.purchase
 
 import android.app.Activity
+import android.content.Context
 import com.adapty.Adapty
 import com.adapty.api.AdaptyCallback
 import com.adapty.api.AdaptyPurchaseCallback
 import com.adapty.api.AdaptyRestoreCallback
 import com.adapty.api.ApiClientRepository
+import com.adapty.api.entity.containers.DataContainer
 import com.adapty.api.entity.containers.Product
 import com.adapty.api.entity.restore.RestoreItem
 import com.adapty.api.responses.RestoreReceiptResponse
 import com.adapty.api.responses.ValidateReceiptResponse
+import com.adapty.utils.PreferenceManager
 import com.android.billingclient.api.*
 
 class InAppPurchases(
-    var activity: Activity,
+    var context: Context,
+    var activity: Activity?,
     var isRestore: Boolean,
+    var preferenceManager: PreferenceManager,
     var product: Product,
     var variationId: String?,
     var apiClientRepository: ApiClientRepository?,
@@ -31,7 +36,7 @@ class InAppPurchases(
     private fun setupBilling(chosenPurchase: String?) {
         if (!::billingClient.isInitialized) {
             billingClient =
-                BillingClient.newBuilder(activity).enablePendingPurchases()
+                BillingClient.newBuilder(context).enablePendingPurchases()
                     .setListener { billingResult, purchases ->
                         if (billingResult?.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
                             for (purchase in purchases) {
@@ -42,6 +47,9 @@ class InAppPurchases(
                                             .setPurchaseToken(purchase.purchaseToken)
                                             .build()
                                     billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingRes ->
+
+//                                        product.transactionId = purchase.orderId
+//                                        product.purchaseToken = purchase.purchaseToken
                                         if (!variationId.isNullOrEmpty())
                                             product.variationId
 
@@ -64,6 +72,8 @@ class InAppPurchases(
                                         consumeParams
                                     ) { p0, p1 ->
 
+//                                        product.transactionId = purchase.orderId
+//                                        product.purchaseToken = p1
                                         if (!variationId.isNullOrEmpty())
                                             product.variationId
 
@@ -171,7 +181,8 @@ class InAppPurchases(
                     if (type == INAPP) {
                         if (historyPurchases.isEmpty()) {
                             fail("You have no purchases")
-                        } else
+                        } else {
+                            fillProductInfoFromCache()
                             apiClientRepository?.restore(
                                 historyPurchases, object : AdaptyRestoreCallback {
                                     override fun onResult(
@@ -186,6 +197,7 @@ class InAppPurchases(
                                         fail(error)
                                     }
                                 })
+                        }
                     } else
                         queryPurchaseHistory(INAPP)
                 } else {
@@ -202,7 +214,8 @@ class InAppPurchases(
                     else {
                         if (historyPurchases.isEmpty())
                             fail("You have no purchases")
-                        else
+                        else {
+                            fillProductInfoFromCache()
                             apiClientRepository?.restore(
                                 historyPurchases, object : AdaptyRestoreCallback {
                                     override fun onResult(
@@ -217,11 +230,46 @@ class InAppPurchases(
                                         fail(error)
                                     }
                                 })
+                        }
                     }
                 }
             } else
                 fail("Unavailable")
         }
+    }
+
+    private fun fillProductInfoFromCache() {
+        for (i in 0 until historyPurchases.size) {
+            historyPurchases[i].productId?.let { productId ->
+                val containers = preferenceManager.containers
+                val products = preferenceManager.products
+                val product = getElementFromContainers(containers, products, productId)
+
+                product?.let { p ->
+                    historyPurchases[i].setDetails(product.skuDetails)
+                    historyPurchases[i].localizedTitle = product.localizedTitle
+                }
+            }
+        }
+    }
+
+    private fun getElementFromContainers(containers: ArrayList<DataContainer>?, prods: ArrayList<Product>, id: String) : Product? {
+        containers?.let {
+            for (i in 0 until containers.size) {
+                containers[i].attributes?.products?.let { products ->
+                    for (p in products) {
+                        if (p.vendorProductId.equals(id)) {
+                            return p
+                        }
+                    }
+                }
+            }
+        }
+        for (i in 0 until prods.size) {
+            if (prods[i].vendorProductId.equals(id))
+                return prods[i]
+        }
+        return null
     }
 
 

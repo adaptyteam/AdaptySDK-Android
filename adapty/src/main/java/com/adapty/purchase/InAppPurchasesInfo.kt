@@ -1,6 +1,7 @@
 package com.adapty.purchase
 
 import android.app.Activity
+import android.content.Context
 import com.adapty.api.AdaptyPurchaseContainersInfoCallback
 import com.adapty.api.entity.containers.DataContainer
 import com.adapty.api.entity.containers.Product
@@ -11,7 +12,7 @@ import java.util.regex.Pattern
 
 
 class InAppPurchasesInfo(
-    var activity: Activity,
+    var context: Context,
     var purchases: ArrayList<Any>,
     var callback: AdaptyPurchaseContainersInfoCallback
 ) {
@@ -36,7 +37,7 @@ class InAppPurchasesInfo(
     private fun setupBilling(data: Any) {
         if (!::billingClient.isInitialized) {
             billingClient =
-                BillingClient.newBuilder(activity).enablePendingPurchases()
+                BillingClient.newBuilder(context).enablePendingPurchases()
                     .setListener { _, _ -> }
                     .build()
         }
@@ -89,7 +90,7 @@ class InAppPurchasesInfo(
                     for (p in prods) {
                         p.vendorProductId?.let { id ->
                             if (sku == id) {
-                                p.skuDetails = skuDetails
+                                p.setDetails(skuDetails)
                                 p.variationId = data.attributes?.variationId
                             }
                         }
@@ -99,7 +100,7 @@ class InAppPurchasesInfo(
                 for (p in (data as ArrayList<Product>)) {
                     p.vendorProductId?.let { id ->
                         if (sku == id) {
-                            p.skuDetails = skuDetails
+                            p.setDetails(skuDetails)
                         }
                     }
                 }

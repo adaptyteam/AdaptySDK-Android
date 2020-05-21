@@ -13,29 +13,19 @@ class Product {
     @SerializedName("title")
     var localizedTitle: String? = null
 
-    val localizedDescription: String?
-        get() = skuDetails?.description
+    @SerializedName("localizedDescription")
+    var localizedDescription: String? = null
 
     var variationId: String? = null
 
-    val price: String?
-        get() {
-            skuDetails?.let {
-                return formatPrice(it.price, it.priceCurrencyCode)
-            }
-            return null
-        }
+    @SerializedName("price")
+    var price: String? = null
 
-    val currencyCode: String?
-        get() = skuDetails?.priceCurrencyCode
+    @SerializedName("currencyCode")
+    var currencyCode: String? = null
 
-    val subscriptionPeriod: ProductSubscriptionPeriodModel?
-        get() {
-            skuDetails?.let {
-                return ProductSubscriptionPeriodModel(it.subscriptionPeriod)
-            }
-            return null
-        }
+    @SerializedName("subscriptionPeriod")
+    var subscriptionPeriod: Product.ProductSubscriptionPeriodModel? = null
 
     var skuDetails: SkuDetails? = null
 
@@ -57,5 +47,15 @@ class Product {
         W("week"),
         M("month"),
         Y("year")
+    }
+
+    fun setDetails(sd: SkuDetails?) {
+        sd?.let {
+            this.skuDetails = it
+            this.localizedDescription = it.description
+            this.price = formatPrice(it.price, it.priceCurrencyCode)
+            this.currencyCode = it.priceCurrencyCode
+            this.subscriptionPeriod = Product.ProductSubscriptionPeriodModel(it.subscriptionPeriod)
+        }
     }
 }

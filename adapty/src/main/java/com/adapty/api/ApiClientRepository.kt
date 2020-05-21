@@ -6,7 +6,7 @@ import android.content.pm.PackageInfo
 import android.os.AsyncTask
 import android.os.Build
 import com.adapty.Adapty
-import com.adapty.Adapty.Companion.activity
+import com.adapty.Adapty.Companion.context
 import com.adapty.api.entity.BaseData
 import com.adapty.api.entity.containers.Product
 import com.adapty.api.entity.profile.AttributeProfileReq
@@ -29,7 +29,7 @@ import kotlin.collections.ArrayList
 
 class ApiClientRepository(var preferenceManager: PreferenceManager) {
 
-    private var apiClient = ApiClient(activity)
+    private var apiClient = ApiClient(context)
 
     fun createProfile(customerUserId: String?, adaptyCallback: AdaptyCallback) {
 
@@ -175,7 +175,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
                     var idInfo: AdvertisingIdClient.Info? = null
                     var advertId: String? = null
                     try {
-                        idInfo = AdvertisingIdClient.getAdvertisingIdInfo(activity)
+                        idInfo = AdvertisingIdClient.getAdvertisingIdInfo(context)
                         advertId = idInfo!!.id
                     } catch (e: Exception) { }
 

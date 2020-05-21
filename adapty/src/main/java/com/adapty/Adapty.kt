@@ -25,44 +25,48 @@ import kotlin.collections.ArrayList
 class Adapty {
 
     companion object {
-        lateinit var activity: Activity
+        lateinit var context: Context
         private lateinit var preferenceManager: PreferenceManager
         private var onPurchaserInfoUpdatedListener: OnPurchaserInfoUpdatedListener? = null
-        private var isContainersRequestActive = false
-        private var onPurchaseContainersQueueCallback: ((containers: ArrayList<DataContainer>, products: ArrayList<Product>, state: String, error: String?) -> Unit)? =
-            null
         private var requestQueue: ArrayList<() -> Unit> = arrayListOf()
 
         fun activate(
-            activity: Activity,
-            appKey: String,
-            adaptyCallback: (String?) -> Unit
+            context: Context,
+            appKey: String
         ) =
-            activate(activity, appKey, null, adaptyCallback)
+            activate(context, appKey, null, null)
 
         fun activate(
-            activity: Activity,
+            context: Context,
+            appKey: String,
+            customerUserId: String?
+        ) {
+            activate(context, appKey, customerUserId, null)
+        }
+
+        private fun activate(
+            context: Context,
             appKey: String,
             customerUserId: String?,
-            adaptyCallback: (String?) -> Unit
+            adaptyCallback: ((String?) -> Unit)?
         ) {
-            this.activity = activity
-            this.preferenceManager = PreferenceManager(this.activity)
+            this.context = context
+            this.preferenceManager = PreferenceManager(this.context)
             this.preferenceManager.appKey = appKey
 
             addToQueue {
-                activateInQueue(activity, appKey, customerUserId, adaptyCallback)
+                activateInQueue(context, appKey, customerUserId, adaptyCallback)
             }
         }
 
         private fun activateInQueue(
-            activity: Activity,
+            context: Context,
             appKey: String,
             customerUserId: String?,
-            adaptyCallback: (String?) -> Unit
+            adaptyCallback: ((String?) -> Unit)?
         ) {
-            this.activity = activity
-            this.preferenceManager = PreferenceManager(this.activity)
+            this.context = context
+            this.preferenceManager = PreferenceManager(this.context)
             this.preferenceManager.appKey = appKey
 
             if (preferenceManager.profileID.isEmpty()) {
@@ -83,18 +87,20 @@ class Adapty {
                                 }
                             }
 
-                            adaptyCallback.invoke(null)
+                            adaptyCallback?.invoke(null)
 
                             nextQueue()
 
-                            getStartedPurchaseContainers(activity)
+                            getStartedPurchaseContainers(context)
 
-                            sendSyncMetaInstallRequest(Companion.activity)
+                            sendSyncMetaInstallRequest(context)
+
+                            syncPurchasesBody(Companion.context, null)
 
                         }
 
                         override fun fail(msg: String, reqID: Int) {
-                            adaptyCallback.invoke(msg)
+                            adaptyCallback?.invoke(msg)
                             nextQueue()
                         }
                     })
@@ -118,14 +124,14 @@ class Adapty {
                 requestQueue[0].invoke()
         }
 
-        private fun makeStartRequests(adaptyCallback: (String?) -> Unit) {
-            sendSyncMetaInstallRequest(activity)
+        private fun makeStartRequests(adaptyCallback: ((String?) -> Unit)?) {
+            sendSyncMetaInstallRequest(context)
 
-            getStartedPurchaseContainers(activity)
+            getStartedPurchaseContainers(context)
 
             getPurchaserInfo(false) { info, state, error ->
                 if (state == "cached") {
-                    adaptyCallback.invoke(error)
+                    adaptyCallback?.invoke(error)
                     nextQueue()
                     return@getPurchaserInfo
                 }
@@ -135,9 +141,11 @@ class Adapty {
                         onPurchaserInfoUpdatedListener?.didReceiveUpdatedPurchaserInfo(it)
                     }
             }
+
+            syncPurchasesBody(context, null)
         }
 
-        private fun checkChangesPurchaserInfo(res: AttributePurchaserInfoRes) {
+        fun checkChangesPurchaserInfo(res: AttributePurchaserInfoRes) {
             val purchaserInfo = generatePurchaserInfoModel(res)
             if (isPurchaserInfoChanged(purchaserInfo)) {
                 onPurchaserInfoUpdatedListener?.didReceiveUpdatedPurchaserInfo(purchaserInfo)
@@ -174,7 +182,7 @@ class Adapty {
                     }
 
                     override fun fail(msg: String, reqID: Int) {
-
+                        Log.e("Adapty SyncMeta", "")
                     }
 
                 })
@@ -216,9 +224,11 @@ class Adapty {
                         preferenceManager.products = arrayListOf()
                         preferenceManager.containers = null
 
-                        getStartedPurchaseContainers(activity)
+                        getStartedPurchaseContainers(context)
 
-                        sendSyncMetaInstallRequest(activity)
+                        sendSyncMetaInstallRequest(context)
+
+                        syncPurchasesBody(context, null)
                     }
 
                     override fun fail(msg: String, reqID: Int) {
@@ -301,8 +311,8 @@ class Adapty {
             addToQueue { getPurchaserInfo(true, adaptyCallback) }
         }
 
-        private fun getStartedPurchaseContainers(activity: Activity) {
-            getPurchaseContainersInQueue(activity, false) { containers, products, state, error -> }
+        private fun getStartedPurchaseContainers(context: Context) {
+            getPurchaseContainersInQueue(context, false) { containers, products, state, error -> }
         }
 
         fun getPurchaseContainers(
@@ -315,7 +325,7 @@ class Adapty {
         }
 
         private fun getPurchaseContainersInQueue(
-            activity: Activity,
+            context: Context,
             needQueue: Boolean,
             adaptyCallback: (containers: ArrayList<DataContainer>, products: ArrayList<Product>, state: String, error: String?) -> Unit
         ) {
@@ -367,7 +377,7 @@ class Adapty {
                             data.add(products)
 
                         InAppPurchasesInfo(
-                            activity,
+                            context,
                             data,
                             object : AdaptyPurchaseContainersInfoCallback {
                                 override fun onResult(data: ArrayList<Any>, error: String?) {
@@ -426,8 +436,10 @@ class Adapty {
         ) {
             addToQueue {
                 InAppPurchases(
+                    context,
                     activity,
                     false,
+                    preferenceManager,
                     product,
                     variationId,
                     null,
@@ -444,6 +456,36 @@ class Adapty {
             }
         }
 
+        fun syncPurchases() {
+            addToQueue {
+                syncPurchasesBody(context, null)
+            }
+        }
+
+        private fun syncPurchasesBody(
+            context: Context,
+            adaptyCallback: ((String?) -> Unit)?
+        ) {
+            if (!::preferenceManager.isInitialized)
+                preferenceManager = PreferenceManager(context)
+
+            InAppPurchases(context,
+                null,
+                true,
+                preferenceManager,
+                Product(),
+                null,
+                ApiClientRepository.getInstance(preferenceManager),
+                object : AdaptyRestoreCallback {
+                    override fun onResult(response: RestoreReceiptResponse?, error: String?) {
+                        if (adaptyCallback != null) {
+                            adaptyCallback.invoke(error)
+                            nextQueue()
+                        }
+                    }
+                })
+        }
+
         fun restorePurchases(
             activity: Activity,
             adaptyCallback: (RestoreReceiptResponse?, String?) -> Unit
@@ -452,8 +494,11 @@ class Adapty {
                 if (!::preferenceManager.isInitialized)
                     preferenceManager = PreferenceManager(activity)
 
-                InAppPurchases(activity,
+                InAppPurchases(
+                    context,
+                    null,
                     true,
+                    preferenceManager,
                     Product(),
                     null,
                     ApiClientRepository.getInstance(preferenceManager),
@@ -530,14 +575,14 @@ class Adapty {
         }
 
         private fun logoutInQueue(adaptyCallback: (String?) -> Unit) {
-            if (!::activity.isInitialized) {
+            if (!::context.isInitialized) {
                 adaptyCallback.invoke("Adapty was not initialized")
                 nextQueue()
                 return
             }
 
             if (!::preferenceManager.isInitialized) {
-                preferenceManager = PreferenceManager(activity)
+                preferenceManager = PreferenceManager(context)
             }
 
             preferenceManager.customerUserID = ""
@@ -546,9 +591,9 @@ class Adapty {
             preferenceManager.containers = null
             preferenceManager.products = arrayListOf()
 
-            activateInQueue(activity, preferenceManager.appKey, null, adaptyCallback)
+            activateInQueue(context, preferenceManager.appKey, null, adaptyCallback)
         }
-
+        
         fun setOnPurchaserInfoUpdatedListener(onPurchaserInfoUpdatedListener: OnPurchaserInfoUpdatedListener?) {
             this.onPurchaserInfoUpdatedListener = onPurchaserInfoUpdatedListener
         }
