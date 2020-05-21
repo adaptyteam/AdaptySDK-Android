@@ -92,8 +92,8 @@ For **`gender`** possible values are: **`m`**, **`f`**, but you can also pass cu
 Adapty.getPurchaseContainers(activity) { containers, products, state, error ->
     // if error is empty, containers should contain info about your paywalls, products contains info about all your products
 }
-For state possible values are: cached, synced. First means that data was taken from local cache, second means that data was updated from remote server.
 ```
+For state possible values are: cached, synced. First means that data was taken from local cache, second means that data was updated from remote server.
 
 ### Make purchase
 
