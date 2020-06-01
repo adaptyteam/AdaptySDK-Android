@@ -145,7 +145,7 @@ class Adapty {
             syncPurchasesBody(context, null)
         }
 
-        fun checkChangesPurchaserInfo(res: AttributePurchaserInfoRes) {
+        private fun checkChangesPurchaserInfo(res: AttributePurchaserInfoRes) {
             val purchaserInfo = generatePurchaserInfoModel(res)
             if (isPurchaserInfoChanged(purchaserInfo)) {
                 onPurchaserInfoUpdatedListener?.didReceiveUpdatedPurchaserInfo(purchaserInfo)
@@ -593,7 +593,7 @@ class Adapty {
 
             activateInQueue(context, preferenceManager.appKey, null, adaptyCallback)
         }
-        
+
         fun setOnPurchaserInfoUpdatedListener(onPurchaserInfoUpdatedListener: OnPurchaserInfoUpdatedListener?) {
             this.onPurchaserInfoUpdatedListener = onPurchaserInfoUpdatedListener
         }

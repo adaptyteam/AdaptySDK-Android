@@ -124,6 +124,8 @@ class InAppPurchases(
                                 purchaseType
                             )
                         }
+                    } else {
+                        fail("onBillingServiceConnectError ${billingResult.responseCode} : ${billingResult.debugMessage ?: ""}")
                     }
                 }
 
@@ -159,7 +161,7 @@ class InAppPurchases(
                         fail("This product_id not found with this purchase type")
                 }
             } else
-                fail("Unavailable")
+                fail("Unavailable - error code ${result.responseCode} : ${result.debugMessage ?: ""}")
         }
     }
 
@@ -234,7 +236,7 @@ class InAppPurchases(
                     }
                 }
             } else
-                fail("Unavailable")
+                fail("Unavailable - error code ${billingResult.responseCode} : ${billingResult.debugMessage ?: ""}")
         }
     }
 

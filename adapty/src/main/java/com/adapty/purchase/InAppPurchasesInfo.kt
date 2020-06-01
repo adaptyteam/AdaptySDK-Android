@@ -48,6 +48,8 @@ class InAppPurchasesInfo(
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                         querySkuDetailsInApp(data)
+                    } else {
+                        fail("onBillingServiceConnectError ${billingResult.responseCode} : ${billingResult.debugMessage ?: ""}")
                     }
                 }
 
@@ -66,7 +68,7 @@ class InAppPurchasesInfo(
                 fillInfo(skuDetailsList, data)
                 querySkuDetailsSubs(data)
             } else
-                fail("Unavailable")
+                fail("Unavailable - error code ${result.responseCode} : ${result.debugMessage ?: ""}")
         }
     }
 
@@ -78,7 +80,7 @@ class InAppPurchasesInfo(
                 fillInfo(skuDetailsList, data)
                 iterator()
             } else
-                fail("Unavailable")
+                fail("Unavailable - error code ${result.responseCode} : ${result.debugMessage ?: ""}")
         }
     }
 
