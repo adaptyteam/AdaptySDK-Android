@@ -32,13 +32,14 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
     private var apiClient = ApiClient(context)
 
     fun createProfile(customerUserId: String?, adaptyCallback: AdaptyCallback) {
-
+        LogHelper.logVerbose(" apiclientRepository create profile")
         var uuid = preferenceManager.profileID
         if (uuid.isEmpty()) {
             uuid = generateUuid().toString()
             preferenceManager.profileID = uuid
             preferenceManager.installationMetaID = uuid
         }
+        LogHelper.logVerbose(" apiclientRepository create profile uuid ok")
 
         val profileRequest = CreateProfileRequest()
         profileRequest.data = DataProfileReq()
@@ -48,7 +49,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
             profileRequest.data?.attributes = AttributeProfileReq()
             profileRequest.data?.attributes?.customerUserId = customerUserId
         }
-
+        LogHelper.logVerbose(" apiclientRepository create profile data added")
         apiClient.createProfile(profileRequest, adaptyCallback)
     }
 
@@ -98,15 +99,17 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
     fun getProfile(
         adaptyCallback: AdaptyCallback
     ) {
+        LogHelper.logVerbose("getPurchaserInfo() getProfile()")
         var uuid = preferenceManager.profileID
         if (uuid.isEmpty()) {
             uuid = generateUuid().toString()
             preferenceManager.profileID = uuid
         }
-
+        LogHelper.logVerbose("getPurchaserInfo() getProfile() uuid ok")
         val purchaserInfoRequest = PurchaserInfoRequest()
         purchaserInfoRequest.data = BaseData()
         purchaserInfoRequest.data?.id = uuid
+        LogHelper.logVerbose("getPurchaserInfo() getProfile() go to ApiClient")
 
         apiClient.getProfile(purchaserInfoRequest, adaptyCallback)
     }
@@ -128,9 +131,11 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
     }
 
     fun syncMetaInstall(applicationContext: Context, adaptyCallback: AdaptyCallback? = null) {
-
+        LogHelper.logVerbose("sendSyncMetaInstallRequest Enter")
         var uuid = preferenceManager.profileID
+        LogHelper.logVerbose("sendSyncMetaInstallRequest uuid: ${uuid ?: ""}")
         if (uuid.isEmpty()) {
+            LogHelper.logVerbose("sendSyncMetaInstallRequest uuid isEmpty")
             uuid = generateUuid().toString()
             preferenceManager.profileID = uuid
             preferenceManager.installationMetaID = uuid
@@ -141,9 +146,11 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         syncMetaRequest.data?.id = uuid
         syncMetaRequest.data?.type = "adapty_analytics_profile_installation_meta"
         syncMetaRequest.data?.attributes = AttributeSyncMetaReq()
+        LogHelper.logVerbose("sendSyncMetaInstallRequest Attribute Created")
         syncMetaRequest.data?.attributes?.apply {
             adaptySdkVersion = com.adapty.BuildConfig.VERSION_NAME
             adaptySdkVersionBuild = ADAPTY_SDK_VERSION_INT
+            LogHelper.logVerbose("sendSyncMetaInstallRequest Attribute Sdk version added")
             try {
                 applicationContext.applicationContext?.let { ctx ->
                     val mainPackageName = applicationContext.applicationContext?.packageName
@@ -158,13 +165,17 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
                     appBuild = versionCode.toString()
                     appVersion = packageInfo.versionName
                 }
-            } catch (e : java.lang.Exception) { }
+                LogHelper.logVerbose("sendSyncMetaInstallRequest Attribute added version")
+            } catch (e : java.lang.Exception) {
+                LogHelper.logVerbose("sendSyncMetaInstallRequest catch ${e.message}, ${e.localizedMessage}")
+            }
 
             device = getDeviceName()
             locale = Locale.getDefault().toLanguageTag()
             os = getDeviceOsVersion()
             platform = "Android"
             timezone = TimeZone.getDefault().id
+            LogHelper.logVerbose("sendSyncMetaInstallRequest Attribute all info added")
         }
 
         val task: AsyncTask<Void?, Void?, String?> =
@@ -177,15 +188,19 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
                     try {
                         idInfo = AdvertisingIdClient.getAdvertisingIdInfo(context)
                         advertId = idInfo!!.id
-                    } catch (e: Exception) { }
+                    } catch (e: Exception) {
+                        LogHelper.logVerbose("sendSyncMetaInstallRequest advertising catch: ${e.message}, ${e.localizedMessage}")
+                    }
 
                     return advertId
                 }
 
                 override fun onPostExecute(advertId: String?) {
+                    LogHelper.logVerbose("sendSyncMetaInstallRequest advertId get: ${advertId ?: ""}")
                     if (advertId != null) {
                         syncMetaRequest.data?.attributes?.advertisingId = advertId
                     }
+                    LogHelper.logVerbose("sendSyncMetaInstallRequest go to apiCLient")
                     apiClient.syncMeta(syncMetaRequest, adaptyCallback)
                 }
             }

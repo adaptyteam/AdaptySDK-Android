@@ -71,8 +71,9 @@ class Adapty {
             this.preferenceManager = PreferenceManager(this.context)
             this.preferenceManager.appKey = appKey
 
+            LogHelper.logVerbose("activateInQueue($appKey, ${customerUserId ?: ""})")
             if (preferenceManager.profileID.isEmpty()) {
-
+                LogHelper.logVerbose("activateInQueue profileID.isEmpty()($appKey, ${customerUserId ?: ""})")
                 ApiClientRepository.getInstance(preferenceManager)
                     .createProfile(customerUserId, object : AdaptySystemCallback {
                         override fun success(response: Any?, reqID: Int) {
@@ -127,12 +128,18 @@ class Adapty {
         }
 
         private fun makeStartRequests(adaptyCallback: ((String?) -> Unit)?) {
+            LogHelper.logVerbose("activateInQueue profileID.isNotEmpty()")
             sendSyncMetaInstallRequest(context)
 
             getStartedPurchaseContainers(context)
 
+            var isCallbackSent = false
+            LogHelper.logVerbose("activateInQueue getPurchaseInfoSTARTING")
+
             getPurchaserInfo(false) { info, state, error ->
-                if (state == "cached") {
+                LogHelper.logVerbose("activateInQueue getPurchaseInfoSTARTING callback")
+                if (!isCallbackSent) {
+                    isCallbackSent = true
                     adaptyCallback?.invoke(error)
                     nextQueue()
                     return@getPurchaserInfo
@@ -173,6 +180,7 @@ class Adapty {
         }
 
         fun sendSyncMetaInstallRequest(applicationContext: Context) {
+            LogHelper.logVerbose("sendSyncMetaInstallRequest")
             ApiClientRepository.getInstance(preferenceManager)
                 .syncMetaInstall(applicationContext, object : AdaptySystemCallback {
                     override fun success(response: Any?, reqID: Int) {
@@ -196,6 +204,7 @@ class Adapty {
         }
 
         private fun identifyInQueue(customerUserId: String?, adaptyCallback: (String?) -> Unit) {
+            LogHelper.logVerbose("identifyInQueue")
             if (!customerUserId.isNullOrEmpty() && preferenceManager.customerUserID.isNotEmpty()) {
                 if (customerUserId == preferenceManager.customerUserID) {
                     adaptyCallback.invoke(null)
@@ -203,7 +212,7 @@ class Adapty {
                     return
                 }
             }
-
+            LogHelper.logVerbose("identifyInQueue continue")
             ApiClientRepository.getInstance(preferenceManager)
                 .createProfile(customerUserId, object : AdaptySystemCallback {
                     override fun success(response: Any?, reqID: Int) {
@@ -284,11 +293,13 @@ class Adapty {
             needQueue: Boolean,
             adaptyCallback: (purchaserInfo: PurchaserInfoModel?, state: String, error: String?) -> Unit
         ) {
+            LogHelper.logVerbose("getPurchaserInfoStart()")
+
             val info = preferenceManager.purchaserInfo
             info?.let {
                 adaptyCallback.invoke(it, "cached", null)
             }
-
+            LogHelper.logVerbose("getPurchaserInfoStart info ok")
             ApiClientRepository.getInstance(preferenceManager).getProfile(
                 object : AdaptyPurchaserInfoCallback {
                     override fun onResult(response: AttributePurchaserInfoRes?, error: String?) {
