@@ -168,11 +168,11 @@ class ApiClient(private var context: Context) {
             try {
                 responseObj = if (oresponse != null) {
                     gson.fromJson(rString, oresponse.javaClass)
-                    LogHelper.logVerbose("another thread exception convertFromGson for request $reqID")
                 } else {
                     rString
-                    LogHelper.logVerbose("another thread exception oresponse null for request $reqID")
                 }
+                LogHelper.logVerbose("another thread convert gson for request $reqID")
+
 
                 success(responseObj, reqID, adaptyCallback)
             } catch (e: Exception) {
