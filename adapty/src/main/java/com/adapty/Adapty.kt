@@ -17,6 +17,7 @@ import com.adapty.api.responses.SyncMetaInstallResponse
 import com.adapty.api.responses.ValidateReceiptResponse
 import com.adapty.purchase.InAppPurchases
 import com.adapty.purchase.InAppPurchasesInfo
+import com.adapty.utils.LogHelper
 import com.adapty.utils.generatePurchaserInfoModel
 import com.android.billingclient.api.Purchase
 import java.util.*
@@ -50,6 +51,7 @@ class Adapty {
             customerUserId: String?,
             adaptyCallback: ((String?) -> Unit)?
         ) {
+            LogHelper.logVerbose("activate($appKey, ${customerUserId ?: ""})")
             this.context = context
             this.preferenceManager = PreferenceManager(this.context)
             this.preferenceManager.appKey = appKey
@@ -189,6 +191,7 @@ class Adapty {
         }
 
         fun identify(customerUserId: String?, adaptyCallback: (String?) -> Unit) {
+            LogHelper.logVerbose("identify()")
             addToQueue { identifyInQueue(customerUserId, adaptyCallback) }
         }
 
@@ -308,6 +311,7 @@ class Adapty {
         fun getPurchaserInfo(
             adaptyCallback: (purchaserInfo: PurchaserInfoModel?, state: String, error: String?) -> Unit
         ) {
+            LogHelper.logVerbose("getPurchaserInfo()")
             addToQueue { getPurchaserInfo(true, adaptyCallback) }
         }
 
@@ -319,6 +323,7 @@ class Adapty {
             activity: Activity,
             adaptyCallback: (containers: ArrayList<DataContainer>, products: ArrayList<Product>, state: String, error: String?) -> Unit
         ) {
+            LogHelper.logVerbose("getPurchaseContainers()")
             addToQueue {
                 getPurchaseContainersInQueue(activity, true, adaptyCallback)
             }
@@ -434,6 +439,7 @@ class Adapty {
             variationId: String? = null,
             adaptyCallback: (Purchase?, ValidateReceiptResponse?, String?) -> Unit
         ) {
+            LogHelper.logVerbose("makePurchase()")
             addToQueue {
                 InAppPurchases(
                     context,

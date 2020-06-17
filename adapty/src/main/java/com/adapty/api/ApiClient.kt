@@ -6,6 +6,7 @@ import android.util.Log
 import com.adapty.api.requests.*
 import com.adapty.api.responses.*
 import com.adapty.utils.ADAPTY_SDK_VERSION_INT
+import com.adapty.utils.LogHelper
 import com.adapty.utils.PreferenceManager
 import com.google.gson.Gson
 import java.io.*
@@ -117,21 +118,26 @@ class ApiClient(private var context: Context) {
                     val inputStream = conn.inputStream
 
                     rString = toStringUtf8(inputStream)
-                    Log.e(com.adapty.api.TAG,"Response $myUrl: $rString")
+                    LogHelper.logVerbose("Response $reqID $myUrl: $rString")
 
                 } else {
                     rString = toStringUtf8(conn.errorStream)
-                    Log.e(com.adapty.api.TAG, "Response $myUrl: $rString")
-                    fail("Request is unsuccessful. Response Code: $response, Message: $rString", reqID, adaptyCallback)
+                    fail(
+                        "Request is unsuccessful. $reqID Url: $myUrl Response Code: $response, Message: $rString",
+                        reqID,
+                        adaptyCallback
+                    )
                     return@Runnable
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
 
-                if (rString.isEmpty()) {
-                    fail("Unknown Error", reqID, adaptyCallback)
-                    return@Runnable
-                }
+                fail(
+                    "Request Exception. $reqID ${e.message} ${e.localizedMessage} Message: ${rString ?: ""}",
+                    reqID,
+                    adaptyCallback
+                )
+                return@Runnable
             }
 
             var responseObj: Any?
@@ -145,6 +151,7 @@ class ApiClient(private var context: Context) {
             } catch (e: Exception) {
                 e.printStackTrace()
                 responseObj = rString
+                LogHelper.logError("Request $reqID parse error: ${e.message}, ${e.localizedMessage}")
                 success(responseObj, reqID, adaptyCallback)
             }
         }).start()
@@ -163,6 +170,7 @@ class ApiClient(private var context: Context) {
     }
 
     private fun success(response: Any?, reqID: Int, adaptyCallback : AdaptyCallback?) {
+        LogHelper.logVerbose("Response success $reqID")
         try {
             val mainHandler = Handler(context.mainLooper)
             val myRunnable = Runnable {
@@ -199,11 +207,12 @@ class ApiClient(private var context: Context) {
             }
             mainHandler.post(myRunnable)
         } catch (e: Exception) {
-            Log.e("${com.adapty.api.TAG} success", e.localizedMessage)
+            LogHelper.logError("Callback success error $reqID: ${e.message} ${e.localizedMessage}")
         }
     }
 
     private fun fail(error: String, reqID: Int, adaptyCallback : AdaptyCallback?) {
+        LogHelper.logError("Request failed $reqID $error")
         try {
             val mainHandlerE = Handler(context.mainLooper)
             val myRunnableE = Runnable {
@@ -232,7 +241,7 @@ class ApiClient(private var context: Context) {
             }
             mainHandlerE.post(myRunnableE)
         } catch (e: Exception) {
-            Log.e("${com.adapty.api.TAG} fail", e.localizedMessage)
+            LogHelper.logError("Callback Fail error $reqID: ${e.message} ${e.localizedMessage}")
         }
     }
 

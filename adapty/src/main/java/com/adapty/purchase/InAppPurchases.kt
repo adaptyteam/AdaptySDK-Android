@@ -12,6 +12,7 @@ import com.adapty.api.entity.containers.Product
 import com.adapty.api.entity.restore.RestoreItem
 import com.adapty.api.responses.RestoreReceiptResponse
 import com.adapty.api.responses.ValidateReceiptResponse
+import com.adapty.utils.LogHelper
 import com.adapty.utils.PreferenceManager
 import com.android.billingclient.api.*
 
@@ -94,7 +95,7 @@ class InAppPurchases(
                         } else if (billingResult?.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
                             fail("Purchase: USER_CANCELED")
                         } else {
-                            fail("Purchase: ${billingResult?.responseCode.toString()}")
+                            fail("Purchase: ${billingResult?.responseCode.toString()}, ${billingResult.debugMessage}")
                         }
                     }
                     .build()
@@ -161,7 +162,7 @@ class InAppPurchases(
                         fail("This product_id not found with this purchase type")
                 }
             } else
-                fail("Unavailable - error code ${result.responseCode} : ${result.debugMessage ?: ""}")
+                fail("Unavailable querySkuDetails - ${result.responseCode} : ${result.debugMessage ?: ""}")
         }
     }
 
@@ -196,7 +197,7 @@ class InAppPurchases(
                                             return
                                         }
 
-                                        fail(error)
+                                        fail("Restore error: $error")
                                     }
                                 })
                         }
@@ -229,7 +230,7 @@ class InAppPurchases(
                                             return
                                         }
 
-                                        fail(error)
+                                        fail("Restore error: $error")
                                     }
                                 })
                         }
@@ -290,6 +291,7 @@ class InAppPurchases(
     }
 
     private fun fail(error: String) {
+        LogHelper.logError(error)
         if (isRestore) {
             (adaptyCallback as AdaptyRestoreCallback).onResult(null, error)
         } else {

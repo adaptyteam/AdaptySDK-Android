@@ -5,6 +5,7 @@ import android.content.Context
 import com.adapty.api.AdaptyPurchaseContainersInfoCallback
 import com.adapty.api.entity.containers.DataContainer
 import com.adapty.api.entity.containers.Product
+import com.adapty.utils.LogHelper
 import com.adapty.utils.formatPrice
 import com.android.billingclient.api.*
 import java.util.regex.Matcher
@@ -38,7 +39,11 @@ class InAppPurchasesInfo(
         if (!::billingClient.isInitialized) {
             billingClient =
                 BillingClient.newBuilder(context).enablePendingPurchases()
-                    .setListener { _, _ -> }
+                    .setListener { billingResult, mutableList ->
+                        if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                            fail(billingResult.debugMessage)
+                        }
+                    }
                     .build()
         }
         if (billingClient.isReady) {
@@ -48,8 +53,8 @@ class InAppPurchasesInfo(
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                         querySkuDetailsInApp(data)
-                    } else {
-                        fail("onBillingServiceConnectError ${billingResult.responseCode} : ${billingResult.debugMessage ?: ""}")
+                    }  else {
+                        fail(billingResult.debugMessage)
                     }
                 }
 
@@ -68,7 +73,7 @@ class InAppPurchasesInfo(
                 fillInfo(skuDetailsList, data)
                 querySkuDetailsSubs(data)
             } else
-                fail("Unavailable - error code ${result.responseCode} : ${result.debugMessage ?: ""}")
+                fail("Unavailable querySkuDetailsInApp: ${result.debugMessage}")
         }
     }
 
@@ -80,7 +85,7 @@ class InAppPurchasesInfo(
                 fillInfo(skuDetailsList, data)
                 iterator()
             } else
-                fail("Unavailable - error code ${result.responseCode} : ${result.debugMessage ?: ""}")
+                fail("Unavailable querySkuDetailsSubs: ${result.debugMessage}")
         }
     }
 
@@ -139,6 +144,7 @@ class InAppPurchasesInfo(
     }
 
     private fun fail(error: String) {
+        LogHelper.logError(error)
         callback.onResult(arrayListOf(), error)
     }
 }
