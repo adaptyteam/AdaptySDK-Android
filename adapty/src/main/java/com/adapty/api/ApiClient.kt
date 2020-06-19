@@ -102,10 +102,15 @@ class ApiClient(private var context: Context) {
                 conn.setRequestProperty(AUTHORIZATION_KEY, API_KEY_PREFIX.plus(preferenceManager.appKey))
                 LogHelper.logVerbose("another thread added headers5 for request $reqID")
 
+                conn.setRequestProperty("Connection", "close")
+                System.setProperty("http.keepAlive", "false")
+                System.setProperty("java.net.preferIPv4Stack" , "true")
+
                 conn.doInput = true
                 LogHelper.logVerbose("another thread doInput for request $reqID")
 
                 if (type != GET) {
+                    conn.doOutput = true
                     val os = conn.outputStream
                     LogHelper.logVerbose("another thread output for request $reqID")
                     val writer = BufferedWriter(OutputStreamWriter(os, "UTF-8"))
