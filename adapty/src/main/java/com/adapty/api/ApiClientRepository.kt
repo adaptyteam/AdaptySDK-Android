@@ -61,6 +61,8 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         mixpanelUserId: String?,
         amplitudeUserId: String?,
         appsflyerId: String?,
+        appmetricaProfileId: String? = null,
+        appmetricaDeviceId: String? = null,
         firstName: String?,
         lastName: String?,
         gender: String?,
@@ -91,6 +93,8 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
             this.lastName = lastName
             this.gender = gender
             this.birthday = birthday
+            this.appmetricaProfileId = appmetricaProfileId
+            this.appmetricaDeviceId = appmetricaDeviceId
         }
 
         apiClient.updateProfile(profileRequest, adaptyCallback)

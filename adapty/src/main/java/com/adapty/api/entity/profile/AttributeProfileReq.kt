@@ -52,4 +52,10 @@ open class AttributeProfileReq {
     @SerializedName("updated_at")
     var updatedAt: String? = null
 
+    @SerializedName("appmetrica_profile_id")
+    var appmetricaProfileId: String? = null
+
+    @SerializedName("appmetrica_device_id")
+    var appmetricaDeviceId: String? = null
+
 }
