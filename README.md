@@ -25,7 +25,7 @@ Add dependency:
 
 ```Kotlin
 dependencies {
-    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.2.3'
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.2.7'
 }
 ```
 
@@ -73,6 +73,8 @@ Adapty.updateProfile(
     phoneNumber: "+1-###-###-####",
     facebookUserId: "###############",
     mixpanelUserId: "###############",
+    appmetricaProfileId: "###",
+    appmetricaDeviceId: "###",
     amplitudeUserId: "###############",
     firstName: "John",
     lastName: "Doe",
