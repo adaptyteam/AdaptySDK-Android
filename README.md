@@ -25,7 +25,7 @@ Add dependency:
 
 ```Kotlin
 dependencies {
-    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.2.7'
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.2.8'
 }
 ```
 
@@ -69,10 +69,14 @@ Adapty.syncPurchases()
 
 ```Kotlin
 Adapty.updateProfile(
+    customerUserId: "###############",
     email: "user@adapty.io",
     phoneNumber: "+1-###-###-####",
     facebookUserId: "###############",
     mixpanelUserId: "###############",
+    amplitudeUserId: "###############",
+    amplitudeDeviceId: "###############",
+    appsflyerId: "###############",
     appmetricaProfileId: "###",
     appmetricaDeviceId: "###",
     amplitudeUserId: "###############",
@@ -87,6 +91,21 @@ Adapty.updateProfile(
 
 All properties are optional.  
 For **`gender`** possible values are: **`m`**, **`f`**, but you can also pass custom string value.
+
+### Attribution tracker integration
+
+To integrate with attribution system, just pass attribution you receive to Adapty method.
+
+```Kotlin
+Adapty.updateAttribution(
+    attribution: Map,
+    source: AttributionType,
+    networkUserId: String?
+)
+```
+
+**`attribution`** is **`Map`** object.
+For **`source`** possible values are: **`AttributionType.ADJUST`**, **`AttributionType.APPSFLYER`** and **`AttributionType.BRANCH`**.
 
 ### Get purchase containers (paywalls)
 
