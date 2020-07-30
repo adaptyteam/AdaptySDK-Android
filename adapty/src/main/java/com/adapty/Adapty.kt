@@ -2,14 +2,12 @@ package com.adapty
 
 import android.app.Activity
 import android.content.Context
-import android.util.Log
+import android.os.Handler
 import com.adapty.api.*
 import com.adapty.api.entity.containers.DataContainer
 import com.adapty.api.entity.containers.Product
-import com.adapty.api.entity.purchaserInfo.AttributePurchaserInfoRes
-import com.adapty.api.entity.purchaserInfo.OnPurchaserInfoUpdatedListener
+import com.adapty.api.entity.purchaserInfo.*
 import com.adapty.api.entity.purchaserInfo.model.PurchaserInfoModel
-import com.adapty.api.entity.restore.RestoreItem
 import com.adapty.utils.PreferenceManager
 import com.adapty.api.responses.CreateProfileResponse
 import com.adapty.api.responses.RestoreReceiptResponse
@@ -17,10 +15,10 @@ import com.adapty.api.responses.SyncMetaInstallResponse
 import com.adapty.api.responses.ValidateReceiptResponse
 import com.adapty.purchase.InAppPurchases
 import com.adapty.purchase.InAppPurchasesInfo
+import com.adapty.utils.KinesisManager
 import com.adapty.utils.LogHelper
 import com.adapty.utils.generatePurchaserInfoModel
 import com.android.billingclient.api.Purchase
-import java.util.*
 import kotlin.collections.ArrayList
 
 class Adapty {
@@ -30,6 +28,8 @@ class Adapty {
         private lateinit var preferenceManager: PreferenceManager
         private var onPurchaserInfoUpdatedListener: OnPurchaserInfoUpdatedListener? = null
         private var requestQueue: ArrayList<() -> Unit> = arrayListOf()
+        private var isActivated = false
+        private var kinesisManager: KinesisManager? = null
 
         fun activate(
             context: Context,
@@ -52,6 +52,11 @@ class Adapty {
             adaptyCallback: ((String?) -> Unit)?
         ) {
             LogHelper.logVerbose("activate($appKey, ${customerUserId ?: ""})")
+            if (isActivated)
+                return
+
+            isActivated = true
+
             this.context = context
             this.preferenceManager = PreferenceManager(this.context)
             this.preferenceManager.appKey = appKey
@@ -71,9 +76,7 @@ class Adapty {
             this.preferenceManager = PreferenceManager(this.context)
             this.preferenceManager.appKey = appKey
 
-            LogHelper.logVerbose("activateInQueue($appKey, ${customerUserId ?: ""})")
             if (preferenceManager.profileID.isEmpty()) {
-                LogHelper.logVerbose("activateInQueue profileID.isEmpty()($appKey, ${customerUserId ?: ""})")
                 ApiClientRepository.getInstance(preferenceManager)
                     .createProfile(customerUserId, object : AdaptySystemCallback {
                         override fun success(response: Any?, reqID: Int) {
@@ -128,30 +131,26 @@ class Adapty {
         }
 
         private fun makeStartRequests(adaptyCallback: ((String?) -> Unit)?) {
-            LogHelper.logVerbose("activateInQueue profileID.isNotEmpty()")
             sendSyncMetaInstallRequest(context)
 
             getStartedPurchaseContainers(context)
 
-            var isCallbackSent = false
-            LogHelper.logVerbose("activateInQueue getPurchaseInfoSTARTING")
-
-            getPurchaserInfo(false) { info, state, error ->
-                LogHelper.logVerbose("activateInQueue getPurchaseInfoSTARTING callback")
-                if (!isCallbackSent) {
-                    isCallbackSent = true
-                    adaptyCallback?.invoke(error)
-                    nextQueue()
-                    return@getPurchaserInfo
-                }
-
-                if (isPurchaserInfoChanged(info))
-                    info?.let {
-                        onPurchaserInfoUpdatedListener?.didReceiveUpdatedPurchaserInfo(it)
+            syncPurchasesBody(context) { _ ->
+                var isCallbackSent = false
+                getPurchaserInfo(false) { info, state, error ->
+                    if (!isCallbackSent) {
+                        isCallbackSent = true
+                        adaptyCallback?.invoke(error)
+                        nextQueue()
+                        return@getPurchaserInfo
                     }
-            }
 
-            syncPurchasesBody(context, null)
+                    if (isPurchaserInfoChanged(info))
+                        info?.let {
+                            onPurchaserInfoUpdatedListener?.didReceiveUpdatedPurchaserInfo(it)
+                        }
+                }
+            }
         }
 
         private fun checkChangesPurchaserInfo(res: AttributePurchaserInfoRes) {
@@ -180,22 +179,49 @@ class Adapty {
         }
 
         fun sendSyncMetaInstallRequest(applicationContext: Context) {
-            LogHelper.logVerbose("sendSyncMetaInstallRequest")
             ApiClientRepository.getInstance(preferenceManager)
                 .syncMetaInstall(applicationContext, object : AdaptySystemCallback {
                     override fun success(response: Any?, reqID: Int) {
                         if (response is SyncMetaInstallResponse) {
-                            response.data?.id?.let {
-                                preferenceManager.installationMetaID = it
+                            response.data?.let { data ->
+                                data.id?.let {
+                                    preferenceManager.installationMetaID = it
+                                }
+                                data.attributes?.let { attrs ->
+                                    attrs.iamAccessKeyId?.let {
+                                        preferenceManager.iamAccessKeyId = it
+                                    }
+                                    attrs.iamSecretKey?.let {
+                                        preferenceManager.iamSecretKey = it
+                                    }
+                                    attrs.iamSessionToken?.let {
+                                        preferenceManager.iamSessionToken = it
+                                    }
+                                }
                             }
+
+                            setupTrackingEvent()
                         }
                     }
 
                     override fun fail(msg: String, reqID: Int) {
-                        Log.e("Adapty SyncMeta", "")
                     }
 
                 })
+        }
+
+        private val handlerEvent = Handler()
+        private const val TRACKING_INTERVAL = (60 * 1000).toLong()
+
+        private fun setupTrackingEvent() {
+            handlerEvent.removeCallbacksAndMessages(null)
+            handlerEvent.post {
+                if (kinesisManager == null) kinesisManager = KinesisManager(preferenceManager)
+                kinesisManager?.trackEvent()
+                handlerEvent.postDelayed({
+                    setupTrackingEvent()
+                }, TRACKING_INTERVAL)
+            }
         }
 
         fun identify(customerUserId: String?, adaptyCallback: (String?) -> Unit) {
@@ -203,8 +229,10 @@ class Adapty {
             addToQueue { identifyInQueue(customerUserId, adaptyCallback) }
         }
 
-        private fun identifyInQueue(customerUserId: String?, adaptyCallback: (String?) -> Unit) {
-            LogHelper.logVerbose("identifyInQueue")
+        private fun identifyInQueue(
+            customerUserId: String?,
+            adaptyCallback: (String?) -> Unit
+        ) {
             if (!customerUserId.isNullOrEmpty() && preferenceManager.customerUserID.isNotEmpty()) {
                 if (customerUserId == preferenceManager.customerUserID) {
                     adaptyCallback.invoke(null)
@@ -212,7 +240,7 @@ class Adapty {
                     return
                 }
             }
-            LogHelper.logVerbose("identifyInQueue continue")
+
             ApiClientRepository.getInstance(preferenceManager)
                 .createProfile(customerUserId, object : AdaptySystemCallback {
                     override fun success(response: Any?, reqID: Int) {
@@ -259,6 +287,7 @@ class Adapty {
             facebookUserId: String?,
             mixpanelUserId: String?,
             amplitudeUserId: String?,
+            amplitudeDeviceId: String?,
             appsflyerId: String?,
             appmetricaProfileId: String? = null,
             appmetricaDeviceId: String? = null,
@@ -275,6 +304,7 @@ class Adapty {
                     facebookUserId,
                     mixpanelUserId,
                     amplitudeUserId,
+                    amplitudeDeviceId,
                     appsflyerId,
                     appmetricaProfileId,
                     appmetricaDeviceId,
@@ -297,13 +327,11 @@ class Adapty {
             needQueue: Boolean,
             adaptyCallback: (purchaserInfo: PurchaserInfoModel?, state: String, error: String?) -> Unit
         ) {
-            LogHelper.logVerbose("getPurchaserInfoStart()")
-
             val info = preferenceManager.purchaserInfo
             info?.let {
                 adaptyCallback.invoke(it, "cached", null)
             }
-            LogHelper.logVerbose("getPurchaserInfoStart info ok")
+
             ApiClientRepository.getInstance(preferenceManager).getProfile(
                 object : AdaptyPurchaserInfoCallback {
                     override fun onResult(response: AttributePurchaserInfoRes?, error: String?) {
@@ -326,12 +354,14 @@ class Adapty {
         fun getPurchaserInfo(
             adaptyCallback: (purchaserInfo: PurchaserInfoModel?, state: String, error: String?) -> Unit
         ) {
-            LogHelper.logVerbose("getPurchaserInfo()")
             addToQueue { getPurchaserInfo(true, adaptyCallback) }
         }
 
         private fun getStartedPurchaseContainers(context: Context) {
-            getPurchaseContainersInQueue(context, false) { containers, products, state, error -> }
+            getPurchaseContainersInQueue(
+                context,
+                false
+            ) { containers, products, state, error -> }
         }
 
         fun getPurchaseContainers(
@@ -349,7 +379,6 @@ class Adapty {
             needQueue: Boolean,
             adaptyCallback: (containers: ArrayList<DataContainer>, products: ArrayList<Product>, state: String, error: String?) -> Unit
         ) {
-            Log.e("START CONTAINERS", "")
             val cntrs = preferenceManager.containers
             cntrs?.let {
                 adaptyCallback.invoke(it, preferenceManager.products, "cached", null)
@@ -477,9 +506,9 @@ class Adapty {
             }
         }
 
-        fun syncPurchases() {
+        fun syncPurchases(adaptyCallback: ((error: String?) -> Unit)? = null) {
             addToQueue {
-                syncPurchasesBody(context, null)
+                syncPurchasesBody(context, adaptyCallback)
             }
         }
 
@@ -500,8 +529,10 @@ class Adapty {
                 object : AdaptyRestoreCallback {
                     override fun onResult(response: RestoreReceiptResponse?, error: String?) {
                         if (adaptyCallback != null) {
-                            adaptyCallback.invoke(error)
-                            nextQueue()
+                            if (error.isNullOrEmpty())
+                                adaptyCallback.invoke(null)
+                            else
+                                adaptyCallback.invoke(error)
                         }
                     }
                 })
@@ -538,6 +569,24 @@ class Adapty {
         }
 
         fun validatePurchase(
+            purchaseType: String,
+            productId: String,
+            purchaseToken: String,
+            purchaseOrderId: String? = null,
+            product: Product? = null,
+            adaptyCallback: (ValidateReceiptResponse?, error: String?) -> Unit
+        ) {
+            validate(
+                purchaseType,
+                productId,
+                purchaseToken,
+                purchaseOrderId,
+                product,
+                adaptyCallback
+            )
+        }
+
+        private fun validate(
             purchaseType: String,
             productId: String,
             purchaseToken: String,
@@ -588,6 +637,33 @@ class Adapty {
                                 }
                             }
                         })
+            }
+        }
+
+        fun updateAttribution(
+            attribution: Any,
+            source: String
+        ) {
+            updateAttribution(attribution, source, null)
+        }
+
+        fun updateAttribution(
+            attribution: Any,
+            source: String,
+            networkUserId: String?
+        ) {
+            LogHelper.logVerbose("updateAttribution()")
+            addToQueue {
+                ApiClientRepository.getInstance(preferenceManager).updateAttribution(
+                    attribution,
+                    source,
+                    networkUserId,
+                    object : AdaptyProfileCallback {
+                        override fun onResult(error: String?) {
+                            nextQueue()
+                        }
+
+                    })
             }
         }
 

@@ -1,7 +1,6 @@
 package com.adapty.api.entity.profile
 
 import com.google.gson.annotations.SerializedName
-import java.util.*
 
 open class AttributeProfileReq {
     @SerializedName("customer_user_id")
@@ -12,9 +11,6 @@ open class AttributeProfileReq {
 
     @SerializedName("phone_number")
     var phoneNumber: String? = null
-
-    @SerializedName("idfa")
-    var idfa: String? = null
 
     @SerializedName("facebook_user_id")
     var facebookUserId: String? = null
@@ -36,6 +32,9 @@ open class AttributeProfileReq {
 
     @SerializedName("amplitude_user_id")
     var amplitudeUserId: String? = null
+
+    @SerializedName("amplitude_device_id")
+    var amplitudeDeviceId: String? = null
 
     @SerializedName("appsflyer_id")
     var appsflyerId: String? = null

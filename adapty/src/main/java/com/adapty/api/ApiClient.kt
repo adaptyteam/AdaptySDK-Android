@@ -1,6 +1,7 @@
 package com.adapty.api
 
 import android.content.Context
+import android.os.Build
 import android.os.Handler
 import android.util.Log
 import com.adapty.api.requests.*
@@ -31,105 +32,182 @@ class ApiClient(private var context: Context) {
         const val RESTORE_PURCHASE_REQ_ID = 4
         const val GET_PROFILE_REQ_ID = 5
         const val GET_CONTAINERS_REQ_ID = 6
+        const val UPDATE_ATTRIBUTION_REQ_ID = 7
         const val POST = "POST"
         const val PATCH = "PATCH"
         const val GET = "GET"
     }
 
-    fun createProfile(request: CreateProfileRequest, adaptyCallback : AdaptyCallback?) {
-        LogHelper.logVerbose(" apiclient create profile make post")
-        post(generateUrl(CREATE_PROFILE_REQ_ID), request, CreateProfileResponse(), CREATE_PROFILE_REQ_ID, adaptyCallback)
+    fun createProfile(
+        request: CreateProfileRequest,
+        adaptyCallback: AdaptyCallback?
+    ) {
+        post(
+            generateUrl(CREATE_PROFILE_REQ_ID),
+            request,
+            CreateProfileResponse(),
+            CREATE_PROFILE_REQ_ID,
+            adaptyCallback
+        )
     }
 
-    fun updateProfile(request: UpdateProfileRequest, adaptyCallback : AdaptyCallback?) {
-        patch(generateUrl(UPDATE_PROFILE_REQ_ID), request, UpdateProfileResponse(), UPDATE_PROFILE_REQ_ID, adaptyCallback)
+    fun updateProfile(
+        request: UpdateProfileRequest,
+        adaptyCallback: AdaptyCallback?
+    ) {
+        patch(
+            generateUrl(UPDATE_PROFILE_REQ_ID),
+            request,
+            UpdateProfileResponse(),
+            UPDATE_PROFILE_REQ_ID,
+            adaptyCallback
+        )
     }
 
-    fun getProfile(request: PurchaserInfoRequest, adaptyCallback : AdaptyCallback?) {
-        LogHelper.logVerbose("getPurchaserInfo() getProfile() make get")
-        get(generateUrl(GET_PROFILE_REQ_ID), request, PurchaserInfoResponse(), GET_PROFILE_REQ_ID, adaptyCallback)
+    fun getProfile(
+        request: PurchaserInfoRequest,
+        adaptyCallback: AdaptyCallback?
+    ) {
+        get(
+            generateUrl(GET_PROFILE_REQ_ID),
+            request,
+            PurchaserInfoResponse(),
+            GET_PROFILE_REQ_ID,
+            adaptyCallback
+        )
     }
 
-    fun getPurchaseContainers(request: PurchaseContainersRequest, adaptyCallback : AdaptyCallback?) {
-        get(generateUrl(GET_CONTAINERS_REQ_ID), request, PurchaseContainersResponse(), GET_CONTAINERS_REQ_ID, adaptyCallback)
+    fun getPurchaseContainers(
+        request: PurchaseContainersRequest,
+        adaptyCallback: AdaptyCallback?
+    ) {
+        get(
+            generateUrl(GET_CONTAINERS_REQ_ID),
+            request,
+            PurchaseContainersResponse(),
+            GET_CONTAINERS_REQ_ID,
+            adaptyCallback
+        )
     }
 
-    fun syncMeta(request: SyncMetaInstallRequest, adaptyCallback : AdaptyCallback?) {
-        LogHelper.logVerbose("sendSyncMetaInstallRequest make post")
-        post(generateUrl(SYNC_META_REQ_ID), request, SyncMetaInstallResponse(), SYNC_META_REQ_ID, adaptyCallback)
+    fun syncMeta(
+        request: SyncMetaInstallRequest,
+        adaptyCallback: AdaptyCallback?
+    ) {
+        post(
+            generateUrl(SYNC_META_REQ_ID),
+            request,
+            SyncMetaInstallResponse(),
+            SYNC_META_REQ_ID,
+            adaptyCallback
+        )
     }
 
-    fun validatePurchase(request: ValidateReceiptRequest, adaptyCallback : AdaptyCallback?) {
-        post(generateUrl(VALIDATE_PURCHASE_REQ_ID), request, ValidateReceiptResponse(), VALIDATE_PURCHASE_REQ_ID, adaptyCallback)
+    fun validatePurchase(
+        request: ValidateReceiptRequest,
+        adaptyCallback: AdaptyCallback?
+    ) {
+        post(
+            generateUrl(VALIDATE_PURCHASE_REQ_ID),
+            request,
+            ValidateReceiptResponse(),
+            VALIDATE_PURCHASE_REQ_ID,
+            adaptyCallback
+        )
     }
 
-    fun restorePurchase(request: RestoreReceiptRequest, adaptyCallback : AdaptyCallback?) {
-        post(generateUrl(RESTORE_PURCHASE_REQ_ID), request, RestoreReceiptResponse(), RESTORE_PURCHASE_REQ_ID, adaptyCallback)
+    fun restorePurchase(
+        request: RestoreReceiptRequest,
+        adaptyCallback: AdaptyCallback?
+    ) {
+        post(
+            generateUrl(RESTORE_PURCHASE_REQ_ID),
+            request,
+            RestoreReceiptResponse(),
+            RESTORE_PURCHASE_REQ_ID,
+            adaptyCallback
+        )
+    }
+
+    fun updateAttribution(
+        request: UpdateAttributionRequest,
+        adaptyCallback: AdaptyCallback?
+    ) {
+        post(
+            generateUrl(UPDATE_ATTRIBUTION_REQ_ID),
+            request,
+            Any(),
+            UPDATE_ATTRIBUTION_REQ_ID,
+            adaptyCallback
+        )
     }
 
     val gson = Gson()
 
-    private fun request(type: String, url: String, request: Any, oresponse: Any?, reqID: Int, adaptyCallback : AdaptyCallback?) {
-        LogHelper.logVerbose("opened request $reqID")
+    private fun request(
+        type: String,
+        url: String,
+        request: Any,
+        oresponse: Any?,
+        reqID: Int,
+        adaptyCallback: AdaptyCallback?
+    ) {
+
         Thread(Runnable {
-            LogHelper.logVerbose("opened thread for request $reqID")
+
             var rString = ""
 
             try {
-                LogHelper.logVerbose("opened thread try for request $reqID")
+
                 val req = gson.toJson(request)
-                LogHelper.logVerbose("another thread gson success for request $reqID")
+
                 val myUrl = URL(url)
-                LogHelper.logVerbose("another thread url success for request $reqID")
+
                 val conn = myUrl.openConnection() as HttpURLConnection
-                LogHelper.logVerbose("another thread connection opened success for request $reqID")
+
                 conn.readTimeout = TIMEOUT
                 conn.connectTimeout = TIMEOUT
-                LogHelper.logVerbose("another thread setTimeout for request $reqID")
                 conn.requestMethod = type
-                LogHelper.logVerbose("another thread setRequestMethod for request $reqID")
 
                 conn.setRequestProperty("Content-type", "application/vnd.api+json")
 
                 conn.setRequestProperty("ADAPTY-SDK-PROFILE-ID", preferenceManager.profileID)
-                LogHelper.logVerbose("another thread added headers1 for request $reqID")
                 conn.setRequestProperty("ADAPTY-SDK-PLATFORM", "Android")
-                LogHelper.logVerbose("another thread added headers2 for request $reqID")
+                getCurrentLocale(context)?.let {
+                    conn.setRequestProperty(
+                        "ADAPTY-SDK-LOCALE",
+                        "${it.language}_${it.country}"
+                    )
+                }
                 conn.setRequestProperty("ADAPTY-SDK-VERSION", com.adapty.BuildConfig.VERSION_NAME)
-                LogHelper.logVerbose("another thread added headers3 for request $reqID")
-                conn.setRequestProperty("ADAPTY-SDK-VERSION-BUILD", ADAPTY_SDK_VERSION_INT.toString())
-                LogHelper.logVerbose("another thread added headers4 for request $reqID")
-                conn.setRequestProperty(AUTHORIZATION_KEY, API_KEY_PREFIX.plus(preferenceManager.appKey))
-                LogHelper.logVerbose("another thread added headers5 for request $reqID")
+                conn.setRequestProperty(
+                    "ADAPTY-SDK-VERSION-BUILD",
+                    ADAPTY_SDK_VERSION_INT.toString()
+                )
+                conn.setRequestProperty(
+                    AUTHORIZATION_KEY,
+                    API_KEY_PREFIX.plus(preferenceManager.appKey)
+                )
 
                 conn.setRequestProperty("Connection", "close")
+                System.setProperty("java.net.preferIPv4Stack", "true")
                 System.setProperty("http.keepAlive", "false")
-                System.setProperty("java.net.preferIPv4Stack" , "true")
 
                 conn.doInput = true
-                LogHelper.logVerbose("another thread doInput for request $reqID")
 
                 if (type != GET) {
                     conn.doOutput = true
                     val os = conn.outputStream
-                    LogHelper.logVerbose("another thread output for request $reqID")
                     val writer = BufferedWriter(OutputStreamWriter(os, "UTF-8"))
-                    LogHelper.logVerbose("another thread buffering for request $reqID")
                     writer.write(req)
-                    LogHelper.logVerbose("another thread write req for request $reqID")
                     writer.flush()
-                    LogHelper.logVerbose("another thread flush for request $reqID")
                     writer.close()
-                    LogHelper.logVerbose("another thread writer close for request $reqID")
                     os.close()
-                    LogHelper.logVerbose("another thread os close for request $reqID")
                 }
 
                 conn.connect()
-                LogHelper.logVerbose("another thread conn.connect() for request $reqID")
 
                 val response = conn.responseCode
-                LogHelper.logVerbose("another thread response ${conn.responseCode} for request $reqID")
 
                 if (response == HttpURLConnection.HTTP_OK
                     || response == HttpURLConnection.HTTP_CREATED
@@ -138,17 +216,13 @@ class ApiClient(private var context: Context) {
                     || response == 207
                     || response == 206
                 ) {
-                    LogHelper.logVerbose("another thread response success for request $reqID")
+
                     val inputStream = conn.inputStream
-                    LogHelper.logVerbose("another thread response inputStream for request $reqID")
 
                     rString = toStringUtf8(inputStream)
-                    LogHelper.logVerbose("another thread response toUtf8 for request $reqID")
-                    LogHelper.logVerbose("Response $reqID $myUrl: $rString")
 
                 } else {
                     rString = toStringUtf8(conn.errorStream)
-                    LogHelper.logVerbose("another thread response toUtf8 non success for request $reqID")
                     fail(
                         "Request is unsuccessful. $reqID Url: $myUrl Response Code: $response, Message: $rString",
                         reqID,
@@ -156,8 +230,8 @@ class ApiClient(private var context: Context) {
                     )
                     return@Runnable
                 }
+
             } catch (e: Exception) {
-                LogHelper.logVerbose("another thread exception ${e.message} ${e.localizedMessage} for request $reqID")
                 e.printStackTrace()
 
                 fail(
@@ -173,37 +247,59 @@ class ApiClient(private var context: Context) {
             try {
                 responseObj = if (oresponse != null) {
                     gson.fromJson(rString, oresponse.javaClass)
-                } else {
+                } else
                     rString
-                }
-                LogHelper.logVerbose("another thread convert gson for request $reqID")
-
-
                 success(responseObj, reqID, adaptyCallback)
             } catch (e: Exception) {
-                LogHelper.logVerbose("another thread exception2 ${e.message} ${e.localizedMessage} for request $reqID")
                 e.printStackTrace()
                 responseObj = rString
-                LogHelper.logError("Request $reqID parse error: ${e.message}, ${e.localizedMessage}")
                 success(responseObj, reqID, adaptyCallback)
             }
         }).start()
     }
 
-    private fun post(url: String, request: Any, oresponse: Any?, reqID: Int, adaptyCallback : AdaptyCallback?) {
-        LogHelper.logVerbose("make request $reqID")
+    private fun getCurrentLocale(context: Context) =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            context.resources.configuration.locales.get(0)
+        } else {
+            context.resources.configuration.locale
+        }
+
+    private fun post(
+        url: String,
+        request: Any,
+        oresponse: Any?,
+        reqID: Int,
+        adaptyCallback: AdaptyCallback?
+    ) {
         request(POST, url, request, oresponse, reqID, adaptyCallback)
     }
 
-    private fun patch(url: String, request: Any, oresponse: Any?, reqID: Int, adaptyCallback : AdaptyCallback?) {
+    private fun patch(
+        url: String,
+        request: Any,
+        oresponse: Any?,
+        reqID: Int,
+        adaptyCallback: AdaptyCallback?
+    ) {
         request(PATCH, url, request, oresponse, reqID, adaptyCallback)
     }
 
-    private fun get(url: String, request: Any, oresponse: Any?, reqID: Int, adaptyCallback : AdaptyCallback?) {
+    private fun get(
+        url: String,
+        request: Any,
+        oresponse: Any?,
+        reqID: Int,
+        adaptyCallback: AdaptyCallback?
+    ) {
         request(GET, url, request, oresponse, reqID, adaptyCallback)
     }
 
-    private fun success(response: Any?, reqID: Int, adaptyCallback : AdaptyCallback?) {
+    private fun success(
+        response: Any?,
+        reqID: Int,
+        adaptyCallback: AdaptyCallback?
+    ) {
         LogHelper.logVerbose("Response success $reqID")
         try {
             val mainHandler = Handler(context.mainLooper)
@@ -245,7 +341,11 @@ class ApiClient(private var context: Context) {
         }
     }
 
-    private fun fail(error: String, reqID: Int, adaptyCallback : AdaptyCallback?) {
+    private fun fail(
+        error: String,
+        reqID: Int,
+        adaptyCallback: AdaptyCallback?
+    ) {
         LogHelper.logError("Request failed $reqID $error")
         try {
             val mainHandlerE = Handler(context.mainLooper)
@@ -279,7 +379,7 @@ class ApiClient(private var context: Context) {
         }
     }
 
-    private fun toStringUtf8(inputStream: InputStream): String{
+    private fun toStringUtf8(inputStream: InputStream): String {
         val r = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
         val total = StringBuilder()
         var line: String? = r.readLine()
@@ -290,7 +390,7 @@ class ApiClient(private var context: Context) {
         return total.toString()
     }
 
-    private fun generateUrl(reqId: Int): String{
+    private fun generateUrl(reqId: Int): String {
         return when (reqId) {
             CREATE_PROFILE_REQ_ID, UPDATE_PROFILE_REQ_ID, GET_PROFILE_REQ_ID ->
                 serverUrl + "sdk/analytics/profiles/" + preferenceManager.profileID + "/"
@@ -302,6 +402,8 @@ class ApiClient(private var context: Context) {
                 serverUrl + "sdk/in-apps/google/token/restore/"
             GET_CONTAINERS_REQ_ID ->
                 serverUrl + "sdk/in-apps/purchase-containers/?profile_id=" + preferenceManager.profileID
+            UPDATE_ATTRIBUTION_REQ_ID ->
+                serverUrl + "sdk/analytics/profiles/" + preferenceManager.profileID + "/attribution/"
             else -> serverUrl
         }
     }

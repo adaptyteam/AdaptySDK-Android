@@ -29,7 +29,7 @@ class Product {
 
     var skuDetails: SkuDetails? = null
 
-    class ProductSubscriptionPeriodModel(var period: String) {
+    data class ProductSubscriptionPeriodModel(var period: String) {
         val unit: PeriodUnit?
             get() {
                 val pUnit = getPeriodUnit(period)

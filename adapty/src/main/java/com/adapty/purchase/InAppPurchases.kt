@@ -49,8 +49,6 @@ class InAppPurchases(
                                             .build()
                                     billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingRes ->
 
-//                                        product.transactionId = purchase.orderId
-//                                        product.purchaseToken = purchase.purchaseToken
                                         if (!variationId.isNullOrEmpty())
                                             product.variationId
 
@@ -73,8 +71,6 @@ class InAppPurchases(
                                         consumeParams
                                     ) { p0, p1 ->
 
-//                                        product.transactionId = purchase.orderId
-//                                        product.purchaseToken = p1
                                         if (!variationId.isNullOrEmpty())
                                             product.variationId
 
@@ -146,7 +142,7 @@ class InAppPurchases(
             getSkuList(
                 chosenPurchase,
                 type
-            )?.build()
+            ).build()
         ) { result, skuDetailsList ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK && skuDetailsList != null) {
                 for (skuDetails in skuDetailsList) {
@@ -155,8 +151,9 @@ class InAppPurchases(
                         val flowParams = BillingFlowParams.newBuilder()
                             .setSkuDetails(skuDetails)
                             .build()
-                        val responseCode =
-                            billingClient.launchBillingFlow(activity, flowParams)
+                        activity?.let {
+                            billingClient.launchBillingFlow(it, flowParams)
+                        }
                         break
                     } else
                         fail("This product_id not found with this purchase type")
@@ -166,7 +163,7 @@ class InAppPurchases(
         }
     }
 
-    private fun getSkuList(productId: String, type: String): SkuDetailsParams.Builder? {
+    private fun getSkuList(productId: String, type: String): SkuDetailsParams.Builder {
         val skuList =
             arrayListOf(productId)
         val params = SkuDetailsParams.newBuilder()
@@ -186,29 +183,26 @@ class InAppPurchases(
                             fail("You have no purchases")
                         } else {
                             fillProductInfoFromCache()
-                            apiClientRepository?.restore(
-                                historyPurchases, object : AdaptyRestoreCallback {
-                                    override fun onResult(
-                                        response: RestoreReceiptResponse?,
-                                        error: String?
-                                    ) {
-                                        if (error == null) {
-                                            success(null, response, error)
-                                            return
-                                        }
-
-                                        fail("Restore error: $error")
-                                    }
-                                })
+                            checkPurchasesHistoryForSync(historyPurchases)
                         }
                     } else
                         queryPurchaseHistory(INAPP)
                 } else {
+                    var activeSubscriptions: List<Purchase>? = null
+                    if (type == SUBS) {
+                        activeSubscriptions = billingClient.queryPurchases(SUBS).purchasesList
+                    }
                     for (purchase in purchasesList) {
                         val item = RestoreItem()
                         item.isSubscription = type == SUBS
                         item.productId = purchase.sku
                         item.purchaseToken = purchase.purchaseToken
+                        activeSubscriptions?.forEach { activeSubscription ->
+                            if (activeSubscription.purchaseToken == purchase.purchaseToken) {
+                                item.transactionId = activeSubscription.orderId
+                                return@forEach
+                            }
+                        }
                         historyPurchases.add(item)
                     }
 
@@ -219,20 +213,7 @@ class InAppPurchases(
                             fail("You have no purchases")
                         else {
                             fillProductInfoFromCache()
-                            apiClientRepository?.restore(
-                                historyPurchases, object : AdaptyRestoreCallback {
-                                    override fun onResult(
-                                        response: RestoreReceiptResponse?,
-                                        error: String?
-                                    ) {
-                                        if (error == null) {
-                                            success(null, response, error)
-                                            return
-                                        }
-
-                                        fail("Restore error: $error")
-                                    }
-                                })
+                            checkPurchasesHistoryForSync(historyPurchases)
                         }
                     }
                 }
@@ -256,7 +237,11 @@ class InAppPurchases(
         }
     }
 
-    private fun getElementFromContainers(containers: ArrayList<DataContainer>?, prods: ArrayList<Product>, id: String) : Product? {
+    private fun getElementFromContainers(
+        containers: ArrayList<DataContainer>?,
+        prods: ArrayList<Product>,
+        id: String
+    ): Product? {
         containers?.let {
             for (i in 0 until containers.size) {
                 containers[i].attributes?.products?.let { products ->
@@ -275,6 +260,54 @@ class InAppPurchases(
         return null
     }
 
+    private fun checkPurchasesHistoryForSync(historyPurchases: ArrayList<RestoreItem>) {
+        val savedPurchases = preferenceManager.syncedPurchases
+
+        if (savedPurchases.isEmpty() && historyPurchases.isNotEmpty() ||
+            savedPurchases.size < historyPurchases.size
+        ) {
+            apiClientRepository?.restore(
+                historyPurchases, object : AdaptyRestoreCallback {
+                    override fun onResult(
+                        response: RestoreReceiptResponse?,
+                        error: String?
+                    ) {
+                        if (error == null) {
+                            preferenceManager.syncedPurchases = historyPurchases
+                            success(null, response, error)
+                            return
+                        }
+
+                        fail(error)
+                    }
+                })
+        } else {
+            if (savedPurchases != historyPurchases) {
+                val notSynced = arrayListOf<RestoreItem>()
+                for (hp in historyPurchases) {
+                    if (!savedPurchases.contains(hp))
+                        notSynced.add(hp)
+                }
+
+                apiClientRepository?.restore(
+                    notSynced, object : AdaptyRestoreCallback {
+                        override fun onResult(
+                            response: RestoreReceiptResponse?,
+                            error: String?
+                        ) {
+                            if (error == null) {
+                                preferenceManager.syncedPurchases = historyPurchases
+                                success(null, response, error)
+                                return
+                            }
+
+                            fail(error)
+                        }
+                    })
+            } else
+                fail("No new purchases")
+        }
+    }
 
     private fun success(purchase: Purchase?, response: Any?, error: String?) {
         if (isRestore) {

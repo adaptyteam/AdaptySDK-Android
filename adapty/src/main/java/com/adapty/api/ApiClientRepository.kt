@@ -5,9 +5,10 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import android.os.AsyncTask
 import android.os.Build
-import com.adapty.Adapty
 import com.adapty.Adapty.Companion.context
 import com.adapty.api.entity.BaseData
+import com.adapty.api.entity.attribution.AttributeUpdateAttributionReq
+import com.adapty.api.entity.attribution.DataUpdateAttributionReq
 import com.adapty.api.entity.containers.Product
 import com.adapty.api.entity.profile.AttributeProfileReq
 import com.adapty.api.entity.profile.DataProfileReq
@@ -22,34 +23,38 @@ import com.adapty.api.requests.*
 import com.adapty.purchase.SUBS
 import com.adapty.utils.*
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
-import java.time.ZoneId
+import org.json.JSONObject
+import java.math.BigDecimal
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import java.util.*
-import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 
 class ApiClientRepository(var preferenceManager: PreferenceManager) {
 
     private var apiClient = ApiClient(context)
 
-    fun createProfile(customerUserId: String?, adaptyCallback: AdaptyCallback) {
-        LogHelper.logVerbose(" apiclientRepository create profile")
-        var uuid = preferenceManager.profileID
-        if (uuid.isEmpty()) {
-            uuid = generateUuid().toString()
-            preferenceManager.profileID = uuid
-            preferenceManager.installationMetaID = uuid
-        }
-        LogHelper.logVerbose(" apiclientRepository create profile uuid ok")
+    private val priceFormatter by lazy {
+        DecimalFormat("0.00", DecimalFormatSymbols(Locale.US))
+    }
 
-        val profileRequest = CreateProfileRequest()
-        profileRequest.data = DataProfileReq()
-        profileRequest.data?.id = uuid
-        profileRequest.data?.type = "adapty_analytics_profile"
-        if (!customerUserId.isNullOrEmpty()) {
-            profileRequest.data?.attributes = AttributeProfileReq()
-            profileRequest.data?.attributes?.customerUserId = customerUserId
+    fun createProfile(customerUserId: String?, adaptyCallback: AdaptyCallback) {
+
+        val uuid = getOrCreateUUID()
+
+        val profileRequest = CreateProfileRequest().apply {
+            data = DataProfileReq().apply {
+                id = uuid
+                type = "adapty_analytics_profile"
+                if (!customerUserId.isNullOrEmpty()) {
+                    attributes = AttributeProfileReq().apply {
+                        this.customerUserId = customerUserId
+                    }
+                }
+            }
         }
-        LogHelper.logVerbose(" apiclientRepository create profile data added")
+
         apiClient.createProfile(profileRequest, adaptyCallback)
     }
 
@@ -60,6 +65,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         facebookUserId: String?,
         mixpanelUserId: String?,
         amplitudeUserId: String?,
+        amplitudeDeviceId: String?,
         appsflyerId: String?,
         appmetricaProfileId: String? = null,
         appmetricaDeviceId: String? = null,
@@ -70,31 +76,29 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         adaptyCallback: AdaptyCallback
     ) {
 
-        var uuid = preferenceManager.profileID
-        if (uuid.isEmpty()) {
-            uuid = generateUuid().toString()
-            preferenceManager.profileID = uuid
-        }
+        val uuid = getOrCreateUUID(false)
 
-        val profileRequest = UpdateProfileRequest()
-        profileRequest.data = DataProfileReq()
-        profileRequest.data?.id = uuid
-        profileRequest.data?.type = "adapty_analytics_profile"
-        profileRequest.data?.attributes = AttributeProfileReq()
-        profileRequest.data?.attributes?.apply {
-            this.customerUserId = customerUserId
-            this.email = email
-            this.phoneNumber = phoneNumber
-            this.facebookUserId = facebookUserId
-            this.mixpanelUserId = mixpanelUserId
-            this.amplitudeUserId = amplitudeUserId
-            this.appsflyerId = appsflyerId
-            this.firstName = firstName
-            this.lastName = lastName
-            this.gender = gender
-            this.birthday = birthday
-            this.appmetricaProfileId = appmetricaProfileId
-            this.appmetricaDeviceId = appmetricaDeviceId
+        val profileRequest = UpdateProfileRequest().apply {
+            data = DataProfileReq().apply {
+                id = uuid
+                type = "adapty_analytics_profile"
+                attributes = AttributeProfileReq().apply {
+                    this.customerUserId = customerUserId
+                    this.email = email
+                    this.phoneNumber = phoneNumber
+                    this.facebookUserId = facebookUserId
+                    this.mixpanelUserId = mixpanelUserId
+                    this.amplitudeUserId = amplitudeUserId
+                    this.amplitudeDeviceId = amplitudeDeviceId
+                    this.appsflyerId = appsflyerId
+                    this.firstName = firstName
+                    this.lastName = lastName
+                    this.gender = gender
+                    this.birthday = birthday
+                    this.appmetricaProfileId = appmetricaProfileId
+                    this.appmetricaDeviceId = appmetricaDeviceId
+                }
+            }
         }
 
         apiClient.updateProfile(profileRequest, adaptyCallback)
@@ -103,17 +107,13 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
     fun getProfile(
         adaptyCallback: AdaptyCallback
     ) {
-        LogHelper.logVerbose("getPurchaserInfo() getProfile()")
-        var uuid = preferenceManager.profileID
-        if (uuid.isEmpty()) {
-            uuid = generateUuid().toString()
-            preferenceManager.profileID = uuid
+        val uuid = getOrCreateUUID(false)
+
+        val purchaserInfoRequest = PurchaserInfoRequest().apply {
+            data = BaseData().apply {
+                id = uuid
+            }
         }
-        LogHelper.logVerbose("getPurchaserInfo() getProfile() uuid ok")
-        val purchaserInfoRequest = PurchaserInfoRequest()
-        purchaserInfoRequest.data = BaseData()
-        purchaserInfoRequest.data?.id = uuid
-        LogHelper.logVerbose("getPurchaserInfo() getProfile() go to ApiClient")
 
         apiClient.getProfile(purchaserInfoRequest, adaptyCallback)
     }
@@ -121,65 +121,53 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
     fun getPurchaseContainers(
         adaptyCallback: AdaptyCallback
     ) {
-        var uuid = preferenceManager.profileID
-        if (uuid.isEmpty()) {
-            uuid = generateUuid().toString()
-            preferenceManager.profileID = uuid
-        }
+        val uuid = getOrCreateUUID(false)
 
-        val request = PurchaseContainersRequest()
-        request.data = BaseData()
-        request.data?.id = uuid
+        val request = PurchaseContainersRequest().apply {
+            data = BaseData().apply {
+                id = uuid
+            }
+        }
 
         apiClient.getPurchaseContainers(request, adaptyCallback)
     }
 
     fun syncMetaInstall(applicationContext: Context, adaptyCallback: AdaptyCallback? = null) {
-        LogHelper.logVerbose("sendSyncMetaInstallRequest Enter")
-        var uuid = preferenceManager.profileID
-        LogHelper.logVerbose("sendSyncMetaInstallRequest uuid: ${uuid ?: ""}")
-        if (uuid.isEmpty()) {
-            LogHelper.logVerbose("sendSyncMetaInstallRequest uuid isEmpty")
-            uuid = generateUuid().toString()
-            preferenceManager.profileID = uuid
-            preferenceManager.installationMetaID = uuid
-        }
 
-        val syncMetaRequest = SyncMetaInstallRequest()
-        syncMetaRequest.data = DataSyncMetaReq()
-        syncMetaRequest.data?.id = uuid
-        syncMetaRequest.data?.type = "adapty_analytics_profile_installation_meta"
-        syncMetaRequest.data?.attributes = AttributeSyncMetaReq()
-        LogHelper.logVerbose("sendSyncMetaInstallRequest Attribute Created")
-        syncMetaRequest.data?.attributes?.apply {
-            adaptySdkVersion = com.adapty.BuildConfig.VERSION_NAME
-            adaptySdkVersionBuild = ADAPTY_SDK_VERSION_INT
-            LogHelper.logVerbose("sendSyncMetaInstallRequest Attribute Sdk version added")
-            try {
-                applicationContext.applicationContext?.let { ctx ->
-                    val mainPackageName = applicationContext.applicationContext?.packageName
-                    val packageInfo: PackageInfo =
-                        ctx.packageManager.getPackageInfo(mainPackageName, 0)
-                    val versionCode: Long =
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                            packageInfo.longVersionCode
-                        } else {
-                            packageInfo.versionCode.toLong()
+        val uuid = getOrCreateUUID()
+
+        val syncMetaRequest = SyncMetaInstallRequest().apply {
+            data = DataSyncMetaReq().apply {
+                id = uuid
+                type = "adapty_analytics_profile_installation_meta"
+                attributes = AttributeSyncMetaReq().apply {
+                    adaptySdkVersion = com.adapty.BuildConfig.VERSION_NAME
+                    adaptySdkVersionBuild = ADAPTY_SDK_VERSION_INT
+                    try {
+                        applicationContext.applicationContext?.let { ctx ->
+                            val mainPackageName = ctx.packageName
+                            val packageInfo: PackageInfo =
+                                ctx.packageManager.getPackageInfo(mainPackageName, 0)
+                            val versionCode: Long =
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                    packageInfo.longVersionCode
+                                } else {
+                                    packageInfo.versionCode.toLong()
+                                }
+                            appBuild = versionCode.toString()
+                            appVersion = packageInfo.versionName
                         }
-                    appBuild = versionCode.toString()
-                    appVersion = packageInfo.versionName
-                }
-                LogHelper.logVerbose("sendSyncMetaInstallRequest Attribute added version")
-            } catch (e : java.lang.Exception) {
-                LogHelper.logVerbose("sendSyncMetaInstallRequest catch ${e.message}, ${e.localizedMessage}")
-            }
+                    } catch (e: java.lang.Exception) {
+                    }
 
-            device = getDeviceName()
-            locale = Locale.getDefault().toLanguageTag()
-            os = getDeviceOsVersion()
-            platform = "Android"
-            timezone = TimeZone.getDefault().id
-            LogHelper.logVerbose("sendSyncMetaInstallRequest Attribute all info added")
+                    device = getDeviceName()
+                    locale =
+                        getCurrentLocale(context)?.let { "${it.language}_${it.country}" }
+                    os = getDeviceOsVersion()
+                    platform = "Android"
+                    timezone = TimeZone.getDefault().id
+                }
+            }
         }
 
         val task: AsyncTask<Void?, Void?, String?> =
@@ -193,18 +181,15 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
                         idInfo = AdvertisingIdClient.getAdvertisingIdInfo(context)
                         advertId = idInfo!!.id
                     } catch (e: Exception) {
-                        LogHelper.logVerbose("sendSyncMetaInstallRequest advertising catch: ${e.message}, ${e.localizedMessage}")
                     }
 
                     return advertId
                 }
 
                 override fun onPostExecute(advertId: String?) {
-                    LogHelper.logVerbose("sendSyncMetaInstallRequest advertId get: ${advertId ?: ""}")
                     if (advertId != null) {
                         syncMetaRequest.data?.attributes?.advertisingId = advertId
                     }
-                    LogHelper.logVerbose("sendSyncMetaInstallRequest go to apiCLient")
                     apiClient.syncMeta(syncMetaRequest, adaptyCallback)
                 }
             }
@@ -220,56 +205,103 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         product: Product?,
         adaptyCallback: AdaptyCallback? = null
     ) {
-        var uuid = preferenceManager.profileID
-        if (uuid.isEmpty()) {
-            uuid = generateUuid().toString()
-            preferenceManager.profileID = uuid
-            preferenceManager.installationMetaID = uuid
-        }
+        val uuid = getOrCreateUUID()
 
-        val validateReceiptRequest = ValidateReceiptRequest()
-        validateReceiptRequest.data = DataValidateReceiptReq()
-        validateReceiptRequest.data?.id = uuid
-        validateReceiptRequest.data?.type = "google_receipt_validation_result"
-        validateReceiptRequest.data?.attributes = AttributeValidateReceiptReq()
-        validateReceiptRequest.data?.attributes?.apply {
-            profileId = uuid
-            this.productId = productId
-            this.purchaseToken = purchaseToken
-            isSubscription = (purchaseType == SUBS)
+        val validateReceiptRequest = ValidateReceiptRequest().apply {
+            data = DataValidateReceiptReq().apply {
+                id = uuid
+                type = "google_receipt_validation_result"
+                attributes = AttributeValidateReceiptReq().apply {
+                    this.profileId = uuid
+                    this.productId = productId
+                    this.purchaseToken = purchaseToken
+                    this.isSubscription = (purchaseType == SUBS)
 
-            purchaseOrderId?.let {
-                transactionId = it
+                    purchaseOrderId?.let {
+                        this.transactionId = it
+                    }
+
+                    product?.let { p ->
+                        this.variationId = p.variationId
+                        this.priceLocale = p.currencyCode
+                        this.originalPrice = p.skuDetails?.let {
+                            priceFormatter.format(
+                                BigDecimal.valueOf(it.priceAmountMicros)
+                                    .divide(BigDecimal.valueOf(1_000_000L))
+                            )
+                        }
+                    }
+                }
             }
-
-            product?.let { p ->
-                variationId = p.variationId
-                priceLocale = p.currencyCode
-                originalPrice = p.price
-            }
         }
-
 
         apiClient.validatePurchase(validateReceiptRequest, adaptyCallback)
     }
 
     fun restore(purchases: ArrayList<RestoreItem>, adaptyCallback: AdaptyCallback? = null) {
-        var uuid = preferenceManager.profileID
-        if (uuid.isEmpty()) {
-            uuid = generateUuid().toString()
-            preferenceManager.profileID = uuid
-            preferenceManager.installationMetaID = uuid
-        }
+        val uuid = getOrCreateUUID()
 
-        val restoreReceiptRequest = RestoreReceiptRequest()
-        restoreReceiptRequest.data = DataRestoreReceiptReq()
-        restoreReceiptRequest.data?.type = "google_receipt_validation_result"
-        restoreReceiptRequest.data?.attributes = AttributeRestoreReceiptReq()
-        restoreReceiptRequest.data?.attributes?.profileId = uuid
-        restoreReceiptRequest.data?.attributes?.restoreItems = purchases
+        val restoreReceiptRequest = RestoreReceiptRequest().apply {
+            data = DataRestoreReceiptReq().apply {
+                type = "google_receipt_validation_result"
+                attributes = AttributeRestoreReceiptReq().apply {
+                    profileId = uuid
+                    restoreItems = purchases
+                }
+            }
+        }
 
         apiClient.restorePurchase(restoreReceiptRequest, adaptyCallback)
     }
+
+    fun updateAttribution(
+        attribution: Any,
+        source: String,
+        networkUserId: String?,
+        adaptyCallback: AdaptyCallback? = null
+    ) {
+        getOrCreateUUID()
+
+        val updateAttributionRequest = UpdateAttributionRequest().apply {
+            data = DataUpdateAttributionReq().apply {
+                type = "adapty_analytics_profile_attribution"
+                attributes = AttributeUpdateAttributionReq().apply {
+                    this.source = source
+                    this.attribution = if (attribution is JSONObject) {
+                        val jo = HashMap<String, Any>()
+                        for (a in attribution.keys()) {
+                            jo[a] = attribution.get(a)
+                        }
+                        jo
+                    } else {
+                        attribution
+                    }
+
+                    this.networkUserId = networkUserId
+                }
+            }
+        }
+
+        apiClient.updateAttribution(updateAttributionRequest, adaptyCallback)
+    }
+
+    private fun getOrCreateUUID(updateMetaId: Boolean = true): String {
+        return preferenceManager.profileID.takeIf { it.isNotEmpty() }
+            ?: kotlin.run {
+                generateUuid().toString().also { uuid ->
+                    preferenceManager.profileID = uuid
+                    if (updateMetaId)
+                        preferenceManager.installationMetaID = uuid
+                }
+            }
+    }
+
+    private fun getCurrentLocale(context: Context) =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            context.resources.configuration.locales.get(0)
+        } else {
+            context.resources.configuration.locale
+        }
 
     companion object Factory {
 

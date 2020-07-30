@@ -53,7 +53,7 @@ class InAppPurchasesInfo(
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                         querySkuDetailsInApp(data)
-                    }  else {
+                    } else {
                         fail(billingResult.debugMessage)
                     }
                 }
@@ -115,7 +115,7 @@ class InAppPurchasesInfo(
         }
     }
 
-    private fun getSkuList(data: Any, type: String): SkuDetailsParams.Builder? {
+    private fun getSkuList(data: Any, type: String): SkuDetailsParams.Builder {
         val skuList = arrayListOf<String>()
         if (data is DataContainer) {
             data.attributes?.products?.let {

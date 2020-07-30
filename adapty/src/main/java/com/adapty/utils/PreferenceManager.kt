@@ -2,21 +2,28 @@ package com.adapty.utils
 
 import android.content.Context
 import android.text.TextUtils
+import com.adapty.api.aws.AwsRecordModel
 import com.adapty.api.entity.containers.DataContainer
 import com.adapty.api.entity.containers.Product
 import com.adapty.api.entity.purchaserInfo.model.PurchaserInfoModel
+import com.adapty.api.entity.restore.RestoreItem
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
 const val PROFILE_ID = "PROFILE_ID"
 const val CUSTOMER_USER_ID = "CUSTOMER_USER_ID"
 const val INSTALLATION_META_ID = "CUSTOMER_USER_ID"
+const val IAM_ACCESS_KEY_ID = "IAM_ACCESS_KEY_ID"
+const val IAM_SECRET_KEY = "IAM_SECRET_KEY"
+const val IAM_SESSION_TOKEN = "IAM_SESSION_TOKEN"
 const val PURCHASER_INFO = "PURCHASER_INFO"
 const val CONTAINERS = "CONTAINERS"
 const val PRODUCTS = "PRODUCTS"
+const val SYNCED_PURCHASES = "SYNCED_PURCHASES"
+const val KINESIS_RECORDS = "KINESIS_RECORDS"
 const val APP_KEY = "APP_KEY"
 
-class PreferenceManager (context: Context) {
+class PreferenceManager(context: Context) {
 
     private val privateMode = 0
     private val pref = context.getSharedPreferences(PREF_NAME, privateMode)
@@ -37,6 +44,33 @@ class PreferenceManager (context: Context) {
         }
         set(customerUserID) {
             editor.putString(CUSTOMER_USER_ID, customerUserID)
+            editor.commit()
+        }
+
+    var iamAccessKeyId: String?
+        get() {
+            return pref.getString(IAM_ACCESS_KEY_ID, null)
+        }
+        set(iamAccessKeyId) {
+            editor.putString(IAM_ACCESS_KEY_ID, iamAccessKeyId)
+            editor.commit()
+        }
+
+    var iamSecretKey: String?
+        get() {
+            return pref.getString(IAM_SECRET_KEY, null)
+        }
+        set(iamSecretKey) {
+            editor.putString(IAM_SECRET_KEY, iamSecretKey)
+            editor.commit()
+        }
+
+    var iamSessionToken: String?
+        get() {
+            return pref.getString(IAM_SESSION_TOKEN, null)
+        }
+        set(iamSessionToken) {
+            editor.putString(IAM_SESSION_TOKEN, iamSessionToken)
             editor.commit()
         }
 
@@ -77,7 +111,7 @@ class PreferenceManager (context: Context) {
             if (TextUtils.isEmpty(json))
                 return null
             else {
-                return Gson().fromJson(json, object: TypeToken<ArrayList<DataContainer>>() {}.type)
+                return Gson().fromJson(json, object : TypeToken<ArrayList<DataContainer>>() {}.type)
             }
         }
         set(set) {
@@ -91,11 +125,42 @@ class PreferenceManager (context: Context) {
             if (TextUtils.isEmpty(json))
                 return arrayListOf()
             else {
-                return Gson().fromJson(json, object: TypeToken<ArrayList<Product>>() {}.type)
+                return Gson().fromJson(json, object : TypeToken<ArrayList<Product>>() {}.type)
             }
         }
         set(set) {
             editor.putString(PRODUCTS, Gson().toJson(set))
+            editor.commit()
+        }
+
+    var syncedPurchases: ArrayList<RestoreItem>
+        get() {
+            val json = pref.getString(SYNCED_PURCHASES, null)
+            if (TextUtils.isEmpty(json))
+                return arrayListOf()
+            else {
+                return Gson().fromJson(json, object : TypeToken<ArrayList<RestoreItem>>() {}.type)
+            }
+        }
+        set(set) {
+            editor.putString(SYNCED_PURCHASES, Gson().toJson(set))
+            editor.commit()
+        }
+
+    var kinesisRecords: ArrayList<AwsRecordModel>
+        get() {
+            val json = pref.getString(KINESIS_RECORDS, null)
+            if (TextUtils.isEmpty(json))
+                return arrayListOf()
+            else {
+                return Gson().fromJson(
+                    json,
+                    object : TypeToken<ArrayList<AwsRecordModel>>() {}.type
+                )
+            }
+        }
+        set(set) {
+            editor.putString(KINESIS_RECORDS, Gson().toJson(set))
             editor.commit()
         }
 
