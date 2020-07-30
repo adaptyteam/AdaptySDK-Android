@@ -4,7 +4,7 @@
 
 ## Requirements
 
-- Android 5.0+
+- Android 4.1+
 
 ## Installation
 
@@ -25,7 +25,7 @@ Add dependency:
 
 ```Kotlin
 dependencies {
-    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.3.0'
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.3.1'
 }
 ```
 
