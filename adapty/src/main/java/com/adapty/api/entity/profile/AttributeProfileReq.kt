@@ -57,4 +57,7 @@ open class AttributeProfileReq {
     @SerializedName("appmetrica_device_id")
     var appmetricaDeviceId: String? = null
 
+    @SerializedName("custom_attributes")
+    var customAttributes: String? = null
+
 }

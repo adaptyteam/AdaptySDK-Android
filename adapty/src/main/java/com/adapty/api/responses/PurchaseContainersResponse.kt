@@ -4,7 +4,7 @@ import com.adapty.api.entity.containers.DataContainer
 import com.adapty.api.entity.containers.MetaGetContainerRes
 import com.google.gson.annotations.SerializedName
 
-class PurchaseContainersResponse {
+class PaywallsResponse {
     @SerializedName("data")
     var data: ArrayList<DataContainer>? = null
 

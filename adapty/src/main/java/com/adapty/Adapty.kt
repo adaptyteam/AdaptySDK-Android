@@ -19,6 +19,7 @@ import com.adapty.utils.KinesisManager
 import com.adapty.utils.LogHelper
 import com.adapty.utils.generatePurchaserInfoModel
 import com.android.billingclient.api.Purchase
+import com.google.gson.Gson
 import kotlin.collections.ArrayList
 
 class Adapty {
@@ -30,13 +31,19 @@ class Adapty {
         private var requestQueue: ArrayList<() -> Unit> = arrayListOf()
         private var isActivated = false
         private var kinesisManager: KinesisManager? = null
+        private val gson = Gson()
+        private val apiClientRepository by lazy {
+            ApiClientRepository(preferenceManager, gson)
+        }
 
+        @JvmStatic
         fun activate(
             context: Context,
             appKey: String
         ) =
             activate(context, appKey, null, null)
 
+        @JvmStatic
         fun activate(
             context: Context,
             appKey: String,
@@ -77,8 +84,7 @@ class Adapty {
             this.preferenceManager.appKey = appKey
 
             if (preferenceManager.profileID.isEmpty()) {
-                ApiClientRepository.getInstance(preferenceManager)
-                    .createProfile(customerUserId, object : AdaptySystemCallback {
+                apiClientRepository.createProfile(customerUserId, object : AdaptySystemCallback {
                         override fun success(response: Any?, reqID: Int) {
                             if (response is CreateProfileResponse) {
                                 response.data?.attributes?.apply {
@@ -97,11 +103,11 @@ class Adapty {
 
                             nextQueue()
 
-                            getStartedPurchaseContainers(context)
+                            getStartedPaywalls()
 
-                            sendSyncMetaInstallRequest(context)
+                            sendSyncMetaInstallRequest()
 
-                            syncPurchasesBody(Companion.context, null)
+                            syncPurchasesBody(null)
 
                         }
 
@@ -131,11 +137,11 @@ class Adapty {
         }
 
         private fun makeStartRequests(adaptyCallback: ((String?) -> Unit)?) {
-            sendSyncMetaInstallRequest(context)
+            sendSyncMetaInstallRequest()
 
-            getStartedPurchaseContainers(context)
+            getStartedPaywalls()
 
-            syncPurchasesBody(context) { _ ->
+            syncPurchasesBody { _ ->
                 var isCallbackSent = false
                 getPurchaserInfo(false) { info, state, error ->
                     if (!isCallbackSent) {
@@ -178,9 +184,19 @@ class Adapty {
             return false
         }
 
-        fun sendSyncMetaInstallRequest(applicationContext: Context) {
-            ApiClientRepository.getInstance(preferenceManager)
-                .syncMetaInstall(applicationContext, object : AdaptySystemCallback {
+        @Deprecated(
+            message = "Changed signature",
+            replaceWith = ReplaceWith(
+                expression = "Adapty.sendSyncMetaInstallRequest()"
+            ),
+            level = DeprecationLevel.WARNING)
+        fun sendSyncMetaInstallRequest(applicationContext: Context)
+                = sendSyncMetaInstallRequest()
+
+        @JvmStatic
+        fun sendSyncMetaInstallRequest() {
+            LogHelper.logVerbose("sendSyncMetaInstallRequest()")
+            apiClientRepository.syncMetaInstall(object : AdaptySystemCallback {
                     override fun success(response: Any?, reqID: Int) {
                         if (response is SyncMetaInstallResponse) {
                             response.data?.let { data ->
@@ -224,6 +240,7 @@ class Adapty {
             }
         }
 
+        @JvmStatic
         fun identify(customerUserId: String?, adaptyCallback: (String?) -> Unit) {
             LogHelper.logVerbose("identify()")
             addToQueue { identifyInQueue(customerUserId, adaptyCallback) }
@@ -241,8 +258,7 @@ class Adapty {
                 }
             }
 
-            ApiClientRepository.getInstance(preferenceManager)
-                .createProfile(customerUserId, object : AdaptySystemCallback {
+            apiClientRepository.createProfile(customerUserId, object : AdaptySystemCallback {
                     override fun success(response: Any?, reqID: Int) {
                         if (response is CreateProfileResponse) {
                             response.data?.attributes?.apply {
@@ -264,11 +280,11 @@ class Adapty {
                         preferenceManager.products = arrayListOf()
                         preferenceManager.containers = null
 
-                        getStartedPurchaseContainers(context)
+                        getStartedPaywalls()
 
-                        sendSyncMetaInstallRequest(context)
+                        sendSyncMetaInstallRequest()
 
-                        syncPurchasesBody(context, null)
+                        syncPurchasesBody(null)
                     }
 
                     override fun fail(msg: String, reqID: Int) {
@@ -280,6 +296,8 @@ class Adapty {
                 })
         }
 
+        @JvmStatic
+        @JvmOverloads
         fun updateProfile(
             customerUserId: String?,
             email: String?,
@@ -294,10 +312,12 @@ class Adapty {
             firstName: String?,
             lastName: String?,
             gender: String?,
-            birthday: String?, adaptyCallback: (String?) -> Unit
+            birthday: String?,
+            customAttributes: Map<String, Any>? = null,
+            adaptyCallback: (String?) -> Unit
         ) {
             addToQueue {
-                ApiClientRepository.getInstance(preferenceManager).updateProfile(
+                apiClientRepository.updateProfile(
                     customerUserId,
                     email,
                     phoneNumber,
@@ -312,6 +332,7 @@ class Adapty {
                     lastName,
                     gender,
                     birthday,
+                    customAttributes,
                     object : AdaptyProfileCallback {
                         override fun onResult(error: String?) {
                             adaptyCallback.invoke(error)
@@ -332,7 +353,7 @@ class Adapty {
                 adaptyCallback.invoke(it, "cached", null)
             }
 
-            ApiClientRepository.getInstance(preferenceManager).getProfile(
+            apiClientRepository.getProfile(
                 object : AdaptyPurchaserInfoCallback {
                     override fun onResult(response: AttributePurchaserInfoRes?, error: String?) {
                         response?.let {
@@ -351,31 +372,41 @@ class Adapty {
             )
         }
 
+        @JvmStatic
         fun getPurchaserInfo(
             adaptyCallback: (purchaserInfo: PurchaserInfoModel?, state: String, error: String?) -> Unit
         ) {
             addToQueue { getPurchaserInfo(true, adaptyCallback) }
         }
 
-        private fun getStartedPurchaseContainers(context: Context) {
-            getPurchaseContainersInQueue(
-                context,
+        private fun getStartedPaywalls() {
+            getPaywallsInQueue(
                 false
             ) { containers, products, state, error -> }
         }
 
+        @Deprecated(
+            message = "Renamed to getPaywalls and changed signature",
+            replaceWith = ReplaceWith(
+                expression = "Adapty.getPaywalls(adaptyCallback)"
+            ),
+            level = DeprecationLevel.WARNING)
         fun getPurchaseContainers(
-            activity: Activity,
+            context: Context,
             adaptyCallback: (containers: ArrayList<DataContainer>, products: ArrayList<Product>, state: String, error: String?) -> Unit
+        ) = getPaywalls(adaptyCallback)
+
+        @JvmStatic
+        fun getPaywalls(
+            adaptyCallback: (paywalls: ArrayList<DataContainer>, products: ArrayList<Product>, state: String, error: String?) -> Unit
         ) {
-            LogHelper.logVerbose("getPurchaseContainers()")
+            LogHelper.logVerbose("getPaywalls()")
             addToQueue {
-                getPurchaseContainersInQueue(activity, true, adaptyCallback)
+                getPaywallsInQueue(true, adaptyCallback)
             }
         }
 
-        private fun getPurchaseContainersInQueue(
-            context: Context,
+        private fun getPaywallsInQueue(
             needQueue: Boolean,
             adaptyCallback: (containers: ArrayList<DataContainer>, products: ArrayList<Product>, state: String, error: String?) -> Unit
         ) {
@@ -384,8 +415,8 @@ class Adapty {
                 adaptyCallback.invoke(it, preferenceManager.products, "cached", null)
             }
 
-            ApiClientRepository.getInstance(preferenceManager).getPurchaseContainers(
-                object : AdaptyPurchaseContainersCallback {
+            apiClientRepository.getPaywalls(
+                object : AdaptyPaywallsCallback {
                     override fun onResult(
                         containers: ArrayList<DataContainer>,
                         products: ArrayList<Product>,
@@ -428,7 +459,7 @@ class Adapty {
                         InAppPurchasesInfo(
                             context,
                             data,
-                            object : AdaptyPurchaseContainersInfoCallback {
+                            object : AdaptyPaywallsInfoCallback {
                                 override fun onResult(data: ArrayList<Any>, error: String?) {
                                     if (error != null) {
                                         adaptyCallback.invoke(containers, products, "synced", error)
@@ -477,10 +508,24 @@ class Adapty {
             )
         }
 
+        @JvmStatic
         fun makePurchase(
             activity: Activity,
             product: Product,
-            variationId: String? = null,
+            adaptyCallback: (Purchase?, ValidateReceiptResponse?, String?) -> Unit
+        ) = makePurchase(activity, product, null, adaptyCallback)
+
+        @Deprecated(
+            message = "Changed signature",
+            replaceWith = ReplaceWith(
+                expression = "Adapty.makePurchase(activity,product,adaptyCallback)"
+            ),
+            level = DeprecationLevel.WARNING)
+        @JvmStatic
+        fun makePurchase(
+            activity: Activity,
+            product: Product,
+            variationId: String?,
             adaptyCallback: (Purchase?, ValidateReceiptResponse?, String?) -> Unit
         ) {
             LogHelper.logVerbose("makePurchase()")
@@ -506,14 +551,15 @@ class Adapty {
             }
         }
 
+        @JvmStatic
+        @JvmOverloads
         fun syncPurchases(adaptyCallback: ((error: String?) -> Unit)? = null) {
             addToQueue {
-                syncPurchasesBody(context, adaptyCallback)
+                syncPurchasesBody(adaptyCallback)
             }
         }
 
         private fun syncPurchasesBody(
-            context: Context,
             adaptyCallback: ((String?) -> Unit)?
         ) {
             if (!::preferenceManager.isInitialized)
@@ -525,7 +571,7 @@ class Adapty {
                 preferenceManager,
                 Product(),
                 null,
-                ApiClientRepository.getInstance(preferenceManager),
+                apiClientRepository,
                 object : AdaptyRestoreCallback {
                     override fun onResult(response: RestoreReceiptResponse?, error: String?) {
                         if (adaptyCallback != null) {
@@ -538,13 +584,24 @@ class Adapty {
                 })
         }
 
+        @Deprecated(
+            message = "Changed signature",
+            replaceWith = ReplaceWith(
+                expression = "Adapty.restorePurchases(adaptyCallback)"
+            ),
+            level = DeprecationLevel.WARNING)
         fun restorePurchases(
             activity: Activity,
+            adaptyCallback: (RestoreReceiptResponse?, String?) -> Unit
+        ) = restorePurchases(adaptyCallback)
+
+        @JvmStatic
+        fun restorePurchases(
             adaptyCallback: (RestoreReceiptResponse?, String?) -> Unit
         ) {
             addToQueue {
                 if (!::preferenceManager.isInitialized)
-                    preferenceManager = PreferenceManager(activity)
+                    preferenceManager = PreferenceManager(context)
 
                 InAppPurchases(
                     context,
@@ -553,7 +610,7 @@ class Adapty {
                     preferenceManager,
                     Product(),
                     null,
-                    ApiClientRepository.getInstance(preferenceManager),
+                    apiClientRepository,
                     object : AdaptyRestoreCallback {
                         override fun onResult(response: RestoreReceiptResponse?, error: String?) {
                             adaptyCallback.invoke(response, error)
@@ -568,6 +625,8 @@ class Adapty {
             }
         }
 
+        @JvmStatic
+        @JvmOverloads
         fun validatePurchase(
             purchaseType: String,
             productId: String,
@@ -596,8 +655,7 @@ class Adapty {
         ) {
             if (purchaseOrderId == null && product == null) {
                 addToQueue {
-                    ApiClientRepository.getInstance(preferenceManager)
-                        .validatePurchase(
+                    apiClientRepository.validatePurchase(
                             purchaseType,
                             productId,
                             purchaseToken,
@@ -618,8 +676,7 @@ class Adapty {
                             })
                 }
             } else {
-                ApiClientRepository.getInstance(preferenceManager)
-                    .validatePurchase(
+                apiClientRepository.validatePurchase(
                         purchaseType,
                         productId,
                         purchaseToken,
@@ -640,6 +697,7 @@ class Adapty {
             }
         }
 
+        @JvmStatic
         fun updateAttribution(
             attribution: Any,
             source: String
@@ -647,6 +705,7 @@ class Adapty {
             updateAttribution(attribution, source, null)
         }
 
+        @JvmStatic
         fun updateAttribution(
             attribution: Any,
             source: String,
@@ -654,7 +713,7 @@ class Adapty {
         ) {
             LogHelper.logVerbose("updateAttribution()")
             addToQueue {
-                ApiClientRepository.getInstance(preferenceManager).updateAttribution(
+                apiClientRepository.updateAttribution(
                     attribution,
                     source,
                     networkUserId,
@@ -667,6 +726,7 @@ class Adapty {
             }
         }
 
+        @JvmStatic
         fun logout(adaptyCallback: (String?) -> Unit) {
             addToQueue { logoutInQueue(adaptyCallback) }
         }
@@ -691,6 +751,7 @@ class Adapty {
             activateInQueue(context, preferenceManager.appKey, null, adaptyCallback)
         }
 
+        @JvmStatic
         fun setOnPurchaserInfoUpdatedListener(onPurchaserInfoUpdatedListener: OnPurchaserInfoUpdatedListener?) {
             this.onPurchaserInfoUpdatedListener = onPurchaserInfoUpdatedListener
         }

@@ -19,7 +19,7 @@ const val API_KEY_PREFIX = "Api-Key "
 const val TAG = "[Adapty]"
 const val TIMEOUT = 30 * 1000
 
-class ApiClient(private var context: Context) {
+class ApiClient(private var context: Context, private val gson : Gson) {
 
     private val serverUrl = "https://api.adapty.io/api/v1/"
     private val preferenceManager = PreferenceManager(context)
@@ -77,14 +77,14 @@ class ApiClient(private var context: Context) {
         )
     }
 
-    fun getPurchaseContainers(
-        request: PurchaseContainersRequest,
+    fun getPaywalls(
+        request: PaywallsRequest,
         adaptyCallback: AdaptyCallback?
     ) {
         get(
             generateUrl(GET_CONTAINERS_REQ_ID),
             request,
-            PurchaseContainersResponse(),
+            PaywallsResponse(),
             GET_CONTAINERS_REQ_ID,
             adaptyCallback
         )
@@ -141,8 +141,6 @@ class ApiClient(private var context: Context) {
             adaptyCallback
         )
     }
-
-    val gson = Gson()
 
     private fun request(
         type: String,
@@ -322,8 +320,8 @@ class ApiClient(private var context: Context) {
                             val res = (response as PurchaserInfoResponse).data?.attributes
                             it.onResult(res, null)
                         }
-                        is AdaptyPurchaseContainersCallback -> {
-                            var data = (response as PurchaseContainersResponse).data
+                        is AdaptyPaywallsCallback -> {
+                            var data = (response as PaywallsResponse).data
                             if (data == null)
                                 data = arrayListOf()
 
@@ -367,7 +365,7 @@ class ApiClient(private var context: Context) {
                         is AdaptyPurchaserInfoCallback -> {
                             it.onResult(null, error)
                         }
-                        is AdaptyPurchaseContainersCallback -> {
+                        is AdaptyPaywallsCallback -> {
                             it.onResult(arrayListOf(), arrayListOf(), error)
                         }
                     }

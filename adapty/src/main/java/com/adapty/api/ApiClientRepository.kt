@@ -23,6 +23,7 @@ import com.adapty.api.requests.*
 import com.adapty.purchase.SUBS
 import com.adapty.utils.*
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
+import com.google.gson.Gson
 import org.json.JSONObject
 import java.math.BigDecimal
 import java.text.DecimalFormat
@@ -31,9 +32,9 @@ import java.util.*
 import kotlin.collections.HashMap
 
 
-class ApiClientRepository(var preferenceManager: PreferenceManager) {
+class ApiClientRepository(var preferenceManager: PreferenceManager, private val gson : Gson) {
 
-    private var apiClient = ApiClient(context)
+    private var apiClient = ApiClient(context, gson)
 
     private val priceFormatter by lazy {
         DecimalFormat("0.00", DecimalFormatSymbols(Locale.US))
@@ -73,6 +74,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         lastName: String?,
         gender: String?,
         birthday: String?,
+        customAttributes: Map<String, Any>?,
         adaptyCallback: AdaptyCallback
     ) {
 
@@ -97,6 +99,9 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
                     this.birthday = birthday
                     this.appmetricaProfileId = appmetricaProfileId
                     this.appmetricaDeviceId = appmetricaDeviceId
+                    customAttributes?.let {
+                        this.customAttributes = gson.toJson(it)
+                    }
                 }
             }
         }
@@ -118,21 +123,21 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         apiClient.getProfile(purchaserInfoRequest, adaptyCallback)
     }
 
-    fun getPurchaseContainers(
+    fun getPaywalls(
         adaptyCallback: AdaptyCallback
     ) {
         val uuid = getOrCreateUUID(false)
 
-        val request = PurchaseContainersRequest().apply {
+        val request = PaywallsRequest().apply {
             data = BaseData().apply {
                 id = uuid
             }
         }
 
-        apiClient.getPurchaseContainers(request, adaptyCallback)
+        apiClient.getPaywalls(request, adaptyCallback)
     }
 
-    fun syncMetaInstall(applicationContext: Context, adaptyCallback: AdaptyCallback? = null) {
+    fun syncMetaInstall(adaptyCallback: AdaptyCallback? = null) {
 
         val uuid = getOrCreateUUID()
 
@@ -144,7 +149,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
                     adaptySdkVersion = com.adapty.BuildConfig.VERSION_NAME
                     adaptySdkVersionBuild = ADAPTY_SDK_VERSION_INT
                     try {
-                        applicationContext.applicationContext?.let { ctx ->
+                        context.applicationContext?.let { ctx ->
                             val mainPackageName = ctx.packageName
                             val packageInfo: PackageInfo =
                                 ctx.packageManager.getPackageInfo(mainPackageName, 0)
@@ -302,17 +307,4 @@ class ApiClientRepository(var preferenceManager: PreferenceManager) {
         } else {
             context.resources.configuration.locale
         }
-
-    companion object Factory {
-
-        private lateinit var instance: ApiClientRepository
-
-        @Synchronized
-        fun getInstance(preferenceManager: PreferenceManager): ApiClientRepository {
-            if (!::instance.isInitialized)
-                instance = ApiClientRepository(preferenceManager)
-
-            return instance
-        }
-    }
 }

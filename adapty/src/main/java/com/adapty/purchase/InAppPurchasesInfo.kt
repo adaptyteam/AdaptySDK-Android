@@ -2,7 +2,7 @@ package com.adapty.purchase
 
 import android.app.Activity
 import android.content.Context
-import com.adapty.api.AdaptyPurchaseContainersInfoCallback
+import com.adapty.api.AdaptyPaywallsInfoCallback
 import com.adapty.api.entity.containers.DataContainer
 import com.adapty.api.entity.containers.Product
 import com.adapty.utils.LogHelper
@@ -15,7 +15,7 @@ import java.util.regex.Pattern
 class InAppPurchasesInfo(
     var context: Context,
     var purchases: ArrayList<Any>,
-    var callback: AdaptyPurchaseContainersInfoCallback
+    var callback: AdaptyPaywallsInfoCallback
 ) {
 
     private var productIterator: MutableIterator<Any> = purchases.iterator()

@@ -48,13 +48,13 @@ interface AdaptyPurchaserInfoCallback : AdaptyCallback {
 
 }
 
-interface AdaptyPurchaseContainersCallback : AdaptyCallback {
+interface AdaptyPaywallsCallback : AdaptyCallback {
 
     fun onResult(containers: ArrayList<DataContainer>, products: ArrayList<Product>, error: String?)
 
 }
 
-interface AdaptyPurchaseContainersInfoCallback : AdaptyCallback {
+interface AdaptyPaywallsInfoCallback : AdaptyCallback {
 
     fun onResult(data: ArrayList<Any>, error: String?)
 

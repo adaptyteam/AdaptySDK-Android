@@ -83,7 +83,8 @@ Adapty.updateProfile(
     firstName: "John",
     lastName: "Doe",
     gender: "m",
-    birthday: Date
+    birthday: Date,
+    customAttributes: Map
 ) { error ->
     /* ... */
 }
@@ -107,11 +108,11 @@ Adapty.updateAttribution(
 **`attribution`** is **`Map`** object.
 For **`source`** possible values are: **`AttributionType.ADJUST`**, **`AttributionType.APPSFLYER`** and **`AttributionType.BRANCH`**.
 
-### Get purchase containers (paywalls)
+### Get paywalls
 
 ```Kotlin
-Adapty.getPurchaseContainers(activity) { containers, products, state, error ->
-    // if error is empty, containers should contain info about your paywalls, products contains info about all your products
+Adapty.getPaywalls { paywalls, products, state, error ->
+    // if error is empty, paywalls should contain info about your paywalls, products contains info about all your products
 }
 ```
 For state possible values are: cached, synced. First means that data was taken from local cache, second means that data was updated from remote server.
@@ -130,7 +131,7 @@ Adapty.makePurchase(activity, purchaseType, productId) { purchaseData, response,
 ### Restore purchases
 
 ```Kotlin
-Adapty.restorePurchases(activity) { response, error ->
+Adapty.restorePurchases { response, error ->
     /* ... */
 }
 ```
