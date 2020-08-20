@@ -99,9 +99,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
                     this.birthday = birthday
                     this.appmetricaProfileId = appmetricaProfileId
                     this.appmetricaDeviceId = appmetricaDeviceId
-                    customAttributes?.let {
-                        this.customAttributes = gson.toJson(it)
-                    }
+                    this.customAttributes = customAttributes
                 }
             }
         }
