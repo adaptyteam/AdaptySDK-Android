@@ -56,7 +56,7 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
                 preferenceManager.installationMetaID
             )
         )
-        preferenceManager.kinesisRecords = records
+        preferenceManager.kinesisRecords = records.takeLast(50)
 
         val hashMap = HashMap<String, Any>()
         hashMap.put("Records", records)
@@ -199,7 +199,7 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
                             notSent.add(saved)
                     }
 
-                    preferenceManager.kinesisRecords = notSent
+                    preferenceManager.kinesisRecords = notSent.takeLast(50)
 
                 } else {
                     rString = toStringUtf8(conn.errorStream)
@@ -258,5 +258,16 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
 
         df.timeZone = tz
         return df.format(c)
+    }
+
+    private fun <T> ArrayList<T>.takeLast(n: Int): ArrayList<T> {
+        if (n == 0) return arrayListOf()
+        val size = this.size
+        if (n >= size) return this
+        if (n == 1) return arrayListOf(last())
+        val list = ArrayList<T>(n)
+        for (index in size - n until size)
+            list.add(this[index])
+        return list
     }
 }

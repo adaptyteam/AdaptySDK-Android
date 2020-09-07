@@ -107,7 +107,7 @@ class Adapty {
 
                             sendSyncMetaInstallRequest()
 
-                            syncPurchasesBody(null)
+                            syncPurchasesBody(false, null)
 
                         }
 
@@ -141,7 +141,7 @@ class Adapty {
 
             getStartedPaywalls()
 
-            syncPurchasesBody { _ ->
+            syncPurchasesBody(false) { _ ->
                 var isCallbackSent = false
                 getPurchaserInfo(false) { info, state, error ->
                     if (!isCallbackSent) {
@@ -284,7 +284,7 @@ class Adapty {
 
                         sendSyncMetaInstallRequest()
 
-                        syncPurchasesBody(null)
+                        syncPurchasesBody(false, null)
                     }
 
                     override fun fail(msg: String, reqID: Int) {
@@ -555,11 +555,12 @@ class Adapty {
         @JvmOverloads
         fun syncPurchases(adaptyCallback: ((error: String?) -> Unit)? = null) {
             addToQueue {
-                syncPurchasesBody(adaptyCallback)
+                syncPurchasesBody(true, adaptyCallback)
             }
         }
 
         private fun syncPurchasesBody(
+            needQueue: Boolean,
             adaptyCallback: ((String?) -> Unit)?
         ) {
             if (!::preferenceManager.isInitialized)
@@ -579,6 +580,9 @@ class Adapty {
                                 adaptyCallback.invoke(null)
                             else
                                 adaptyCallback.invoke(error)
+                            if (needQueue) {
+                                nextQueue()
+                            }
                         }
                     }
                 })
