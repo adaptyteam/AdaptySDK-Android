@@ -5,8 +5,10 @@ import com.adapty.api.entity.purchaserInfo.model.NonSubscriptionsPurchaserInfoMo
 import com.adapty.api.entity.purchaserInfo.model.PaidAccessLevelPurchaserInfoModel
 import com.adapty.api.entity.purchaserInfo.model.PurchaserInfoModel
 import com.adapty.api.entity.purchaserInfo.model.SubscriptionsPurchaserInfoModel
-import java.util.regex.Matcher
-import java.util.regex.Pattern
+import java.math.BigDecimal
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
+import java.util.*
 
 fun generatePurchaserInfoModel(res: AttributePurchaserInfoRes): PurchaserInfoModel {
     res.let {
@@ -126,22 +128,15 @@ fun generatePurchaserInfoModel(res: AttributePurchaserInfoRes): PurchaserInfoMod
     }
 }
 
-fun formatPrice(price: String?, c: String?): String {
-    if (price == null)
-        return ""
-    var p: String = price
-    c?.let { code ->
-        p = price.replace(code, "")
-    }
+val priceFormatter by lazy {
+    DecimalFormat("0.00", DecimalFormatSymbols(Locale.US))
+}
 
-    p = p.replace(",", ".")
-
-    val pattern: Pattern = Pattern.compile("(\\d+(?:\\.\\d+))")
-    val m: Matcher = pattern.matcher(p)
-    if (m.find())
-        p = m.group(1)
-
-    return p.trim()
+fun formatPrice(priceAmountMicros: Long) : String {
+    return priceFormatter.format(
+        BigDecimal.valueOf(priceAmountMicros)
+            .divide(BigDecimal.valueOf(1_000_000L))
+    )
 }
 
 fun getPeriodUnit(period: String) : String? {

@@ -53,7 +53,7 @@ class Product {
         sd?.let {
             this.skuDetails = it
             this.localizedDescription = it.description
-            this.price = formatPrice(it.price, it.priceCurrencyCode)
+            this.price = formatPrice(it.priceAmountMicros)
             this.currencyCode = it.priceCurrencyCode
             this.subscriptionPeriod = Product.ProductSubscriptionPeriodModel(it.subscriptionPeriod)
         }

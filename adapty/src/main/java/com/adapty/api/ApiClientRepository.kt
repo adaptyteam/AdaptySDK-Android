@@ -25,9 +25,6 @@ import com.adapty.utils.*
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.gson.Gson
 import org.json.JSONObject
-import java.math.BigDecimal
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
 import java.util.*
 import kotlin.collections.HashMap
 
@@ -35,10 +32,6 @@ import kotlin.collections.HashMap
 class ApiClientRepository(var preferenceManager: PreferenceManager, private val gson : Gson) {
 
     private var apiClient = ApiClient(context, gson)
-
-    private val priceFormatter by lazy {
-        DecimalFormat("0.00", DecimalFormatSymbols(Locale.US))
-    }
 
     fun createProfile(customerUserId: String?, adaptyCallback: AdaptyCallback) {
 
@@ -228,10 +221,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
                         this.variationId = p.variationId
                         this.priceLocale = p.currencyCode
                         this.originalPrice = p.skuDetails?.let {
-                            priceFormatter.format(
-                                BigDecimal.valueOf(it.priceAmountMicros)
-                                    .divide(BigDecimal.valueOf(1_000_000L))
-                            )
+                            formatPrice(it.priceAmountMicros)
                         }
                     }
                 }
