@@ -22,6 +22,7 @@ import com.adapty.api.entity.validate.DataValidateReceiptReq
 import com.adapty.api.requests.*
 import com.adapty.purchase.SUBS
 import com.adapty.utils.*
+import com.adapty.utils.push.PushTokenRetriever
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.gson.Gson
 import org.json.JSONObject
@@ -33,9 +34,15 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
 
     private var apiClient = ApiClient(context, gson)
 
+    var pushToken: String? = null
+
+    private val tokenRetriever: PushTokenRetriever by lazy {
+        PushTokenRetriever()
+    }
+
     fun createProfile(customerUserId: String?, adaptyCallback: AdaptyCallback) {
 
-        val uuid = getOrCreateUUID()
+        val uuid = getOrCreateProfileUUID()
 
         val profileRequest = CreateProfileRequest().apply {
             data = DataProfileReq().apply {
@@ -71,7 +78,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
         adaptyCallback: AdaptyCallback
     ) {
 
-        val uuid = getOrCreateUUID(false)
+        val uuid = getOrCreateProfileUUID()
 
         val profileRequest = UpdateProfileRequest().apply {
             data = DataProfileReq().apply {
@@ -103,34 +110,24 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
     fun getProfile(
         adaptyCallback: AdaptyCallback
     ) {
-        val uuid = getOrCreateUUID(false)
-
-        val purchaserInfoRequest = PurchaserInfoRequest().apply {
-            data = BaseData().apply {
-                id = uuid
-            }
-        }
-
-        apiClient.getProfile(purchaserInfoRequest, adaptyCallback)
+        apiClient.getProfile(adaptyCallback)
     }
 
     fun getPaywalls(
         adaptyCallback: AdaptyCallback
     ) {
-        val uuid = getOrCreateUUID(false)
+        apiClient.getPaywalls(adaptyCallback)
+    }
 
-        val request = PaywallsRequest().apply {
-            data = BaseData().apply {
-                id = uuid
-            }
-        }
-
-        apiClient.getPaywalls(request, adaptyCallback)
+    fun getPromo(
+        adaptyCallback: AdaptyCallback
+    ) {
+        apiClient.getPromo(adaptyCallback)
     }
 
     fun syncMetaInstall(adaptyCallback: AdaptyCallback? = null) {
 
-        val uuid = getOrCreateUUID()
+        val uuid = getOrCreateMetaUUID()
 
         val syncMetaRequest = SyncMetaInstallRequest().apply {
             data = DataSyncMetaReq().apply {
@@ -138,7 +135,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
                 type = "adapty_analytics_profile_installation_meta"
                 attributes = AttributeSyncMetaReq().apply {
                     adaptySdkVersion = com.adapty.BuildConfig.VERSION_NAME
-                    adaptySdkVersionBuild = ADAPTY_SDK_VERSION_INT
+                    adaptySdkVersionBuild = com.adapty.BuildConfig.VERSION_CODE
                     try {
                         context.applicationContext?.let { ctx ->
                             val mainPackageName = ctx.packageName
@@ -157,6 +154,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
                     }
 
                     device = getDeviceName()
+                    deviceToken = pushToken ?: tokenRetriever.getTokenOrNull()
                     locale =
                         getCurrentLocale(context)?.let { "${it.language}_${it.country}" }
                     os = getDeviceOsVersion()
@@ -201,7 +199,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
         product: Product?,
         adaptyCallback: AdaptyCallback? = null
     ) {
-        val uuid = getOrCreateUUID()
+        val uuid = getOrCreateProfileUUID()
 
         val validateReceiptRequest = ValidateReceiptRequest().apply {
             data = DataValidateReceiptReq().apply {
@@ -232,7 +230,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
     }
 
     fun restore(purchases: ArrayList<RestoreItem>, adaptyCallback: AdaptyCallback? = null) {
-        val uuid = getOrCreateUUID()
+        val uuid = getOrCreateProfileUUID()
 
         val restoreReceiptRequest = RestoreReceiptRequest().apply {
             data = DataRestoreReceiptReq().apply {
@@ -253,7 +251,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
         networkUserId: String?,
         adaptyCallback: AdaptyCallback? = null
     ) {
-        getOrCreateUUID()
+        getOrCreateProfileUUID()
 
         val updateAttributionRequest = UpdateAttributionRequest().apply {
             data = DataUpdateAttributionReq().apply {
@@ -278,13 +276,22 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
         apiClient.updateAttribution(updateAttributionRequest, adaptyCallback)
     }
 
-    private fun getOrCreateUUID(updateMetaId: Boolean = true): String {
+    private fun getOrCreateProfileUUID(): String {
+
         return preferenceManager.profileID.takeIf { it.isNotEmpty() }
             ?: kotlin.run {
                 generateUuid().toString().also { uuid ->
                     preferenceManager.profileID = uuid
-                    if (updateMetaId)
-                        preferenceManager.installationMetaID = uuid
+                }
+            }
+    }
+
+    private fun getOrCreateMetaUUID(): String {
+
+        return preferenceManager.installationMetaID.takeIf { it.isNotEmpty() }
+            ?: kotlin.run {
+                generateUuid().toString().also { uuid ->
+                    preferenceManager.installationMetaID = uuid
                 }
             }
     }

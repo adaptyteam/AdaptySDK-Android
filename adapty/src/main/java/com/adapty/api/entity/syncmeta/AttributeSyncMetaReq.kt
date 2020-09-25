@@ -18,6 +18,9 @@ open class AttributeSyncMetaReq {
     @SerializedName("device")
     var device: String? = null
 
+    @SerializedName("device_token")
+    var deviceToken: String? = null
+
     @SerializedName("locale")
     var locale: String? = null
 

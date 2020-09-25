@@ -1,23 +1,31 @@
 package com.adapty.utils
 
-import android.util.Log
-import java.text.SimpleDateFormat
-import java.util.*
+internal object LogHelper {
 
-class LogHelper {
-    companion object {
-        fun logVerbose(log: String) {
-            Log.i("[Adapty ${com.adapty.BuildConfig.VERSION_NAME} $ADAPTY_SDK_VERSION_INT]", "${getCurrentTime()}  - $log - INFO")
-        }
+    private var logger: DefaultLogger? = null
 
-        fun logError(log: String) {
-            Log.e("[Adapty ${com.adapty.BuildConfig.VERSION_NAME} $ADAPTY_SDK_VERSION_INT]", "${getCurrentTime()}  - $log - ERROR")
-        }
-
-        private fun getCurrentTime() : String {
-            val time = Calendar.getInstance().time
-            val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ", Locale.getDefault())
-            return format.format(time)
-        }
+    internal fun setLogLevel(logLevel: LogLevel) {
+        logger = LoggerFactory.getLogger(logLevel)
     }
+
+    internal fun logVerbose(log: String) {
+        logger?.logVerbose(log)
+    }
+
+    internal fun logError(log: String) {
+        logger?.logError(log)
+    }
+}
+
+internal object LoggerFactory {
+
+    fun getLogger(logLevel: LogLevel): DefaultLogger = when (logLevel) {
+        LogLevel.NONE -> DefaultLogger()
+        LogLevel.ERROR -> ErrorLogger()
+        LogLevel.VERBOSE -> VerboseLogger()
+    }
+}
+
+enum class LogLevel {
+    NONE, VERBOSE, ERROR
 }

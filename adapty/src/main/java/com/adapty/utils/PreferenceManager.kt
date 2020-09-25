@@ -10,24 +10,12 @@ import com.adapty.api.entity.restore.RestoreItem
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
-const val PROFILE_ID = "PROFILE_ID"
-const val CUSTOMER_USER_ID = "CUSTOMER_USER_ID"
-const val INSTALLATION_META_ID = "CUSTOMER_USER_ID"
-const val IAM_ACCESS_KEY_ID = "IAM_ACCESS_KEY_ID"
-const val IAM_SECRET_KEY = "IAM_SECRET_KEY"
-const val IAM_SESSION_TOKEN = "IAM_SESSION_TOKEN"
-const val PURCHASER_INFO = "PURCHASER_INFO"
-const val CONTAINERS = "CONTAINERS"
-const val PRODUCTS = "PRODUCTS"
-const val SYNCED_PURCHASES = "SYNCED_PURCHASES"
-const val KINESIS_RECORDS = "KINESIS_RECORDS"
-const val APP_KEY = "APP_KEY"
-
 class PreferenceManager(context: Context) {
 
     private val privateMode = 0
     private val pref = context.getSharedPreferences(PREF_NAME, privateMode)
     private val editor = pref.edit()
+    private val gson = Gson()
 
     var profileID: String
         get() {
@@ -96,76 +84,86 @@ class PreferenceManager(context: Context) {
         get() {
             val str = pref.getString(PURCHASER_INFO, null)
             str?.let {
-                return Gson().fromJson(it, PurchaserInfoModel::class.java)
+                return gson.fromJson(it, PurchaserInfoModel::class.java)
             }
             return null
         }
         set(info) {
-            editor.putString(PURCHASER_INFO, Gson().toJson(info))
+            editor.putString(PURCHASER_INFO, gson.toJson(info))
             editor.commit()
         }
 
     var containers: ArrayList<DataContainer>?
         get() {
             val json = pref.getString(CONTAINERS, null)
-            if (TextUtils.isEmpty(json))
-                return null
+            return if (TextUtils.isEmpty(json))
+                null
             else {
-                return Gson().fromJson(json, object : TypeToken<ArrayList<DataContainer>>() {}.type)
+                gson.fromJson(json, object : TypeToken<ArrayList<DataContainer>>() {}.type)
             }
         }
-        set(set) {
-            editor.putString(CONTAINERS, Gson().toJson(set))
+        set(value) {
+            editor.putString(CONTAINERS, gson.toJson(value))
             editor.commit()
         }
 
     var products: ArrayList<Product>
         get() {
             val json = pref.getString(PRODUCTS, null)
-            if (TextUtils.isEmpty(json))
-                return arrayListOf()
+            return if (TextUtils.isEmpty(json))
+                arrayListOf()
             else {
-                return Gson().fromJson(json, object : TypeToken<ArrayList<Product>>() {}.type)
+                gson.fromJson(json, object : TypeToken<ArrayList<Product>>() {}.type)
             }
         }
-        set(set) {
-            editor.putString(PRODUCTS, Gson().toJson(set))
+        set(value) {
+            editor.putString(PRODUCTS, gson.toJson(value))
             editor.commit()
         }
 
     var syncedPurchases: ArrayList<RestoreItem>
         get() {
             val json = pref.getString(SYNCED_PURCHASES, null)
-            if (TextUtils.isEmpty(json))
-                return arrayListOf()
+            return if (TextUtils.isEmpty(json))
+                arrayListOf()
             else {
-                return Gson().fromJson(json, object : TypeToken<ArrayList<RestoreItem>>() {}.type)
+                gson.fromJson(json, object : TypeToken<ArrayList<RestoreItem>>() {}.type)
             }
         }
-        set(set) {
-            editor.putString(SYNCED_PURCHASES, Gson().toJson(set))
+        set(value) {
+            editor.putString(SYNCED_PURCHASES, gson.toJson(value))
             editor.commit()
         }
 
     var kinesisRecords: ArrayList<AwsRecordModel>
         get() {
             val json = pref.getString(KINESIS_RECORDS, null)
-            if (TextUtils.isEmpty(json))
-                return arrayListOf()
+            return if (TextUtils.isEmpty(json))
+                arrayListOf()
             else {
-                return Gson().fromJson(
-                    json,
-                    object : TypeToken<ArrayList<AwsRecordModel>>() {}.type
-                )
+                gson.fromJson(json, object : TypeToken<ArrayList<AwsRecordModel>>() {}.type)
             }
         }
-        set(set) {
-            editor.putString(KINESIS_RECORDS, Gson().toJson(set))
+        set(value) {
+            editor.putString(KINESIS_RECORDS, gson.toJson(value))
             editor.commit()
         }
 
-    companion object {
-        const val PREF_NAME = "AdaptySDKPrefs"
+    private companion object {
+        private const val PREF_NAME = "AdaptySDKPrefs"
+
+        private const val PROFILE_ID = "PROFILE_ID"
+        private const val CUSTOMER_USER_ID = "CUSTOMER_USER_ID"
+        private const val INSTALLATION_META_ID = "INSTALLATION_META_ID"
+        private const val IAM_ACCESS_KEY_ID = "IAM_ACCESS_KEY_ID"
+        private const val IAM_SECRET_KEY = "IAM_SECRET_KEY"
+        private const val IAM_SESSION_TOKEN = "IAM_SESSION_TOKEN"
+        private const val PURCHASER_INFO = "PURCHASER_INFO"
+        private const val CONTAINERS = "CONTAINERS"
+        private const val PRODUCTS = "PRODUCTS"
+        private const val SYNCED_PURCHASES = "SYNCED_PURCHASES"
+        private const val KINESIS_RECORDS = "KINESIS_RECORDS"
+        private const val APP_KEY = "APP_KEY"
     }
 
 }

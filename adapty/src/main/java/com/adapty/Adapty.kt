@@ -2,22 +2,22 @@ package com.adapty
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.os.Handler
 import com.adapty.api.*
 import com.adapty.api.entity.containers.DataContainer
+import com.adapty.api.entity.containers.OnPromoReceivedListener
 import com.adapty.api.entity.containers.Product
+import com.adapty.api.entity.containers.Promo
 import com.adapty.api.entity.purchaserInfo.*
 import com.adapty.api.entity.purchaserInfo.model.PurchaserInfoModel
-import com.adapty.utils.PreferenceManager
 import com.adapty.api.responses.CreateProfileResponse
 import com.adapty.api.responses.RestoreReceiptResponse
 import com.adapty.api.responses.SyncMetaInstallResponse
 import com.adapty.api.responses.ValidateReceiptResponse
 import com.adapty.purchase.InAppPurchases
 import com.adapty.purchase.InAppPurchasesInfo
-import com.adapty.utils.KinesisManager
-import com.adapty.utils.LogHelper
-import com.adapty.utils.generatePurchaserInfoModel
+import com.adapty.utils.*
 import com.android.billingclient.api.Purchase
 import com.google.gson.Gson
 import kotlin.collections.ArrayList
@@ -28,6 +28,7 @@ class Adapty {
         lateinit var context: Context
         private lateinit var preferenceManager: PreferenceManager
         private var onPurchaserInfoUpdatedListener: OnPurchaserInfoUpdatedListener? = null
+        private var onPromoReceivedListener: OnPromoReceivedListener? = null
         private var requestQueue: ArrayList<() -> Unit> = arrayListOf()
         private var isActivated = false
         private var kinesisManager: KinesisManager? = null
@@ -85,37 +86,39 @@ class Adapty {
 
             if (preferenceManager.profileID.isEmpty()) {
                 apiClientRepository.createProfile(customerUserId, object : AdaptySystemCallback {
-                        override fun success(response: Any?, reqID: Int) {
-                            if (response is CreateProfileResponse) {
-                                response.data?.attributes?.apply {
-                                    profileId?.let {
-                                        preferenceManager.profileID = it
-                                    }
-                                    this.customerUserId?.let {
-                                        preferenceManager.customerUserID = it
-                                    }
-
-                                    checkChangesPurchaserInfo(this)
+                    override fun success(response: Any?, reqID: Int) {
+                        if (response is CreateProfileResponse) {
+                            response.data?.attributes?.apply {
+                                profileId?.let {
+                                    preferenceManager.profileID = it
                                 }
+                                this.customerUserId?.let {
+                                    preferenceManager.customerUserID = it
+                                }
+
+                                checkChangesPurchaserInfo(this)
                             }
-
-                            adaptyCallback?.invoke(null)
-
-                            nextQueue()
-
-                            getStartedPaywalls()
-
-                            sendSyncMetaInstallRequest()
-
-                            syncPurchasesBody(false, null)
-
                         }
 
-                        override fun fail(msg: String, reqID: Int) {
-                            adaptyCallback?.invoke(msg)
-                            nextQueue()
-                        }
-                    })
+                        adaptyCallback?.invoke(null)
+
+                        nextQueue()
+
+                        getStartedPaywalls()
+
+                        getPromoOnStart()
+
+                        sendSyncMetaInstallRequest()
+
+                        syncPurchasesBody(false, null)
+
+                    }
+
+                    override fun fail(msg: String, reqID: Int) {
+                        adaptyCallback?.invoke(msg)
+                        nextQueue()
+                    }
+                })
             } else {
                 makeStartRequests(adaptyCallback)
             }
@@ -140,6 +143,8 @@ class Adapty {
             sendSyncMetaInstallRequest()
 
             getStartedPaywalls()
+
+            getPromoOnStart()
 
             syncPurchasesBody(false) { _ ->
                 var isCallbackSent = false
@@ -189,41 +194,38 @@ class Adapty {
             replaceWith = ReplaceWith(
                 expression = "Adapty.sendSyncMetaInstallRequest()"
             ),
-            level = DeprecationLevel.WARNING)
-        fun sendSyncMetaInstallRequest(applicationContext: Context)
-                = sendSyncMetaInstallRequest()
+            level = DeprecationLevel.WARNING
+        )
+        fun sendSyncMetaInstallRequest(applicationContext: Context) = sendSyncMetaInstallRequest()
 
         @JvmStatic
         fun sendSyncMetaInstallRequest() {
             LogHelper.logVerbose("sendSyncMetaInstallRequest()")
             apiClientRepository.syncMetaInstall(object : AdaptySystemCallback {
-                    override fun success(response: Any?, reqID: Int) {
-                        if (response is SyncMetaInstallResponse) {
-                            response.data?.let { data ->
-                                data.id?.let {
-                                    preferenceManager.installationMetaID = it
+                override fun success(response: Any?, reqID: Int) {
+                    if (response is SyncMetaInstallResponse) {
+                        response.data?.let { data ->
+                            data.attributes?.let { attrs ->
+                                attrs.iamAccessKeyId?.let {
+                                    preferenceManager.iamAccessKeyId = it
                                 }
-                                data.attributes?.let { attrs ->
-                                    attrs.iamAccessKeyId?.let {
-                                        preferenceManager.iamAccessKeyId = it
-                                    }
-                                    attrs.iamSecretKey?.let {
-                                        preferenceManager.iamSecretKey = it
-                                    }
-                                    attrs.iamSessionToken?.let {
-                                        preferenceManager.iamSessionToken = it
-                                    }
+                                attrs.iamSecretKey?.let {
+                                    preferenceManager.iamSecretKey = it
+                                }
+                                attrs.iamSessionToken?.let {
+                                    preferenceManager.iamSessionToken = it
                                 }
                             }
-
-                            setupTrackingEvent()
                         }
-                    }
 
-                    override fun fail(msg: String, reqID: Int) {
+                        setupTrackingEvent()
                     }
+                }
 
-                })
+                override fun fail(msg: String, reqID: Int) {
+                }
+
+            })
         }
 
         private val handlerEvent = Handler()
@@ -233,7 +235,7 @@ class Adapty {
             handlerEvent.removeCallbacksAndMessages(null)
             handlerEvent.post {
                 if (kinesisManager == null) kinesisManager = KinesisManager(preferenceManager)
-                kinesisManager?.trackEvent()
+                kinesisManager?.trackEvent("live")
                 handlerEvent.postDelayed({
                     setupTrackingEvent()
                 }, TRACKING_INTERVAL)
@@ -259,41 +261,41 @@ class Adapty {
             }
 
             apiClientRepository.createProfile(customerUserId, object : AdaptySystemCallback {
-                    override fun success(response: Any?, reqID: Int) {
-                        if (response is CreateProfileResponse) {
-                            response.data?.attributes?.apply {
-                                profileId?.let {
-                                    preferenceManager.profileID = it
-                                }
-                                this.customerUserId?.let {
-                                    preferenceManager.customerUserID = it
-                                }
-
-                                checkChangesPurchaserInfo(this)
+                override fun success(response: Any?, reqID: Int) {
+                    if (response is CreateProfileResponse) {
+                        response.data?.attributes?.apply {
+                            profileId?.let {
+                                preferenceManager.profileID = it
                             }
+                            this.customerUserId?.let {
+                                preferenceManager.customerUserID = it
+                            }
+
+                            checkChangesPurchaserInfo(this)
                         }
-
-                        adaptyCallback.invoke(null)
-
-                        nextQueue()
-
-                        preferenceManager.products = arrayListOf()
-                        preferenceManager.containers = null
-
-                        getStartedPaywalls()
-
-                        sendSyncMetaInstallRequest()
-
-                        syncPurchasesBody(false, null)
                     }
 
-                    override fun fail(msg: String, reqID: Int) {
-                        adaptyCallback.invoke(msg)
+                    adaptyCallback.invoke(null)
 
-                        nextQueue()
-                    }
+                    nextQueue()
 
-                })
+                    preferenceManager.products = arrayListOf()
+                    preferenceManager.containers = null
+
+                    getStartedPaywalls()
+
+                    sendSyncMetaInstallRequest()
+
+                    syncPurchasesBody(false, null)
+                }
+
+                override fun fail(msg: String, reqID: Int) {
+                    adaptyCallback.invoke(msg)
+
+                    nextQueue()
+                }
+
+            })
         }
 
         @JvmStatic
@@ -385,12 +387,21 @@ class Adapty {
             ) { containers, products, state, error -> }
         }
 
+        private fun getPromoOnStart() {
+            getPromoInQueue(false) { promo, error ->
+                if (!error.isNullOrEmpty() || promo == null)
+                    return@getPromoInQueue
+                onPromoReceivedListener?.onPromoReceived(promo)
+            }
+        }
+
         @Deprecated(
             message = "Renamed to getPaywalls and changed signature",
             replaceWith = ReplaceWith(
                 expression = "Adapty.getPaywalls(adaptyCallback)"
             ),
-            level = DeprecationLevel.WARNING)
+            level = DeprecationLevel.WARNING
+        )
         fun getPurchaseContainers(
             context: Context,
             adaptyCallback: (containers: ArrayList<DataContainer>, products: ArrayList<Product>, state: String, error: String?) -> Unit
@@ -509,6 +520,72 @@ class Adapty {
         }
 
         @JvmStatic
+        fun getPromo(
+            adaptyCallback: (promo: Promo?, error: String?) -> Unit
+        ) {
+            LogHelper.logVerbose("getPromos()")
+            addToQueue {
+                getPromoInQueue(true, adaptyCallback)
+            }
+        }
+
+        private var currentPromo: Promo? = null
+
+        private fun getPromoInQueue(
+            needQueue: Boolean,
+            adaptyCallback: (promo: Promo?, error: String?) -> Unit
+        ) {
+            apiClientRepository.getPromo(
+                object : AdaptyPromosCallback {
+                    override fun onResult(
+                        promo: Promo?,
+                        error: String?
+                    ) {
+
+                        if (!error.isNullOrEmpty() || promo == null) {
+                            adaptyCallback.invoke(null, error)
+                            if (needQueue)
+                                nextQueue()
+                            return
+                        }
+
+                        fun finishSettingPaywallToPromo(it: DataContainer) {
+                            promo.paywall = it.attributes
+                            adaptyCallback.invoke(promo, error)
+                            if (currentPromo != promo) {
+                                currentPromo = promo
+                                onPromoReceivedListener?.onPromoReceived(promo)
+                            }
+                            if (needQueue)
+                                nextQueue()
+                        }
+
+                        preferenceManager.containers
+                            ?.firstOrNull { it.attributes?.variationId == promo.variationId }
+                            ?.let {
+                                finishSettingPaywallToPromo(it)
+                            } ?: kotlin.run {
+                            getPaywallsInQueue(needQueue) { containers, products, state, error ->
+                                if (state == "synced") {
+                                    if (error.isNullOrEmpty()) {
+                                        containers
+                                            .firstOrNull { it.attributes?.variationId == promo.variationId }
+                                            ?.let {
+                                                finishSettingPaywallToPromo(it)
+                                            } ?: adaptyCallback.invoke(null, "Paywall not found")
+                                    } else {
+                                        adaptyCallback.invoke(null, error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                }
+            )
+        }
+
+        @JvmStatic
         fun makePurchase(
             activity: Activity,
             product: Product,
@@ -520,7 +597,8 @@ class Adapty {
             replaceWith = ReplaceWith(
                 expression = "Adapty.makePurchase(activity,product,adaptyCallback)"
             ),
-            level = DeprecationLevel.WARNING)
+            level = DeprecationLevel.WARNING
+        )
         @JvmStatic
         fun makePurchase(
             activity: Activity,
@@ -593,7 +671,8 @@ class Adapty {
             replaceWith = ReplaceWith(
                 expression = "Adapty.restorePurchases(adaptyCallback)"
             ),
-            level = DeprecationLevel.WARNING)
+            level = DeprecationLevel.WARNING
+        )
         fun restorePurchases(
             activity: Activity,
             adaptyCallback: (RestoreReceiptResponse?, String?) -> Unit
@@ -660,27 +739,6 @@ class Adapty {
             if (purchaseOrderId == null && product == null) {
                 addToQueue {
                     apiClientRepository.validatePurchase(
-                            purchaseType,
-                            productId,
-                            purchaseToken,
-                            purchaseOrderId,
-                            product,
-                            object : AdaptyValidateCallback {
-                                override fun onResult(
-                                    response: ValidateReceiptResponse?,
-                                    error: String?
-                                ) {
-                                    adaptyCallback.invoke(response, error)
-
-                                    response?.data?.attributes?.apply {
-                                        checkChangesPurchaserInfo(this)
-                                    }
-                                    nextQueue()
-                                }
-                            })
-                }
-            } else {
-                apiClientRepository.validatePurchase(
                         purchaseType,
                         productId,
                         purchaseToken,
@@ -696,8 +754,29 @@ class Adapty {
                                 response?.data?.attributes?.apply {
                                     checkChangesPurchaserInfo(this)
                                 }
+                                nextQueue()
                             }
                         })
+                }
+            } else {
+                apiClientRepository.validatePurchase(
+                    purchaseType,
+                    productId,
+                    purchaseToken,
+                    purchaseOrderId,
+                    product,
+                    object : AdaptyValidateCallback {
+                        override fun onResult(
+                            response: ValidateReceiptResponse?,
+                            error: String?
+                        ) {
+                            adaptyCallback.invoke(response, error)
+
+                            response?.data?.attributes?.apply {
+                                checkChangesPurchaserInfo(this)
+                            }
+                        }
+                    })
             }
         }
 
@@ -756,8 +835,43 @@ class Adapty {
         }
 
         @JvmStatic
+        fun refreshPushToken(newToken: String) {
+            apiClientRepository.pushToken = newToken
+            if (isActivated && preferenceManager.profileID.isNotEmpty()) {
+                sendSyncMetaInstallRequest()
+            }
+        }
+
+        @JvmStatic
+        fun handlePromoIntent(
+            intent: Intent?,
+            adaptyCallback: (promo: Promo?, error: String?) -> Unit
+        ): Boolean {
+            if (intent?.getStringExtra("source") != "adapty") {
+                return false
+            }
+            if (kinesisManager == null) kinesisManager = KinesisManager(preferenceManager)
+            kinesisManager?.trackEvent(
+                "promo_push_opened",
+                mapOf("promo_delivery_id" to intent.getStringExtra("promo_delivery_id"))
+            )
+            getPromoInQueue(false, adaptyCallback)
+            return true
+        }
+
+        @JvmStatic
         fun setOnPurchaserInfoUpdatedListener(onPurchaserInfoUpdatedListener: OnPurchaserInfoUpdatedListener?) {
             this.onPurchaserInfoUpdatedListener = onPurchaserInfoUpdatedListener
+        }
+
+        @JvmStatic
+        fun setOnPromoReceivedListener(onPromoReceivedListener: OnPromoReceivedListener?) {
+            this.onPromoReceivedListener = onPromoReceivedListener
+        }
+
+        @JvmStatic
+        fun setLogLevel(logLevel: LogLevel) {
+            LogHelper.setLogLevel(logLevel)
         }
     }
 }

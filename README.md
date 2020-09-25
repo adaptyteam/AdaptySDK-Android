@@ -25,7 +25,7 @@ Add dependency:
 
 ```Kotlin
 dependencies {
-    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.4.3'
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.5.0'
 }
 ```
 
@@ -230,7 +230,7 @@ Adapty.getPurchaserInfo { purchaserInfo, error ->
 }
 ```
 
-### Listening for purchaser info updates
+### Listening to purchaser info updates
 You can respond to any changes in purchaser info by conforming to an optional delegate method, didReceivePurchaserInfo. This will fire whenever we receive a change in purchaser info.
 ```Kotlin
 Adapty.setOnPurchaserInfoUpdatedListener(object : OnPurchaserInfoUpdatedListener {
@@ -239,6 +239,29 @@ Adapty.setOnPurchaserInfoUpdatedListener(object : OnPurchaserInfoUpdatedListener
             }
         })
 ```
+
+### Promo campaigns
+```Kotlin
+Adapty.getPromo { promo, error ->
+    if (error == null && promo != null) {
+        // you have a promo
+    }
+}
+```
+
+### Listening to promo updates
+You can respond to any changes in promo by conforming to an optional delegate method, onPromoReceived. This will fire whenever we receive a change in promo.
+```Kotlin
+Adapty.setOnPromoReceivedListener(object : OnPromoReceivedListener {
+            override fun onPromoReceived(promo: Promo) {
+                // handle any changes to promo
+            }
+        })
+```
+
+### Promo push notifications
+
+To setup push notifications with promo campaigns please follow [our guide](https://github.com/adaptyteam/AdaptySDK-Android/blob/master/docs/push_notifications_guide.md)
 
 ### Logout user
 
@@ -252,3 +275,11 @@ Adapty.logout { error ->
 }
 ```
 
+### Debugging
+
+Adapty will log errors and other important information to help you understand what is going on. There are three levels available: **`LogLevel.VERBOSE`**, **`LogLevel.ERROR`** and **`LogLevel.NONE`** in case you want a bit of a silence.
+You can set this immediately in your app while testing, before you configure Adapty.
+
+```Kotlin
+Adapty.setLogLevel(LogLevel.VERBOSE)
+```

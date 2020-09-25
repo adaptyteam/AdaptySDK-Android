@@ -6,7 +6,6 @@ import android.os.Handler
 import android.util.Log
 import com.adapty.api.requests.*
 import com.adapty.api.responses.*
-import com.adapty.utils.ADAPTY_SDK_VERSION_INT
 import com.adapty.utils.LogHelper
 import com.adapty.utils.PreferenceManager
 import com.google.gson.Gson
@@ -33,6 +32,7 @@ class ApiClient(private var context: Context, private val gson : Gson) {
         const val GET_PROFILE_REQ_ID = 5
         const val GET_CONTAINERS_REQ_ID = 6
         const val UPDATE_ATTRIBUTION_REQ_ID = 7
+        const val GET_PROMO_REQ_ID = 8
         const val POST = "POST"
         const val PATCH = "PATCH"
         const val GET = "GET"
@@ -65,12 +65,10 @@ class ApiClient(private var context: Context, private val gson : Gson) {
     }
 
     fun getProfile(
-        request: PurchaserInfoRequest,
         adaptyCallback: AdaptyCallback?
     ) {
         get(
             generateUrl(GET_PROFILE_REQ_ID),
-            request,
             PurchaserInfoResponse(),
             GET_PROFILE_REQ_ID,
             adaptyCallback
@@ -78,12 +76,10 @@ class ApiClient(private var context: Context, private val gson : Gson) {
     }
 
     fun getPaywalls(
-        request: PaywallsRequest,
         adaptyCallback: AdaptyCallback?
     ) {
         get(
             generateUrl(GET_CONTAINERS_REQ_ID),
-            request,
             PaywallsResponse(),
             GET_CONTAINERS_REQ_ID,
             adaptyCallback
@@ -142,10 +138,21 @@ class ApiClient(private var context: Context, private val gson : Gson) {
         )
     }
 
+    fun getPromo(
+        adaptyCallback: AdaptyCallback?
+    ) {
+        get(
+            generateUrl(GET_PROMO_REQ_ID),
+            PromoResponse(),
+            GET_PROMO_REQ_ID,
+            adaptyCallback
+        )
+    }
+
     private fun request(
         type: String,
         url: String,
-        request: Any,
+        request: Any?,
         oresponse: Any?,
         reqID: Int,
         adaptyCallback: AdaptyCallback?
@@ -156,8 +163,6 @@ class ApiClient(private var context: Context, private val gson : Gson) {
             var rString = ""
 
             try {
-
-                val req = gson.toJson(request)
 
                 val myUrl = URL(url)
 
@@ -180,7 +185,7 @@ class ApiClient(private var context: Context, private val gson : Gson) {
                 conn.setRequestProperty("ADAPTY-SDK-VERSION", com.adapty.BuildConfig.VERSION_NAME)
                 conn.setRequestProperty(
                     "ADAPTY-SDK-VERSION-BUILD",
-                    ADAPTY_SDK_VERSION_INT.toString()
+                    com.adapty.BuildConfig.VERSION_CODE.toString()
                 )
                 conn.setRequestProperty(
                     AUTHORIZATION_KEY,
@@ -194,6 +199,7 @@ class ApiClient(private var context: Context, private val gson : Gson) {
                 conn.doInput = true
 
                 if (type != GET) {
+                    val req = gson.toJson(request)
                     conn.doOutput = true
                     val os = conn.outputStream
                     val writer = BufferedWriter(OutputStreamWriter(os, "UTF-8"))
@@ -285,12 +291,11 @@ class ApiClient(private var context: Context, private val gson : Gson) {
 
     private fun get(
         url: String,
-        request: Any,
         oresponse: Any?,
         reqID: Int,
         adaptyCallback: AdaptyCallback?
     ) {
-        request(GET, url, request, oresponse, reqID, adaptyCallback)
+        request(GET, url, null, oresponse, reqID, adaptyCallback)
     }
 
     private fun success(
@@ -329,6 +334,9 @@ class ApiClient(private var context: Context, private val gson : Gson) {
                             if (meta == null)
                                 meta = arrayListOf()
                             it.onResult(data, meta, null)
+                        }
+                        is AdaptyPromosCallback -> {
+                            it.onResult((response as? PromoResponse)?.data?.attributes, null)
                         }
                     }
                 }
@@ -402,6 +410,8 @@ class ApiClient(private var context: Context, private val gson : Gson) {
                 serverUrl + "sdk/in-apps/purchase-containers/?profile_id=" + preferenceManager.profileID
             UPDATE_ATTRIBUTION_REQ_ID ->
                 serverUrl + "sdk/analytics/profiles/" + preferenceManager.profileID + "/attribution/"
+            GET_PROMO_REQ_ID ->
+                serverUrl + "sdk/analytics/profiles/" + preferenceManager.profileID + "/promo/"
             else -> serverUrl
         }
     }

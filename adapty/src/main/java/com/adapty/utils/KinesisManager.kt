@@ -26,7 +26,7 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
     private val sessionId = generateUuid().toString()
     private val SIGNING_ALGORITHM = "AWS4-HMAC-SHA256"
 
-    fun trackEvent() {
+    fun trackEvent(eventName: String, subMap: Map<String, String>? = null) {
         val iamAccessKeyId = preferenceManager.iamAccessKeyId
         val iamSecretKey = preferenceManager.iamSecretKey
         val iamSessionToken = preferenceManager.iamSessionToken
@@ -40,11 +40,14 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
         map.apply {
             put("profile_id", preferenceManager.profileID)
             put("session_id", sessionId)
-            put("event_name", "live")
+            put("event_name", eventName)
             put("profile_installation_meta_id", preferenceManager.installationMetaID)
             put("event_id", generateUuid().toString())
             put("created_at", date)
             put("platform", "Android")
+            subMap?.let {
+                putAll(it)
+            }
         }
 
         val dataStr = Gson().toJson(map)

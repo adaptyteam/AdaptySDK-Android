@@ -123,7 +123,10 @@ fun generatePurchaserInfoModel(res: AttributePurchaserInfoRes): PurchaserInfoMod
             nonSubscriptions = nonSubs,
             paidAccessLevels = pal,
             subscriptions = subs,
-            updatedAt = it.updatedAt
+            updatedAt = it.updatedAt,
+            promotionalOfferEligibility = it.promotionalOfferEligibility,
+            introductoryOfferEligibility = it.introductoryOfferEligibility,
+            customAttributes = it.customAttributes
         )
     }
 }

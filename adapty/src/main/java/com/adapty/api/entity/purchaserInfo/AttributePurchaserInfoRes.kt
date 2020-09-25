@@ -56,4 +56,13 @@ open class AttributePurchaserInfoRes {
 
     @SerializedName("non_subscriptions")
     var nonSubscriptions: HashMap<String, ArrayList<NonSubscriptionsPurchaserInfoRes>>? = null
+
+    @SerializedName("promotional_offer_eligibility")
+    var promotionalOfferEligibility: Boolean = false
+
+    @SerializedName("introductory_offer_eligibility")
+    var introductoryOfferEligibility: Boolean = false
+
+    @SerializedName("custom_attributes")
+    var customAttributes: HashMap<String, Any>? = null
 }

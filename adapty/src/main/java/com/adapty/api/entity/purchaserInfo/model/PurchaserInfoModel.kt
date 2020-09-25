@@ -1,9 +1,5 @@
 package com.adapty.api.entity.purchaserInfo.model
 
-import com.adapty.api.entity.purchaserInfo.NonSubscriptionsPurchaserInfoRes
-import com.adapty.api.entity.purchaserInfo.PaidAccessLevelPurchaserInfoRes
-import com.adapty.api.entity.purchaserInfo.SubscriptionsPurchaserInfoRes
-
 data class PurchaserInfoModel(
     var appId: String?,
     var customerUserId: String?,
@@ -21,5 +17,8 @@ data class PurchaserInfoModel(
     var updatedAt: String?,
     var paidAccessLevels: HashMap<String, PaidAccessLevelPurchaserInfoModel>?,
     var subscriptions: HashMap<String, SubscriptionsPurchaserInfoModel>?,
-    var nonSubscriptions: HashMap<String, ArrayList<NonSubscriptionsPurchaserInfoModel>>?
+    var nonSubscriptions: HashMap<String, ArrayList<NonSubscriptionsPurchaserInfoModel>>?,
+    var promotionalOfferEligibility: Boolean,
+    var introductoryOfferEligibility: Boolean,
+    var customAttributes: HashMap<String, Any>?
 )

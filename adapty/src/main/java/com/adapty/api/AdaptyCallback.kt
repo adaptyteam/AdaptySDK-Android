@@ -2,6 +2,7 @@ package com.adapty.api
 
 import com.adapty.api.entity.containers.DataContainer
 import com.adapty.api.entity.containers.Product
+import com.adapty.api.entity.containers.Promo
 import com.adapty.api.entity.purchaserInfo.AttributePurchaserInfoRes
 import com.adapty.api.responses.RestoreReceiptResponse
 import com.adapty.api.responses.ValidateReceiptResponse
@@ -57,5 +58,11 @@ interface AdaptyPaywallsCallback : AdaptyCallback {
 interface AdaptyPaywallsInfoCallback : AdaptyCallback {
 
     fun onResult(data: ArrayList<Any>, error: String?)
+
+}
+
+interface AdaptyPromosCallback : AdaptyCallback {
+
+    fun onResult(promo: Promo?, error: String?)
 
 }
