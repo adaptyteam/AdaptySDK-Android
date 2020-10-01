@@ -60,16 +60,14 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
     }
 
     fun updateProfile(
-        customerUserId: String?,
         email: String?,
         phoneNumber: String?,
         facebookUserId: String?,
         mixpanelUserId: String?,
         amplitudeUserId: String?,
         amplitudeDeviceId: String?,
-        appsflyerId: String?,
-        appmetricaProfileId: String? = null,
-        appmetricaDeviceId: String? = null,
+        appmetricaProfileId: String?,
+        appmetricaDeviceId: String?,
         firstName: String?,
         lastName: String?,
         gender: String?,
@@ -85,20 +83,18 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
                 id = uuid
                 type = "adapty_analytics_profile"
                 attributes = AttributeProfileReq().apply {
-                    this.customerUserId = customerUserId
                     this.email = email
                     this.phoneNumber = phoneNumber
                     this.facebookUserId = facebookUserId
                     this.mixpanelUserId = mixpanelUserId
                     this.amplitudeUserId = amplitudeUserId
                     this.amplitudeDeviceId = amplitudeDeviceId
-                    this.appsflyerId = appsflyerId
+                    this.appmetricaProfileId = appmetricaProfileId
+                    this.appmetricaDeviceId = appmetricaDeviceId
                     this.firstName = firstName
                     this.lastName = lastName
                     this.gender = gender
                     this.birthday = birthday
-                    this.appmetricaProfileId = appmetricaProfileId
-                    this.appmetricaDeviceId = appmetricaDeviceId
                     this.customAttributes = customAttributes
                 }
             }

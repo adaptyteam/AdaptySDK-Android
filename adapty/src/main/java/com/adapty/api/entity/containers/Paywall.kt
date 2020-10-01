@@ -18,4 +18,7 @@ class Paywall {
 
     @SerializedName("products")
     var products: ArrayList<Product>? = null
+
+    @SerializedName("custom_payload")
+    var customPayload: String? = null
 }

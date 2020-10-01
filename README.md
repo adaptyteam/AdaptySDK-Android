@@ -25,7 +25,7 @@ Add dependency:
 
 ```Kotlin
 dependencies {
-    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.5.0'
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.5.1'
 }
 ```
 
@@ -67,31 +67,21 @@ Adapty.syncPurchases()
 
 ### Update customer profile
 
+Create **`ProfileParameterBuilder`** to add parameters you want to update.
+For example, if you want to update only `email`, `birthday` and `customAttributes`, you need to add only those parameters:
+
 ```Kotlin
-Adapty.updateProfile(
-    customerUserId: "###############",
-    email: "user@adapty.io",
-    phoneNumber: "+1-###-###-####",
-    facebookUserId: "###############",
-    mixpanelUserId: "###############",
-    amplitudeUserId: "###############",
-    amplitudeDeviceId: "###############",
-    appsflyerId: "###############",
-    appmetricaProfileId: "###",
-    appmetricaDeviceId: "###",
-    amplitudeUserId: "###############",
-    firstName: "John",
-    lastName: "Doe",
-    gender: "m",
-    birthday: Date,
-    customAttributes: Map
-) { error ->
+val params = ProfileParameterBuilder()
+    .withEmail("email@example.com")
+    .withBirthday(Date(1970, 1, 3))
+    .withCustomAttributes(mapOf("key1" to value1, "key2" to value2))
+
+Adapty.updateProfile(params) { error ->
     /* ... */
 }
 ```
-
-All properties are optional.  
-For **`gender`** possible values are: **`m`**, **`f`**, but you can also pass custom string value.
+Properties passed to **`Date`** correspond to their ordinal numbers in a regular calendar, month and date numbers start with 1.
+For example, **`Date(year = 1970, month = 1, date = 3)`** represents January 3, 1970.
 
 ### Attribution tracker integration
 

@@ -9,6 +9,7 @@ import com.adapty.api.entity.containers.DataContainer
 import com.adapty.api.entity.containers.OnPromoReceivedListener
 import com.adapty.api.entity.containers.Product
 import com.adapty.api.entity.containers.Promo
+import com.adapty.api.entity.profile.update.ProfileParameterBuilder
 import com.adapty.api.entity.purchaserInfo.*
 import com.adapty.api.entity.purchaserInfo.model.PurchaserInfoModel
 import com.adapty.api.responses.CreateProfileResponse
@@ -298,6 +299,13 @@ class Adapty {
             })
         }
 
+        @Deprecated(
+            message = "Changed signature",
+            replaceWith = ReplaceWith(
+                expression = "Adapty.updateProfile(params,adaptyCallback)"
+            ),
+            level = DeprecationLevel.WARNING
+        )
         @JvmStatic
         @JvmOverloads
         fun updateProfile(
@@ -320,14 +328,12 @@ class Adapty {
         ) {
             addToQueue {
                 apiClientRepository.updateProfile(
-                    customerUserId,
                     email,
                     phoneNumber,
                     facebookUserId,
                     mixpanelUserId,
                     amplitudeUserId,
                     amplitudeDeviceId,
-                    appsflyerId,
                     appmetricaProfileId,
                     appmetricaDeviceId,
                     firstName,
@@ -335,6 +341,34 @@ class Adapty {
                     gender,
                     birthday,
                     customAttributes,
+                    object : AdaptyProfileCallback {
+                        override fun onResult(error: String?) {
+                            adaptyCallback.invoke(error)
+                            nextQueue()
+                        }
+
+                    }
+                )
+            }
+        }
+
+        @JvmStatic
+        fun updateProfile(params: ProfileParameterBuilder, adaptyCallback: (String?) -> Unit) {
+            addToQueue {
+                apiClientRepository.updateProfile(
+                    params.email,
+                    params.phoneNumber,
+                    params.facebookUserId,
+                    params.mixpanelUserId,
+                    params.amplitudeUserId,
+                    params.amplitudeDeviceId,
+                    params.appmetricaProfileId,
+                    params.appmetricaDeviceId,
+                    params.firstName,
+                    params.lastName,
+                    params.gender,
+                    params.birthday,
+                    params.customAttributes,
                     object : AdaptyProfileCallback {
                         override fun onResult(error: String?) {
                             adaptyCallback.invoke(error)

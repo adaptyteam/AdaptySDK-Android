@@ -36,8 +36,11 @@ open class AttributeProfileReq {
     @SerializedName("amplitude_device_id")
     var amplitudeDeviceId: String? = null
 
-    @SerializedName("appsflyer_id")
-    var appsflyerId: String? = null
+    @SerializedName("appmetrica_profile_id")
+    var appmetricaProfileId: String? = null
+
+    @SerializedName("appmetrica_device_id")
+    var appmetricaDeviceId: String? = null
 
     @SerializedName("mixpanel_user_id")
     var mixpanelUserId: String? = null
@@ -50,12 +53,6 @@ open class AttributeProfileReq {
 
     @SerializedName("updated_at")
     var updatedAt: String? = null
-
-    @SerializedName("appmetrica_profile_id")
-    var appmetricaProfileId: String? = null
-
-    @SerializedName("appmetrica_device_id")
-    var appmetricaDeviceId: String? = null
 
     @SerializedName("custom_attributes")
     var customAttributes: Map<String, Any>? = null

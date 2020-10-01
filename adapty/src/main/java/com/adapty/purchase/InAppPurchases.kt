@@ -39,8 +39,11 @@ class InAppPurchases(
             billingClient =
                 BillingClient.newBuilder(context).enablePendingPurchases()
                     .setListener { billingResult, purchases ->
-                        if (billingResult?.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
+                        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
                             for (purchase in purchases) {
+
+                                if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED)
+                                    continue
 
                                 if (purchaseType == SUBS) {
                                     val acknowledgePurchaseParams =
@@ -88,10 +91,10 @@ class InAppPurchases(
                                     fail("Product type is null")
                                 }
                             }
-                        } else if (billingResult?.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
+                        } else if (billingResult.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
                             fail("Purchase: USER_CANCELED")
                         } else {
-                            fail("Purchase: ${billingResult?.responseCode.toString()}, ${billingResult.debugMessage}")
+                            fail("Purchase: ${billingResult.responseCode}, ${billingResult.debugMessage}")
                         }
                     }
                     .build()
