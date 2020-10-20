@@ -83,10 +83,9 @@ class PreferenceManager(context: Context) {
     var purchaserInfo: PurchaserInfoModel?
         get() {
             val str = pref.getString(PURCHASER_INFO, null)
-            str?.let {
-                return gson.fromJson(it, PurchaserInfoModel::class.java)
+            return str?.let {
+                gson.fromJson(it, PurchaserInfoModel::class.java)
             }
-            return null
         }
         set(info) {
             editor.putString(PURCHASER_INFO, gson.toJson(info))
@@ -148,6 +147,21 @@ class PreferenceManager(context: Context) {
             editor.putString(KINESIS_RECORDS, gson.toJson(value))
             editor.commit()
         }
+
+    fun clearOnLogout() {
+        editor
+            .putString(CUSTOMER_USER_ID, "")
+            .putString(INSTALLATION_META_ID, "")
+            .putString(PROFILE_ID, "")
+            .putString(CONTAINERS, null)
+            .putString(PRODUCTS, null)
+            .putString(SYNCED_PURCHASES, null)
+            .putString(PURCHASER_INFO, null)
+            .putString(IAM_ACCESS_KEY_ID, null)
+            .putString(IAM_SECRET_KEY, null)
+            .putString(IAM_SESSION_TOKEN, null)
+            .commit()
+    }
 
     private companion object {
         private const val PREF_NAME = "AdaptySDKPrefs"

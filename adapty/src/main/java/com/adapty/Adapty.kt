@@ -180,10 +180,7 @@ class Adapty {
 
             cachedInfo?.let { cached ->
                 info?.let { synced ->
-                    if (cached == synced)
-                        return false
-
-                    return true
+                    return cached != synced
                 }
             }
 
@@ -205,17 +202,15 @@ class Adapty {
             apiClientRepository.syncMetaInstall(object : AdaptySystemCallback {
                 override fun success(response: Any?, reqID: Int) {
                     if (response is SyncMetaInstallResponse) {
-                        response.data?.let { data ->
-                            data.attributes?.let { attrs ->
-                                attrs.iamAccessKeyId?.let {
-                                    preferenceManager.iamAccessKeyId = it
-                                }
-                                attrs.iamSecretKey?.let {
-                                    preferenceManager.iamSecretKey = it
-                                }
-                                attrs.iamSessionToken?.let {
-                                    preferenceManager.iamSessionToken = it
-                                }
+                        response.data?.attributes?.let { attrs ->
+                            attrs.iamAccessKeyId?.let {
+                                preferenceManager.iamAccessKeyId = it
+                            }
+                            attrs.iamSecretKey?.let {
+                                preferenceManager.iamSecretKey = it
+                            }
+                            attrs.iamSessionToken?.let {
+                                preferenceManager.iamSessionToken = it
                             }
                         }
 
@@ -253,12 +248,10 @@ class Adapty {
             customerUserId: String?,
             adaptyCallback: (String?) -> Unit
         ) {
-            if (!customerUserId.isNullOrEmpty() && preferenceManager.customerUserID.isNotEmpty()) {
-                if (customerUserId == preferenceManager.customerUserID) {
-                    adaptyCallback.invoke(null)
-                    nextQueue()
-                    return
-                }
+            if (!customerUserId.isNullOrEmpty() && customerUserId == preferenceManager.customerUserID) {
+                adaptyCallback.invoke(null)
+                nextQueue()
+                return
             }
 
             apiClientRepository.createProfile(customerUserId, object : AdaptySystemCallback {
@@ -859,11 +852,7 @@ class Adapty {
                 preferenceManager = PreferenceManager(context)
             }
 
-            preferenceManager.customerUserID = ""
-            preferenceManager.installationMetaID = ""
-            preferenceManager.profileID = ""
-            preferenceManager.containers = null
-            preferenceManager.products = arrayListOf()
+            preferenceManager.clearOnLogout()
 
             activateInQueue(context, preferenceManager.appKey, null, adaptyCallback)
         }
