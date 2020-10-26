@@ -25,7 +25,7 @@ Add dependency:
 
 ```Kotlin
 dependencies {
-    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.5.2'
+    implementation 'com.github.adaptyteam:AdaptySDK-Android:0.5.3'
 }
 ```
 
@@ -85,18 +85,7 @@ For example, **`Date(year = 1970, month = 1, date = 3)`** represents January 3, 
 
 ### Attribution tracker integration
 
-To integrate with attribution system, just pass attribution you receive to Adapty method.
-
-```Kotlin
-Adapty.updateAttribution(
-    attribution: Map,
-    source: AttributionType,
-    networkUserId: String?
-)
-```
-
-**`attribution`** is **`Map`** object.
-For **`source`** possible values are: **`AttributionType.ADJUST`**, **`AttributionType.APPSFLYER`** and **`AttributionType.BRANCH`**.
+To integrate with [Adjust](https://www.adjust.com/), [AppsFlyer](https://www.appsflyer.com/) and [Branch](https://branch.io/) please follow [our guide](https://github.com/adaptyteam/AdaptySDK-Android/blob/master/docs/attribution_guide.md)
 
 ### Get paywalls
 

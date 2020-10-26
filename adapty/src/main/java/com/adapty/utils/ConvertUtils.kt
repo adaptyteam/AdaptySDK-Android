@@ -5,6 +5,7 @@ import com.adapty.api.entity.purchaserInfo.model.NonSubscriptionsPurchaserInfoMo
 import com.adapty.api.entity.purchaserInfo.model.PaidAccessLevelPurchaserInfoModel
 import com.adapty.api.entity.purchaserInfo.model.PurchaserInfoModel
 import com.adapty.api.entity.purchaserInfo.model.SubscriptionsPurchaserInfoModel
+import java.lang.Exception
 import java.math.BigDecimal
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
@@ -155,4 +156,29 @@ fun getPeriodNumberOfUnits(period: String) : Int? {
         return null
 
     return p.toInt()
+}
+
+internal const val ADJUST_ATTRIBUTION_CLASS = "com.adjust.sdk.AdjustAttribution"
+
+internal val adjustAttributionClass : Class<*> by lazy {
+    Class.forName(ADJUST_ATTRIBUTION_CLASS)
+}
+
+internal fun convertAdjustAttributionToMap(adjustAttribution: Any) = hashMapOf(
+    "adgroup" to getAdjustProperty(adjustAttribution, "adgroup"),
+    "adid" to getAdjustProperty(adjustAttribution, "adid"),
+    "campaign" to getAdjustProperty(adjustAttribution, "campaign"),
+    "click_label" to getAdjustProperty(adjustAttribution, "clickLabel"),
+    "creative" to getAdjustProperty(adjustAttribution, "creative"),
+    "network" to getAdjustProperty(adjustAttribution, "network"),
+    "tracker_name" to getAdjustProperty(adjustAttribution, "trackerName"),
+    "tracker_token" to getAdjustProperty(adjustAttribution, "trackerToken")
+)
+
+private fun getAdjustProperty(adjustAttribution: Any, propName: String): Any {
+    return try {
+        adjustAttributionClass.getField(propName).get(adjustAttribution)
+    } catch (e: Exception) {
+        ""
+    }
 }

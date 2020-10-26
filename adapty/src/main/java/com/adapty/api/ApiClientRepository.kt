@@ -254,14 +254,20 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
                 type = "adapty_analytics_profile_attribution"
                 attributes = AttributeUpdateAttributionReq().apply {
                     this.source = source
-                    this.attribution = if (attribution is JSONObject) {
-                        val jo = HashMap<String, Any>()
-                        for (a in attribution.keys()) {
-                            jo[a] = attribution.get(a)
+                    this.attribution = when {
+                        attribution is JSONObject -> {
+                            val jo = HashMap<String, Any>()
+                            for (a in attribution.keys()) {
+                                jo[a] = attribution.get(a)
+                            }
+                            jo
                         }
-                        jo
-                    } else {
-                        attribution
+                        adjustAttributionClass.isAssignableFrom(attribution::class.java) -> {
+                            convertAdjustAttributionToMap(attribution)
+                        }
+                        else -> {
+                            attribution
+                        }
                     }
 
                     this.networkUserId = networkUserId
