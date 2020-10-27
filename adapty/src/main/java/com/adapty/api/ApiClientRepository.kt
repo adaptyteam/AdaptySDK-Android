@@ -262,7 +262,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
                             }
                             jo
                         }
-                        adjustAttributionClass.isAssignableFrom(attribution::class.java) -> {
+                        adjustAttributionClass?.isAssignableFrom(attribution::class.java) == true -> {
                             convertAdjustAttributionToMap(attribution)
                         }
                         else -> {

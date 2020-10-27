@@ -160,8 +160,12 @@ fun getPeriodNumberOfUnits(period: String) : Int? {
 
 internal const val ADJUST_ATTRIBUTION_CLASS = "com.adjust.sdk.AdjustAttribution"
 
-internal val adjustAttributionClass : Class<*> by lazy {
-    Class.forName(ADJUST_ATTRIBUTION_CLASS)
+internal val adjustAttributionClass : Class<*>? by lazy {
+    try {
+        Class.forName(ADJUST_ATTRIBUTION_CLASS)
+    } catch (e: ClassNotFoundException) {
+        null
+    }
 }
 
 internal fun convertAdjustAttributionToMap(adjustAttribution: Any) = hashMapOf(
@@ -177,7 +181,7 @@ internal fun convertAdjustAttributionToMap(adjustAttribution: Any) = hashMapOf(
 
 private fun getAdjustProperty(adjustAttribution: Any, propName: String): Any {
     return try {
-        adjustAttributionClass.getField(propName).get(adjustAttribution)
+        adjustAttributionClass?.getField(propName)?.get(adjustAttribution) ?: ""
     } catch (e: Exception) {
         ""
     }
