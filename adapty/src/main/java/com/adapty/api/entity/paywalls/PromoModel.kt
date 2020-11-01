@@ -1,8 +1,8 @@
-package com.adapty.api.entity.containers
+package com.adapty.api.entity.paywalls
 
 import com.google.gson.annotations.SerializedName
 
-class Promo {
+class PromoModel {
     @SerializedName("promo_type")
     var promoType: String? = null
 
@@ -12,5 +12,5 @@ class Promo {
     @SerializedName("expires_at")
     var expiresAt: String? = null
 
-    var paywall: Paywall? = null
+    var paywall: PaywallModel? = null
 }

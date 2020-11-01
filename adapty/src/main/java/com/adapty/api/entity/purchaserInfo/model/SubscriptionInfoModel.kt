@@ -1,13 +1,10 @@
 package com.adapty.api.entity.purchaserInfo.model
 
-import com.google.gson.annotations.SerializedName
-
-data class SubscriptionsPurchaserInfoModel(
+data class SubscriptionInfoModel(
     var isActive: Boolean?,
     var vendorProductId: String?,
     var store: String?,
-    var referenceName: String?,
-    var purchasedAt: String?,
+    var activatedAt: String?,
     var renewedAt: String?,
     var expiresAt: String?,
     var startsAt: String?,
@@ -18,5 +15,7 @@ data class SubscriptionsPurchaserInfoModel(
     var isInGracePeriod: Boolean?,
     var unsubscribedAt: String?,
     var billingIssueDetectedAt: String?,
-    var isSandbox: Boolean?
+    var isSandbox: Boolean?,
+    var isRefund: Boolean?,
+    var cancellationReason: String?
 )

@@ -2,5 +2,11 @@ package com.adapty.purchase
 
 import com.android.billingclient.api.BillingClient
 
-const val SUBS = BillingClient.SkuType.SUBS
-const val INAPP = BillingClient.SkuType.INAPP
+enum class PurchaseType {
+    SUBS, INAPP;
+
+    override fun toString() = when (this) {
+        SUBS -> BillingClient.SkuType.SUBS
+        INAPP -> BillingClient.SkuType.INAPP
+    }
+}

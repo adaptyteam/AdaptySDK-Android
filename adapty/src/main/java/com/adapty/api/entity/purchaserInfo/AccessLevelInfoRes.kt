@@ -2,18 +2,27 @@ package com.adapty.api.entity.purchaserInfo
 
 import com.google.gson.annotations.SerializedName
 
-class PaidAccessLevelPurchaserInfoRes {
+class AccessLevelInfoRes {
     @SerializedName("is_active")
     var isActive: Boolean? = null
 
     @SerializedName("vendor_product_id")
     var vendorProductId: String? = null
 
+    @SerializedName("vendor_transaction_id")
+    var vendorTransactionId: String? = null
+
+    @SerializedName("vendor_original_transaction_id")
+    var vendorOriginalTransactionId: String? = null
+
     @SerializedName("store")
     var store: String? = null
 
-    @SerializedName("purchased_at")
-    var purchasedAt: String? = null
+    @SerializedName("activated_at")
+    var activatedAt: String? = null
+
+    @SerializedName("starts_at")
+    var startsAt: String? = null
 
     @SerializedName("renewed_at")
     var renewedAt: String? = null
@@ -23,6 +32,12 @@ class PaidAccessLevelPurchaserInfoRes {
 
     @SerializedName("is_lifetime")
     var isLifetime: Boolean? = null
+
+    @SerializedName("cancellation_reason")
+    var cancellationReason: String? = null
+
+    @SerializedName("is_refund")
+    var isRefund: Boolean? = null
 
     @SerializedName("active_introductory_offer_type")
     var activeIntroductoryOfferType: String? = null

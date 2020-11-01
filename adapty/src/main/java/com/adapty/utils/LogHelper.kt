@@ -4,7 +4,7 @@ internal object LogHelper {
 
     private var logger: DefaultLogger? = null
 
-    internal fun setLogLevel(logLevel: LogLevel) {
+    internal fun setLogLevel(logLevel: AdaptyLogLevel) {
         logger = LoggerFactory.getLogger(logLevel)
     }
 
@@ -19,13 +19,13 @@ internal object LogHelper {
 
 internal object LoggerFactory {
 
-    fun getLogger(logLevel: LogLevel): DefaultLogger = when (logLevel) {
-        LogLevel.NONE -> DefaultLogger()
-        LogLevel.ERROR -> ErrorLogger()
-        LogLevel.VERBOSE -> VerboseLogger()
+    fun getLogger(logLevel: AdaptyLogLevel): DefaultLogger = when (logLevel) {
+        AdaptyLogLevel.NONE -> DefaultLogger()
+        AdaptyLogLevel.ERROR -> ErrorLogger()
+        AdaptyLogLevel.VERBOSE -> VerboseLogger()
     }
 }
 
-enum class LogLevel {
+enum class AdaptyLogLevel {
     NONE, VERBOSE, ERROR
 }

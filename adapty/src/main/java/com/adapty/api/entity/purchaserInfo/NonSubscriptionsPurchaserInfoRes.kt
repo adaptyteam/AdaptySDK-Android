@@ -9,6 +9,9 @@ class NonSubscriptionsPurchaserInfoRes {
     @SerializedName("vendor_product_id")
     var vendorProductId: String? = null
 
+    @SerializedName("vendor_transaction_id")
+    var vendorTransactionId: String? = null
+
     @SerializedName("store")
     var store: String? = null
 
@@ -20,4 +23,7 @@ class NonSubscriptionsPurchaserInfoRes {
 
     @SerializedName("is_sandbox")
     var isSandbox: Boolean? = null
+
+    @SerializedName("is_refund")
+    var isRefund: Boolean? = null
 }

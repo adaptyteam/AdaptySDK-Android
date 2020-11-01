@@ -1,10 +1,11 @@
 package com.adapty.api
 
-import com.adapty.api.entity.containers.DataContainer
-import com.adapty.api.entity.containers.Product
-import com.adapty.api.entity.containers.Promo
+import com.adapty.api.entity.paywalls.DataContainer
+import com.adapty.api.entity.paywalls.ProductModel
+import com.adapty.api.entity.paywalls.PromoModel
 import com.adapty.api.entity.purchaserInfo.AttributePurchaserInfoRes
 import com.adapty.api.responses.RestoreReceiptResponse
+import com.adapty.api.responses.UpdateProfileResponse
 import com.adapty.api.responses.ValidateReceiptResponse
 import com.android.billingclient.api.Purchase
 
@@ -27,7 +28,7 @@ interface AdaptyPurchaseCallback : AdaptyCallback {
 
 interface AdaptyProfileCallback : AdaptyCallback {
 
-    fun onResult(error: String?)
+    fun onResult(response: UpdateProfileResponse?, error: String?)
 
 }
 
@@ -51,7 +52,7 @@ interface AdaptyPurchaserInfoCallback : AdaptyCallback {
 
 interface AdaptyPaywallsCallback : AdaptyCallback {
 
-    fun onResult(containers: ArrayList<DataContainer>, products: ArrayList<Product>, error: String?)
+    fun onResult(containers: ArrayList<DataContainer>, products: ArrayList<ProductModel>, error: String?)
 
 }
 
@@ -63,6 +64,6 @@ interface AdaptyPaywallsInfoCallback : AdaptyCallback {
 
 interface AdaptyPromosCallback : AdaptyCallback {
 
-    fun onResult(promo: Promo?, error: String?)
+    fun onResult(promo: PromoModel?, error: String?)
 
 }

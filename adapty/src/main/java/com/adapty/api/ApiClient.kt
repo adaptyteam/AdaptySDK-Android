@@ -313,7 +313,7 @@ class ApiClient(private var context: Context, private val gson : Gson) {
                             it.success(response, reqID)
                         }
                         is AdaptyProfileCallback -> {
-                            it.onResult(null)
+                            it.onResult((response as UpdateProfileResponse), null)
                         }
                         is AdaptyValidateCallback -> {
                             it.onResult((response as ValidateReceiptResponse), null)
@@ -326,13 +326,9 @@ class ApiClient(private var context: Context, private val gson : Gson) {
                             it.onResult(res, null)
                         }
                         is AdaptyPaywallsCallback -> {
-                            var data = (response as PaywallsResponse).data
-                            if (data == null)
-                                data = arrayListOf()
+                            val data = (response as PaywallsResponse).data ?: arrayListOf()
 
-                            var meta = (response).meta?.products
-                            if (meta == null)
-                                meta = arrayListOf()
+                            val meta = (response).meta?.products ?: arrayListOf()
                             it.onResult(data, meta, null)
                         }
                         is AdaptyPromosCallback -> {
@@ -362,7 +358,7 @@ class ApiClient(private var context: Context, private val gson : Gson) {
                             it.fail(error, reqID)
                         }
                         is AdaptyProfileCallback -> {
-                            it.onResult(error)
+                            it.onResult(null, error)
                         }
                         is AdaptyValidateCallback -> {
                             it.onResult(null, error)

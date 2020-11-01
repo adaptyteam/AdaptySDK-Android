@@ -1,9 +1,9 @@
-package com.adapty.api.entity.containers
+package com.adapty.api.entity.paywalls
 
 import com.google.gson.annotations.SerializedName
 import kotlin.collections.ArrayList
 
-class Paywall {
+class PaywallModel {
     @SerializedName("developer_id")
     var developerId: String? = null
 
@@ -17,7 +17,7 @@ class Paywall {
     var variationId: String? = null
 
     @SerializedName("products")
-    var products: ArrayList<Product>? = null
+    var products: ArrayList<ProductModel>? = null
 
     @SerializedName("custom_payload")
     var customPayload: String? = null

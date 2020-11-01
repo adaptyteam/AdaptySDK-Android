@@ -10,14 +10,17 @@ class SubscriptionsPurchaserInfoRes {
     @SerializedName("vendor_product_id")
     var vendorProductId: String? = null
 
+    @SerializedName("vendor_transaction_id")
+    var vendorTransactionId: String? = null
+
+    @SerializedName("vendor_original_transaction_id")
+    var vendorOriginalTransactionId: String? = null
+
     @SerializedName("store")
     var store: String? = null
 
-    @SerializedName("reference_name")
-    var referenceName: String? = null
-
-    @SerializedName("purchased_at")
-    var purchasedAt: String? = null
+    @SerializedName("activated_at")
+    var activatedAt: String? = null
 
     @SerializedName("renewed_at")
     var renewedAt: String? = null
@@ -51,4 +54,10 @@ class SubscriptionsPurchaserInfoRes {
 
     @SerializedName("is_sandbox")
     var isSandbox: Boolean? = null
+
+    @SerializedName("is_refund")
+    var isRefund: Boolean? = null
+
+    @SerializedName("cancellation_reason")
+    var cancellationReason: String? = null
 }

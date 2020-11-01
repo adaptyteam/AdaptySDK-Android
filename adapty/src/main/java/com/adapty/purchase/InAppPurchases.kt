@@ -2,28 +2,27 @@ package com.adapty.purchase
 
 import android.app.Activity
 import android.content.Context
-import com.adapty.Adapty
-import com.adapty.api.AdaptyCallback
-import com.adapty.api.AdaptyPurchaseCallback
-import com.adapty.api.AdaptyRestoreCallback
-import com.adapty.api.ApiClientRepository
-import com.adapty.api.entity.containers.DataContainer
-import com.adapty.api.entity.containers.Product
+import com.adapty.api.*
+import com.adapty.api.entity.paywalls.DataContainer
+import com.adapty.api.entity.paywalls.ProductModel
 import com.adapty.api.entity.restore.RestoreItem
 import com.adapty.api.responses.RestoreReceiptResponse
 import com.adapty.api.responses.ValidateReceiptResponse
 import com.adapty.utils.LogHelper
 import com.adapty.utils.PreferenceManager
 import com.android.billingclient.api.*
+import com.android.billingclient.api.BillingClient.SkuType.INAPP
+import com.android.billingclient.api.BillingClient.SkuType.SUBS
+import java.lang.ref.WeakReference
 
 class InAppPurchases(
     var context: Context,
-    var activity: Activity?,
+    var activity: WeakReference<Activity?>?,
     var isRestore: Boolean,
     var preferenceManager: PreferenceManager,
-    var product: Product,
+    var product: ProductModel,
     var variationId: String?,
-    var apiClientRepository: ApiClientRepository?,
+    var apiClientRepository: ApiClientRepository,
     var adaptyCallback: AdaptyCallback
 ) {
 
@@ -55,15 +54,21 @@ class InAppPurchases(
                                         if (!variationId.isNullOrEmpty())
                                             product.variationId
 
-                                        Adapty.validatePurchase(
+                                        apiClientRepository.validatePurchase(
                                             purchaseType!!,
                                             purchase.sku,
                                             purchase.purchaseToken,
                                             purchase.orderId,
-                                            product
-                                        ) { response, error ->
-                                            success(purchase, response, error)
-                                        }
+                                            product,
+                                            object : AdaptyValidateCallback {
+                                                override fun onResult(
+                                                    response: ValidateReceiptResponse?,
+                                                    error: String?
+                                                ) {
+                                                    success(purchase, response, error)
+                                                }
+                                            }
+                                        )
                                     }
                                 } else if (purchaseType == INAPP) {
                                     val consumeParams = ConsumeParams.newBuilder()
@@ -77,15 +82,21 @@ class InAppPurchases(
                                         if (!variationId.isNullOrEmpty())
                                             product.variationId
 
-                                        Adapty.validatePurchase(
+                                        apiClientRepository.validatePurchase(
                                             purchaseType!!,
                                             purchase.sku,
                                             p1,
                                             purchase.orderId,
-                                            product
-                                        ) { response, error ->
-                                            success(purchase, response, error)
-                                        }
+                                            product,
+                                            object : AdaptyValidateCallback {
+                                                override fun onResult(
+                                                    response: ValidateReceiptResponse?,
+                                                    error: String?
+                                                ) {
+                                                    success(purchase, response, error)
+                                                }
+                                            }
+                                        )
                                     }
                                 } else if (purchaseType == null) {
                                     fail("Product type is null")
@@ -154,7 +165,7 @@ class InAppPurchases(
                         val flowParams = BillingFlowParams.newBuilder()
                             .setSkuDetails(skuDetails)
                             .build()
-                        activity?.let {
+                        activity?.get()?.let {
                             billingClient.launchBillingFlow(it, flowParams)
                         }
                         break
@@ -167,12 +178,9 @@ class InAppPurchases(
     }
 
     private fun getSkuList(productId: String, type: String): SkuDetailsParams.Builder {
-        val skuList =
-            arrayListOf(productId)
-        val params = SkuDetailsParams.newBuilder()
-        params.setSkusList(skuList)
+        return SkuDetailsParams.newBuilder()
+            .setSkusList(arrayListOf(productId))
             .setType(type)
-        return params
     }
 
     private val historyPurchases = ArrayList<RestoreItem>()
@@ -196,15 +204,11 @@ class InAppPurchases(
                         activeSubscriptions = billingClient.queryPurchases(SUBS).purchasesList
                     }
                     for (purchase in purchasesList) {
-                        val item = RestoreItem()
-                        item.isSubscription = type == SUBS
-                        item.productId = purchase.sku
-                        item.purchaseToken = purchase.purchaseToken
-                        activeSubscriptions?.forEach { activeSubscription ->
-                            if (activeSubscription.purchaseToken == purchase.purchaseToken) {
-                                item.transactionId = activeSubscription.orderId
-                                return@forEach
-                            }
+                        val item = RestoreItem().apply {
+                            isSubscription = type == SUBS
+                            productId = purchase.sku
+                            purchaseToken = purchase.purchaseToken
+                            transactionId = activeSubscriptions?.firstOrNull { it.purchaseToken == purchase.purchaseToken }?.orderId
                         }
                         historyPurchases.add(item)
                     }
@@ -242,25 +246,17 @@ class InAppPurchases(
 
     private fun getElementFromContainers(
         containers: ArrayList<DataContainer>?,
-        prods: ArrayList<Product>,
+        prods: ArrayList<ProductModel>,
         id: String
-    ): Product? {
-        containers?.let {
-            for (i in 0 until containers.size) {
-                containers[i].attributes?.products?.let { products ->
-                    for (p in products) {
-                        if (p.vendorProductId.equals(id)) {
-                            return p
-                        }
-                    }
+    ): ProductModel? {
+        containers?.forEach { container ->
+            container.attributes?.products?.forEach { product ->
+                if (product.vendorProductId == id) {
+                    return product
                 }
             }
         }
-        for (i in 0 until prods.size) {
-            if (prods[i].vendorProductId.equals(id))
-                return prods[i]
-        }
-        return null
+        return prods.firstOrNull { it.vendorProductId == id }
     }
 
     private fun checkPurchasesHistoryForSync(historyPurchases: ArrayList<RestoreItem>) {
@@ -269,7 +265,7 @@ class InAppPurchases(
         if (savedPurchases.isEmpty() && historyPurchases.isNotEmpty() ||
             savedPurchases.size < historyPurchases.size
         ) {
-            apiClientRepository?.restore(
+            apiClientRepository.restore(
                 historyPurchases, object : AdaptyRestoreCallback {
                     override fun onResult(
                         response: RestoreReceiptResponse?,
@@ -286,13 +282,9 @@ class InAppPurchases(
                 })
         } else {
             if (savedPurchases != historyPurchases) {
-                val notSynced = arrayListOf<RestoreItem>()
-                for (hp in historyPurchases) {
-                    if (!savedPurchases.contains(hp))
-                        notSynced.add(hp)
-                }
+                val notSynced = historyPurchases.filterTo(arrayListOf()) { !savedPurchases.contains(it) }
 
-                apiClientRepository?.restore(
+                apiClientRepository.restore(
                     notSynced, object : AdaptyRestoreCallback {
                         override fun onResult(
                             response: RestoreReceiptResponse?,

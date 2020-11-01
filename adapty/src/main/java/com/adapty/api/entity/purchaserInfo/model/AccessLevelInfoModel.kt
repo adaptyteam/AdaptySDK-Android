@@ -1,15 +1,19 @@
 package com.adapty.api.entity.purchaserInfo.model
 
-import com.google.gson.annotations.SerializedName
-
-data class PaidAccessLevelPurchaserInfoModel(
+data class AccessLevelInfoModel(
+    var id: String?,
     var isActive: Boolean?,
     var vendorProductId: String?,
+    var vendorTransactionId: String?,
+    var vendorOriginalTransactionId: String?,
     var store: String?,
-    var purchasedAt: String?,
+    var activatedAt: String?,
+    var startsAt: String?,
     var renewedAt: String?,
     var expiresAt: String?,
     var isLifetime: Boolean?,
+    var cancellationReason: String?,
+    var isRefund: Boolean?,
     var activeIntroductoryOfferType: String?,
     var activePromotionalOfferType: String?,
     var willRenew: Boolean?,

@@ -1,6 +1,6 @@
 package com.adapty.api.entity.restore
 
-import com.adapty.api.entity.containers.Product
+import com.adapty.api.entity.paywalls.ProductModel
 import com.adapty.utils.formatPrice
 import com.android.billingclient.api.SkuDetails
 import com.google.gson.annotations.SerializedName
@@ -30,7 +30,7 @@ data class RestoreItem(
     var currencyCode: String? = null,
 
     @SerializedName("subscriptionPeriod")
-    var subscriptionPeriod: Product.ProductSubscriptionPeriodModel? = null,
+    var subscriptionPeriod: ProductModel.ProductSubscriptionPeriodModel? = null,
 
     @SerializedName("transaction_id")
     var transactionId: String? = null
@@ -42,7 +42,7 @@ data class RestoreItem(
             this.localizedDescription = it.description
             this.price = formatPrice(it.priceAmountMicros)
             this.currencyCode = it.priceCurrencyCode
-            this.subscriptionPeriod = Product.ProductSubscriptionPeriodModel(it.subscriptionPeriod)
+            this.subscriptionPeriod = ProductModel.ProductSubscriptionPeriodModel(it.subscriptionPeriod)
         }
     }
 }

@@ -25,6 +25,7 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
     private val kinesisStream = "adapty-data-pipeline-prod"
     private val sessionId = generateUuid().toString()
     private val SIGNING_ALGORITHM = "AWS4-HMAC-SHA256"
+    private val gson = Gson()
 
     fun trackEvent(eventName: String, subMap: Map<String, String>? = null) {
         val iamAccessKeyId = preferenceManager.iamAccessKeyId
@@ -34,23 +35,19 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
         if (iamAccessKeyId == null || iamSecretKey == null || iamSessionToken == null)
             return
 
-        val date = getIso8601TimeDate()
-
-        val map = HashMap<String, String>()
-        map.apply {
-            put("profile_id", preferenceManager.profileID)
-            put("session_id", sessionId)
-            put("event_name", eventName)
-            put("profile_installation_meta_id", preferenceManager.installationMetaID)
-            put("event_id", generateUuid().toString())
-            put("created_at", date)
-            put("platform", "Android")
-            subMap?.let {
-                putAll(it)
+        val dataStr = gson.toJson(
+            hashMapOf(
+                "profile_id" to preferenceManager.profileID,
+                "session_id" to sessionId,
+                "event_name" to eventName,
+                "profile_installation_meta_id" to preferenceManager.installationMetaID,
+                "event_id" to generateUuid().toString(),
+                "created_at" to getIso8601TimeDate(),
+                "platform" to "Android"
+            ).apply {
+                subMap?.let(::putAll)
             }
-        }
-
-        val dataStr = Gson().toJson(map)
+        )
 
         val records = preferenceManager.kinesisRecords
         records.add(
@@ -61,11 +58,7 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
         )
         preferenceManager.kinesisRecords = records.takeLast(50)
 
-        val hashMap = HashMap<String, Any>()
-        hashMap.put("Records", records)
-        hashMap.put("StreamName", kinesisStream)
-
-        request(hashMap)
+        request(hashMapOf("Records" to records, "StreamName" to kinesisStream))
     }
 
     private fun request(
@@ -86,21 +79,19 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
             var rString = ""
 
             try {
-                val req = Gson().toJson(request).replace("\\u003d", "=")
+                val req = gson.toJson(request).replace("\\u003d", "=")
 
                 val myUrl = URL(url)
 
-                val headersMap = mutableMapOf<String, String>()
-
-                headersMap.apply {
-                    put("X-Amz-Security-Token", iamSessionToken)
-                    put("Host", "kinesis.us-east-1.amazonaws.com")
-                    put("X-Amz-Date", date)
-                    put("X-Amz-Target", "Kinesis_20131202.PutRecords")
-                    put("Content-Type", "application/x-amz-json-1.1")
-                    put("Accept-Encoding", "gzip, deflate, br")
-                    put("Accept-Language", "ru")
-                }
+                val headersMap = hashMapOf(
+                    "X-Amz-Security-Token" to iamSessionToken,
+                    "Host" to "kinesis.us-east-1.amazonaws.com",
+                    "X-Amz-Date" to date,
+                    "X-Amz-Target" to "Kinesis_20131202.PutRecords",
+                    "Content-Type" to "application/x-amz-json-1.1",
+                    "Accept-Encoding" to "gzip, deflate, br",
+                    "Accept-Language" to "ru"
+                )
 
                 ///// TASK 1: CREATE A CANONICAL REQUEST
                 val signedHeaders =
@@ -138,7 +129,7 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
 
                 ///// TASK 3: CALCULATE THE SIGNATURE
 
-                val k1 = "AWS4" + iamSecretKey
+                val k1 = "AWS4$iamSecretKey"
                 val sk1 = hmacSha256(k1, date.substring(0..7))
                 val sk2 = hmacSha256(sk1, region)
                 val sk3 = hmacSha256(sk2, serviceType)
@@ -149,7 +140,7 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
                 // ************* TASK 4: ADD SIGNING INFORMATION TO THE REQUEST *************
 
                 val authorization =
-                    SIGNING_ALGORITHM + " Credential=" + iamAccessKeyId + "/" + credential + ", SignedHeaders=" + signedHeaders + ", Signature=" + s
+                    "$SIGNING_ALGORITHM Credential=$iamAccessKeyId/$credential, SignedHeaders=$signedHeaders, Signature=$s"
 
                 val conn = myUrl.openConnection() as HttpURLConnection
 
@@ -220,7 +211,7 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
         }).start()
     }
 
-    fun String.sha256(): String {
+    private fun String.sha256(): String {
         return hashString(this, "SHA-256")
     }
 

@@ -1,8 +1,8 @@
-package com.adapty.api.entity.containers
+package com.adapty.api.entity.paywalls
 
 import com.google.gson.annotations.SerializedName
 
 class MetaGetContainerRes {
     @SerializedName("products")
-    var products: ArrayList<Product>? = null
+    var products: ArrayList<ProductModel>? = null
 }

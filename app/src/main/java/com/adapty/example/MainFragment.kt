@@ -7,8 +7,9 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.adapty.Adapty
 import com.adapty.api.AttributionType
-import com.adapty.api.entity.containers.OnPromoReceivedListener
-import com.adapty.api.entity.containers.Promo
+import com.adapty.api.entity.DataState
+import com.adapty.api.entity.paywalls.OnPromoReceivedListener
+import com.adapty.api.entity.paywalls.PromoModel
 import com.adapty.api.entity.profile.update.Date
 import com.adapty.api.entity.profile.update.ProfileParameterBuilder
 import com.adapty.api.entity.purchaserInfo.OnPurchaserInfoUpdatedListener
@@ -34,9 +35,9 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         super.onViewCreated(view, savedInstanceState)
 
         restore_purchases.setOnClickListener {
-            Adapty.restorePurchases { response, error ->
+            Adapty.restorePurchases { purchaserInfo, googleValidationResultList, error ->
                 last_response_result.text =
-                    error?.let { "error:\n$error" } ?: "response:\n$response"
+                    error?.let { "error:\n$error" } ?: "Purchaser Info:\n$purchaserInfo\n\nValidationResults:\n$googleValidationResultList"
             }
         }
 
@@ -56,10 +57,10 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                     error?.let { "error:\n$error" }
                         ?: "state: $state\npaywalls: $paywalls\n\nproducts: $products"
 
-                if (state == "synced") {
+                if (state == DataState.SYNCED) {
                     progressDialog.hide()
                     (activity as? MainActivity)?.addFragment(
-                        PaywallListFragment.newInstance(paywalls.mapNotNull { it.attributes }),
+                        PaywallListFragment.newInstance(paywalls),
                         true
                     )
                 }
@@ -85,12 +86,14 @@ class MainFragment : Fragment(R.layout.fragment_main) {
             }
         }
 
-        update_adjust.setOnClickListener {
-            Adapty.updateAttribution(hashMapOf("key1" to "test1", "key2" to true), AttributionType.ADJUST)
+        update_custom_attribution.setOnClickListener {
+            Adapty.updateAttribution(hashMapOf("key1" to "test1", "key2" to true), AttributionType.CUSTOM) { error ->
+                last_response_result.text = error ?: "success"
+            }
         }
 
         identify.setOnClickListener {
-            Adapty.identify(customer_user_id.text?.toString()) { error ->
+            Adapty.identify(customer_user_id.text.toString()) { error ->
                 last_response_result.text = error?.let { "error:\n$error" } ?: "User identified"
             }
         }
@@ -102,13 +105,13 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         }
 
         Adapty.setOnPurchaserInfoUpdatedListener(object : OnPurchaserInfoUpdatedListener {
-            override fun didReceiveUpdatedPurchaserInfo(purchaserInfo: PurchaserInfoModel) {
+            override fun onPurchaserInfoReceived(purchaserInfo: PurchaserInfoModel) {
                 showToast("Updated purchase info:\n${purchaserInfo}")
             }
         })
 
         Adapty.setOnPromoReceivedListener(object : OnPromoReceivedListener {
-            override fun onPromoReceived(promo: Promo) {
+            override fun onPromoReceived(promo: PromoModel) {
                 showToast("New promo received:\n${promo}")
             }
         })

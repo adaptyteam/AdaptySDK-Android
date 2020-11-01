@@ -2,7 +2,7 @@ package com.adapty.api.entity.validate
 
 import com.google.gson.annotations.SerializedName
 
-open class AttributeValidateReceiptReq {
+class AttributeValidateReceiptReq {
     @SerializedName("profile_id")
     var profileId: String? = null
 

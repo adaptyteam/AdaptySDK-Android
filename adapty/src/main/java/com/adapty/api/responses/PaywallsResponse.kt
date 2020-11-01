@@ -1,7 +1,7 @@
 package com.adapty.api.responses
 
-import com.adapty.api.entity.containers.DataContainer
-import com.adapty.api.entity.containers.MetaGetContainerRes
+import com.adapty.api.entity.paywalls.DataContainer
+import com.adapty.api.entity.paywalls.MetaGetContainerRes
 import com.google.gson.annotations.SerializedName
 
 class PaywallsResponse {

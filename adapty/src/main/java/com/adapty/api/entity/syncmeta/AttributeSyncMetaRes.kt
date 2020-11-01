@@ -2,7 +2,7 @@ package com.adapty.api.entity.syncmeta
 
 import com.google.gson.annotations.SerializedName
 
-open class AttributeSyncMetaRes : AttributeSyncMetaReq() {
+class AttributeSyncMetaRes : AttributeSyncMetaReq() {
     @SerializedName("app_id")
     var appId: String? = null
 

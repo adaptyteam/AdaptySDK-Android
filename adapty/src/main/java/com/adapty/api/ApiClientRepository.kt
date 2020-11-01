@@ -2,14 +2,12 @@ package com.adapty.api
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.PackageInfo
 import android.os.AsyncTask
 import android.os.Build
 import com.adapty.Adapty.Companion.context
-import com.adapty.api.entity.BaseData
 import com.adapty.api.entity.attribution.AttributeUpdateAttributionReq
 import com.adapty.api.entity.attribution.DataUpdateAttributionReq
-import com.adapty.api.entity.containers.Product
+import com.adapty.api.entity.paywalls.ProductModel
 import com.adapty.api.entity.profile.AttributeProfileReq
 import com.adapty.api.entity.profile.DataProfileReq
 import com.adapty.api.entity.restore.RestoreItem
@@ -20,9 +18,9 @@ import com.adapty.api.entity.validate.AttributeValidateReceiptReq
 import com.adapty.api.entity.validate.DataRestoreReceiptReq
 import com.adapty.api.entity.validate.DataValidateReceiptReq
 import com.adapty.api.requests.*
-import com.adapty.purchase.SUBS
 import com.adapty.utils.*
 import com.adapty.utils.push.PushTokenRetriever
+import com.android.billingclient.api.BillingClient.SkuType.SUBS
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.gson.Gson
 import org.json.JSONObject
@@ -133,18 +131,13 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
                     adaptySdkVersion = com.adapty.BuildConfig.VERSION_NAME
                     adaptySdkVersionBuild = com.adapty.BuildConfig.VERSION_CODE
                     try {
-                        context.applicationContext?.let { ctx ->
-                            val mainPackageName = ctx.packageName
-                            val packageInfo: PackageInfo =
-                                ctx.packageManager.getPackageInfo(mainPackageName, 0)
-                            val versionCode: Long =
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                    packageInfo.longVersionCode
-                                } else {
-                                    packageInfo.versionCode.toLong()
-                                }
-                            appBuild = versionCode.toString()
-                            appVersion = packageInfo.versionName
+                        with(context.packageManager.getPackageInfo(context.packageName, 0)) {
+                            appBuild = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                "$longVersionCode"
+                            } else {
+                                "$versionCode"
+                            }
+                            appVersion = versionName
                         }
                     } catch (e: java.lang.Exception) {
                     }
@@ -192,7 +185,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
         productId: String,
         purchaseToken: String,
         purchaseOrderId: String?,
-        product: Product?,
+        product: ProductModel?,
         adaptyCallback: AdaptyCallback? = null
     ) {
         val uuid = getOrCreateProfileUUID()
@@ -243,7 +236,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
 
     fun updateAttribution(
         attribution: Any,
-        source: String,
+        source: AttributionType,
         networkUserId: String?,
         adaptyCallback: AdaptyCallback? = null
     ) {
@@ -253,7 +246,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
             data = DataUpdateAttributionReq().apply {
                 type = "adapty_analytics_profile_attribution"
                 attributes = AttributeUpdateAttributionReq().apply {
-                    this.source = source
+                    this.source = source.toString()
                     this.attribution = when {
                         attribution is JSONObject -> {
                             val jo = HashMap<String, Any>()

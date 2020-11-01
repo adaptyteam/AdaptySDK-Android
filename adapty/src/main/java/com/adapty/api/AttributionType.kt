@@ -1,7 +1,9 @@
 package com.adapty.api
 
-object AttributionType {
-    const val ADJUST = "adjust"
-    const val APPSFLYER = "appsflyer"
-    const val BRANCH = "branch"
+import java.util.*
+
+enum class AttributionType {
+    ADJUST, APPSFLYER, BRANCH, CUSTOM;
+
+    override fun toString(): String = this.name.toLowerCase(Locale.ENGLISH)
 }

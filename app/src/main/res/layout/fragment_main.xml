@@ -55,10 +55,10 @@
             app:layout_constraintTop_toBottomOf="@id/get_promo" />
 
         <Button
-            android:id="@+id/update_adjust"
+            android:id="@+id/update_custom_attribution"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Update Adjust Attribution"
+            android:text="Update Custom Attribution"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/update_profile" />
@@ -69,7 +69,7 @@
             android:layout_height="wrap_content"
             android:text="Identify"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/update_adjust" />
+            app:layout_constraintTop_toBottomOf="@id/update_custom_attribution" />
 
         <EditText
             android:id="@+id/customer_user_id"
@@ -80,7 +80,7 @@
             android:hint="Customer User Id"
             app:layout_constraintEnd_toStartOf="@+id/identify"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/update_adjust" />
+            app:layout_constraintTop_toBottomOf="@id/update_custom_attribution" />
 
         <Button
             android:id="@+id/logout"

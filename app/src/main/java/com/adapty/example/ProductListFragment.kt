@@ -6,19 +6,19 @@ import android.view.View
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.adapty.Adapty
-import com.adapty.api.entity.containers.Product
+import com.adapty.api.entity.paywalls.ProductModel
 import com.adapty.example.adapter.ProductAdapter
 import kotlinx.android.synthetic.main.fragment_list.*
 
 class ProductListFragment : Fragment(R.layout.fragment_list) {
 
     companion object {
-        fun newInstance(products: List<Product>) = ProductListFragment().apply {
+        fun newInstance(products: List<ProductModel>) = ProductListFragment().apply {
             productList = products
         }
     }
 
-    private var productList = listOf<Product>()
+    private var productList = listOf<ProductModel>()
 
     private val progressDialog: ProgressDialog by lazy {
         ProgressDialog(context)
@@ -28,7 +28,7 @@ class ProductListFragment : Fragment(R.layout.fragment_list) {
         ProductAdapter(products = productList, onPurchaseClick = { product ->
             activity?.let {
                 progressDialog.show()
-                Adapty.makePurchase(it, product) { purchase, response, error ->
+                Adapty.makePurchase(it, product) { purchaserInfo, purchaseToken, googleValidationResult, product, error ->
                     progressDialog.dismiss()
                     Toast.makeText(context, error ?: "Success", Toast.LENGTH_LONG).show()
                 }

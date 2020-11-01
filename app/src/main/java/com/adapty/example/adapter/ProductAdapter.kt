@@ -4,14 +4,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.adapty.api.entity.containers.Product
+import com.adapty.api.entity.paywalls.ProductModel
 import com.adapty.example.R
 import kotlinx.android.synthetic.main.product_item.view.*
 
-typealias PurchaseClickCallback = (Product) -> Unit
+typealias PurchaseClickCallback = (ProductModel) -> Unit
 
 class ProductAdapter(
-    private val products: List<Product>,
+    private val products: List<ProductModel>,
     private val onPurchaseClick: PurchaseClickCallback
 ) :
     RecyclerView.Adapter<ProductViewHolder>() {
@@ -31,11 +31,11 @@ class ProductAdapter(
 
 class ProductViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
-    fun bind(product: Product, onPurchaseClick: PurchaseClickCallback) {
+    fun bind(product: ProductModel, onPurchaseClick: PurchaseClickCallback) {
         with(itemView) {
             product_title.text = product.localizedTitle
             product_id.text = product.vendorProductId
-            original_price.text = product.price
+            original_price.text = product.localizedPrice
             price_currency.text = product.currencyCode
             product_type.text = product.skuDetails?.type
             make_purchase.setOnClickListener {

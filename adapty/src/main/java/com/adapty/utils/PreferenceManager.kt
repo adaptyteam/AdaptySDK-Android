@@ -3,12 +3,13 @@ package com.adapty.utils
 import android.content.Context
 import android.text.TextUtils
 import com.adapty.api.aws.AwsRecordModel
-import com.adapty.api.entity.containers.DataContainer
-import com.adapty.api.entity.containers.Product
+import com.adapty.api.entity.paywalls.DataContainer
+import com.adapty.api.entity.paywalls.ProductModel
 import com.adapty.api.entity.purchaserInfo.model.PurchaserInfoModel
 import com.adapty.api.entity.restore.RestoreItem
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import java.lang.Exception
 
 class PreferenceManager(context: Context) {
 
@@ -106,13 +107,13 @@ class PreferenceManager(context: Context) {
             editor.commit()
         }
 
-    var products: ArrayList<Product>
+    var products: ArrayList<ProductModel>
         get() {
             val json = pref.getString(PRODUCTS, null)
             return if (TextUtils.isEmpty(json))
                 arrayListOf()
             else {
-                gson.fromJson(json, object : TypeToken<ArrayList<Product>>() {}.type)
+                gson.fromJson(json, object : TypeToken<ArrayList<ProductModel>>() {}.type)
             }
         }
         set(value) {
@@ -136,12 +137,13 @@ class PreferenceManager(context: Context) {
 
     var kinesisRecords: ArrayList<AwsRecordModel>
         get() {
-            val json = pref.getString(KINESIS_RECORDS, null)
-            return if (TextUtils.isEmpty(json))
-                arrayListOf()
-            else {
-                gson.fromJson(json, object : TypeToken<ArrayList<AwsRecordModel>>() {}.type)
-            }
+            return pref.getString(KINESIS_RECORDS, null)?.takeIf(String::isNotEmpty)?.let {
+                try {
+                    gson.fromJson<ArrayList<AwsRecordModel>>(it, object : TypeToken<ArrayList<AwsRecordModel>>() {}.type)
+                } catch (e: Exception) {
+                    arrayListOf<AwsRecordModel>()
+                }
+            } ?: arrayListOf()
         }
         set(value) {
             editor.putString(KINESIS_RECORDS, gson.toJson(value))

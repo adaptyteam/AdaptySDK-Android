@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 data class AwsRecordModel(
     @SerializedName("Data")
-    var Data: Any,
+    var Data: String,
 
     @SerializedName("PartitionKey")
     var PartitionKey: String

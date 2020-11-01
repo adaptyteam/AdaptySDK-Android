@@ -2,7 +2,7 @@ package com.adapty.api.entity.attribution
 
 import com.google.gson.annotations.SerializedName
 
-open class AttributeUpdateAttributionReq {
+class AttributeUpdateAttributionReq {
     @SerializedName("source")
     var source: String? = null
 

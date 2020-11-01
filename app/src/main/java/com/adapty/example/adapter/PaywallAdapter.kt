@@ -5,13 +5,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.adapty.api.entity.containers.Paywall
+import com.adapty.api.entity.paywalls.PaywallModel
 import com.adapty.example.R
 
-typealias ClickCallback = (Paywall) -> Unit
+typealias ClickCallback = (PaywallModel) -> Unit
 
 class PaywallAdapter(
-    private val paywalls: List<Paywall>,
+    private val paywalls: List<PaywallModel>,
     private val onPaywallClick: ClickCallback
 ) :
     RecyclerView.Adapter<PaywallViewHolder>() {
@@ -31,7 +31,7 @@ class PaywallAdapter(
 
 class PaywallViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
-    fun bind(paywall: Paywall, onPaywallClick: ClickCallback) {
+    fun bind(paywall: PaywallModel, onPaywallClick: ClickCallback) {
         (itemView as TextView).apply {
             text = paywall.developerId
             setOnClickListener {

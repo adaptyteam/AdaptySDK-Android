@@ -1,6 +1,6 @@
 package com.adapty.api.responses
 
-import com.adapty.api.entity.containers.PromoDataContainer
+import com.adapty.api.entity.paywalls.PromoDataContainer
 import com.google.gson.annotations.SerializedName
 
 internal class PromoResponse {
