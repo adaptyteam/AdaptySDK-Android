@@ -1,5 +1,7 @@
 # Adapty Android SDK
 
+[![](https://jitpack.io/v/adaptyteam/AdaptySDK-Android.svg)](https://jitpack.io/#adaptyteam/AdaptySDK-Android)
+
 ![Adapty: CRM for mobile apps with subscriptions](/adapty.png)
 
 Adapty SDK is an open-source framework that makes implementing in-app subscriptions in Android fast and easy. It’s 100% open-source, native and lightweight.
