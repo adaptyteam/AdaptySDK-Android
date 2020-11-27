@@ -211,14 +211,14 @@ class ApiClient(private var context: Context, private val gson : Gson) {
 
                 conn.connect()
 
-                val response = conn.responseCode
+                val responseCode = conn.responseCode
 
-                if (response == HttpURLConnection.HTTP_OK
-                    || response == HttpURLConnection.HTTP_CREATED
-                    || response == HttpURLConnection.HTTP_ACCEPTED
-                    || response == HttpURLConnection.HTTP_NO_CONTENT
-                    || response == 207
-                    || response == 206
+                if (responseCode == HttpURLConnection.HTTP_OK
+                    || responseCode == HttpURLConnection.HTTP_CREATED
+                    || responseCode == HttpURLConnection.HTTP_ACCEPTED
+                    || responseCode == HttpURLConnection.HTTP_NO_CONTENT
+                    || responseCode == 207
+                    || responseCode == 206
                 ) {
 
                     val inputStream = conn.inputStream
@@ -228,7 +228,10 @@ class ApiClient(private var context: Context, private val gson : Gson) {
                 } else {
                     rString = toStringUtf8(conn.errorStream)
                     fail(
-                        "Request is unsuccessful. $reqID Url: $myUrl Response Code: $response, Message: $rString",
+                        AdaptyError(
+                            message = "Request is unsuccessful. $reqID Url: $myUrl Response Code: $responseCode, Message: $rString",
+                            adaptyErrorCode = AdaptyErrorCode.fromNetwork(responseCode)
+                        ),
                         reqID,
                         adaptyCallback
                     )
@@ -239,7 +242,11 @@ class ApiClient(private var context: Context, private val gson : Gson) {
                 e.printStackTrace()
 
                 fail(
-                    "Request Exception. $reqID ${e.message} ${e.localizedMessage} Message: ${rString ?: ""}",
+                    AdaptyError(
+                        originalError = e,
+                        message = "Request Exception. $reqID ${e.message} ${e.localizedMessage} Message: $rString",
+                        adaptyErrorCode = AdaptyErrorCode.UNKNOWN
+                    ),
                     reqID,
                     adaptyCallback
                 )
@@ -344,11 +351,11 @@ class ApiClient(private var context: Context, private val gson : Gson) {
     }
 
     private fun fail(
-        error: String,
+        error: AdaptyError,
         reqID: Int,
         adaptyCallback: AdaptyCallback?
     ) {
-        LogHelper.logError("Request failed $reqID $error")
+        LogHelper.logError("Request failed $reqID ${error.message}")
         try {
             val mainHandlerE = Handler(context.mainLooper)
             val myRunnableE = Runnable {

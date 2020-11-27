@@ -63,7 +63,7 @@ class InAppPurchases(
                                             object : AdaptyValidateCallback {
                                                 override fun onResult(
                                                     response: ValidateReceiptResponse?,
-                                                    error: String?
+                                                    error: AdaptyError?
                                                 ) {
                                                     success(purchase, response, error)
                                                 }
@@ -91,7 +91,7 @@ class InAppPurchases(
                                             object : AdaptyValidateCallback {
                                                 override fun onResult(
                                                     response: ValidateReceiptResponse?,
-                                                    error: String?
+                                                    error: AdaptyError?
                                                 ) {
                                                     success(purchase, response, error)
                                                 }
@@ -99,13 +99,13 @@ class InAppPurchases(
                                         )
                                     }
                                 } else if (purchaseType == null) {
-                                    fail("Product type is null")
+                                    fail(AdaptyError(message = "Product type is null", adaptyErrorCode = AdaptyErrorCode.EMPTY_PARAMETER))
                                 }
                             }
                         } else if (billingResult.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-                            fail("Purchase: USER_CANCELED")
+                            fail(AdaptyError(message = "Purchase: USER_CANCELED", adaptyErrorCode = AdaptyErrorCode.USER_CANCELED))
                         } else {
-                            fail("Purchase: ${billingResult.responseCode}, ${billingResult.debugMessage}")
+                            fail(AdaptyError(message = "Purchase: ${billingResult.responseCode}, ${billingResult.debugMessage}", adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)))
                         }
                     }
                     .build()
@@ -113,7 +113,7 @@ class InAppPurchases(
         if (billingClient.isReady) {
             if (isRestore) queryPurchaseHistory(SUBS) else {
                 if (chosenPurchase == null) {
-                    fail("Product Id is null")
+                    fail(AdaptyError(message = "Product ID is null", adaptyErrorCode = AdaptyErrorCode.EMPTY_PARAMETER))
                     return
                 }
                 querySkuDetails(
@@ -127,7 +127,7 @@ class InAppPurchases(
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                         if (isRestore) queryPurchaseHistory(SUBS) else {
                             if (chosenPurchase == null) {
-                                fail("Product Id is null")
+                                fail(AdaptyError(message = "Product ID is null", adaptyErrorCode = AdaptyErrorCode.EMPTY_PARAMETER))
                                 return
                             }
                             querySkuDetails(
@@ -136,12 +136,12 @@ class InAppPurchases(
                             )
                         }
                     } else {
-                        fail("onBillingServiceConnectError ${billingResult.responseCode} : ${billingResult.debugMessage ?: ""}")
+                        fail(AdaptyError(message = "onBillingServiceConnectError ${billingResult.responseCode} : ${billingResult.debugMessage}", adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)))
                     }
                 }
 
                 override fun onBillingServiceDisconnected() {
-                    fail("onBillingServiceDisconnected")
+                    fail(AdaptyError(message = "onBillingServiceDisconnected", adaptyErrorCode = AdaptyErrorCode.BILLING_SERVICE_DISCONNECTED))
                 }
             })
         }
@@ -149,7 +149,7 @@ class InAppPurchases(
 
     fun querySkuDetails(chosenPurchase: String, type: String?) {
         if (type == null) {
-            fail("Product type is null")
+            fail(AdaptyError(message = "Product type is null", adaptyErrorCode = AdaptyErrorCode.EMPTY_PARAMETER))
             return
         }
         billingClient.querySkuDetailsAsync(
@@ -170,10 +170,10 @@ class InAppPurchases(
                         }
                         break
                     } else
-                        fail("This product_id not found with this purchase type")
+                        fail(AdaptyError(message = "This product_id not found with this purchase type", adaptyErrorCode = AdaptyErrorCode.PRODUCT_NOT_FOUND))
                 }
             } else
-                fail("Unavailable querySkuDetails - ${result.responseCode} : ${result.debugMessage ?: ""}")
+                fail(AdaptyError(message = "Unavailable querySkuDetails - ${result.responseCode} : ${result.debugMessage}", adaptyErrorCode = AdaptyErrorCode.fromBilling(result.responseCode)))
         }
     }
 
@@ -191,7 +191,7 @@ class InAppPurchases(
                 if (purchasesList.isNullOrEmpty()) {
                     if (type == INAPP) {
                         if (historyPurchases.isEmpty()) {
-                            fail("You have no purchases")
+                            fail(AdaptyError(message = "You have no purchases", adaptyErrorCode = AdaptyErrorCode.NO_HISTORY_PURCHASES))
                         } else {
                             fillProductInfoFromCache()
                             checkPurchasesHistoryForSync(historyPurchases)
@@ -217,7 +217,7 @@ class InAppPurchases(
                         queryPurchaseHistory(INAPP)
                     else {
                         if (historyPurchases.isEmpty())
-                            fail("You have no purchases")
+                            fail(AdaptyError(message = "You have no purchases", adaptyErrorCode = AdaptyErrorCode.NO_HISTORY_PURCHASES))
                         else {
                             fillProductInfoFromCache()
                             checkPurchasesHistoryForSync(historyPurchases)
@@ -225,7 +225,7 @@ class InAppPurchases(
                     }
                 }
             } else
-                fail("Unavailable - error code ${billingResult.responseCode} : ${billingResult.debugMessage ?: ""}")
+                fail(AdaptyError(message = "Unavailable - error code ${billingResult.responseCode} : ${billingResult.debugMessage}", adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)))
         }
     }
 
@@ -269,7 +269,7 @@ class InAppPurchases(
                 historyPurchases, object : AdaptyRestoreCallback {
                     override fun onResult(
                         response: RestoreReceiptResponse?,
-                        error: String?
+                        error: AdaptyError?
                     ) {
                         if (error == null) {
                             preferenceManager.syncedPurchases = historyPurchases
@@ -288,7 +288,7 @@ class InAppPurchases(
                     notSynced, object : AdaptyRestoreCallback {
                         override fun onResult(
                             response: RestoreReceiptResponse?,
-                            error: String?
+                            error: AdaptyError?
                         ) {
                             if (error == null) {
                                 preferenceManager.syncedPurchases = historyPurchases
@@ -300,11 +300,11 @@ class InAppPurchases(
                         }
                     })
             } else
-                fail("No new purchases")
+                fail(AdaptyError(message = "No new purchases", adaptyErrorCode = AdaptyErrorCode.NO_NEW_PURCHASES))
         }
     }
 
-    private fun success(purchase: Purchase?, response: Any?, error: String?) {
+    private fun success(purchase: Purchase?, response: Any?, error: AdaptyError?) {
         if (isRestore) {
             (adaptyCallback as AdaptyRestoreCallback).onResult(
                 if (response is RestoreReceiptResponse) response else null, error
@@ -318,8 +318,8 @@ class InAppPurchases(
         }
     }
 
-    private fun fail(error: String) {
-        LogHelper.logError(error)
+    private fun fail(error: AdaptyError) {
+        LogHelper.logError(error.message)
         if (isRestore) {
             (adaptyCallback as AdaptyRestoreCallback).onResult(null, error)
         } else {

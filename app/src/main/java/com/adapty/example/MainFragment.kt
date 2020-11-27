@@ -37,14 +37,14 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         restore_purchases.setOnClickListener {
             Adapty.restorePurchases { purchaserInfo, googleValidationResultList, error ->
                 last_response_result.text =
-                    error?.let { "error:\n$error" } ?: "Purchaser Info:\n$purchaserInfo\n\nValidationResults:\n$googleValidationResultList"
+                    error?.let { "error:\n${error.message}" } ?: "Purchaser Info:\n$purchaserInfo\n\nValidationResults:\n$googleValidationResultList"
             }
         }
 
         get_purchaser_info.setOnClickListener {
             Adapty.getPurchaserInfo { purchaserInfo, state, error ->
                 last_response_result.text =
-                    error?.let { "error:\n$error" }
+                    error?.let { "error:\n${error.message}" }
                         ?: "state: $state\npurchaser info: $purchaserInfo"
             }
         }
@@ -54,7 +54,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
 
             Adapty.getPaywalls { paywalls, products, state, error ->
                 last_response_result.text =
-                    error?.let { "error:\n$error" }
+                    error?.let { "error:\n${error.message}" }
                         ?: "state: $state\npaywalls: $paywalls\n\nproducts: $products"
 
                 if (state == DataState.SYNCED) {
@@ -70,7 +70,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         get_promo.setOnClickListener {
             Adapty.getPromo { promo, error ->
                 last_response_result.text =
-                    error?.let { "error:\n$error" }
+                    error?.let { "error:\n${error.message}" }
                         ?: "promo:\n$promo"
             }
         }
@@ -82,25 +82,25 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 .withCustomAttributes(mapOf("key1" to "test", "key2" to 5))
 
             Adapty.updateProfile(params) { error ->
-                last_response_result.text = error?.let { "error:\n$error" } ?: "Profile updated"
+                last_response_result.text = error?.let { "error:\n${error.message}" } ?: "Profile updated"
             }
         }
 
         update_custom_attribution.setOnClickListener {
             Adapty.updateAttribution(hashMapOf("key1" to "test1", "key2" to true), AttributionType.CUSTOM) { error ->
-                last_response_result.text = error ?: "success"
+                last_response_result.text = error?.message ?: "success"
             }
         }
 
         identify.setOnClickListener {
             Adapty.identify(customer_user_id.text.toString()) { error ->
-                last_response_result.text = error?.let { "error:\n$error" } ?: "User identified"
+                last_response_result.text = error?.let { "error:\n${error.message}" } ?: "User identified"
             }
         }
 
         logout.setOnClickListener {
             Adapty.logout { error ->
-                last_response_result.text = error?.let { "error:\n$error" } ?: "User logged out"
+                last_response_result.text = error?.let { "error:\n${error.message}" } ?: "User logged out"
             }
         }
 

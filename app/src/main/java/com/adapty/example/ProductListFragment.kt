@@ -30,7 +30,7 @@ class ProductListFragment : Fragment(R.layout.fragment_list) {
                 progressDialog.show()
                 Adapty.makePurchase(it, product) { purchaserInfo, purchaseToken, googleValidationResult, product, error ->
                     progressDialog.dismiss()
-                    Toast.makeText(context, error ?: "Success", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, error?.message ?: "Success", Toast.LENGTH_LONG).show()
                 }
             }
         })

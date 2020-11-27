@@ -1,6 +1,8 @@
 package com.adapty.purchase
 
 import android.content.Context
+import com.adapty.api.AdaptyError
+import com.adapty.api.AdaptyErrorCode
 import com.adapty.api.AdaptyPaywallsInfoCallback
 import com.adapty.api.entity.paywalls.DataContainer
 import com.adapty.api.entity.paywalls.ProductModel
@@ -39,7 +41,7 @@ class InAppPurchasesInfo(
                 BillingClient.newBuilder(context).enablePendingPurchases()
                     .setListener { billingResult, mutableList ->
                         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                            fail(billingResult.debugMessage)
+                            fail(AdaptyError(message = billingResult.debugMessage, adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)))
                         }
                     }
                     .build()
@@ -52,12 +54,12 @@ class InAppPurchasesInfo(
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                         querySkuDetailsInApp(data)
                     } else {
-                        fail(billingResult.debugMessage)
+                        fail(AdaptyError(message = billingResult.debugMessage, adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)))
                     }
                 }
 
                 override fun onBillingServiceDisconnected() {
-                    fail("onBillingServiceDisconnected")
+                    fail(AdaptyError(message = "onBillingServiceDisconnected", adaptyErrorCode = AdaptyErrorCode.BILLING_SERVICE_DISCONNECTED))
                 }
             })
         }
@@ -71,7 +73,12 @@ class InAppPurchasesInfo(
                 fillInfo(skuDetailsList, data)
                 querySkuDetailsSubs(data)
             } else
-                fail("Unavailable querySkuDetailsInApp: ${result.debugMessage}")
+                fail(
+                    AdaptyError(
+                        message = "Unavailable querySkuDetailsInApp: ${result.debugMessage}",
+                        adaptyErrorCode = AdaptyErrorCode.fromBilling(result.responseCode)
+                    )
+                )
         }
     }
 
@@ -83,7 +90,12 @@ class InAppPurchasesInfo(
                 fillInfo(skuDetailsList, data)
                 iterator()
             } else
-                fail("Unavailable querySkuDetailsSubs: ${result.debugMessage}")
+                fail(
+                    AdaptyError(
+                        message = "Unavailable querySkuDetailsSubs: ${result.debugMessage}",
+                        adaptyErrorCode = AdaptyErrorCode.fromBilling(result.responseCode)
+                    )
+                )
         }
     }
 
@@ -129,8 +141,8 @@ class InAppPurchasesInfo(
         return SkuDetailsParams.newBuilder().setSkusList(skuList).setType(type)
     }
 
-    private fun fail(error: String) {
-        LogHelper.logError(error)
+    private fun fail(error: AdaptyError) {
+        LogHelper.logError(error.message)
         callback.onResult(arrayListOf(), error)
     }
 }

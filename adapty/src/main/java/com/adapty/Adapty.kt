@@ -63,7 +63,7 @@ class Adapty {
             context: Context,
             appKey: String,
             customerUserId: String?,
-            adaptyCallback: ((String?) -> Unit)?
+            adaptyCallback: ((AdaptyError?) -> Unit)?
         ) {
             LogHelper.logVerbose("activate($appKey, ${customerUserId ?: ""})")
             if (isActivated)
@@ -87,7 +87,7 @@ class Adapty {
 
         private fun activateInQueue(
             customerUserId: String?,
-            adaptyCallback: ((String?) -> Unit)?
+            adaptyCallback: ((AdaptyError?) -> Unit)?
         ) {
             if (preferenceManager.profileID.isEmpty()) {
                 apiClientRepository.createProfile(customerUserId, object : AdaptySystemCallback {
@@ -119,8 +119,8 @@ class Adapty {
 
                     }
 
-                    override fun fail(msg: String, reqID: Int) {
-                        adaptyCallback?.invoke(msg)
+                    override fun fail(error: AdaptyError, reqID: Int) {
+                        adaptyCallback?.invoke(error)
                         nextQueue()
                     }
                 })
@@ -144,7 +144,7 @@ class Adapty {
                 requestQueue[0].invoke()
         }
 
-        private fun makeStartRequests(adaptyCallback: ((String?) -> Unit)?) {
+        private fun makeStartRequests(adaptyCallback: ((error: AdaptyError?) -> Unit)?) {
             sendSyncMetaInstallRequest()
 
             getStartedPaywalls()
@@ -208,25 +208,25 @@ class Adapty {
                     }
                 }
 
-                override fun fail(msg: String, reqID: Int) {
+                override fun fail(error: AdaptyError, reqID: Int) {
                 }
 
             })
         }
 
         @JvmStatic
-        fun identify(customerUserId: String, adaptyCallback: (error: String?) -> Unit) {
+        fun identify(customerUserId: String, adaptyCallback: (error: AdaptyError?) -> Unit) {
             LogHelper.logVerbose("identify()")
             addToQueue { identifyInQueue(customerUserId, adaptyCallback) }
         }
 
         private fun identifyInQueue(
             customerUserId: String,
-            adaptyCallback: (String?) -> Unit
+            adaptyCallback: (error: AdaptyError?) -> Unit
         ) {
             if (customerUserId.isBlank()) {
                 LogHelper.logError("customerUserId should not be empty")
-                adaptyCallback.invoke("customerUserId should not be empty")
+                adaptyCallback.invoke(AdaptyError(message = "customerUserId should not be empty", adaptyErrorCode = AdaptyErrorCode.EMPTY_PARAMETER))
                 nextQueue()
                 return
             } else if (customerUserId == preferenceManager.customerUserID) {
@@ -268,8 +268,8 @@ class Adapty {
                     syncPurchasesBody(false, null)
                 }
 
-                override fun fail(msg: String, reqID: Int) {
-                    adaptyCallback.invoke(msg)
+                override fun fail(error: AdaptyError, reqID: Int) {
+                    adaptyCallback.invoke(error)
 
                     nextQueue()
                 }
@@ -278,7 +278,7 @@ class Adapty {
         }
 
         @JvmStatic
-        fun updateProfile(params: ProfileParameterBuilder, adaptyCallback: (String?) -> Unit) {
+        fun updateProfile(params: ProfileParameterBuilder, adaptyCallback: (error: AdaptyError?) -> Unit) {
             addToQueue {
                 apiClientRepository.updateProfile(
                     params.email,
@@ -295,7 +295,7 @@ class Adapty {
                     params.birthday,
                     params.customAttributes,
                     object : AdaptyProfileCallback {
-                        override fun onResult(response: UpdateProfileResponse?, error: String?) {
+                        override fun onResult(response: UpdateProfileResponse?, error: AdaptyError?) {
                             response?.data?.attributes?.profileId?.let {
                                 if (it != preferenceManager.profileID) {
                                     preferenceManager.profileID = it
@@ -312,7 +312,7 @@ class Adapty {
 
         private fun getPurchaserInfo(
             needQueue: Boolean,
-            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, state: DataState, error: String?) -> Unit
+            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, state: DataState, error: AdaptyError?) -> Unit
         ) {
             val info = preferenceManager.purchaserInfo
             info?.let {
@@ -321,7 +321,7 @@ class Adapty {
 
             apiClientRepository.getProfile(
                 object : AdaptyPurchaserInfoCallback {
-                    override fun onResult(response: AttributePurchaserInfoRes?, error: String?) {
+                    override fun onResult(response: AttributePurchaserInfoRes?, error: AdaptyError?) {
                         response?.let {
                             val purchaserInfo = generatePurchaserInfoModel(it)
                             adaptyCallback.invoke(purchaserInfo, DataState.SYNCED, error)
@@ -340,7 +340,7 @@ class Adapty {
 
         @JvmStatic
         fun getPurchaserInfo(
-            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, state: DataState, error: String?) -> Unit
+            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, state: DataState, error: AdaptyError?) -> Unit
         ) {
             addToQueue { getPurchaserInfo(true, adaptyCallback) }
         }
@@ -353,7 +353,7 @@ class Adapty {
 
         private fun getPromoOnStart() {
             getPromoInQueue(false) { promo, error ->
-                if (!error.isNullOrEmpty() || promo == null)
+                if (error != null || promo == null)
                     return@getPromoInQueue
                 onPromoReceivedListener?.onPromoReceived(promo)
             }
@@ -361,7 +361,7 @@ class Adapty {
 
         @JvmStatic
         fun getPaywalls(
-            adaptyCallback: (paywalls: List<PaywallModel>, products: ArrayList<ProductModel>, state: DataState, error: String?) -> Unit
+            adaptyCallback: (paywalls: List<PaywallModel>, products: ArrayList<ProductModel>, state: DataState, error: AdaptyError?) -> Unit
         ) {
             LogHelper.logVerbose("getPaywalls()")
             addToQueue {
@@ -371,7 +371,7 @@ class Adapty {
 
         private fun getPaywallsInQueue(
             needQueue: Boolean,
-            adaptyCallback: (paywalls: List<PaywallModel>, products: ArrayList<ProductModel>, state: DataState, error: String?) -> Unit
+            adaptyCallback: (paywalls: List<PaywallModel>, products: ArrayList<ProductModel>, state: DataState, error: AdaptyError?) -> Unit
         ) {
             val cntrs = preferenceManager.containers
             cntrs?.toPaywalls()?.let {
@@ -383,10 +383,10 @@ class Adapty {
                     override fun onResult(
                         containers: ArrayList<DataContainer>,
                         products: ArrayList<ProductModel>,
-                        error: String?
+                        error: AdaptyError?
                     ) {
 
-                        if (!error.isNullOrEmpty()) {
+                        if (error != null) {
                             adaptyCallback.invoke(arrayListOf(), arrayListOf(), DataState.SYNCED, error)
                             if (needQueue)
                                 nextQueue()
@@ -414,7 +414,7 @@ class Adapty {
                             context,
                             data,
                             object : AdaptyPaywallsInfoCallback {
-                                override fun onResult(data: ArrayList<Any>, error: String?) {
+                                override fun onResult(data: ArrayList<Any>, error: AdaptyError?) {
                                     if (error != null) {
                                         adaptyCallback.invoke(containers.toPaywalls(), products, DataState.SYNCED, error)
                                         if (needQueue)
@@ -455,7 +455,7 @@ class Adapty {
 
         @JvmStatic
         fun getPromo(
-            adaptyCallback: (promo: PromoModel?, error: String?) -> Unit
+            adaptyCallback: (promo: PromoModel?, error: AdaptyError?) -> Unit
         ) {
             LogHelper.logVerbose("getPromos()")
             addToQueue {
@@ -467,16 +467,16 @@ class Adapty {
 
         private fun getPromoInQueue(
             needQueue: Boolean,
-            adaptyCallback: (promo: PromoModel?, error: String?) -> Unit
+            adaptyCallback: (promo: PromoModel?, error: AdaptyError?) -> Unit
         ) {
             apiClientRepository.getPromo(
                 object : AdaptyPromosCallback {
                     override fun onResult(
                         promo: PromoModel?,
-                        error: String?
+                        error: AdaptyError?
                     ) {
 
-                        if (!error.isNullOrEmpty() || promo == null) {
+                        if (error != null || promo == null) {
                             adaptyCallback.invoke(null, error)
                             if (needQueue)
                                 nextQueue()
@@ -502,12 +502,12 @@ class Adapty {
                             } ?: kotlin.run {
                             getPaywallsInQueue(needQueue) { paywalls, products, state, error ->
                                 if (state == DataState.SYNCED) {
-                                    if (error.isNullOrEmpty()) {
+                                    if (error == null) {
                                         paywalls
                                             .firstOrNull { it.variationId == promo.variationId }
                                             ?.let {
                                                 finishSettingPaywallToPromo(it)
-                                            } ?: adaptyCallback.invoke(null, "Paywall not found")
+                                            } ?: adaptyCallback.invoke(null, AdaptyError(message = "Paywall not found", adaptyErrorCode = AdaptyErrorCode.PAYWALL_NOT_FOUND))
                                     } else {
                                         adaptyCallback.invoke(null, error)
                                     }
@@ -524,7 +524,7 @@ class Adapty {
         fun makePurchase(
             activity: Activity,
             product: ProductModel,
-            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String?, googleValidationResult: GoogleValidationResult?, product: ProductModel, error: String?) -> Unit
+            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String?, googleValidationResult: GoogleValidationResult?, product: ProductModel, error: AdaptyError?) -> Unit
         ) {
             LogHelper.logVerbose("makePurchase()")
             addToQueue {
@@ -540,7 +540,7 @@ class Adapty {
                         override fun onResult(
                             purchase: Purchase?,
                             response: ValidateReceiptResponse?,
-                            error: String?
+                            error: AdaptyError?
                         ) {
                             val purchaserInfo = response?.data?.attributes
                                 ?.let(::generatePurchaserInfoModel)
@@ -556,7 +556,7 @@ class Adapty {
 
         @JvmStatic
         @JvmOverloads
-        fun syncPurchases(adaptyCallback: ((error: String?) -> Unit)? = null) {
+        fun syncPurchases(adaptyCallback: ((error: AdaptyError?) -> Unit)? = null) {
             addToQueue {
                 syncPurchasesBody(true, adaptyCallback)
             }
@@ -564,7 +564,7 @@ class Adapty {
 
         private fun syncPurchasesBody(
             needQueue: Boolean,
-            adaptyCallback: ((String?) -> Unit)?
+            adaptyCallback: ((error: AdaptyError?) -> Unit)?
         ) {
             if (!::preferenceManager.isInitialized)
                 preferenceManager = PreferenceManager(context)
@@ -577,9 +577,9 @@ class Adapty {
                 null,
                 apiClientRepository,
                 object : AdaptyRestoreCallback {
-                    override fun onResult(response: RestoreReceiptResponse?, error: String?) {
+                    override fun onResult(response: RestoreReceiptResponse?, error: AdaptyError?) {
                         if (adaptyCallback != null) {
-                            if (error.isNullOrEmpty())
+                            if (error == null)
                                 adaptyCallback.invoke(null)
                             else
                                 adaptyCallback.invoke(error)
@@ -593,7 +593,7 @@ class Adapty {
 
         @JvmStatic
         fun restorePurchases(
-            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, googleValidationResultList: List<GoogleValidationResult>?, error: String?) -> Unit
+            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, googleValidationResultList: List<GoogleValidationResult>?, error: AdaptyError?) -> Unit
         ) {
             addToQueue {
                 if (!::preferenceManager.isInitialized)
@@ -608,7 +608,7 @@ class Adapty {
                     null,
                     apiClientRepository,
                     object : AdaptyRestoreCallback {
-                        override fun onResult(response: RestoreReceiptResponse?, error: String?) {
+                        override fun onResult(response: RestoreReceiptResponse?, error: AdaptyError?) {
                             val purchaserInfo = response?.data?.attributes
                                 ?.let(::generatePurchaserInfoModel)
                                 ?.also(::checkChangesPurchaserInfo)
@@ -630,7 +630,7 @@ class Adapty {
             purchaseToken: String,
             purchaseOrderId: String? = null,
             product: ProductModel? = null,
-            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String, googleValidationResult: GoogleValidationResult?, error: String?) -> Unit
+            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String, googleValidationResult: GoogleValidationResult?, error: AdaptyError?) -> Unit
         ) {
             if (purchaseOrderId == null && product == null) {
                 addToQueue {
@@ -647,7 +647,7 @@ class Adapty {
             purchaseToken: String,
             purchaseOrderId: String? = null,
             product: ProductModel? = null,
-            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String, googleValidationResult: GoogleValidationResult?, error: String?) -> Unit
+            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String, googleValidationResult: GoogleValidationResult?, error: AdaptyError?) -> Unit
         ) {
             apiClientRepository.validatePurchase(
                 purchaseType.toString(),
@@ -658,7 +658,7 @@ class Adapty {
                 object : AdaptyValidateCallback {
                     override fun onResult(
                         response: ValidateReceiptResponse?,
-                        error: String?
+                        error: AdaptyError?
                     ) {
                         val purchaserInfo = response?.data?.attributes
                             ?.let(::generatePurchaserInfoModel)
@@ -677,7 +677,7 @@ class Adapty {
             attribution: Any,
             source: AttributionType,
             networkUserId: String? = null,
-            adaptyCallback: (error: String?) -> Unit
+            adaptyCallback: (error: AdaptyError?) -> Unit
         ) {
             LogHelper.logVerbose("updateAttribution()")
             addToQueue {
@@ -691,8 +691,8 @@ class Adapty {
                             nextQueue()
                         }
 
-                        override fun fail(msg: String, reqID: Int) {
-                            adaptyCallback.invoke(msg)
+                        override fun fail(error: AdaptyError, reqID: Int) {
+                            adaptyCallback.invoke(error)
                             nextQueue()
                         }
                     })
@@ -700,13 +700,13 @@ class Adapty {
         }
 
         @JvmStatic
-        fun logout(adaptyCallback: (error: String?) -> Unit) {
+        fun logout(adaptyCallback: (error: AdaptyError?) -> Unit) {
             addToQueue { logoutInQueue(adaptyCallback) }
         }
 
-        private fun logoutInQueue(adaptyCallback: (String?) -> Unit) {
+        private fun logoutInQueue(adaptyCallback: (error: AdaptyError?) -> Unit) {
             if (!::context.isInitialized) {
-                adaptyCallback.invoke("Adapty was not initialized")
+                adaptyCallback.invoke(AdaptyError(message = "Adapty was not initialized", adaptyErrorCode = AdaptyErrorCode.ADAPTY_NOT_INITIALIZED))
                 nextQueue()
                 return
             }
@@ -731,7 +731,7 @@ class Adapty {
         @JvmStatic
         fun handlePromoIntent(
             intent: Intent?,
-            adaptyCallback: (promo: PromoModel?, error: String?) -> Unit
+            adaptyCallback: (promo: PromoModel?, error: AdaptyError?) -> Unit
         ): Boolean {
             if (intent?.getStringExtra("source") != "adapty") {
                 return false

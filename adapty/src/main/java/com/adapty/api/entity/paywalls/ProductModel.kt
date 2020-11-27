@@ -39,17 +39,27 @@ class ProductModel {
 
     var skuDetails: SkuDetails? = null
 
-    data class ProductSubscriptionPeriodModel(var period: String) {
+    class ProductSubscriptionPeriodModel private constructor(){
+
+        private var _period: String? = null
+        private var _unit: PeriodUnit? = null
+        private var _numberOfUnits: Int? = null
+
+        constructor(period: String) : this() {
+            _period = period
+        }
+
+        constructor(unit: PeriodUnit, numberOfUnits: Int) : this() {
+            _unit = unit
+            _numberOfUnits = numberOfUnits
+        }
+
         val unit: PeriodUnit?
             get() {
-                val pUnit = getPeriodUnit(period)
-                pUnit?.let {
-                    return PeriodUnit.valueOf(it)
-                }
-                return null
+                return _unit ?: _period?.let(::getPeriodUnit)?.let(PeriodUnit::valueOf)
             }
         val numberOfUnits: Int?
-            get() = getPeriodNumberOfUnits(period)
+            get() = _numberOfUnits ?: _period?.let(::getPeriodNumberOfUnits)
     }
 
     enum class PeriodUnit(val period: String) {
