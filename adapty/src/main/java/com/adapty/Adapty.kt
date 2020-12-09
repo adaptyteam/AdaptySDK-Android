@@ -16,7 +16,6 @@ import com.adapty.api.entity.validate.GoogleValidationResult
 import com.adapty.api.responses.*
 import com.adapty.purchase.InAppPurchases
 import com.adapty.purchase.InAppPurchasesInfo
-import com.adapty.purchase.PurchaseType
 import com.adapty.utils.*
 import com.android.billingclient.api.Purchase
 import com.google.gson.Gson
@@ -181,8 +180,7 @@ class Adapty {
         private fun isPurchaserInfoChanged(info: PurchaserInfoModel)
                 = preferenceManager.purchaserInfo != info
 
-        @JvmStatic
-        fun sendSyncMetaInstallRequest() {
+        private fun sendSyncMetaInstallRequest() {
             LogHelper.logVerbose("sendSyncMetaInstallRequest()")
             apiClientRepository.syncMetaInstall(object : AdaptySystemCallback {
                 override fun success(response: Any?, reqID: Int) {
@@ -554,6 +552,7 @@ class Adapty {
             }
         }
 
+        @Deprecated(message = "Will be removed in newer versions", level = DeprecationLevel.WARNING)
         @JvmStatic
         @JvmOverloads
         fun syncPurchases(adaptyCallback: ((error: AdaptyError?) -> Unit)? = null) {
@@ -620,55 +619,6 @@ class Adapty {
                         }
                     })
             }
-        }
-
-        @JvmStatic
-        @JvmOverloads
-        fun validatePurchase(
-            purchaseType: PurchaseType,
-            productId: String,
-            purchaseToken: String,
-            purchaseOrderId: String? = null,
-            product: ProductModel? = null,
-            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String, googleValidationResult: GoogleValidationResult?, error: AdaptyError?) -> Unit
-        ) {
-            if (purchaseOrderId == null && product == null) {
-                addToQueue {
-                    validate(purchaseType, productId, purchaseToken, purchaseOrderId, product, adaptyCallback)
-                }
-            } else {
-                validate(purchaseType, productId, purchaseToken, purchaseOrderId, product, adaptyCallback)
-            }
-        }
-
-        private fun validate(
-            purchaseType: PurchaseType,
-            productId: String,
-            purchaseToken: String,
-            purchaseOrderId: String? = null,
-            product: ProductModel? = null,
-            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String, googleValidationResult: GoogleValidationResult?, error: AdaptyError?) -> Unit
-        ) {
-            apiClientRepository.validatePurchase(
-                purchaseType.toString(),
-                productId,
-                purchaseToken,
-                purchaseOrderId,
-                product,
-                object : AdaptyValidateCallback {
-                    override fun onResult(
-                        response: ValidateReceiptResponse?,
-                        error: AdaptyError?
-                    ) {
-                        val purchaserInfo = response?.data?.attributes
-                            ?.let(::generatePurchaserInfoModel)
-                            ?.also(::checkChangesPurchaserInfo)
-                        val validationResult = response?.data?.attributes?.googleValidationResult
-
-                        adaptyCallback.invoke(purchaserInfo, purchaseToken, validationResult, error)
-                        nextQueue()
-                    }
-                })
         }
 
         @JvmStatic

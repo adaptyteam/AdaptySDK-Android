@@ -1,6 +1,7 @@
 package com.adapty.utils
 
 import com.adapty.api.entity.paywalls.DataContainer
+import com.adapty.api.entity.paywalls.PaywallMapper
 import com.adapty.api.entity.purchaserInfo.AttributePurchaserInfoRes
 import com.adapty.api.entity.purchaserInfo.model.AccessLevelInfoModel
 import com.adapty.api.entity.purchaserInfo.model.NonSubscriptionInfoModel
@@ -111,7 +112,7 @@ fun getPeriodUnit(period: String) = period.takeIf(String::isNotEmpty)?.last()?.t
 fun getPeriodNumberOfUnits(period: String) =
     period.replace("[^0-9]".toRegex(), "").takeIf(String::isNotEmpty)?.toInt()
 
-internal fun ArrayList<DataContainer>.toPaywalls() = mapNotNull { it.attributes }
+internal fun ArrayList<DataContainer>.toPaywalls() = mapNotNull { it.attributes }.map(PaywallMapper::map)
 
 internal const val ADJUST_ATTRIBUTION_CLASS = "com.adjust.sdk.AdjustAttribution"
 

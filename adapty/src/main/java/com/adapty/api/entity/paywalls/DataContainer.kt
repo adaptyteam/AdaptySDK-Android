@@ -5,5 +5,5 @@ import com.google.gson.annotations.SerializedName
 
 class DataContainer : BaseData() {
     @SerializedName("attributes")
-    var attributes: PaywallModel? = null
+    internal var attributes: PaywallDto? = null
 }
