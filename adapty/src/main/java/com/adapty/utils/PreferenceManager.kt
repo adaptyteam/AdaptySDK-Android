@@ -95,11 +95,12 @@ class PreferenceManager(context: Context) {
 
     var containers: ArrayList<DataContainer>?
         get() {
-            val json = pref.getString(CONTAINERS, null)
-            return if (TextUtils.isEmpty(json))
-                null
-            else {
-                gson.fromJson(json, object : TypeToken<ArrayList<DataContainer>>() {}.type)
+            return pref.getString(CONTAINERS, null)?.takeIf(String::isNotEmpty)?.let {
+                try {
+                    gson.fromJson<ArrayList<DataContainer>>(it, object : TypeToken<ArrayList<DataContainer>>() {}.type)
+                } catch (e: Exception) {
+                    null
+                }
             }
         }
         set(value) {

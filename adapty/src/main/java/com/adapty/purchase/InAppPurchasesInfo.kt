@@ -1,6 +1,8 @@
 package com.adapty.purchase
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.adapty.api.AdaptyError
 import com.adapty.api.AdaptyErrorCode
 import com.adapty.api.AdaptyPaywallsInfoCallback
@@ -10,6 +12,7 @@ import com.adapty.utils.LogHelper
 import com.android.billingclient.api.*
 import com.android.billingclient.api.BillingClient.SkuType.INAPP
 import com.android.billingclient.api.BillingClient.SkuType.SUBS
+import java.util.concurrent.Executors
 
 
 class InAppPurchasesInfo(
@@ -17,6 +20,9 @@ class InAppPurchasesInfo(
     var purchases: ArrayList<Any>,
     var callback: AdaptyPaywallsInfoCallback
 ) {
+
+    private val executor = Executors.newSingleThreadExecutor()
+    private val handler = Handler(Looper.getMainLooper())
 
     private var productIterator: MutableIterator<Any> = purchases.iterator()
     private lateinit var billingClient: BillingClient
@@ -70,8 +76,12 @@ class InAppPurchasesInfo(
             getSkuList(data, INAPP).build()
         ) { result, skuDetailsList ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK && skuDetailsList != null) {
-                fillInfo(skuDetailsList, data)
-                querySkuDetailsSubs(data)
+                executor.submit {
+                    fillInfo(skuDetailsList, data)
+                    handler.post {
+                        querySkuDetailsSubs(data)
+                    }
+                }
             } else
                 fail(
                     AdaptyError(
@@ -87,8 +97,12 @@ class InAppPurchasesInfo(
             getSkuList(data, SUBS).build()
         ) { result, skuDetailsList ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK && skuDetailsList != null) {
-                fillInfo(skuDetailsList, data)
-                iterator()
+                executor.submit {
+                    fillInfo(skuDetailsList, data)
+                    handler.post {
+                        iterator()
+                    }
+                }
             } else
                 fail(
                     AdaptyError(
@@ -103,22 +117,16 @@ class InAppPurchasesInfo(
         for (skuDetails in skuDetailsList) {
             val sku = skuDetails.sku
             if (data is DataContainer) {
-                data.attributes?.products?.let { prods ->
-                    for (p in prods) {
-                        p.vendorProductId?.let { id ->
-                            if (sku == id) {
-                                p.setDetails(skuDetails)
-                                p.variationId = data.attributes?.variationId
-                            }
-                        }
+                data.attributes?.products?.forEach { p ->
+                    if (sku == p.vendorProductId) {
+                        p.setDetails(skuDetails)
+                        p.variationId = data.attributes?.variationId
                     }
                 }
             } else if (data is ArrayList<*>) {
-                for (p in (data as ArrayList<ProductModel>)) {
-                    p.vendorProductId?.let { id ->
-                        if (sku == id) {
-                            p.setDetails(skuDetails)
-                        }
+                (data as ArrayList<ProductModel>).forEach { p ->
+                    if (sku == p.vendorProductId) {
+                        p.setDetails(skuDetails)
                     }
                 }
             }
