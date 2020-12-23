@@ -7,7 +7,6 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.adapty.Adapty
 import com.adapty.api.AttributionType
-import com.adapty.api.entity.DataState
 import com.adapty.api.entity.paywalls.OnPromoReceivedListener
 import com.adapty.api.entity.paywalls.PromoModel
 import com.adapty.api.entity.profile.update.Date
@@ -42,28 +41,26 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         }
 
         get_purchaser_info.setOnClickListener {
-            Adapty.getPurchaserInfo { purchaserInfo, state, error ->
+            Adapty.getPurchaserInfo { purchaserInfo, error ->
                 last_response_result.text =
                     error?.let { "error:\n${error.message}" }
-                        ?: "state: $state\npurchaser info: $purchaserInfo"
+                        ?: "purchaser info: $purchaserInfo"
             }
         }
 
         get_paywalls.setOnClickListener {
             progressDialog.show()
 
-            Adapty.getPaywalls { paywalls, products, state, error ->
+            Adapty.getPaywalls { paywalls, products, error ->
                 last_response_result.text =
                     error?.let { "error:\n${error.message}" }
-                        ?: "state: $state\npaywalls: $paywalls\n\nproducts: $products"
+                        ?: "paywalls: $paywalls\n\nproducts: $products"
 
-                if (state == DataState.SYNCED) {
-                    progressDialog.hide()
-                    (activity as? MainActivity)?.addFragment(
-                        PaywallListFragment.newInstance(paywalls),
-                        true
-                    )
-                }
+                progressDialog.hide()
+                (activity as? MainActivity)?.addFragment(
+                    PaywallListFragment.newInstance(paywalls),
+                    true
+                )
             }
         }
 

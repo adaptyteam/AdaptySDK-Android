@@ -82,20 +82,22 @@ class PreferenceManager(context: Context) {
         }
 
     var purchaserInfo: PurchaserInfoModel?
-        get() {
-            val str = pref.getString(PURCHASER_INFO, null)
-            return str?.let {
+        @Synchronized get() {
+            return pref.getString(PURCHASER_INFO, null)?.takeIf(::isNotEmpty)?.let {
                 gson.fromJson(it, PurchaserInfoModel::class.java)
             }
         }
-        set(info) {
+        @Synchronized set(info) {
+            info?.takeIf { it.customAttributes.isNullOrEmpty() }?.let {
+                it.customAttributes = null
+            }
             editor.putString(PURCHASER_INFO, gson.toJson(info))
             editor.commit()
         }
 
     var containers: ArrayList<DataContainer>?
         get() {
-            return pref.getString(CONTAINERS, null)?.takeIf(String::isNotEmpty)?.let {
+            return pref.getString(CONTAINERS, null)?.takeIf(::isNotEmpty)?.let {
                 try {
                     gson.fromJson<ArrayList<DataContainer>>(it, object : TypeToken<ArrayList<DataContainer>>() {}.type)
                 } catch (e: Exception) {
@@ -138,7 +140,7 @@ class PreferenceManager(context: Context) {
 
     var kinesisRecords: ArrayList<AwsRecordModel>
         get() {
-            return pref.getString(KINESIS_RECORDS, null)?.takeIf(String::isNotEmpty)?.let {
+            return pref.getString(KINESIS_RECORDS, null)?.takeIf(::isNotEmpty)?.let {
                 try {
                     gson.fromJson<ArrayList<AwsRecordModel>>(it, object : TypeToken<ArrayList<AwsRecordModel>>() {}.type)
                 } catch (e: Exception) {
@@ -165,6 +167,8 @@ class PreferenceManager(context: Context) {
             .putString(IAM_SESSION_TOKEN, null)
             .commit()
     }
+
+    private fun isNotEmpty(str: String) = str.length > 4
 
     private companion object {
         private const val PREF_NAME = "AdaptySDKPrefs"

@@ -4,9 +4,16 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import android.os.Handler
+import com.adapty.api.AdaptyError
+import com.adapty.api.AdaptyPurchaserInfoCallback
+import com.adapty.api.ApiClientRepository
+import com.adapty.api.entity.purchaserInfo.AttributePurchaserInfoRes
 
-internal class AdaptyLiveTracker(private val kinesisManager: KinesisManager) :
-    Application.ActivityLifecycleCallbacks {
+internal class AdaptyLiveTracker(
+    private val kinesisManager: KinesisManager,
+    private val apiClientRepository: ApiClientRepository,
+    private val purchaserInfoChangedCallback: (res: AttributePurchaserInfoRes) -> Unit
+) : Application.ActivityLifecycleCallbacks {
 
     private val handler = Handler()
     private val TRACKING_INTERVAL = (60 * 1000).toLong()
@@ -17,9 +24,10 @@ internal class AdaptyLiveTracker(private val kinesisManager: KinesisManager) :
     private var readyToTrack = false
 
     fun start() {
+        handler.removeCallbacksAndMessages(null)
         readyToTrack = true
         if (activityReferences > 0) {
-            trackLive()
+            scheduleAll()
         }
     }
 
@@ -27,7 +35,7 @@ internal class AdaptyLiveTracker(private val kinesisManager: KinesisManager) :
 
     override fun onActivityStarted(activity: Activity) {
         if (++activityReferences == 1 && !isActivityChangingConfigurations && readyToTrack) {
-            trackLive()
+            scheduleAll()
         }
     }
 
@@ -47,10 +55,30 @@ internal class AdaptyLiveTracker(private val kinesisManager: KinesisManager) :
     override fun onActivityDestroyed(activity: Activity) = Unit
 
     private fun trackLive() {
-        handler.removeCallbacksAndMessages(null)
         kinesisManager.trackEvent(LIVE_EVENT_NAME)
         handler.postDelayed({
             trackLive()
         }, TRACKING_INTERVAL)
+    }
+
+    private fun schedulePurchaserInfo() {
+        handler.postDelayed({
+            apiClientRepository.getProfile(
+                object : AdaptyPurchaserInfoCallback {
+                    override fun onResult(
+                        response: AttributePurchaserInfoRes?,
+                        error: AdaptyError?
+                    ) {
+                        response?.let(purchaserInfoChangedCallback::invoke)
+                        schedulePurchaserInfo()
+                    }
+                }
+            )
+        }, TRACKING_INTERVAL)
+    }
+
+    private fun scheduleAll() {
+        trackLive()
+        schedulePurchaserInfo()
     }
 }

@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import com.adapty.api.*
-import com.adapty.api.entity.DataState
 import com.adapty.api.entity.paywalls.*
 import com.adapty.api.entity.profile.update.ProfileParameterBuilder
 import com.adapty.api.entity.purchaserInfo.*
@@ -35,7 +34,7 @@ class Adapty {
             KinesisManager(preferenceManager)
         }
         private val liveTracker by lazy {
-            AdaptyLiveTracker(kinesisManager)
+            AdaptyLiveTracker(kinesisManager, apiClientRepository, ::checkChangesPurchaserInfo)
         }
         private val gson = Gson()
         private val apiClientRepository by lazy {
@@ -99,22 +98,10 @@ class Adapty {
                                 this.customerUserId?.let {
                                     preferenceManager.customerUserID = it
                                 }
-
-                                checkChangesPurchaserInfo(this)
                             }
                         }
 
-                        adaptyCallback?.invoke(null)
-
-                        nextQueue()
-
-                        getStartedPaywalls()
-
-                        getPromoOnStart()
-
-                        sendSyncMetaInstallRequest()
-
-                        syncPurchasesBody(false, null)
+                        makeStartRequests(adaptyCallback)
 
                     }
 
@@ -151,18 +138,8 @@ class Adapty {
             getPromoOnStart()
 
             syncPurchasesBody(false) { _ ->
-                var isCallbackSent = false
-                getPurchaserInfo(false) { info, state, error ->
-                    if (!isCallbackSent) {
-                        isCallbackSent = true
-                        adaptyCallback?.invoke(error)
-                        nextQueue()
-                        return@getPurchaserInfo
-                    }
-
-                    info?.takeIf(::isPurchaserInfoChanged)?.let {
-                        onPurchaserInfoUpdatedListener?.onPurchaserInfoReceived(it)
-                    }
+                getPurchaserInfo(true) { info, error ->
+                    adaptyCallback?.invoke(error)
                 }
             }
         }
@@ -173,8 +150,8 @@ class Adapty {
         private fun checkChangesPurchaserInfo(purchaserInfo: PurchaserInfoModel) {
             if (isPurchaserInfoChanged(purchaserInfo)) {
                 onPurchaserInfoUpdatedListener?.onPurchaserInfoReceived(purchaserInfo)
+                preferenceManager.purchaserInfo = purchaserInfo
             }
-            preferenceManager.purchaserInfo = purchaserInfo
         }
 
         private fun isPurchaserInfoChanged(info: PurchaserInfoModel)
@@ -250,20 +227,16 @@ class Adapty {
                         }
                     }
 
-                    adaptyCallback.invoke(null)
-
-                    nextQueue()
-
-                    if (!profileIdChanged) return
+                    if (!profileIdChanged) {
+                        adaptyCallback.invoke(null)
+                        nextQueue()
+                        return
+                    }
 
                     preferenceManager.products = arrayListOf()
                     preferenceManager.containers = null
 
-                    getStartedPaywalls()
-
-                    sendSyncMetaInstallRequest()
-
-                    syncPurchasesBody(false, null)
+                    makeStartRequests(adaptyCallback)
                 }
 
                 override fun fail(error: AdaptyError, reqID: Int) {
@@ -310,22 +283,17 @@ class Adapty {
 
         private fun getPurchaserInfo(
             needQueue: Boolean,
-            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, state: DataState, error: AdaptyError?) -> Unit
+            adaptyCallback: ((purchaserInfo: PurchaserInfoModel?, error: AdaptyError?) -> Unit)?
         ) {
-            val info = preferenceManager.purchaserInfo
-            info?.let {
-                adaptyCallback.invoke(it, DataState.CACHED, null)
-            }
-
             apiClientRepository.getProfile(
                 object : AdaptyPurchaserInfoCallback {
                     override fun onResult(response: AttributePurchaserInfoRes?, error: AdaptyError?) {
                         response?.let {
                             val purchaserInfo = generatePurchaserInfoModel(it)
-                            adaptyCallback.invoke(purchaserInfo, DataState.SYNCED, error)
-                            preferenceManager.purchaserInfo = purchaserInfo
+                            adaptyCallback?.invoke(purchaserInfo, error)
+                            checkChangesPurchaserInfo(purchaserInfo)
                         } ?: kotlin.run {
-                            adaptyCallback.invoke(null, DataState.SYNCED, error)
+                            adaptyCallback?.invoke(null, error)
                         }
 
                         if (needQueue) {
@@ -338,15 +306,30 @@ class Adapty {
 
         @JvmStatic
         fun getPurchaserInfo(
-            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, state: DataState, error: AdaptyError?) -> Unit
+            adaptyCallback: (purchaserInfo: PurchaserInfoModel?, error: AdaptyError?) -> Unit
         ) {
-            addToQueue { getPurchaserInfo(true, adaptyCallback) }
+            preferenceManager.purchaserInfo?.let {
+                adaptyCallback.invoke(it, null)
+                getPurchaserInfo(false, null)
+            } ?: kotlin.run {
+                addToQueue { getPurchaserInfo(true, adaptyCallback) }
+            }
         }
 
         private fun getStartedPaywalls() {
             getPaywallsInQueue(
                 false
-            ) { containers, products, state, error -> }
+            ) { paywalls, products, error ->
+                paywallsSyncedDuringThisSession = true
+                paywallsSyncCallbackOnStart?.let { callback ->
+                    if (error != null) {
+                        callback.invoke(paywalls, products, error)
+                    } else {
+                        getPaywalls(true, callback)
+                    }
+                }
+                paywallsSyncCallbackOnStart = null
+            }
         }
 
         private fun getPromoOnStart() {
@@ -358,24 +341,29 @@ class Adapty {
         }
 
         @JvmStatic
+        @JvmOverloads
         fun getPaywalls(
-            adaptyCallback: (paywalls: List<PaywallModel>, products: ArrayList<ProductModel>, state: DataState, error: AdaptyError?) -> Unit
+            forceUpdate: Boolean = false,
+            adaptyCallback: (paywalls: List<PaywallModel>, products: ArrayList<ProductModel>, error: AdaptyError?) -> Unit
         ) {
             LogHelper.logVerbose("getPaywalls()")
-            addToQueue {
-                getPaywallsInQueue(true, adaptyCallback)
+            when {
+                forceUpdate -> addToQueue { getPaywallsInQueue(true, adaptyCallback) }
+                !paywallsSyncedDuringThisSession -> {
+                    paywallsSyncCallbackOnStart = adaptyCallback
+                }
+                else -> preferenceManager.containers?.toPaywalls()?.let {
+                    adaptyCallback.invoke(it, preferenceManager.products, null)
+                } ?: kotlin.run {
+                    addToQueue { getPaywallsInQueue(true, adaptyCallback) }
+                }
             }
         }
 
         private fun getPaywallsInQueue(
             needQueue: Boolean,
-            adaptyCallback: (paywalls: List<PaywallModel>, products: ArrayList<ProductModel>, state: DataState, error: AdaptyError?) -> Unit
+            adaptyCallback: (paywalls: List<PaywallModel>, products: ArrayList<ProductModel>, error: AdaptyError?) -> Unit
         ) {
-            val cntrs = preferenceManager.containers
-            cntrs?.toPaywalls()?.let {
-                adaptyCallback.invoke(it, preferenceManager.products, DataState.CACHED, null)
-            }
-
             apiClientRepository.getPaywalls(
                 object : AdaptyPaywallsCallback {
                     override fun onResult(
@@ -385,7 +373,7 @@ class Adapty {
                     ) {
 
                         if (error != null) {
-                            adaptyCallback.invoke(arrayListOf(), arrayListOf(), DataState.SYNCED, error)
+                            adaptyCallback.invoke(arrayListOf(), arrayListOf(), error)
                             if (needQueue)
                                 nextQueue()
                             return
@@ -399,7 +387,7 @@ class Adapty {
                                 this.containers = containers
                                 this.products = products
                             }
-                            adaptyCallback.invoke(containers.toPaywalls(), products, DataState.SYNCED, error)
+                            adaptyCallback.invoke(containers.toPaywalls(), products, error)
                             if (needQueue)
                                 nextQueue()
                             return
@@ -414,7 +402,7 @@ class Adapty {
                             object : AdaptyPaywallsInfoCallback {
                                 override fun onResult(data: ArrayList<Any>, error: AdaptyError?) {
                                     if (error != null) {
-                                        adaptyCallback.invoke(containers.toPaywalls(), products, DataState.SYNCED, error)
+                                        adaptyCallback.invoke(containers.toPaywalls(), products, error)
                                         if (needQueue)
                                             nextQueue()
                                         return
@@ -440,7 +428,7 @@ class Adapty {
                                         this.products = pArray
                                     }
 
-                                    adaptyCallback.invoke(ar.toPaywalls(), pArray, DataState.SYNCED, null)
+                                    adaptyCallback.invoke(ar.toPaywalls(), pArray, null)
                                     if (needQueue)
                                         nextQueue()
                                 }
@@ -462,6 +450,8 @@ class Adapty {
         }
 
         private var currentPromo: PromoModel? = null
+        private var paywallsSyncedDuringThisSession = false
+        private var paywallsSyncCallbackOnStart: ((paywalls: List<PaywallModel>, products: ArrayList<ProductModel>, error: AdaptyError?) -> Unit)? = null
 
         private fun getPromoInQueue(
             needQueue: Boolean,
@@ -498,17 +488,15 @@ class Adapty {
                             ?.let {
                                 finishSettingPaywallToPromo(it)
                             } ?: kotlin.run {
-                            getPaywallsInQueue(needQueue) { paywalls, products, state, error ->
-                                if (state == DataState.SYNCED) {
-                                    if (error == null) {
-                                        paywalls
-                                            .firstOrNull { it.variationId == promo.variationId }
-                                            ?.let {
-                                                finishSettingPaywallToPromo(it)
-                                            } ?: adaptyCallback.invoke(null, AdaptyError(message = "Paywall not found", adaptyErrorCode = AdaptyErrorCode.PAYWALL_NOT_FOUND))
-                                    } else {
-                                        adaptyCallback.invoke(null, error)
-                                    }
+                            getPaywallsInQueue(needQueue) { paywalls, products, error ->
+                                if (error == null) {
+                                    paywalls
+                                        .firstOrNull { it.variationId == promo.variationId }
+                                        ?.let {
+                                            finishSettingPaywallToPromo(it)
+                                        } ?: adaptyCallback.invoke(null, AdaptyError(message = "Paywall not found", adaptyErrorCode = AdaptyErrorCode.PAYWALL_NOT_FOUND))
+                                } else {
+                                    adaptyCallback.invoke(null, error)
                                 }
                             }
                         }
