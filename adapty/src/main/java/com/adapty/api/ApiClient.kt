@@ -1,6 +1,7 @@
 package com.adapty.api
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.util.Log
@@ -402,20 +403,29 @@ class ApiClient(private var context: Context, private val gson : Gson) {
     private fun generateUrl(reqId: Int): String {
         return when (reqId) {
             CREATE_PROFILE_REQ_ID, UPDATE_PROFILE_REQ_ID, GET_PROFILE_REQ_ID ->
-                serverUrl + "sdk/analytics/profiles/" + preferenceManager.profileID + "/"
+                "${serverUrl}sdk/analytics/profiles/${preferenceManager.profileID}/"
             SYNC_META_REQ_ID ->
-                serverUrl + "sdk/analytics/profiles/" + preferenceManager.profileID + "/installation-metas/" + preferenceManager.installationMetaID + "/"
+                "${serverUrl}sdk/analytics/profiles/${preferenceManager.profileID}/installation-metas/${preferenceManager.installationMetaID}/"
             VALIDATE_PURCHASE_REQ_ID ->
-                serverUrl + "sdk/in-apps/google/token/validate/"
+                "${serverUrl}sdk/in-apps/google/token/validate/"
             RESTORE_PURCHASE_REQ_ID ->
-                serverUrl + "sdk/in-apps/google/token/restore/"
+                "${serverUrl}sdk/in-apps/google/token/restore/"
             GET_CONTAINERS_REQ_ID ->
-                serverUrl + "sdk/in-apps/purchase-containers/?profile_id=" + preferenceManager.profileID
+                "${serverUrl}sdk/in-apps/purchase-containers/?profile_id=${preferenceManager.profileID}${queryParamAboutTrackingPaywalls()}"
             UPDATE_ATTRIBUTION_REQ_ID ->
-                serverUrl + "sdk/analytics/profiles/" + preferenceManager.profileID + "/attribution/"
+                "${serverUrl}sdk/analytics/profiles/${preferenceManager.profileID}/attribution/"
             GET_PROMO_REQ_ID ->
-                serverUrl + "sdk/analytics/profiles/" + preferenceManager.profileID + "/promo/"
+                "${serverUrl}sdk/analytics/profiles/${preferenceManager.profileID}/promo/"
             else -> serverUrl
         }
     }
+
+    private fun queryParamAboutTrackingPaywalls() =
+        context.packageManager
+            .getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
+            .metaData
+            ?.getBoolean("AdaptyAutomaticPaywallsScreenReportingEnabled", true)
+            ?.takeIf(Boolean::not)
+            ?.let { "&automatic_paywalls_screen_reporting_enabled=$it" }
+            ?: ""
 }

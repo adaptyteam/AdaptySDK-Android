@@ -696,5 +696,16 @@ class Adapty {
         fun setLogLevel(logLevel: AdaptyLogLevel) {
             LogHelper.setLogLevel(logLevel)
         }
+
+        @JvmStatic
+        fun logShowPaywall(paywall: PaywallModel) {
+            kinesisManager.trackEvent(
+                "paywall_showed",
+                mapOf(
+                    "is_promo" to "${paywall.isPromo ?: false}",
+                    "variation_id" to paywall.variationId.orEmpty()
+                )
+            )
+        }
     }
 }

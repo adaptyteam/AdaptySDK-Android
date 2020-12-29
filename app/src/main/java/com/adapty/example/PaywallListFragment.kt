@@ -3,6 +3,7 @@ package com.adapty.example
 import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.Fragment
+import com.adapty.Adapty
 import com.adapty.api.entity.paywalls.PaywallModel
 import com.adapty.example.adapter.PaywallAdapter
 import kotlinx.android.synthetic.main.fragment_list.*
@@ -19,6 +20,8 @@ class PaywallListFragment : Fragment(R.layout.fragment_list) {
 
     private val paywallAdapter: PaywallAdapter by lazy {
         PaywallAdapter(paywalls = paywallList, onPaywallClick = { paywall ->
+            Adapty.logShowPaywall(paywall)
+
             paywall.products?.let { products ->
                 (activity as? MainActivity)?.addFragment(
                     ProductListFragment.newInstance(products),
