@@ -29,10 +29,10 @@ class ProductModel {
 
     var subscriptionPeriod: ProductSubscriptionPeriodModel? = null
 
-    @SerializedName("introductoryOfferEligibility")
+    @SerializedName("introductory_offer_eligibility")
     var introductoryOfferEligibility = true
 
-    @SerializedName("promotionalOfferEligibility")
+    @SerializedName("promotional_offer_eligibility")
     var promotionalOfferEligibility = true
 
     var introductoryDiscount: ProductDiscountModel? = null
