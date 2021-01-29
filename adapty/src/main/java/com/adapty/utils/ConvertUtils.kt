@@ -1,5 +1,7 @@
 package com.adapty.utils
 
+import com.adapty.api.AttributionType
+import com.adapty.api.entity.attribution.AttributeUpdateAttributionReq
 import com.adapty.api.entity.paywalls.DataContainer
 import com.adapty.api.entity.paywalls.PaywallMapper
 import com.adapty.api.entity.purchaserInfo.AttributePurchaserInfoRes
@@ -7,6 +9,7 @@ import com.adapty.api.entity.purchaserInfo.model.AccessLevelInfoModel
 import com.adapty.api.entity.purchaserInfo.model.NonSubscriptionInfoModel
 import com.adapty.api.entity.purchaserInfo.model.PurchaserInfoModel
 import com.adapty.api.entity.purchaserInfo.model.SubscriptionInfoModel
+import org.json.JSONObject
 import java.math.BigDecimal
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
@@ -114,9 +117,9 @@ fun getPeriodNumberOfUnits(period: String) =
 
 internal fun ArrayList<DataContainer>.toPaywalls() = mapNotNull { it.attributes }.map(PaywallMapper::map)
 
-internal const val ADJUST_ATTRIBUTION_CLASS = "com.adjust.sdk.AdjustAttribution"
+private const val ADJUST_ATTRIBUTION_CLASS = "com.adjust.sdk.AdjustAttribution"
 
-internal val adjustAttributionClass: Class<*>? by lazy {
+private val adjustAttributionClass: Class<*>? by lazy {
     try {
         Class.forName(ADJUST_ATTRIBUTION_CLASS)
     } catch (e: ClassNotFoundException) {
@@ -124,7 +127,7 @@ internal val adjustAttributionClass: Class<*>? by lazy {
     }
 }
 
-internal fun convertAdjustAttributionToMap(adjustAttribution: Any) = hashMapOf(
+private fun convertAdjustAttributionToMap(adjustAttribution: Any) = hashMapOf(
     "adgroup" to getAdjustProperty(adjustAttribution, "adgroup"),
     "adid" to getAdjustProperty(adjustAttribution, "adid"),
     "campaign" to getAdjustProperty(adjustAttribution, "campaign"),
@@ -141,4 +144,29 @@ private fun getAdjustProperty(adjustAttribution: Any, propName: String): Any {
     } catch (e: Exception) {
         ""
     }
+}
+
+internal fun createAttributionData(
+    attribution: Any,
+    source: AttributionType,
+    networkUserId: String?
+) = AttributeUpdateAttributionReq().apply {
+    this.source = source.toString()
+    this.attribution = when {
+        attribution is JSONObject -> {
+            val jo = HashMap<String, Any>()
+            for (a in attribution.keys()) {
+                jo[a] = attribution.get(a)
+            }
+            jo
+        }
+        adjustAttributionClass?.isAssignableFrom(attribution::class.java) == true -> {
+            convertAdjustAttributionToMap(attribution)
+        }
+        else -> {
+            attribution
+        }
+    }
+
+    this.networkUserId = networkUserId
 }

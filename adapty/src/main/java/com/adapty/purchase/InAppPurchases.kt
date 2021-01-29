@@ -186,6 +186,9 @@ class InAppPurchases(
     private val historyPurchases = ArrayList<RestoreItem>()
 
     fun queryPurchaseHistory(type: String) {
+        if (type == INAPP)
+            consumeInapps()
+
         billingClient.queryPurchaseHistoryAsync(type) { billingResult, purchasesList ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 if (purchasesList.isNullOrEmpty()) {
@@ -226,6 +229,33 @@ class InAppPurchases(
                 }
             } else
                 fail(AdaptyError(message = "Unavailable - error code ${billingResult.responseCode} : ${billingResult.debugMessage}", adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)))
+        }
+    }
+
+    private fun consumeInapps() {
+        billingClient.queryPurchases(INAPP).purchasesList?.let { purchases ->
+            val products = preferenceManager.products
+
+            for (purchase in purchases) {
+                if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED)
+                    continue
+
+                products.firstOrNull { it.vendorProductId == purchase.sku }?.let { product ->
+                    billingClient.consumeAsync(
+                        ConsumeParams.newBuilder()
+                            .setPurchaseToken(purchase.purchaseToken)
+                            .build()
+                    ) { _, purchaseToken ->
+                        apiClientRepository.validatePurchase(
+                            INAPP,
+                            purchase.sku,
+                            purchaseToken,
+                            purchase.orderId,
+                            product
+                        )
+                    }
+                }
+            }
         }
     }
 

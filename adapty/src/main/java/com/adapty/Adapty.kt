@@ -6,6 +6,10 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleObserver
+import androidx.lifecycle.OnLifecycleEvent
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.adapty.api.*
 import com.adapty.api.entity.paywalls.*
 import com.adapty.api.entity.profile.update.ProfileParameterBuilder
@@ -30,6 +34,8 @@ class Adapty {
         private var onPromoReceivedListener: OnPromoReceivedListener? = null
         private var requestQueue: ArrayList<() -> Unit> = arrayListOf()
         private var isActivated = false
+        private var activateRequested = false
+        private var readyToActivate = false
         private val kinesisManager by lazy {
             KinesisManager(preferenceManager)
         }
@@ -39,6 +45,19 @@ class Adapty {
         private val gson = Gson()
         private val apiClientRepository by lazy {
             ApiClientRepository(preferenceManager, gson)
+        }
+
+        init {
+            ProcessLifecycleOwner.get().lifecycle.addObserver(object: LifecycleObserver {
+                @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
+                fun onCreate() {
+                    readyToActivate = true
+                    if (activateRequested && requestQueue.isNotEmpty()) {
+                        requestQueue[0].invoke()
+                    }
+                    activateRequested = false
+                }
+            })
         }
 
         @JvmStatic
@@ -78,7 +97,8 @@ class Adapty {
             this.preferenceManager.appKey = appKey
             (this.context as Application).registerActivityLifecycleCallbacks(liveTracker)
 
-            addToQueue {
+            if (!readyToActivate) activateRequested = true
+            addToQueue(readyToActivate) {
                 activateInQueue(customerUserId, adaptyCallback)
             }
         }
@@ -123,10 +143,10 @@ class Adapty {
                 requestQueue.first().invoke()
         }
 
-        private fun addToQueue(action: () -> Unit) {
+        private fun addToQueue(isReady: Boolean = true, action: () -> Unit) {
             requestQueue.add(action)
 
-            if (requestQueue.size == 1)
+            if (isReady && requestQueue.size == 1)
                 requestQueue[0].invoke()
         }
 
@@ -138,10 +158,12 @@ class Adapty {
             getPromoOnStart()
 
             syncPurchasesBody(false) { _ ->
-                getPurchaserInfo(true) { info, error ->
+                getPurchaserInfoInternal(true) { info, error ->
                     adaptyCallback?.invoke(error)
                 }
             }
+
+            apiClientRepository.syncAttributions()
         }
 
         private fun checkChangesPurchaserInfo(res: AttributePurchaserInfoRes)
@@ -281,7 +303,7 @@ class Adapty {
             }
         }
 
-        private fun getPurchaserInfo(
+        private fun getPurchaserInfoInternal(
             needQueue: Boolean,
             adaptyCallback: ((purchaserInfo: PurchaserInfoModel?, error: AdaptyError?) -> Unit)?
         ) {
@@ -306,13 +328,18 @@ class Adapty {
 
         @JvmStatic
         fun getPurchaserInfo(
+            forceUpdate: Boolean = false,
             adaptyCallback: (purchaserInfo: PurchaserInfoModel?, error: AdaptyError?) -> Unit
         ) {
-            preferenceManager.purchaserInfo?.let {
-                adaptyCallback.invoke(it, null)
-                getPurchaserInfo(false, null)
-            } ?: kotlin.run {
-                addToQueue { getPurchaserInfo(true, adaptyCallback) }
+            if (forceUpdate) {
+                addToQueue { getPurchaserInfoInternal(true, adaptyCallback) }
+            } else {
+                preferenceManager.purchaserInfo?.let {
+                    adaptyCallback.invoke(it, null)
+                    getPurchaserInfoInternal(false, null)
+                } ?: kotlin.run {
+                    addToQueue { getPurchaserInfoInternal(true, adaptyCallback) }
+                }
             }
         }
 
@@ -618,22 +645,23 @@ class Adapty {
             adaptyCallback: (error: AdaptyError?) -> Unit
         ) {
             LogHelper.logVerbose("updateAttribution()")
-            addToQueue {
-                apiClientRepository.updateAttribution(
-                    attribution,
-                    source,
-                    networkUserId,
-                    object : AdaptySystemCallback {
-                        override fun success(response: Any?, reqID: Int) {
-                            adaptyCallback.invoke(null)
-                            nextQueue()
-                        }
+            if (!::context.isInitialized) {
+                adaptyCallback.invoke(AdaptyError(message = "Adapty was not initialized", adaptyErrorCode = AdaptyErrorCode.ADAPTY_NOT_INITIALIZED))
+                return
+            }
 
-                        override fun fail(error: AdaptyError, reqID: Int) {
-                            adaptyCallback.invoke(error)
-                            nextQueue()
-                        }
-                    })
+            if (!::preferenceManager.isInitialized) {
+                preferenceManager = PreferenceManager(context)
+            }
+
+            val attributionData = createAttributionData(attribution, source, networkUserId)
+            preferenceManager.saveAttributionData(attributionData)
+
+            addToQueue {
+                apiClientRepository.updateAttribution(attributionData) { error ->
+                    adaptyCallback.invoke(error)
+                    nextQueue()
+                }
             }
         }
 

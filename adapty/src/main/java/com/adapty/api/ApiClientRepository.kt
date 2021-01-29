@@ -23,9 +23,7 @@ import com.adapty.utils.push.PushTokenRetriever
 import com.android.billingclient.api.BillingClient.SkuType.SUBS
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.gson.Gson
-import org.json.JSONObject
 import java.util.*
-import kotlin.collections.HashMap
 
 
 class ApiClientRepository(var preferenceManager: PreferenceManager, private val gson : Gson) {
@@ -235,40 +233,34 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
     }
 
     fun updateAttribution(
-        attribution: Any,
-        source: AttributionType,
-        networkUserId: String?,
-        adaptyCallback: AdaptyCallback? = null
+        attributionData: AttributeUpdateAttributionReq,
+        adaptyCallback: ((error: AdaptyError?) -> Unit)?
     ) {
         getOrCreateProfileUUID()
 
         val updateAttributionRequest = UpdateAttributionRequest().apply {
             data = DataUpdateAttributionReq().apply {
                 type = "adapty_analytics_profile_attribution"
-                attributes = AttributeUpdateAttributionReq().apply {
-                    this.source = source.toString()
-                    this.attribution = when {
-                        attribution is JSONObject -> {
-                            val jo = HashMap<String, Any>()
-                            for (a in attribution.keys()) {
-                                jo[a] = attribution.get(a)
-                            }
-                            jo
-                        }
-                        adjustAttributionClass?.isAssignableFrom(attribution::class.java) == true -> {
-                            convertAdjustAttributionToMap(attribution)
-                        }
-                        else -> {
-                            attribution
-                        }
-                    }
-
-                    this.networkUserId = networkUserId
-                }
+                attributes = attributionData
             }
         }
 
-        apiClient.updateAttribution(updateAttributionRequest, adaptyCallback)
+        apiClient.updateAttribution(updateAttributionRequest, object : AdaptySystemCallback {
+            override fun success(response: Any?, reqID: Int) {
+                adaptyCallback?.invoke(null)
+                preferenceManager.deleteAttributionData(attributionData.source)
+            }
+
+            override fun fail(error: AdaptyError, reqID: Int) {
+                adaptyCallback?.invoke(error)
+            }
+        })
+    }
+
+    fun syncAttributions() {
+        preferenceManager.getAttributionData().values.forEach { attributionData ->
+            updateAttribution(attributionData, null)
+        }
     }
 
     private fun getOrCreateProfileUUID(): String {

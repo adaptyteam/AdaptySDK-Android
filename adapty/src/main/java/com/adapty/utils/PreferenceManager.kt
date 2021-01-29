@@ -3,6 +3,7 @@ package com.adapty.utils
 import android.content.Context
 import android.text.TextUtils
 import com.adapty.api.aws.AwsRecordModel
+import com.adapty.api.entity.attribution.AttributeUpdateAttributionReq
 import com.adapty.api.entity.paywalls.DataContainer
 import com.adapty.api.entity.paywalls.ProductModel
 import com.adapty.api.entity.purchaserInfo.model.PurchaserInfoModel
@@ -153,6 +154,33 @@ class PreferenceManager(context: Context) {
             editor.commit()
         }
 
+    fun saveAttributionData(attributionData: AttributeUpdateAttributionReq) {
+        attributionData.source?.let { key ->
+            getAttributionData().let {
+                it[key] = attributionData
+                editor.putString(ATTRIBUTION_DATA, gson.toJson(it)).commit()
+            }
+        }
+    }
+
+    fun deleteAttributionData(key: String?) {
+        key?.let {
+            getAttributionData().let {
+                it.remove(key)
+                editor.putString(ATTRIBUTION_DATA, gson.toJson(it)).commit()
+            }
+        }
+    }
+
+    fun getAttributionData(): HashMap<String, AttributeUpdateAttributionReq> =
+        pref.getString(ATTRIBUTION_DATA, null)?.takeIf(::isNotEmpty)?.let {
+            try {
+                gson.fromJson<HashMap<String, AttributeUpdateAttributionReq>>(it, object : TypeToken<HashMap<String, AttributeUpdateAttributionReq>>() {}.type)
+            } catch (e: Exception) {
+                hashMapOf<String, AttributeUpdateAttributionReq>()
+            }
+        } ?: hashMapOf()
+
     fun clearOnLogout() {
         editor
             .putString(CUSTOMER_USER_ID, "")
@@ -184,6 +212,7 @@ class PreferenceManager(context: Context) {
         private const val PRODUCTS = "PRODUCTS"
         private const val SYNCED_PURCHASES = "SYNCED_PURCHASES"
         private const val KINESIS_RECORDS = "KINESIS_RECORDS"
+        private const val ATTRIBUTION_DATA = "ATTRIBUTION_DATA"
         private const val APP_KEY = "APP_KEY"
     }
 

@@ -34,4 +34,5 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.8.6'
     implementation 'com.android.billingclient:billing:3.0.2'
     implementation 'com.google.android.gms:play-services-ads-identifier:17.0.0'
+    implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
 }
