@@ -257,6 +257,39 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
         })
     }
 
+    fun setExternalAnalyticsEnabled(enabled: Boolean, adaptyCallback: (error: AdaptyError?) -> Unit) {
+        getOrCreateProfileUUID()
+
+        apiClient.setExternalAnalyticsEnabled(
+            ExternalAnalyticsEnabledRequest.create(enabled),
+            object : AdaptySystemCallback {
+                override fun success(response: Any?, reqID: Int) {
+                    adaptyCallback.invoke(null)
+                }
+
+                override fun fail(error: AdaptyError, reqID: Int) {
+                    adaptyCallback.invoke(error)
+                }
+            }
+        )
+    }
+
+    fun setTransactionVariationId(transactionId: String, variationId: String, adaptyCallback: (error: AdaptyError?) -> Unit) {
+
+        apiClient.setTransactionVariationId(
+            TransactionVariationIdRequest.create(transactionId, variationId, getOrCreateProfileUUID()),
+            object : AdaptySystemCallback {
+                override fun success(response: Any?, reqID: Int) {
+                    adaptyCallback.invoke(null)
+                }
+
+                override fun fail(error: AdaptyError, reqID: Int) {
+                    adaptyCallback.invoke(error)
+                }
+            }
+        )
+    }
+
     fun syncAttributions() {
         preferenceManager.getAttributionData().values.forEach { attributionData ->
             updateAttribution(attributionData, null)

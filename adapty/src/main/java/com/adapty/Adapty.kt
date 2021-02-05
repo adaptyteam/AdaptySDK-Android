@@ -666,6 +666,38 @@ class Adapty {
         }
 
         @JvmStatic
+        fun setExternalAnalyticsEnabled(enabled: Boolean, adaptyCallback: (error: AdaptyError?) -> Unit) {
+            LogHelper.logVerbose("setExternalAnalyticsEnabled()")
+            if (!::context.isInitialized) {
+                LogHelper.logError("Adapty was not initialized")
+                return
+            }
+
+            addToQueue {
+                apiClientRepository.setExternalAnalyticsEnabled(enabled) { error ->
+                    adaptyCallback.invoke(error)
+                    nextQueue()
+                }
+            }
+        }
+
+        @JvmStatic
+        fun setTransactionVariationId(transactionId: String, variationId: String, adaptyCallback: (error: AdaptyError?) -> Unit) {
+            LogHelper.logVerbose("setTransactionVariationId()")
+            if (!::context.isInitialized) {
+                adaptyCallback.invoke(AdaptyError(message = "Adapty was not initialized", adaptyErrorCode = AdaptyErrorCode.ADAPTY_NOT_INITIALIZED))
+                return
+            }
+
+            addToQueue {
+                apiClientRepository.setTransactionVariationId(transactionId, variationId) { error ->
+                    adaptyCallback.invoke(error)
+                    nextQueue()
+                }
+            }
+        }
+
+        @JvmStatic
         fun logout(adaptyCallback: (error: AdaptyError?) -> Unit) {
             addToQueue { logoutInQueue(adaptyCallback) }
         }

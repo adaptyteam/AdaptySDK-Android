@@ -34,6 +34,8 @@ class ApiClient(private var context: Context, private val gson : Gson) {
         const val GET_CONTAINERS_REQ_ID = 6
         const val UPDATE_ATTRIBUTION_REQ_ID = 7
         const val GET_PROMO_REQ_ID = 8
+        const val EXTERNAL_ANALYTICS_ENABLED_REQ_ID = 9
+        const val TRANSACTION_VARIATION_REQ_ID = 10
         const val POST = "POST"
         const val PATCH = "PATCH"
         const val GET = "GET"
@@ -135,6 +137,32 @@ class ApiClient(private var context: Context, private val gson : Gson) {
             request,
             Any(),
             UPDATE_ATTRIBUTION_REQ_ID,
+            adaptyCallback
+        )
+    }
+
+    fun setExternalAnalyticsEnabled(
+        request: ExternalAnalyticsEnabledRequest,
+        adaptyCallback: AdaptyCallback?
+    ) {
+        post(
+            generateUrl(EXTERNAL_ANALYTICS_ENABLED_REQ_ID),
+            request,
+            Any(),
+            EXTERNAL_ANALYTICS_ENABLED_REQ_ID,
+            adaptyCallback
+        )
+    }
+
+    fun setTransactionVariationId(
+        request: TransactionVariationIdRequest,
+        adaptyCallback: AdaptyCallback?
+    ) {
+        post(
+            generateUrl(TRANSACTION_VARIATION_REQ_ID),
+            request,
+            Any(),
+            TRANSACTION_VARIATION_REQ_ID,
             adaptyCallback
         )
     }
@@ -416,6 +444,10 @@ class ApiClient(private var context: Context, private val gson : Gson) {
                 "${serverUrl}sdk/analytics/profiles/${preferenceManager.profileID}/attribution/"
             GET_PROMO_REQ_ID ->
                 "${serverUrl}sdk/analytics/profiles/${preferenceManager.profileID}/promo/"
+            EXTERNAL_ANALYTICS_ENABLED_REQ_ID ->
+                "${serverUrl}sdk/analytics/profiles/${preferenceManager.profileID}/analytics-enabled/"
+            TRANSACTION_VARIATION_REQ_ID ->
+                "${serverUrl}sdk/in-apps/transaction-variation-id/"
             else -> serverUrl
         }
     }
