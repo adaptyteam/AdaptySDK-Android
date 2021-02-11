@@ -17,6 +17,10 @@ class ProductModel {
     @SerializedName("localizedDescription")
     var localizedDescription: String? = null
 
+    var paywallName: String? = null
+
+    var paywallABTestName: String? = null
+
     var variationId: String? = null
 
     var price: BigDecimal? = null

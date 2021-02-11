@@ -5,6 +5,8 @@ import kotlin.collections.ArrayList
 
 class PaywallModel(
     val developerId: String?,
+    val name: String?,
+    val abTestName: String?,
     val revision: Int?,
     val isPromo: Boolean?,
     val variationId: String?,
@@ -17,6 +19,10 @@ class PaywallModel(
 internal class PaywallDto(
     @SerializedName("developer_id")
     var developerId: String? = null,
+    @SerializedName("paywall_name")
+    var name: String? = null,
+    @SerializedName("ab_test_name")
+    var abTestName: String? = null,
     @SerializedName("revision")
     var revision: Int? = null,
     @SerializedName("is_promo")

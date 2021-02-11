@@ -31,9 +31,6 @@
             </intent-filter>
         </activity>
 
-        <meta-data
-            android:name="AdaptyAutomaticPaywallsScreenReportingEnabled"
-            android:value="false"/>
     </application>
 
 </manifest>

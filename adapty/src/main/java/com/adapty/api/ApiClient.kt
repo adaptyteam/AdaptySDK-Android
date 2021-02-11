@@ -1,7 +1,6 @@
 package com.adapty.api
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.util.Log
@@ -439,7 +438,7 @@ class ApiClient(private var context: Context, private val gson : Gson) {
             RESTORE_PURCHASE_REQ_ID ->
                 "${serverUrl}sdk/in-apps/google/token/restore/"
             GET_CONTAINERS_REQ_ID ->
-                "${serverUrl}sdk/in-apps/purchase-containers/?profile_id=${preferenceManager.profileID}${queryParamAboutTrackingPaywalls()}"
+                "${serverUrl}sdk/in-apps/purchase-containers/?profile_id=${preferenceManager.profileID}&automatic_paywalls_screen_reporting_enabled=false"
             UPDATE_ATTRIBUTION_REQ_ID ->
                 "${serverUrl}sdk/analytics/profiles/${preferenceManager.profileID}/attribution/"
             GET_PROMO_REQ_ID ->
@@ -451,13 +450,4 @@ class ApiClient(private var context: Context, private val gson : Gson) {
             else -> serverUrl
         }
     }
-
-    private fun queryParamAboutTrackingPaywalls() =
-        context.packageManager
-            .getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
-            .metaData
-            ?.getBoolean("AdaptyAutomaticPaywallsScreenReportingEnabled", true)
-            ?.takeIf(Boolean::not)
-            ?.let { "&automatic_paywalls_screen_reporting_enabled=$it" }
-            ?: ""
 }

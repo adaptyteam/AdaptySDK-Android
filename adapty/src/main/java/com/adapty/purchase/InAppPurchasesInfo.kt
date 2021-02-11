@@ -120,7 +120,6 @@ class InAppPurchasesInfo(
                 data.attributes?.products?.forEach { p ->
                     if (sku == p.vendorProductId) {
                         p.setDetails(skuDetails)
-                        p.variationId = data.attributes?.variationId
                     }
                 }
             } else if (data is ArrayList<*>) {

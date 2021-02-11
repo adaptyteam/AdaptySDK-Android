@@ -13,21 +13,19 @@ internal object PaywallMapper {
         object: TypeToken<HashMap<String, Any>>() { }.type
     }
 
-    fun map(paywallModel: PaywallModel) = PaywallDto(
-        developerId = paywallModel.developerId,
-        revision = paywallModel.revision,
-        isPromo = paywallModel.isPromo,
-        variationId = paywallModel.variationId,
-        products = paywallModel.products,
-        customPayload = paywallModel.customPayloadString
-    )
-
     fun map(paywallDto: PaywallDto) = PaywallModel(
         developerId = paywallDto.developerId,
+        name = paywallDto.name,
+        abTestName = paywallDto.abTestName,
         revision = paywallDto.revision,
         isPromo = paywallDto.isPromo,
         variationId = paywallDto.variationId,
-        products = paywallDto.products,
+        products = paywallDto.products
+            ?.onEach { product ->
+                product.variationId = paywallDto.variationId
+                product.paywallName = paywallDto.name
+                product.paywallABTestName = paywallDto.abTestName
+            },
         customPayloadString = paywallDto.customPayload
     ).apply {
         customPayload = try {
