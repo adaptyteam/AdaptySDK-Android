@@ -41,6 +41,8 @@ class ProductModel {
 
     var introductoryDiscount: ProductDiscountModel? = null
 
+    var freeTrialPeriod: ProductSubscriptionPeriodModel? = null
+
     var skuDetails: SkuDetails? = null
 
     class ProductSubscriptionPeriodModel private constructor(){
@@ -91,6 +93,7 @@ class ProductModel {
                 localizedPrice = it.introductoryPrice,
                 subscriptionPeriod = ProductSubscriptionPeriodModel(it.introductoryPricePeriod)
             )
+            this.freeTrialPeriod = ProductSubscriptionPeriodModel(it.freeTrialPeriod)
         }
     }
 

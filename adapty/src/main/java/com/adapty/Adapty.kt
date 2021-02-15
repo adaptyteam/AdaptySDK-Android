@@ -151,19 +151,16 @@ class Adapty {
         }
 
         private fun makeStartRequests(adaptyCallback: ((error: AdaptyError?) -> Unit)?) {
-            sendSyncMetaInstallRequest()
-
-            getStartedPaywalls()
-
-            getPromoOnStart()
-
-            syncPurchasesBody(false) { _ ->
-                getPurchaserInfoInternal(true) { info, error ->
-                    adaptyCallback?.invoke(error)
+            sendSyncMetaInstallRequest {
+                getStartedPaywalls()
+                getPromoOnStart()
+                syncPurchasesBody(false) { _ ->
+                    getPurchaserInfoInternal(true) { info, error ->
+                        adaptyCallback?.invoke(error)
+                    }
                 }
+                apiClientRepository.syncAttributions()
             }
-
-            apiClientRepository.syncAttributions()
         }
 
         private fun checkChangesPurchaserInfo(res: AttributePurchaserInfoRes)
@@ -179,7 +176,7 @@ class Adapty {
         private fun isPurchaserInfoChanged(info: PurchaserInfoModel)
                 = preferenceManager.purchaserInfo != info
 
-        private fun sendSyncMetaInstallRequest() {
+        private fun sendSyncMetaInstallRequest(callback: ((error: AdaptyError?) -> Unit)? = null) {
             LogHelper.logVerbose("sendSyncMetaInstallRequest()")
             apiClientRepository.syncMetaInstall(object : AdaptySystemCallback {
                 override fun success(response: Any?, reqID: Int) {
@@ -202,10 +199,12 @@ class Adapty {
                         }
 
                         liveTracker.start()
+                        callback?.invoke(null)
                     }
                 }
 
                 override fun fail(error: AdaptyError, reqID: Int) {
+                    callback?.invoke(error)
                 }
 
             })
