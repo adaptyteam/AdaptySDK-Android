@@ -11,8 +11,8 @@ android {
         applicationId "com.adapty.example"
         minSdkVersion 16
         targetSdkVersion 29
-        versionCode 85
-        versionName "0.8.5"
+        versionCode 86
+        versionName "0.8.6"
         multiDexEnabled true
     }
     buildTypes {
