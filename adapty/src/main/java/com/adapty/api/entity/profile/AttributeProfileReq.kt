@@ -15,6 +15,9 @@ open class AttributeProfileReq {
     @SerializedName("facebook_user_id")
     var facebookUserId: String? = null
 
+    @SerializedName("facebook_anonymous_id")
+    var facebookAnonymousId: String? = null
+
     @SerializedName("first_name")
     var firstName: String? = null
 

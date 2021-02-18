@@ -290,9 +290,15 @@ class ApiClient(private var context: Context, private val gson : Gson) {
                     rString
                 success(responseObj, reqID, adaptyCallback)
             } catch (e: Exception) {
-                e.printStackTrace()
-                responseObj = rString
-                success(responseObj, reqID, adaptyCallback)
+                fail(
+                    AdaptyError(
+                        originalError = e,
+                        message = "Request Exception. $reqID ${e.message} ${e.localizedMessage} Message: $rString",
+                        adaptyErrorCode = AdaptyErrorCode.UNKNOWN
+                    ),
+                    reqID,
+                    adaptyCallback
+                )
             }
         }).start()
     }

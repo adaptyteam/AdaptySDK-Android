@@ -28,6 +28,11 @@ class KinesisManager(private val preferenceManager: PreferenceManager) {
     private val gson = Gson()
 
     fun trackEvent(eventName: String, subMap: Map<String, String>? = null) {
+        if (!preferenceManager.getExternalAnalyticsEnabled()) {
+            LogHelper.logVerbose("We can't handle analytics events, since you've opted it out.")
+            return
+        }
+
         val iamAccessKeyId = preferenceManager.iamAccessKeyId
         val iamSecretKey = preferenceManager.iamSecretKey
         val iamSessionToken = preferenceManager.iamSessionToken

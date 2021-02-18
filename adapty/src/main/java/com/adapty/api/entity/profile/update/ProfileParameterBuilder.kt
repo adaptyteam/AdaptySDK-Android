@@ -5,6 +5,7 @@ class ProfileParameterBuilder {
     internal var email: String? = null
     internal var phoneNumber: String? = null
     internal var facebookUserId: String? = null
+    internal var facebookAnonymousId: String? = null
     internal var mixpanelUserId: String? = null
     internal var amplitudeUserId: String? = null
     internal var amplitudeDeviceId: String? = null
@@ -28,6 +29,11 @@ class ProfileParameterBuilder {
 
     fun withFacebookUserId(facebookUserId: String): ProfileParameterBuilder {
         this.facebookUserId = facebookUserId
+        return this
+    }
+
+    fun withFacebookAnonymousId(facebookAnonymousId: String): ProfileParameterBuilder {
+        this.facebookAnonymousId = facebookAnonymousId
         return this
     }
 

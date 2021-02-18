@@ -15,9 +15,13 @@ internal class BigDecimalTypeAdapter : JsonDeserializer<BigDecimal> {
         return try {
             jsonElement.asBigDecimal
         } catch (e: NumberFormatException) {
-            JsonPrimitive(
-                jsonElement.asString.replace(",", ".").replace("[^0-9.]".toRegex(), "")
-            ).asBigDecimal
+            try {
+                JsonPrimitive(
+                    jsonElement.asString.replace(",", ".").replace("[^0-9.]".toRegex(), "")
+                ).asBigDecimal
+            } catch (e: NumberFormatException) {
+                BigDecimal.ZERO
+            }
         }
     }
 }

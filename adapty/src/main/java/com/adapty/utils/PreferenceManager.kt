@@ -181,6 +181,14 @@ class PreferenceManager(context: Context) {
             }
         } ?: hashMapOf()
 
+    fun getExternalAnalyticsEnabled(): Boolean = pref.getBoolean(EXTERNAL_ANALYTICS_ENABLED, true)
+
+    fun setExternalAnalyticsEnabled(enabled: Boolean) {
+        editor
+            .putBoolean(EXTERNAL_ANALYTICS_ENABLED, enabled)
+            .commit()
+    }
+
     fun clearOnLogout() {
         editor
             .putString(CUSTOMER_USER_ID, "")
@@ -213,6 +221,7 @@ class PreferenceManager(context: Context) {
         private const val SYNCED_PURCHASES = "SYNCED_PURCHASES"
         private const val KINESIS_RECORDS = "KINESIS_RECORDS"
         private const val ATTRIBUTION_DATA = "ATTRIBUTION_DATA"
+        private const val EXTERNAL_ANALYTICS_ENABLED = "EXTERNAL_ANALYTICS_ENABLED"
         private const val APP_KEY = "APP_KEY"
     }
 

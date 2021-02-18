@@ -276,6 +276,7 @@ class Adapty {
                     params.email,
                     params.phoneNumber,
                     params.facebookUserId,
+                    params.facebookAnonymousId,
                     params.mixpanelUserId,
                     params.amplitudeUserId,
                     params.amplitudeDeviceId,

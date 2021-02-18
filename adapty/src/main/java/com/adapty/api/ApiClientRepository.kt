@@ -59,6 +59,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
         email: String?,
         phoneNumber: String?,
         facebookUserId: String?,
+        facebookAnonymousId: String?,
         mixpanelUserId: String?,
         amplitudeUserId: String?,
         amplitudeDeviceId: String?,
@@ -82,6 +83,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
                     this.email = email
                     this.phoneNumber = phoneNumber
                     this.facebookUserId = facebookUserId
+                    this.facebookAnonymousId = facebookAnonymousId
                     this.mixpanelUserId = mixpanelUserId
                     this.amplitudeUserId = amplitudeUserId
                     this.amplitudeDeviceId = amplitudeDeviceId
@@ -258,6 +260,7 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
     }
 
     fun setExternalAnalyticsEnabled(enabled: Boolean, adaptyCallback: (error: AdaptyError?) -> Unit) {
+        preferenceManager.setExternalAnalyticsEnabled(enabled)
         getOrCreateProfileUUID()
 
         apiClient.setExternalAnalyticsEnabled(
