@@ -127,7 +127,6 @@ class Adapty {
 
                     override fun fail(error: AdaptyError, reqID: Int) {
                         adaptyCallback?.invoke(error)
-                        nextQueue()
                     }
                 })
             } else {
@@ -146,7 +145,7 @@ class Adapty {
         private fun addToQueue(isReady: Boolean = true, action: () -> Unit) {
             requestQueue.add(action)
 
-            if (isReady && requestQueue.size == 1)
+            if (isReady && requestQueue.size > 0)
                 requestQueue[0].invoke()
         }
 
@@ -378,6 +377,9 @@ class Adapty {
                 forceUpdate -> addToQueue { getPaywallsInQueue(true, adaptyCallback) }
                 !paywallsSyncedDuringThisSession -> {
                     paywallsSyncCallbackOnStart = adaptyCallback
+                    if (readyToActivate && requestQueue.size > 0) {
+                        requestQueue[0].invoke()
+                    }
                 }
                 else -> preferenceManager.containers?.toPaywalls()?.let {
                     adaptyCallback.invoke(it, preferenceManager.products, null)
