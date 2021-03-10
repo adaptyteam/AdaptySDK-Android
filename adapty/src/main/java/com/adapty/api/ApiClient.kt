@@ -12,6 +12,7 @@ import com.google.gson.Gson
 import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.zip.GZIPInputStream
 
 const val AUTHORIZATION_KEY = "Authorization"
 const val API_KEY_PREFIX = "Api-Key "
@@ -201,6 +202,7 @@ class ApiClient(private var context: Context, private val gson : Gson) {
                 conn.requestMethod = type
 
                 conn.setRequestProperty("Content-type", "application/vnd.api+json")
+                conn.setRequestProperty("Accept-Encoding", "gzip")
 
                 conn.setRequestProperty("ADAPTY-SDK-PROFILE-ID", preferenceManager.profileID)
                 conn.setRequestProperty("ADAPTY-SDK-PLATFORM", "Android")
@@ -251,10 +253,10 @@ class ApiClient(private var context: Context, private val gson : Gson) {
 
                     val inputStream = conn.inputStream
 
-                    rString = toStringUtf8(inputStream)
+                    rString = toStringUtf8(inputStream, isInGzip(conn))
 
                 } else {
-                    rString = toStringUtf8(conn.errorStream)
+                    rString = toStringUtf8(conn.errorStream, isInGzip(conn))
                     fail(
                         AdaptyError(
                             message = "Request is unsuccessful. $reqID Url: $myUrl Response Code: $responseCode, Message: $rString",
@@ -422,8 +424,13 @@ class ApiClient(private var context: Context, private val gson : Gson) {
         }
     }
 
-    private fun toStringUtf8(inputStream: InputStream): String {
-        val r = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
+    private fun toStringUtf8(inputStream: InputStream, isInGzip: Boolean): String {
+        val r = BufferedReader(
+            InputStreamReader(
+                if (isInGzip) GZIPInputStream(inputStream) else inputStream,
+                Charsets.UTF_8
+            )
+        )
         val total = StringBuilder()
         var line: String? = r.readLine()
         while (line != null) {
@@ -456,4 +463,7 @@ class ApiClient(private var context: Context, private val gson : Gson) {
             else -> serverUrl
         }
     }
+
+    private fun isInGzip(conn: HttpURLConnection) =
+        conn.getHeaderField("Content-Encoding")?.contains("gzip", true) ?: false
 }
