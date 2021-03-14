@@ -36,6 +36,7 @@ class Adapty {
         private var isActivated = false
         private var activateRequested = false
         private var readyToActivate = false
+        private var isRunning = false
         private val kinesisManager by lazy {
             KinesisManager(preferenceManager)
         }
@@ -53,6 +54,7 @@ class Adapty {
                 fun onCreate() {
                     readyToActivate = true
                     if (activateRequested && requestQueue.isNotEmpty()) {
+                        isRunning = true
                         requestQueue[0].invoke()
                     }
                     activateRequested = false
@@ -126,6 +128,7 @@ class Adapty {
                     }
 
                     override fun fail(error: AdaptyError, reqID: Int) {
+                        isRunning = false
                         adaptyCallback?.invoke(error)
                     }
                 })
@@ -138,16 +141,25 @@ class Adapty {
             if (requestQueue.isNotEmpty())
                 requestQueue.removeAt(0)
 
-            if (requestQueue.isNotEmpty())
+            if (requestQueue.isNotEmpty()) {
+                isRunning = true
                 requestQueue.first().invoke()
+            } else {
+                isRunning = false
+            }
         }
 
         private fun addToQueue(isReady: Boolean = true, action: () -> Unit) {
             requestQueue.add(action)
 
-            if (isReady && requestQueue.size > 0)
+            if (isReady && shouldRunImmediately()) {
+                isRunning = true
                 requestQueue[0].invoke()
+            }
         }
+
+        private fun shouldRunImmediately() =
+            if (isRunning) requestQueue.size == 1 else requestQueue.isNotEmpty()
 
         private fun makeStartRequests(adaptyCallback: ((error: AdaptyError?) -> Unit)?) {
             sendSyncMetaInstallRequest {
@@ -377,7 +389,8 @@ class Adapty {
                 forceUpdate -> addToQueue { getPaywallsInQueue(true, adaptyCallback) }
                 !paywallsSyncedDuringThisSession -> {
                     paywallsSyncCallbackOnStart = adaptyCallback
-                    if (readyToActivate && requestQueue.size > 0) {
+                    if (readyToActivate && shouldRunImmediately()) {
+                        isRunning = true
                         requestQueue[0].invoke()
                     }
                 }
