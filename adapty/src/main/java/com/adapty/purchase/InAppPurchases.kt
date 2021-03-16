@@ -23,7 +23,7 @@ class InAppPurchases(
     var product: ProductModel,
     var variationId: String?,
     var apiClientRepository: ApiClientRepository,
-    var adaptyCallback: AdaptyCallback
+    var adaptyCallback: AdaptyCallback?
 ) {
 
     private lateinit var billingClient: BillingClient
@@ -336,24 +336,26 @@ class InAppPurchases(
 
     private fun success(purchase: Purchase?, response: Any?, error: AdaptyError?) {
         if (isRestore) {
-            (adaptyCallback as AdaptyRestoreCallback).onResult(
+            (adaptyCallback as? AdaptyRestoreCallback)?.onResult(
                 if (response is RestoreReceiptResponse) response else null, error
             )
         } else {
-            (adaptyCallback as AdaptyPurchaseCallback).onResult(
+            (adaptyCallback as? AdaptyPurchaseCallback)?.onResult(
                 purchase,
                 if (response is ValidateReceiptResponse) response else null,
                 error
             )
         }
+        adaptyCallback = null
     }
 
     private fun fail(error: AdaptyError) {
         LogHelper.logError(error.message)
         if (isRestore) {
-            (adaptyCallback as AdaptyRestoreCallback).onResult(null, error)
+            (adaptyCallback as? AdaptyRestoreCallback)?.onResult(null, error)
         } else {
-            (adaptyCallback as AdaptyPurchaseCallback).onResult(null, null, error)
+            (adaptyCallback as? AdaptyPurchaseCallback)?.onResult(null, null, error)
         }
+        adaptyCallback = null
     }
 }
