@@ -1,6 +1,6 @@
 # Adapty Android SDK
 
-[![](https://jitpack.io/v/adaptyteam/AdaptySDK-Android.svg)](https://jitpack.io/#adaptyteam/AdaptySDK-Android)
+[![](https://jitpack.io/v/adaptyteam/AdaptySDK-Android.svg)](http://bit.ly/3s0Bu3r)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://github.com/adaptyteam/AdaptySDK-Android/blob/master/LICENSE)
 
 ![Adapty: CRM for mobile apps with subscriptions](/adapty.png)
@@ -9,10 +9,10 @@ Adapty SDK is an open-source framework that makes implementing in-app subscripti
 
 After integrating Adapty SDK you can use:
 
-- [A/B testing](https://docs.adapty.io/purchase-infrastructure/ab-tests)
-- [Promo campaigns](https://docs.adapty.io/profiles-and-promo-campaigns/promo-campaigns)
-- [Subscribers CRM](https://docs.adapty.io/profiles-and-promo-campaigns/profiles)
-- [Subscription events](https://docs.adapty.io/analytics/integrations)
+- [A/B testing](https://doc.adapty.io/docs/ab-test?utm_source=github&utm_medium=content&utm_campaign=AdaptySDK-Android)
+- [Promo campaigns](https://doc.adapty.io/docs/promo-campaigns?utm_source=github&utm_medium=content&utm_campaign=AdaptySDK-Android)
+- [Subscribers CRM](https://doc.adapty.io/docs/profiles-crm?utm_source=github&utm_medium=content&utm_campaign=AdaptySDK-Android)
+- [Subscription events](https://doc.adapty.io/docs/events?utm_source=github&utm_medium=content&utm_campaign=AdaptySDK-Android)
 - Purchase infrastructure
 - and much more :fire:
 
@@ -22,7 +22,7 @@ After integrating Adapty SDK you can use:
 You can use Adapty SDK in Kotlin and Java applications.
 
 ## Installation
-Please refer to our [documentation](https://docs.adapty.io/sdk/integrating-adapty-sdk/android-sdk-intro/android-sdk-installation) to install and configure Adapty SDK. Set up purchases in hours instead of weeks :rocket:
+Please refer to our [documentation](https://doc.adapty.io/docs/android-sdk-installation?utm_source=github&utm_medium=content&utm_campaign=AdaptySDK-Android) to install and configure Adapty SDK. Set up purchases in hours instead of weeks :rocket:
 
 ## License
 
