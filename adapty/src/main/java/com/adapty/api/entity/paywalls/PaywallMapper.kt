@@ -1,14 +1,13 @@
 package com.adapty.api.entity.paywalls
 
+import com.adapty.utils.di.Dependencies.inject
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.lang.Exception
 
 internal object PaywallMapper {
 
-    private val gson by lazy {
-        Gson()
-    }
+    private val gson: Gson by inject()
     private val type by lazy {
         object: TypeToken<HashMap<String, Any>>() { }.type
     }

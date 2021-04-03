@@ -20,6 +20,8 @@ import com.adapty.api.responses.*
 import com.adapty.purchase.InAppPurchases
 import com.adapty.purchase.InAppPurchasesInfo
 import com.adapty.utils.*
+import com.adapty.utils.di.Dependencies
+import com.adapty.utils.di.Dependencies.inject
 import com.android.billingclient.api.Purchase
 import com.google.gson.Gson
 import java.lang.ref.WeakReference
@@ -29,7 +31,7 @@ class Adapty {
 
     companion object {
         lateinit var context: Context
-        private lateinit var preferenceManager: PreferenceManager
+        private val preferenceManager: PreferenceManager by inject()
         private var onPurchaserInfoUpdatedListener: OnPurchaserInfoUpdatedListener? = null
         private var onPromoReceivedListener: OnPromoReceivedListener? = null
         private var requestQueue: ArrayList<() -> Unit> = arrayListOf()
@@ -37,13 +39,11 @@ class Adapty {
         private var activateRequested = false
         private var readyToActivate = false
         private var isRunning = false
-        private val kinesisManager by lazy {
-            KinesisManager(preferenceManager)
-        }
+        private val kinesisManager: KinesisManager by inject()
         private val liveTracker by lazy {
             AdaptyLiveTracker(kinesisManager, apiClientRepository, ::checkChangesPurchaserInfo)
         }
-        private val gson = Gson()
+        private val gson: Gson by inject()
         private val apiClientRepository by lazy {
             ApiClientRepository(preferenceManager, gson)
         }
@@ -94,8 +94,7 @@ class Adapty {
 
             isActivated = true
 
-            this.context = context.applicationContext
-            this.preferenceManager = PreferenceManager(this.context)
+            this.context = context.applicationContext.also(Dependencies::init)
             this.preferenceManager.appKey = appKey
             (this.context as Application).registerActivityLifecycleCallbacks(liveTracker)
 
@@ -595,8 +594,6 @@ class Adapty {
             needQueue: Boolean,
             adaptyCallback: ((error: AdaptyError?) -> Unit)?
         ) {
-            if (!::preferenceManager.isInitialized)
-                preferenceManager = PreferenceManager(context)
 
             InAppPurchases(context,
                 null,
@@ -625,8 +622,6 @@ class Adapty {
             adaptyCallback: (purchaserInfo: PurchaserInfoModel?, googleValidationResultList: List<GoogleValidationResult>?, error: AdaptyError?) -> Unit
         ) {
             addToQueue {
-                if (!::preferenceManager.isInitialized)
-                    preferenceManager = PreferenceManager(context)
 
                 InAppPurchases(
                     context,
@@ -665,8 +660,8 @@ class Adapty {
                 return
             }
 
-            if (!::preferenceManager.isInitialized) {
-                preferenceManager = PreferenceManager(context)
+            if (BuildConfig.DEBUG && source == AttributionType.APPSFLYER) {
+                require(networkUserId != null) { "networkUserId is required for AppsFlyer attribution, otherwise we won't be able to send specific events." }
             }
 
             val attributionData = createAttributionData(attribution, source, networkUserId)
@@ -722,10 +717,6 @@ class Adapty {
                 adaptyCallback.invoke(AdaptyError(message = "Adapty was not initialized", adaptyErrorCode = AdaptyErrorCode.ADAPTY_NOT_INITIALIZED))
                 nextQueue()
                 return
-            }
-
-            if (!::preferenceManager.isInitialized) {
-                preferenceManager = PreferenceManager(context)
             }
 
             preferenceManager.clearOnLogout()

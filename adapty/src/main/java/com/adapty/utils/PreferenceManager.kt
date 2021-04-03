@@ -8,16 +8,14 @@ import com.adapty.api.entity.paywalls.DataContainer
 import com.adapty.api.entity.paywalls.ProductModel
 import com.adapty.api.entity.purchaserInfo.model.PurchaserInfoModel
 import com.adapty.api.entity.restore.RestoreItem
-import com.google.gson.GsonBuilder
+import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import java.math.BigDecimal
 
-class PreferenceManager(context: Context) {
+class PreferenceManager(context: Context, private val gson: Gson) {
 
     private val privateMode = 0
     private val pref = context.getSharedPreferences(PREF_NAME, privateMode)
     private val editor = pref.edit()
-    private val gson = GsonBuilder().registerTypeAdapter(BigDecimal::class.java, BigDecimalTypeAdapter()).create()
 
     var profileID: String
         get() {

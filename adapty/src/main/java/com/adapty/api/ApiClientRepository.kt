@@ -19,6 +19,7 @@ import com.adapty.api.entity.validate.DataRestoreReceiptReq
 import com.adapty.api.entity.validate.DataValidateReceiptReq
 import com.adapty.api.requests.*
 import com.adapty.utils.*
+import com.adapty.utils.di.Dependencies.inject
 import com.adapty.utils.push.PushTokenRetriever
 import com.android.billingclient.api.BillingClient.SkuType.SUBS
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
@@ -28,13 +29,11 @@ import java.util.*
 
 class ApiClientRepository(var preferenceManager: PreferenceManager, private val gson : Gson) {
 
-    private var apiClient = ApiClient(context, gson)
+    private val apiClient: ApiClient by inject()
 
     var pushToken: String? = null
 
-    private val tokenRetriever: PushTokenRetriever by lazy {
-        PushTokenRetriever()
-    }
+    private val tokenRetriever: PushTokenRetriever by inject()
 
     fun createProfile(customerUserId: String?, adaptyCallback: AdaptyCallback) {
 
@@ -153,26 +152,26 @@ class ApiClientRepository(var preferenceManager: PreferenceManager, private val 
             }
         }
 
+        if (!preferenceManager.getExternalAnalyticsEnabled()) {
+            apiClient.syncMeta(syncMetaRequest, adaptyCallback)
+            return
+        }
+
         val task: AsyncTask<Void?, Void?, String?> =
             @SuppressLint("StaticFieldLeak")
             object : AsyncTask<Void?, Void?, String?>() {
 
                 override fun doInBackground(vararg params: Void?): String? {
-                    var idInfo: AdvertisingIdClient.Info? = null
-                    var advertId: String? = null
-                    try {
-                        idInfo = AdvertisingIdClient.getAdvertisingIdInfo(context)
-                        advertId = idInfo!!.id
+                    return try {
+                        AdvertisingIdClient.getAdvertisingIdInfo(context)
+                            ?.takeIf { !it.isLimitAdTrackingEnabled }?.id
                     } catch (e: Exception) {
+                        null
                     }
-
-                    return advertId
                 }
 
-                override fun onPostExecute(advertId: String?) {
-                    if (advertId != null) {
-                        syncMetaRequest.data?.attributes?.advertisingId = advertId
-                    }
+                override fun onPostExecute(advertisingId: String?) {
+                    syncMetaRequest.data?.attributes?.advertisingId = advertisingId
                     apiClient.syncMeta(syncMetaRequest, adaptyCallback)
                 }
             }

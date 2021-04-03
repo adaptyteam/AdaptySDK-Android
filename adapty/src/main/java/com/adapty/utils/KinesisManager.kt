@@ -18,14 +18,13 @@ import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
 
-class KinesisManager(private val preferenceManager: PreferenceManager) {
+class KinesisManager(private val preferenceManager: PreferenceManager, private val gson: Gson) {
     private val url = "https://kinesis.us-east-1.amazonaws.com/"
     private val serviceType = "kinesis"
     private val region = "us-east-1"
     private val kinesisStream = "adapty-data-pipeline-prod"
     private val sessionId = generateUuid().toString()
     private val SIGNING_ALGORITHM = "AWS4-HMAC-SHA256"
-    private val gson = Gson()
 
     fun trackEvent(eventName: String, subMap: Map<String, String>? = null) {
         if (!preferenceManager.getExternalAnalyticsEnabled()) {

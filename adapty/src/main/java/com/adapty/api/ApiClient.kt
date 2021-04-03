@@ -19,10 +19,13 @@ const val API_KEY_PREFIX = "Api-Key "
 const val TAG = "[Adapty]"
 const val TIMEOUT = 30 * 1000
 
-class ApiClient(private var context: Context, private val gson : Gson) {
+class ApiClient(
+    private var context: Context,
+    private val gson: Gson,
+    private val preferenceManager: PreferenceManager
+) {
 
     private val serverUrl = "https://api.adapty.io/api/v1/"
-    private val preferenceManager = PreferenceManager(context)
 
     companion object {
         const val CREATE_PROFILE_REQ_ID = 0
