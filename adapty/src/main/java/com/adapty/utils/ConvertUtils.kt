@@ -113,7 +113,29 @@ fun formatPrice(priceAmountMicros: Long): String {
 fun getPeriodUnit(period: String) = period.takeIf(String::isNotEmpty)?.last()?.toString()
 
 fun getPeriodNumberOfUnits(period: String) =
-    period.replace("[^0-9]".toRegex(), "").takeIf(String::isNotEmpty)?.toInt()
+    when {
+        period.isEmpty() -> null
+        period.last() == 'D' -> {
+            Regex("\\d+[a-zA-Z]").findAll(period, 0)
+                .map { matchResult ->
+                    val segment = matchResult.groupValues.first()
+                    val periodNumber = segment.filter(Char::isDigit).toInt()
+                    val periodLetter = segment.filter(Char::isLetter)
+                    discountPeriodMultipliers[periodLetter]?.let { multiplier ->
+                        periodNumber * multiplier
+                    } ?: 0
+                }.fold(0) { numberOfUnits, next -> numberOfUnits + next }
+                .takeIf { it > 0 }
+        }
+        else -> period.replace("[^0-9]".toRegex(), "").takeIf(String::isNotEmpty)?.toInt()
+    }
+
+private val discountPeriodMultipliers = mapOf(
+    "Y" to 365,
+    "M" to 30,
+    "W" to 7,
+    "D" to 1
+)
 
 internal fun ArrayList<DataContainer>.toPaywalls() = mapNotNull { it.attributes }.map(PaywallMapper::map)
 
