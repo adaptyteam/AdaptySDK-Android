@@ -1,0 +1,2 @@
+-keep class com.adapty.** { *; }
+-keep class com.android.billingclient.** { *; }

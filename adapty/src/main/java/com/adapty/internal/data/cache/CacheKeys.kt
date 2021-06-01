@@ -1,0 +1,17 @@
+package com.adapty.internal.data.cache
+
+@JvmSynthetic internal const val PROFILE_ID = "PROFILE_ID"
+@JvmSynthetic internal const val CUSTOMER_USER_ID = "CUSTOMER_USER_ID"
+@JvmSynthetic internal const val INSTALLATION_META_ID = "INSTALLATION_META_ID"
+@JvmSynthetic internal const val IAM_ACCESS_KEY_ID = "IAM_ACCESS_KEY_ID"
+@JvmSynthetic internal const val IAM_SECRET_KEY = "IAM_SECRET_KEY"
+@JvmSynthetic internal const val IAM_SESSION_TOKEN = "IAM_SESSION_TOKEN"
+@JvmSynthetic internal const val PURCHASER_INFO = "PURCHASER_INFO"
+@JvmSynthetic internal const val CONTAINERS = "CONTAINERS"
+@JvmSynthetic internal const val PRODUCTS = "PRODUCTS"
+@JvmSynthetic internal const val SYNCED_PURCHASES = "SYNCED_PURCHASES"
+@JvmSynthetic internal const val KINESIS_RECORDS = "KINESIS_RECORDS"
+@JvmSynthetic internal const val ATTRIBUTION_DATA = "ATTRIBUTION_DATA"
+@JvmSynthetic internal const val EXTERNAL_ANALYTICS_ENABLED = "EXTERNAL_ANALYTICS_ENABLED"
+@JvmSynthetic internal const val APP_KEY = "APP_KEY"
+@JvmSynthetic internal const val PUSH_TOKEN = "PUSH_TOKEN"

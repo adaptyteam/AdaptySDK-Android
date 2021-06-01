@@ -14,6 +14,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Restore Purchases"
+            android:textAllCaps="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -23,24 +24,47 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Get Purchaser Info"
-            app:layout_constraintEnd_toEndOf="parent"
+            android:textAllCaps="false"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/restore_purchases" />
+            app:layout_constraintTop_toBottomOf="@id/restore_purchases"
+            app:layout_constraintWidth_percent="0.5" />
+
+        <Button
+            android:id="@+id/get_purchaser_info_force_update"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="(force update)"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/get_purchaser_info"
+            app:layout_constraintWidth_percent="0.5" />
 
         <Button
             android:id="@+id/get_paywalls"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Get Paywalls"
-            app:layout_constraintEnd_toEndOf="parent"
+            android:textAllCaps="false"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/get_purchaser_info" />
+            app:layout_constraintTop_toBottomOf="@id/get_purchaser_info"
+            app:layout_constraintWidth_percent="0.5" />
+
+        <Button
+            android:id="@+id/get_paywalls_force_update"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="(force update)"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/get_paywalls"
+            app:layout_constraintWidth_percent="0.5" />
 
         <Button
             android:id="@+id/get_promo"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Get Promo"
+            android:textAllCaps="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/get_paywalls" />
@@ -50,6 +74,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Update Profile"
+            android:textAllCaps="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/get_promo" />
@@ -59,6 +84,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Update Custom Attribution"
+            android:textAllCaps="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/update_profile" />
@@ -68,6 +94,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Identify"
+            android:textAllCaps="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@id/update_custom_attribution" />
 
@@ -87,6 +114,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Log out"
+            android:textAllCaps="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/customer_user_id" />

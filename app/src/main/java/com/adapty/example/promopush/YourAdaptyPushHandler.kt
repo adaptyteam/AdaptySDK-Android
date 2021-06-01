@@ -2,7 +2,7 @@ package com.adapty.example.promopush
 
 import android.content.Context
 import com.adapty.example.R
-import com.adapty.utils.push.AdaptyPushHandler
+import com.adapty.push.AdaptyPushHandler
 
 class YourAdaptyPushHandler(context: Context) : AdaptyPushHandler(context) {
 

@@ -3,16 +3,15 @@ package com.adapty.example
 import android.app.ProgressDialog
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.adapty.Adapty
-import com.adapty.api.AttributionType
-import com.adapty.api.entity.paywalls.OnPromoReceivedListener
-import com.adapty.api.entity.paywalls.PromoModel
-import com.adapty.api.entity.profile.update.Date
-import com.adapty.api.entity.profile.update.ProfileParameterBuilder
-import com.adapty.api.entity.purchaserInfo.OnPurchaserInfoUpdatedListener
-import com.adapty.api.entity.purchaserInfo.model.PurchaserInfoModel
+import com.adapty.listeners.OnPromoReceivedListener
+import com.adapty.listeners.OnPurchaserInfoUpdatedListener
+import com.adapty.models.AttributionType
+import com.adapty.models.Date
+import com.adapty.models.PromoModel
+import com.adapty.models.PurchaserInfoModel
+import com.adapty.utils.ProfileParameterBuilder
 import kotlinx.android.synthetic.main.fragment_main.*
 
 /**
@@ -48,19 +47,47 @@ class MainFragment : Fragment(R.layout.fragment_main) {
             }
         }
 
+        get_purchaser_info_force_update.setOnClickListener {
+            Adapty.getPurchaserInfo(forceUpdate = true) { purchaserInfo, error ->
+                last_response_result.text =
+                    error?.let { "error:\n${error.message}" }
+                        ?: "purchaser info: $purchaserInfo"
+            }
+        }
+
         get_paywalls.setOnClickListener {
             progressDialog.show()
 
             Adapty.getPaywalls { paywalls, products, error ->
                 last_response_result.text =
                     error?.let { "error:\n${error.message}" }
-                        ?: "paywalls: $paywalls\n\nproducts: $products"
+                        ?: "Paywalls are fetched successfully"
 
                 progressDialog.hide()
-                (activity as? MainActivity)?.addFragment(
-                    PaywallListFragment.newInstance(paywalls),
-                    true
-                )
+                paywalls?.let {
+                    (activity as? MainActivity)?.addFragment(
+                        PaywallListFragment.newInstance(paywalls),
+                        true
+                    )
+                }
+            }
+        }
+
+        get_paywalls_force_update.setOnClickListener {
+            progressDialog.show()
+
+            Adapty.getPaywalls(forceUpdate = true) { paywalls, products, error ->
+                last_response_result.text =
+                    error?.let { "error:\n${error.message}" }
+                        ?: "Paywalls are fetched successfully"
+
+                progressDialog.hide()
+                paywalls?.let {
+                    (activity as? MainActivity)?.addFragment(
+                        PaywallListFragment.newInstance(paywalls),
+                        true
+                    )
+                }
             }
         }
 
@@ -112,9 +139,5 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 showToast("New promo received:\n${promo}")
             }
         })
-    }
-
-    private fun showToast(text: CharSequence) {
-        Toast.makeText(context, text, Toast.LENGTH_LONG).show()
     }
 }

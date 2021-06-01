@@ -3,7 +3,7 @@ package com.adapty.example
 import androidx.multidex.MultiDex
 import androidx.multidex.MultiDexApplication
 import com.adapty.Adapty
-import com.adapty.api.AttributionType
+import com.adapty.models.AttributionType
 import com.adapty.utils.AdaptyLogLevel
 import com.adjust.sdk.Adjust
 import com.adjust.sdk.AdjustConfig

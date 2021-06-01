@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="zero">weeks</item>
+        <item quantity="one">week</item>
+        <item quantity="two">weeks</item>
+        <item quantity="few">weeks</item>
+        <item quantity="many">weeks</item>
+        <item quantity="other">weeks</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="zero">days</item>
+        <item quantity="one">day</item>
+        <item quantity="two">days</item>
+        <item quantity="few">days</item>
+        <item quantity="many">days</item>
+        <item quantity="other">days</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="zero">months</item>
+        <item quantity="one">month</item>
+        <item quantity="two">months</item>
+        <item quantity="few">months</item>
+        <item quantity="many">months</item>
+        <item quantity="other">months</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="zero">years</item>
+        <item quantity="one">year</item>
+        <item quantity="two">years</item>
+        <item quantity="few">years</item>
+        <item quantity="many">years</item>
+        <item quantity="other">years</item>
+    </plurals>
+</resources>

@@ -4,8 +4,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.adapty.api.entity.paywalls.ProductModel
 import com.adapty.example.R
+import com.adapty.models.ProductModel
 import kotlinx.android.synthetic.main.product_item.view.*
 
 typealias PurchaseClickCallback = (ProductModel) -> Unit
