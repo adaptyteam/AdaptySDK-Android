@@ -9,8 +9,8 @@ android {
         targetSdkVersion 29
         versionCode 93
         versionName "0.9.3"
-        buildConfigField 'int', 'VERSION_CODE', "93"
-        buildConfigField 'String', 'VERSION_NAME', "\"0.9.3\""
+        buildConfigField 'int', 'VERSION_CODE', "10000"
+        buildConfigField 'String', 'VERSION_NAME', "\"1.0.0\""
 
         consumerProguardFiles 'consumer-rules.pro'
     }
