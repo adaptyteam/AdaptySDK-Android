@@ -30,7 +30,7 @@ internal class CacheRepository(
     private val currentPurchaserInfo = MutableSharedFlow<PurchaserInfoModel>()
     private val currentPromo = MutableSharedFlow<PromoModel>()
 
-    private val cache = ConcurrentHashMap<String, Any>()
+    private val cache = ConcurrentHashMap<String, Any>(32)
 
     @JvmSynthetic
     fun updateDataOnSyncMeta(attributes: SyncMetaResponse.Data.Attributes?) {
@@ -273,8 +273,17 @@ internal class CacheRepository(
             .capitalize(Locale.ENGLISH)
     }
 
-    private fun getString(key: String) =
+    @JvmSynthetic
+    internal fun getString(key: String) =
         cache.safeGetOrPut(key, { preferenceManager.getString(key) }) as? String
+
+    @JvmSynthetic
+    internal fun saveResponseData(map: Map<String, String>) {
+        map.forEach { (key, value) ->
+            cache[key] = value
+        }
+        preferenceManager.saveStrings(map)
+    }
 
     private inline fun <reified T> getData(key: String, classOfT: Class<T>? = null): T? =
         cache.safeGetOrPut(key, { preferenceManager.getData<T>(key, classOfT) }) as? T

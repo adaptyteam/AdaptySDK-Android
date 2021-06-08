@@ -25,7 +25,7 @@ class App : MultiDexApplication() {
 
         val conversionListener: AppsFlyerConversionListener = object : AppsFlyerConversionListener {
             override fun onConversionDataSuccess(conversionData: Map<String, Any>) {
-                Adapty.updateAttribution(conversionData, AttributionType.APPSFLYER) { error ->
+                Adapty.updateAttribution(conversionData, AttributionType.APPSFLYER, AppsFlyerLib.getInstance().getAppsFlyerUID(this@App)) { error ->
                     //
                 }
             }
@@ -35,7 +35,7 @@ class App : MultiDexApplication() {
             }
 
             override fun onAppOpenAttribution(conversionData: Map<String, String>) {
-                Adapty.updateAttribution(conversionData, AttributionType.APPSFLYER) { error ->
+                Adapty.updateAttribution(conversionData, AttributionType.APPSFLYER, AppsFlyerLib.getInstance().getAppsFlyerUID(this@App)) { error ->
                     //
                 }
             }

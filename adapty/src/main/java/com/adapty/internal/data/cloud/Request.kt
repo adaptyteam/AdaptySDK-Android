@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
+import com.adapty.internal.data.cache.ResponseCacheKeys
 import com.adapty.internal.data.cloud.Request.Method.*
 import com.adapty.internal.data.models.AttributionData
 import com.adapty.internal.data.models.RestoreProductInfo
@@ -28,6 +29,10 @@ internal class Request internal constructor(val baseUrl: String) {
 
     @JvmSynthetic
     @JvmField
+    var responseCacheKeys: ResponseCacheKeys? = null
+
+    @JvmSynthetic
+    @JvmField
     var body = ""
 
     internal class Builder(private val baseRequest: Request = Request(baseUrl = "https://api.adapty.io/api/v1/")) {
@@ -43,6 +48,10 @@ internal class Request internal constructor(val baseUrl: String) {
         @JvmSynthetic
         @JvmField
         var body: String? = null
+
+        @JvmSynthetic
+        @JvmField
+        var responseCacheKeys: ResponseCacheKeys? = null
 
         private var queryParams = arrayListOf<Pair<String, String>>()
 
@@ -66,6 +75,7 @@ internal class Request internal constructor(val baseUrl: String) {
                 }
             }.toString()
             body = this@Builder.body ?: ""
+            responseCacheKeys = this@Builder.responseCacheKeys
         }
     }
 
@@ -91,6 +101,7 @@ internal class RequestFactory(
     fun getPurchaserInfoRequest() = buildRequest {
         method = GET
         endPoint = endpointForProfileRequests
+        responseCacheKeys = ResponseCacheKeys.forGetPurchaserInfo()
     }
 
     @JvmSynthetic
@@ -179,6 +190,7 @@ internal class RequestFactory(
         endPoint = "$inappsEndpointPrefix/purchase-containers/"
         addQueryParam(Pair("profile_id", cacheRepository.getProfileId().orEmpty()))
         addQueryParam(Pair("automatic_paywalls_screen_reporting_enabled", "false"))
+        responseCacheKeys = ResponseCacheKeys.forGetPaywalls()
     }
 
     @JvmSynthetic
@@ -196,6 +208,7 @@ internal class RequestFactory(
     fun getPromoRequest() = buildRequest {
         method = GET
         endPoint = "${endpointForProfileRequests}promo/"
+        responseCacheKeys = ResponseCacheKeys.forGetPromo()
     }
 
     @JvmSynthetic

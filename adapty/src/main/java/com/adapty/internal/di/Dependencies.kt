@@ -63,7 +63,10 @@ internal object Dependencies {
                 HttpClient::class.java to DIObject({
                     HttpClient(
                         DefaultConnectionCreator(appContext, injectInternal()),
-                        DefaultHttpResponseManager(DefaultResponseBodyConverter(injectInternal()))
+                        DefaultHttpResponseManager(
+                            DefaultResponseBodyConverter(injectInternal()),
+                            injectInternal(),
+                        )
                     )
                 }),
 
@@ -73,7 +76,10 @@ internal object Dependencies {
                         injectInternal(),
                         HttpClient(
                             KinesisConnectionCreator(injectInternal()),
-                            DefaultHttpResponseManager(KinesisResponseBodyConverter(injectInternal()))
+                            DefaultHttpResponseManager(
+                                KinesisResponseBodyConverter(injectInternal()),
+                                injectInternal(),
+                            )
                         ),
                         injectInternal()
                     )

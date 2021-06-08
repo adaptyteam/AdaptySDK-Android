@@ -27,7 +27,7 @@ internal class HttpClient(
         try {
             connection = connectionCreator.createUrlConnection(request)
             connection.connect()
-            return responseManager.handleResponse(connection, classOfT)
+            return responseManager.handleResponse(connection, request.responseCacheKeys, classOfT)
 
         } catch (e: Exception) {
             Logger.logError { e.localizedMessage ?: e.message ?: "" }

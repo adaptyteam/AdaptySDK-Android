@@ -60,6 +60,10 @@ internal class DefaultConnectionCreator(
                     "${it.language}_${it.country}"
                 )
             }
+            request.responseCacheKeys?.responseHashKey?.let(cacheRepository::getString)
+                ?.let { latestResponseHash ->
+                    setRequestProperty("ADAPTY-SDK-PREVIOUS-RESPONSE-HASH", latestResponseHash)
+                }
 
             if (request.method != GET) {
                 doOutput = true

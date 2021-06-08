@@ -61,6 +61,14 @@ internal class PreferenceManager(context: Context, private val gson: Gson) {
             .commit()
 
     @JvmSynthetic
+    fun saveStrings(map: Map<String, String>) =
+        editor
+            .apply {
+                map.forEach { (key, value) -> putString(key, value) }
+            }
+            .commit()
+
+    @JvmSynthetic
     inline fun <reified T> getData(key: String, classOfT: Class<T>? = null): T? {
         return pref.getString(key, null)?.takeIf(::isNotEmpty)?.let {
             try {
