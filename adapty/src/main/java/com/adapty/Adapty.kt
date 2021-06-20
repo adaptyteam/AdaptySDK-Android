@@ -222,6 +222,19 @@ object Adapty {
     }
 
     @JvmStatic
+    @JvmOverloads
+    fun setFallbackPaywalls(
+        paywalls: String,
+        adaptyCallback: ((error: AdaptyError?) -> Unit)? = null
+    ) {
+        Logger.logVerbose { "setFallbackPaywalls()" }
+        adaptyCallback?.let { callback ->
+            if (!checkActivated(callback)) return
+        } ?: if (!checkActivated()) return
+        adaptyInternal.setFallbackPaywalls(paywalls, adaptyCallback)
+    }
+
+    @JvmStatic
     fun showPaywall(
         activity: Activity,
         paywall: PaywallModel,

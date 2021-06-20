@@ -13,6 +13,7 @@ import com.adapty.internal.utils.*
 import com.adapty.models.PaywallModel
 import com.adapty.models.ProductModel
 import com.adapty.models.PromoModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -25,7 +26,7 @@ internal class ProductsInteractor(
     @JvmSynthetic
     fun getPaywalls(
         forceUpdate: Boolean
-    ) = cloudRepository.arePaywallsSynced
+    ) = cloudRepository.arePaywallRequestsAllowed
         .filter { it }
         .flatMapLatest {
             when {
@@ -42,7 +43,17 @@ internal class ProductsInteractor(
                         .flowOnIO()
                 }
                 else -> {
-                    flowOf(cacheRepository.getPaywallsAndProducts())
+                    cacheRepository.getPaywallsAndProducts()
+                        .takeIf { (paywalls, _) -> paywalls != null }?.let { cachedPaywalls ->
+                            flowOf(cachedPaywalls)
+                        }
+                        ?: cacheRepository.getFallbackPaywalls()?.let { fallbackPaywalls ->
+                            flowOf(fallbackPaywalls)
+                                .flatMapConcat(::postProcessPaywalls)
+                        } ?: throw AdaptyError(
+                            message = "Paywalls not found",
+                            adaptyErrorCode = AdaptyErrorCode.PAYWALL_NOT_FOUND
+                        )
                 }
             }
         }
@@ -51,9 +62,39 @@ internal class ProductsInteractor(
     fun getPaywallsOnStart() =
         (cloudRepository::getPaywallsForced)
             .asFlow()
-            .retryIfNecessary()
+            .retryWhen { error, attempt ->
+                if (error !is AdaptyError) {
+                    return@retryWhen false
+                }
+
+                if (attempt > 2 && error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR && !cloudRepository.arePaywallRequestsAllowed.value) {
+                    cacheRepository.getContainers()?.let {
+                        cloudRepository.arePaywallRequestsAllowed.compareAndSet(expect = false, update = true)
+                    } ?: cacheRepository.getFallbackPaywalls()?.let {
+                        cloudRepository.arePaywallRequestsAllowed.compareAndSet(expect = false, update = true)
+                    }
+                }
+
+                when (error.getRetryType(true)) {
+                    AdaptyError.RetryType.PROGRESSIVE -> {
+                        delay(getServerErrorDelay(attempt))
+                        return@retryWhen true
+                    }
+                    AdaptyError.RetryType.SIMPLE -> {
+                        delay(NETWORK_ERROR_DELAY_MILLIS)
+                        return@retryWhen true
+                    }
+                    else -> {
+                        return@retryWhen false
+                    }
+                }
+            }
             .flatMapConcat(::postProcessPaywalls)
             .flowOnIO()
+
+    @JvmSynthetic
+    fun setFallbackPaywalls(paywalls: String) =
+        cacheRepository.saveFallbackPaywalls(paywalls)
 
     @JvmSynthetic
     fun getPromo() = cloudRepository.getPromo()
@@ -71,6 +112,7 @@ internal class ProductsInteractor(
         pair: Pair<ArrayList<PaywallsResponse.Data>, ArrayList<ProductDto>>,
         maxAttemptCount: Long = -1
     ): Flow<Pair<List<PaywallModel>?, List<ProductModel>?>> {
+        cacheRepository.arePaywallsReceivedFromBackend.compareAndSet(false, true)
         val (containers, products) = pair
 
         val data: ArrayList<Any> =
@@ -79,7 +121,7 @@ internal class ProductsInteractor(
         if (data.isEmpty() && products.isEmpty()) {
             return flow {
                 cacheRepository.saveContainersAndProducts(containers, products)
-                cloudRepository.arePaywallsSynced.compareAndSet(expect = false, update = true)
+                cloudRepository.arePaywallRequestsAllowed.compareAndSet(expect = false, update = true)
                 emit(Pair(PaywallMapper.map(containers), products.map(ProductMapper::map)))
             }
         } else {
@@ -103,7 +145,7 @@ internal class ProductsInteractor(
                     containersList.addAll(unfilledContainers)
 
                     cacheRepository.saveContainersAndProducts(containersList, productsList)
-                    cloudRepository.arePaywallsSynced.compareAndSet(expect = false, update = true)
+                    cloudRepository.arePaywallRequestsAllowed.compareAndSet(expect = false, update = true)
 
                     Pair(PaywallMapper.map(containersList), productsList.map(ProductMapper::map))
                 }

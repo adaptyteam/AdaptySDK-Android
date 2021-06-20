@@ -8,6 +8,7 @@ package com.adapty.internal.data.cache
 @JvmSynthetic internal const val IAM_SESSION_TOKEN = "IAM_SESSION_TOKEN"
 @JvmSynthetic internal const val PURCHASER_INFO = "PURCHASER_INFO"
 @JvmSynthetic internal const val CONTAINERS = "CONTAINERS"
+@JvmSynthetic internal const val FALLBACK_PAYWALLS = "FALLBACK_PAYWALLS"
 @JvmSynthetic internal const val PRODUCTS = "PRODUCTS"
 @JvmSynthetic internal const val SYNCED_PURCHASES = "SYNCED_PURCHASES"
 @JvmSynthetic internal const val KINESIS_RECORDS = "KINESIS_RECORDS"

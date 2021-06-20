@@ -2,6 +2,8 @@ package com.adapty.internal.data.cache
 
 import android.os.Build
 import androidx.annotation.RestrictTo
+import com.adapty.errors.AdaptyError
+import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.AttributionData
 import com.adapty.internal.data.models.AwsRecordModel
 import com.adapty.internal.data.models.ProductDto
@@ -10,27 +12,36 @@ import com.adapty.internal.data.models.RestoreProductInfo
 import com.adapty.internal.data.models.responses.PaywallsResponse
 import com.adapty.internal.data.models.responses.SyncMetaResponse
 import com.adapty.internal.data.models.responses.UpdateProfileResponse
+import com.adapty.internal.utils.Logger
 import com.adapty.internal.utils.PaywallMapper
 import com.adapty.internal.utils.ProductMapper
 import com.adapty.internal.utils.generateUuid
 import com.adapty.models.PromoModel
 import com.adapty.models.PurchaserInfoModel
+import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class CacheRepository(
     private val preferenceManager: PreferenceManager,
-    private val tokenRetriever: PushTokenRetriever
+    private val tokenRetriever: PushTokenRetriever,
+    private val gson: Gson,
 ) {
 
     private val currentPurchaserInfo = MutableSharedFlow<PurchaserInfoModel>()
     private val currentPromo = MutableSharedFlow<PromoModel>()
 
     private val cache = ConcurrentHashMap<String, Any>(32)
+
+    @JvmSynthetic
+    @JvmField
+    var arePaywallsReceivedFromBackend = AtomicBoolean(false)
 
     @JvmSynthetic
     fun updateDataOnSyncMeta(attributes: SyncMetaResponse.Data.Attributes?) {
@@ -176,6 +187,11 @@ internal class CacheRepository(
     fun getPaywalls() = getContainers()?.let(PaywallMapper::map)
 
     @JvmSynthetic
+    fun getFallbackPaywalls() = (cache[FALLBACK_PAYWALLS] as? PaywallsResponse)?.let { fallback ->
+        Pair(fallback.data ?: arrayListOf(), fallback.meta?.products ?: arrayListOf())
+    }
+
+    @JvmSynthetic
     fun getProducts() = getData<ArrayList<ProductDto>>(PRODUCTS)
 
     @JvmSynthetic
@@ -235,6 +251,28 @@ internal class CacheRepository(
         } ?: cache.remove(PRODUCTS)
         preferenceManager.saveContainersAndProducts(containers, products)
     }
+
+    fun saveFallbackPaywalls(paywalls: String): AdaptyError? =
+        if (!arePaywallsReceivedFromBackend.get() && getContainers() == null) {
+            try {
+                cache[FALLBACK_PAYWALLS] = gson.fromJson(paywalls, PaywallsResponse::class.java)
+                null
+            } catch (e: JsonSyntaxException) {
+                Logger.logError { "Couldn't set fallback paywalls. $e" }
+                AdaptyError(
+                    originalError = e,
+                    message = "Couldn't set fallback paywalls. Invalid JSON",
+                    adaptyErrorCode = AdaptyErrorCode.INVALID_JSON
+                )
+            }
+        } else {
+            val errorMessage = "Fallback paywalls are not required"
+            Logger.logError { errorMessage }
+            AdaptyError(
+                message = errorMessage,
+                adaptyErrorCode = AdaptyErrorCode.FALLBACK_PAYWALLS_NOT_REQUIRED
+            )
+        }
 
     @JvmSynthetic
     fun clearContainersAndProducts() {

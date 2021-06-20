@@ -90,9 +90,11 @@ internal fun execute(block: suspend CoroutineScope.() -> Unit) =
 @JvmField
 internal val adaptyScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-private const val NETWORK_ERROR_DELAY_MILLIS = 2000L
+@JvmSynthetic
+internal const val NETWORK_ERROR_DELAY_MILLIS = 2000L
 
-private fun getServerErrorDelay(attempt: Long) =
+@JvmSynthetic
+internal fun getServerErrorDelay(attempt: Long) =
     min((2f.pow(attempt.coerceAtMost(7).toInt()) + 1), 90f).toLong() * 1000L
 
 @JvmSynthetic

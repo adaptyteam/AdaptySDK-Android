@@ -57,6 +57,7 @@ internal object Dependencies {
                     CacheRepository(
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
                     )
                 }),
 

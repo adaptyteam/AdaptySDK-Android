@@ -311,6 +311,11 @@ internal class AdaptyInternal(
     }
 
     @JvmSynthetic
+    fun setFallbackPaywalls(paywalls: String, callback: ((error: AdaptyError?) -> Unit)?) {
+        productsInteractor.setFallbackPaywalls(paywalls).let { error -> callback?.invoke(error) }
+    }
+
+    @JvmSynthetic
     fun showPaywall(
         activity: Activity,
         paywall: PaywallModel

@@ -33,7 +33,7 @@ internal class CloudRepository(
     }
 
     @get:JvmSynthetic
-    val arePaywallsSynced = MutableStateFlow(false)
+    val arePaywallRequestsAllowed = MutableStateFlow(false)
 
     @JvmSynthetic
     fun getPurchaserInfo(): Flow<PurchaserInfoModel?> {
