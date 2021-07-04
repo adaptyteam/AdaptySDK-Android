@@ -28,7 +28,6 @@ object Adapty {
         context: Context,
         appKey: String,
         customerUserId: String? = null,
-        adaptyCallback: ((error: AdaptyError?) -> Unit)? = null
     ) {
         Logger.logVerbose { "activate($appKey, ${customerUserId ?: ""})" }
 
@@ -38,12 +37,11 @@ object Adapty {
 
         if (isActivated) {
             Logger.logVerbose { "Adapty was already activated. If you want to provide new customerUserId, please call 'identify' function instead." }
-            adaptyCallback?.invoke(null)
             return
         }
 
         init(context, appKey)
-        adaptyInternal.activate(customerUserId, adaptyCallback)
+        adaptyInternal.activate(customerUserId, null)
     }
 
     @JvmStatic
@@ -68,6 +66,7 @@ object Adapty {
         forceUpdate: Boolean = false,
         adaptyCallback: (purchaserInfo: PurchaserInfoModel?, error: AdaptyError?) -> Unit
     ) {
+        Logger.logVerbose { "getPurchaserInfo(forceUpdate = $forceUpdate)" }
         if (!isActivated) {
             logNotInitializedError()
             adaptyCallback.invoke(null, notInitializedError)
@@ -105,18 +104,20 @@ object Adapty {
     }
 
     @JvmStatic
+    @JvmOverloads
     fun makePurchase(
         activity: Activity,
         product: ProductModel,
+        subscriptionUpdateParams: SubscriptionUpdateParamModel? = null,
         adaptyCallback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String?, googleValidationResult: GoogleValidationResult?, product: ProductModel, error: AdaptyError?) -> Unit
     ) {
-        Logger.logVerbose { "makePurchase()" }
+        Logger.logVerbose { "makePurchase(vendorProductId = ${product.vendorProductId}${subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; prorationMode = ${it.prorationMode}" } ?: ""})" }
         if (!isActivated) {
             logNotInitializedError()
             adaptyCallback.invoke(null, null, null, product, notInitializedError)
             return
         }
-        adaptyInternal.makePurchase(activity, product, adaptyCallback)
+        adaptyInternal.makePurchase(activity, product, subscriptionUpdateParams, adaptyCallback)
     }
 
     @JvmStatic
@@ -171,6 +172,7 @@ object Adapty {
 
     @JvmStatic
     fun logout(adaptyCallback: (error: AdaptyError?) -> Unit) {
+        Logger.logVerbose { "logout()" }
         if (!checkActivated(adaptyCallback)) return
         adaptyInternal.logout(adaptyCallback)
     }

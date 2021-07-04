@@ -180,6 +180,7 @@ internal class AdaptyInternal(
     fun makePurchase(
         activity: Activity,
         product: ProductModel,
+        subscriptionUpdateParams: SubscriptionUpdateParamModel?,
         callback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String?, googleValidationResult: GoogleValidationResult?, product: ProductModel, error: AdaptyError?) -> Unit
     ) {
 
@@ -200,7 +201,12 @@ internal class AdaptyInternal(
             return
         }
 
-        storeManager.makePurchase(activity, productId, purchaseType) { purchase, error ->
+        storeManager.makePurchase(
+            activity,
+            productId,
+            purchaseType,
+            subscriptionUpdateParams
+        ) { purchase, error ->
             if (error != null) {
                 callback.invoke(null, null, null, product, error)
             } else {
@@ -236,10 +242,7 @@ internal class AdaptyInternal(
                         null,
                         null,
                         product,
-                        AdaptyError(
-                            message = "Purchase is null",
-                            adaptyErrorCode = AdaptyErrorCode.UNKNOWN
-                        )
+                        null
                     )
             }
         }

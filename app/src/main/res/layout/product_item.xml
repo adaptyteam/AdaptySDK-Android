@@ -83,8 +83,32 @@
         android:id="@+id/make_purchase"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Make Purchase"
+        android:text="Make purchase"
+        android:textAllCaps="false"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/product_type_label" />
 
+    <Spinner
+        android:id="@+id/proration_mode_selector"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/make_purchase" />
+
+    <Button
+        android:id="@+id/change_subscription"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Change current subscription to this"
+        android:textAllCaps="false"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/proration_mode_selector" />
+
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/group_change_subscription"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:constraint_referenced_ids="change_subscription, proration_mode_selector" />
 </androidx.constraintlayout.widget.ConstraintLayout>

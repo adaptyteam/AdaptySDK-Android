@@ -9,6 +9,7 @@ import com.adapty.internal.data.models.ProductDto
 import com.adapty.internal.data.models.RestoreProductInfo
 import com.adapty.internal.data.models.responses.PaywallsResponse
 import com.adapty.internal.utils.*
+import com.adapty.models.SubscriptionUpdateParamModel
 import com.android.billingclient.api.*
 import com.android.billingclient.api.BillingClient.BillingResponseCode.OK
 import com.android.billingclient.api.BillingClient.SkuType.INAPP
@@ -42,12 +43,32 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
         ).map { fullSkuList -> fillInfo(fullSkuList, data) }
 
     @JvmSynthetic
-    fun queryPurchaseHistory(maxAttemptCount: Long): Flow<ArrayList<RestoreProductInfo>> =
-        queryPurchaseHistoryForType(SUBS, maxAttemptCount)
+    fun getPurchaseHistoryDataToRestore(maxAttemptCount: Long): Flow<ArrayList<RestoreProductInfo>> =
+        getPurchaseHistoryDataToRestoreForType(SUBS, maxAttemptCount)
             .flatMapConcat { subsHistoryList ->
-                queryPurchaseHistoryForType(INAPP, maxAttemptCount)
+                getPurchaseHistoryDataToRestoreForType(INAPP, maxAttemptCount)
                     .map { inAppHistoryList -> concatResults(subsHistoryList, inAppHistoryList) }
             }
+
+    private fun getPurchaseHistoryDataToRestoreForType(
+        @BillingClient.SkuType type: String,
+        maxAttemptCount: Long,
+    ): Flow<List<RestoreProductInfo>> {
+        return onConnected {
+            storeHelper.queryPurchaseHistoryForType(type)
+                .map { purchaseHistoryRecordList ->
+                    purchaseHistoryRecordList.map { purchase ->
+                        RestoreProductInfo(
+                            isSubscription = type == SUBS,
+                            productId = purchase.skus.firstOrNull(),
+                            purchaseToken = purchase.purchaseToken,
+                            transactionId = if (type == SUBS) billingClient.queryPurchases(SUBS)
+                                .purchasesList?.firstOrNull { it.purchaseToken == purchase.purchaseToken }?.orderId else null,
+                        )
+                    }
+                }
+        }.retryOnConnectionError(maxAttemptCount)
+    }
 
     private fun querySkuDetails(
         skuList: List<String>,
@@ -70,15 +91,6 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
     ): Flow<List<SkuDetails>> {
         return onConnected {
             storeHelper.querySkuDetailsForType(params)
-        }.retryOnConnectionError(maxAttemptCount)
-    }
-
-    private fun queryPurchaseHistoryForType(
-        @BillingClient.SkuType type: String,
-        maxAttemptCount: Long,
-    ): Flow<List<RestoreProductInfo>> {
-        return onConnected {
-            storeHelper.queryPurchaseHistoryForType(type)
         }.retryOnConnectionError(maxAttemptCount)
     }
 
@@ -150,7 +162,11 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
     ) {
         when (billingResult.responseCode) {
             OK -> {
-                if (purchases == null) return
+                if (purchases == null) {
+                    makePurchaseCallback?.invoke(null, null)
+                    makePurchaseCallback = null
+                    return
+                }
 
                 for (purchase in purchases) {
                     if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED && !purchase.isAcknowledged)
@@ -208,6 +224,7 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
         activity: Activity,
         productId: String,
         purchaseType: String,
+        subscriptionUpdateParams: SubscriptionUpdateParamModel?,
         callback: (purchase: Purchase?, error: AdaptyError?) -> Unit
     ) {
         execute {
@@ -215,10 +232,24 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
                 storeHelper.querySkuDetailsForType(
                     params = SkuDetailsParams.newBuilder().setSkusList(listOf(productId))
                         .setType(purchaseType).build(),
-                )
+                ).flatMapConcat { skuDetailsForNewProduct ->
+                    if (subscriptionUpdateParams != null) {
+                        onConnected {
+                            storeHelper.queryPurchaseHistoryForType(SUBS)
+                                .map {
+                                    buildSubscriptionUpdateParams(
+                                        billingClient.queryPurchases(SUBS).purchasesList,
+                                        subscriptionUpdateParams,
+                                    ).let { updateParams -> skuDetailsForNewProduct to updateParams }
+                                }
+                        }
+                    } else {
+                        flowOf(skuDetailsForNewProduct to null)
+                    }
+                }
             }
                 .flowOnIO()
-                .onEach { skuDetailsList ->
+                .onEach { (skuDetailsList, subscriptionUpdateParams) ->
                     skuDetailsList.firstOrNull { it.sku == productId }?.let { skuDetails ->
                         productsToPurchaseSkuType[productId] = purchaseType
                         makePurchaseCallback = callback
@@ -227,6 +258,7 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
                             activity,
                             BillingFlowParams.newBuilder()
                                 .setSkuDetails(skuDetails)
+                                .apply { subscriptionUpdateParams?.let(::setSubscriptionUpdateParams) }
                                 .build()
                         )
                     } ?: callback.invoke(
@@ -242,6 +274,28 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
                 .collect()
         }
     }
+
+    private fun buildSubscriptionUpdateParams(
+        purchasesList: List<Purchase>?,
+        subscriptionUpdateParams: SubscriptionUpdateParamModel,
+    ): BillingFlowParams.SubscriptionUpdateParams =
+        purchasesList
+            ?.firstOrNull { it.skus.firstOrNull() == subscriptionUpdateParams.oldSubVendorProductId }
+            ?.let { subToBeReplaced ->
+                BillingFlowParams.SubscriptionUpdateParams.newBuilder()
+                    .setOldSkuPurchaseToken(subToBeReplaced.purchaseToken)
+                    .setReplaceSkusProrationMode(
+                        ProrationModeMapper.map(subscriptionUpdateParams.prorationMode)
+                    )
+                    .build()
+            }
+            ?: "Can't launch flow to change subscription. Either subscription to change is inactive, or it was purchased from different Google account or from iOS".let { errorMessage ->
+                Logger.logError { errorMessage }
+                throw AdaptyError(
+                    message = errorMessage,
+                    adaptyErrorCode = AdaptyErrorCode.CURRENT_SUBSCRIPTION_TO_UPDATE_NOT_FOUND_IN_HISTORY
+                )
+            }
 
     @JvmSynthetic
     fun acknowledgePurchase(purchase: Purchase) =
@@ -375,16 +429,8 @@ private class StoreHelper(private val billingClient: BillingClient) {
             val purchaseHistoryResult = billingClient.queryPurchaseHistory(type)
             if (purchaseHistoryResult.billingResult.responseCode == OK) {
                 emit(
-                    purchaseHistoryResult.purchaseHistoryRecordList?.map { purchase ->
-                        RestoreProductInfo(
-                            isSubscription = type == SUBS,
-                            productId = purchase.skus.firstOrNull(),
-                            purchaseToken = purchase.purchaseToken,
-                            transactionId = if (type == SUBS) billingClient.queryPurchases(
-                                SUBS
-                            ).purchasesList?.firstOrNull { it.purchaseToken == purchase.purchaseToken }?.orderId else null,
-                        )
-                    } ?: arrayListOf<RestoreProductInfo>()
+                    purchaseHistoryResult.purchaseHistoryRecordList
+                        ?: arrayListOf<PurchaseHistoryRecord>()
                 )
             } else {
                 throwException(purchaseHistoryResult.billingResult)

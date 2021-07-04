@@ -1,6 +1,8 @@
 package com.adapty.internal.domain
 
 import androidx.annotation.RestrictTo
+import com.adapty.errors.AdaptyError
+import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.StoreManager
@@ -63,6 +65,12 @@ internal class PurchasesInteractor(
             flow {
                 emit(cloudRepository.restorePurchasesForced(notSynced))
             }.retryIfNecessary()
+        }.catch { error ->
+            if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
+                emit(null)
+            } else {
+                throw error
+            }
         }
     }
 
@@ -70,7 +78,7 @@ internal class PurchasesInteractor(
         maxAttemptCount: Long = -1,
         sendToBackend: (List<RestoreProductInfo>) -> Flow<RestoreReceiptResponse>
     ): Flow<RestoreReceiptResponse?> {
-        return storeManager.queryPurchaseHistory(maxAttemptCount)
+        return storeManager.getPurchaseHistoryDataToRestore(maxAttemptCount)
             .zip(flowOf(cacheRepository.getSyncedPurchases())) { historyPurchases, savedPurchases ->
                 Pair(historyPurchases, savedPurchases)
             }
@@ -82,7 +90,14 @@ internal class PurchasesInteractor(
                                 cacheRepository.saveSyncedPurchases(historyPurchases)
                                 response
                             }
-                    } ?: flowOf(null)
+                    }
+                    ?: "No purchases to restore".let { errorMessage ->
+                        Logger.logError { errorMessage }
+                        throw AdaptyError(
+                            message = errorMessage,
+                            adaptyErrorCode = NO_PURCHASES_TO_RESTORE
+                        )
+                    }
             }
             .flowOnIO()
     }
