@@ -319,7 +319,7 @@ internal class AdaptyInternal(
     }
 
     @JvmSynthetic
-    fun showPaywall(
+    fun showVisualPaywall(
         activity: Activity,
         paywall: PaywallModel
     ) {
@@ -336,7 +336,7 @@ internal class AdaptyInternal(
     }
 
     @JvmSynthetic
-    fun closePaywall() {
+    fun closeVisualPaywall() {
         visualPaywallManager.closePaywall()
     }
 

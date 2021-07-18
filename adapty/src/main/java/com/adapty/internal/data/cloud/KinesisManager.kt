@@ -28,75 +28,72 @@ internal class KinesisManager(
     private val sessionId = generateUuid()
 
     fun trackEvent(eventName: String, subMap: Map<String, String>? = null) {
-        if (!cacheRepository.getExternalAnalyticsEnabled()) {
-            Logger.logVerbose { "We can't handle analytics events, since you've opted it out." }
-            return
-        }
-
-        val iamAccessKeyId = cacheRepository.getIamAccessKeyId()
-        val iamSecretKey = cacheRepository.getIamSecretKey()
-        val iamSessionToken = cacheRepository.getIamSessionToken()
-
-        if (iamAccessKeyId == null || iamSecretKey == null || iamSessionToken == null)
-            return
-
-        val dataStr = gson.toJson(
-            hashMapOf(
-                "profile_id" to cacheRepository.getProfileId(),
-                "session_id" to sessionId,
-                "event_name" to eventName,
-                "profile_installation_meta_id" to cacheRepository.getInstallationMetaId(),
-                "event_id" to generateUuid(),
-                "created_at" to getIso8601TimeDate(),
-                "platform" to "Android"
-            ).apply {
-                subMap?.let(::putAll)
-            }
-        )
-
-        val records = cacheRepository.getKinesisRecords()
-        records.add(
-            AwsRecordModel(
-                Base64Utils.encode(dataStr.toByteArray()).replace("\n", ""),
-                cacheRepository.getInstallationMetaId().orEmpty()
-            )
-        )
-        cacheRepository.saveKinesisRecords(records.takeLast(50))
-
-        val body = hashMapOf<String, Any>("Records" to records, "StreamName" to kinesisStream)
-
         execute {
-            flow {
+            flow<List<AwsRecordModel>> {
+                if (!cacheRepository.getExternalAnalyticsEnabled()) {
+                    Logger.logVerbose { "We can't handle analytics events, since you've opted it out." }
+                    throw ExternalAnalyticsDisabledExeption()
+                }
+
+                if (cacheRepository.getIamAccessKeyId() == null || cacheRepository.getIamSecretKey() == null || cacheRepository.getIamSessionToken() == null)
+                    throw NoKeysForKinesisException()
+
+                val dataStr = gson.toJson(
+                    hashMapOf(
+                        "profile_id" to cacheRepository.getProfileId(),
+                        "session_id" to sessionId,
+                        "event_name" to eventName,
+                        "profile_installation_meta_id" to cacheRepository.getInstallationMetaId(),
+                        "event_id" to generateUuid(),
+                        "created_at" to formatCurrentDateTime(),
+                        "platform" to "Android"
+                    ).apply {
+                        subMap?.let(::putAll)
+                    }
+                )
+
+                val records = cacheRepository.getKinesisRecords().apply {
+                    add(
+                        AwsRecordModel(
+                            Base64Utils.encode(dataStr.toByteArray()).replace("\n", ""),
+                            cacheRepository.getInstallationMetaId().orEmpty()
+                        )
+                    )
+                }
+                cacheRepository.saveKinesisRecords(records.takeLast(50))
+
                 val response = httpClient.newCall(
-                    requestFactory.kinesisRequest(body),
+                    requestFactory.kinesisRequest(
+                        hashMapOf("Records" to records, "StreamName" to kinesisStream)
+                    ),
                     Unit::class.java
                 )
                 (response as? Response.Success)?.let {
-                    emit(Unit)
+                    emit(records)
                 } ?: (response as? Response.Error)?.let {
                     throw it.error
                 }
-            }.onEach {
-                val sentRecords =
-                    (body[records] as? ArrayList<*>)?.filterIsInstance<AwsRecordModel>() ?: listOf()
-                val savedRecords = cacheRepository.getKinesisRecords()
-                val notSent = ArrayList(savedRecords.subtract(sentRecords))
-
-                cacheRepository.saveKinesisRecords(notSent.takeLast(50))
+            }.onEach { sentRecords ->
+                cacheRepository.getKinesisRecords().let { savedRecords ->
+                    cacheRepository.saveKinesisRecords(
+                        ArrayList(savedRecords.subtract(sentRecords)).takeLast(50)
+                    )
+                }
             }
                 .catch { }
                 .collect()
         }
     }
 
-    private fun getIso8601TimeDate(): String {
-        val c = Calendar.getInstance().time
-        val tz = TimeZone.getTimeZone("GMT")
-        val df: DateFormat =
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US)
+    private class ExternalAnalyticsDisabledExeption : Exception()
 
-        df.timeZone = tz
-        return df.format(c)
+    private fun formatCurrentDateTime(): String =
+        Calendar.getInstance().time.let(dateFormatter::format)
+
+    private val dateFormatter: DateFormat by lazy {
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("GMT")
+        }
     }
 
     private fun <T> ArrayList<T>.takeLast(n: Int): ArrayList<T> {

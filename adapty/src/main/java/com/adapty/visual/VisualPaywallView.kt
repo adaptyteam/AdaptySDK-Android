@@ -18,15 +18,13 @@ import com.adapty.R
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.VisualPaywallManager
-import com.adapty.listeners.VisualPaywallListener
+import com.adapty.models.PaywallModel
 import com.adapty.models.PeriodUnit
 import com.adapty.models.ProductModel
 import com.adapty.models.ProductSubscriptionPeriodModel
 
 @SuppressLint("SetJavaScriptEnabled")
 class VisualPaywallView : WebView {
-
-    var actionListener: VisualPaywallListener? = null
 
     constructor(context: Context) : super(context)
 
@@ -71,40 +69,39 @@ class VisualPaywallView : WebView {
         )
     }
 
-    private lateinit var paywallId: String
+    private var paywallId: String? = null
 
     private val visualPaywallManager: VisualPaywallManager by inject()
 
     @JvmOverloads
-    fun loadPaywall(paywallId: String, paddingTop: Int = 0, paddingBottom: Int = 0) {
-        this.paywallId = paywallId
+    fun showPaywall(paywall: PaywallModel, paddingTop: Int = 0, paddingBottom: Int = 0) {
+        paywallId = paywall.variationId
+
         visualPaywallManager.logEvent(paywallId, "paywall_showed")
 
-        visualPaywallManager.fetchPaywall(paywallId)?.let { paywall ->
-            var visualPaywall = paywall.visualPaywall
-                ?.replace("%adapty_paywall_padding_top%", "$paddingTop")
-                ?.replace("%adapty_paywall_padding_bottom%", "$paddingBottom")
-            paywall.products.forEach {
-                visualPaywall = visualPaywall
-                    ?.replace("%adapty_title_${it.vendorProductId}%", it.localizedTitle)
-                    ?.replace("%adapty_price_${it.vendorProductId}%", it.localizedPrice ?: "")
-                    ?.replace("%adapty_duration_${it.vendorProductId}%", "${it.subscriptionPeriod}")
-                    ?.replace(
-                        "%adapty_introductory_price_${it.vendorProductId}%",
-                        "${it.introductoryDiscount?.localizedPrice}"
-                    )
-                    ?.replace(
-                        "%adapty_introductory_duration_${it.vendorProductId}%",
-                        getLocalizedSubscriptionPeriod(it.introductoryDiscount?.subscriptionPeriod)
-                    )
-                    ?.replace(
-                        "%adapty_trial_duration_${it.vendorProductId}%",
-                        getLocalizedSubscriptionPeriod(it.freeTrialPeriod)
-                    )
-            }
-            post {
-                loadDataWithBaseURL(null, visualPaywall, "text/html", "utf-8", null)
-            }
+        var visualPaywall = paywall.visualPaywall
+            ?.replace("%adapty_paywall_padding_top%", "$paddingTop")
+            ?.replace("%adapty_paywall_padding_bottom%", "$paddingBottom")
+        paywall.products.forEach {
+            visualPaywall = visualPaywall
+                ?.replace("%adapty_title_${it.vendorProductId}%", it.localizedTitle)
+                ?.replace("%adapty_price_${it.vendorProductId}%", it.localizedPrice ?: "")
+                ?.replace("%adapty_duration_${it.vendorProductId}%", "${it.subscriptionPeriod}")
+                ?.replace(
+                    "%adapty_introductory_price_${it.vendorProductId}%",
+                    "${it.introductoryDiscount?.localizedPrice}"
+                )
+                ?.replace(
+                    "%adapty_introductory_duration_${it.vendorProductId}%",
+                    getLocalizedSubscriptionPeriod(it.introductoryDiscount?.subscriptionPeriod)
+                )
+                ?.replace(
+                    "%adapty_trial_duration_${it.vendorProductId}%",
+                    getLocalizedSubscriptionPeriod(it.freeTrialPeriod)
+                )
+        }
+        post {
+            loadDataWithBaseURL(null, visualPaywall, "text/html", "utf-8", null)
         }
     }
 
@@ -117,12 +114,13 @@ class VisualPaywallView : WebView {
             }
             uri.scheme == "adapty" -> {
                 when {
-                    uri.lastPathSegment == "close_paywall" -> actionListener?.onClosed()
+                    uri.lastPathSegment == "close_paywall" -> onCancel()
                     uri.lastPathSegment == "restore_purchases" -> restorePurchases()
                     uri.pathSegments.size >= 2 -> {
                         when (uri.pathSegments[uri.pathSegments.size - 2]) {
                             "subscribe" -> {
-                                visualPaywallManager.fetchPaywall(paywallId)?.products?.firstOrNull { it.vendorProductId == uri.lastPathSegment }
+                                paywallId?.let(visualPaywallManager::fetchPaywall)
+                                    ?.products?.firstOrNull { it.vendorProductId == uri.lastPathSegment }
                                     ?.let { product ->
                                         (context as? Activity)?.let { activity ->
                                             makePurchase(activity, product)
@@ -161,13 +159,18 @@ class VisualPaywallView : WebView {
                         product.vendorProductId
                     )
                 }
-                actionListener?.onPurchaseFailure(product, error)
+                visualPaywallManager.listener?.onPurchaseFailure(
+                    product,
+                    error,
+                    context as? VisualPaywallActivity
+                )
             }
-                ?: actionListener?.onPurchased(
+                ?: visualPaywallManager.listener?.onPurchased(
                     purchaserInfo,
                     purchaseToken,
                     googleValidationResult,
-                    product
+                    product,
+                    context as? VisualPaywallActivity
                 )
         }
     }
@@ -175,7 +178,12 @@ class VisualPaywallView : WebView {
     private fun restorePurchases() {
         visualPaywallManager.logEvent(paywallId, "purchase_restore")
         Adapty.restorePurchases { purchaserInfo, googleValidationResultList, error ->
-            actionListener?.onRestorePurchases(purchaserInfo, googleValidationResultList, error)
+            visualPaywallManager.listener?.onRestorePurchases(
+                purchaserInfo,
+                googleValidationResultList,
+                error,
+                context as? VisualPaywallActivity
+            )
         }
     }
 
@@ -197,10 +205,8 @@ class VisualPaywallView : WebView {
             } ?: return@let ""
         } ?: ""
 
-    override fun onDetachedFromWindow() {
-        if (::paywallId.isInitialized) {
-            visualPaywallManager.logEvent(paywallId, "paywall_closed")
-        }
-        super.onDetachedFromWindow()
+    @JvmSynthetic
+    internal fun onCancel() {
+        visualPaywallManager.onCancel(paywallId, context as? VisualPaywallActivity)
     }
 }

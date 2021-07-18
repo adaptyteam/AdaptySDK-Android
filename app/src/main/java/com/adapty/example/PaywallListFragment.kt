@@ -11,6 +11,7 @@ import com.adapty.models.GoogleValidationResult
 import com.adapty.models.PaywallModel
 import com.adapty.models.ProductModel
 import com.adapty.models.PurchaserInfoModel
+import com.adapty.visual.VisualPaywallActivity
 import kotlinx.android.synthetic.main.fragment_list.*
 
 class PaywallListFragment : Fragment(R.layout.fragment_list) {
@@ -41,25 +42,32 @@ class PaywallListFragment : Fragment(R.layout.fragment_list) {
                 purchaserInfo: PurchaserInfoModel?,
                 purchaseToken: String?,
                 googleValidationResult: GoogleValidationResult?,
-                product: ProductModel
+                product: ProductModel,
+                modalActivity: VisualPaywallActivity?
             ) {
                 showToast("Purchased: ${product.vendorProductId}")
             }
 
-            override fun onPurchaseFailure(product: ProductModel, error: AdaptyError) {
+            override fun onPurchaseFailure(
+                product: ProductModel,
+                error: AdaptyError,
+                modalActivity: VisualPaywallActivity?
+            ) {
                 showToast("Purchase failed: ${error.message}")
             }
 
             override fun onRestorePurchases(
                 purchaserInfo: PurchaserInfoModel?,
                 googleValidationResultList: List<GoogleValidationResult>?,
-                error: AdaptyError?
+                error: AdaptyError?,
+                modalActivity: VisualPaywallActivity?
             ) {
                 showToast("Restore: ${error?.message ?: "Success"}")
             }
 
-            override fun onClosed() {
-                showToast("Paywall closed")
+            override fun onCancel(modalActivity: VisualPaywallActivity?) {
+                showToast("Attempt to close visual paywall")
+                modalActivity?.close()
             }
         })
     }
@@ -75,7 +83,7 @@ class PaywallListFragment : Fragment(R.layout.fragment_list) {
 
     private fun onShowVisualPaywallClick(paywall: PaywallModel) {
         activity?.let {
-            Adapty.showPaywall(it, paywall)
+            Adapty.showVisualPaywall(it, paywall)
         }
     }
 }

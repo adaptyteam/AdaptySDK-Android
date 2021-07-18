@@ -30,8 +30,8 @@ internal class VisualPaywallManager(
         ?.also { cachedPaywalls[paywallId] = it }
 
     @JvmSynthetic
-    fun logEvent(paywallId: String, eventName: String, vendorProductId: String? = null) {
-        fetchPaywall(paywallId)?.let { paywall ->
+    fun logEvent(paywallId: String?, eventName: String, vendorProductId: String? = null) {
+        paywallId?.let(::fetchPaywall)?.let { paywall ->
             val subMap = hashMapOf(
                 "is_promo" to "${paywall.isPromo}",
                 "variation_id" to paywall.variationId
@@ -45,7 +45,13 @@ internal class VisualPaywallManager(
 
     @JvmSynthetic
     fun closePaywall() {
-        currentVisualPaywallActivity?.get()?.onBackPressed()
+        currentVisualPaywallActivity?.get()?.close()
+    }
+
+    @JvmSynthetic
+    fun onCancel(paywallId: String?, modalActivity: VisualPaywallActivity?) {
+        listener?.onCancel(modalActivity)
+        logEvent(paywallId, "paywall_closed")
     }
 
 }

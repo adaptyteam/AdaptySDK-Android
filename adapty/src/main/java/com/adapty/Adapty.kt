@@ -237,20 +237,20 @@ object Adapty {
     }
 
     @JvmStatic
-    fun showPaywall(
+    fun showVisualPaywall(
         activity: Activity,
         paywall: PaywallModel,
     ) {
-        Logger.logVerbose { "showPaywall()" }
+        Logger.logVerbose { "showVisualPaywall()" }
         if (!checkActivated()) return
-        adaptyInternal.showPaywall(activity, paywall)
+        adaptyInternal.showVisualPaywall(activity, paywall)
     }
 
     @JvmStatic
-    fun closePaywall() {
-        Logger.logVerbose { "closePaywall()" }
+    fun closeVisualPaywall() {
+        Logger.logVerbose { "closeVisualPaywall()" }
         if (!checkActivated()) return
-        adaptyInternal.closePaywall()
+        adaptyInternal.closeVisualPaywall()
     }
 
     @JvmStatic

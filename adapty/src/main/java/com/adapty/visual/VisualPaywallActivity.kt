@@ -6,23 +6,18 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat.Type
 import com.adapty.R
-import com.adapty.errors.AdaptyError
 import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.VisualPaywallManager
-import com.adapty.listeners.VisualPaywallListener
-import com.adapty.models.GoogleValidationResult
-import com.adapty.models.ProductModel
-import com.adapty.models.PurchaserInfoModel
 import java.lang.ref.WeakReference
 
-internal class VisualPaywallActivity : AppCompatActivity() {
+class VisualPaywallActivity : AppCompatActivity() {
 
     companion object {
         internal const val PAYWALL_ID_EXTRA = "PAYWALL_ID_EXTRA"
     }
 
-    private lateinit var paywallId: String
     private var paddingTop = 0
     private var paddingBottom = 0
 
@@ -52,8 +47,11 @@ internal class VisualPaywallActivity : AppCompatActivity() {
             ViewCompat.setOnApplyWindowInsetsListener(
                 visualPaywallView
             ) { _, insets ->
-                paddingTop = insets.systemWindowInsetTop
-                paddingBottom = insets.systemWindowInsetBottom
+                insets.getInsets(Type.systemBars()).let {
+                    paddingTop = it.top
+                    paddingBottom = it.bottom
+                }
+
                 ViewCompat.setOnApplyWindowInsetsListener(visualPaywallView, null)
                 setupVisualPaywallView(visualPaywallView, paddingTop, paddingBottom)
                 insets
@@ -74,51 +72,32 @@ internal class VisualPaywallActivity : AppCompatActivity() {
         paddingTop: Int,
         paddingBottom: Int
     ) {
-        paywallId = intent?.getStringExtra(PAYWALL_ID_EXTRA).orEmpty()
+        val paywall =
+            intent?.getStringExtra(PAYWALL_ID_EXTRA)?.takeIf(CharSequence::isNotEmpty)
+                ?.let(visualPaywallManager::fetchPaywall)
+                ?: kotlin.run {
+                    close()
+                    return
+                }
 
-        visualPaywallView.loadPaywall(paywallId, paddingTop, paddingBottom)
-
-        visualPaywallView.actionListener = object : VisualPaywallListener {
-            override fun onPurchased(
-                purchaserInfo: PurchaserInfoModel?,
-                purchaseToken: String?,
-                googleValidationResult: GoogleValidationResult?,
-                product: ProductModel
-            ) {
-                visualPaywallManager.listener?.onPurchased(
-                    purchaserInfo,
-                    purchaseToken,
-                    googleValidationResult,
-                    product
-                )
-            }
-
-            override fun onPurchaseFailure(product: ProductModel, error: AdaptyError) {
-                visualPaywallManager.listener?.onPurchaseFailure(product, error)
-            }
-
-            override fun onRestorePurchases(
-                purchaserInfo: PurchaserInfoModel?,
-                googleValidationResultList: List<GoogleValidationResult>?,
-                error: AdaptyError?
-            ) {
-                visualPaywallManager.listener?.onRestorePurchases(
-                    purchaserInfo,
-                    googleValidationResultList,
-                    error
-                )
-            }
-
-            override fun onClosed() {
-                onBackPressed()
-            }
-        }
+        visualPaywallView.showPaywall(paywall, paddingTop, paddingBottom)
     }
 
-    override fun onBackPressed() {
+    fun close() {
         visualPaywallManager.currentVisualPaywallActivity = null
-        visualPaywallManager.listener?.onClosed()
         super.onBackPressed()
         overridePendingTransition(R.anim.adapty_paywall_no_anim, R.anim.adapty_paywall_slide_down)
+    }
+
+    @Deprecated(
+        message = "To close the paywall, please call either '.close()', or 'Adapty.closeVisualPaywall()' instead.",
+        level = DeprecationLevel.ERROR,
+        replaceWith = ReplaceWith(
+            expression = "close()",
+            imports = arrayOf("com.adapty.Adapty")
+        )
+    )
+    override fun onBackPressed() {
+        visualPaywallView.onCancel()
     }
 }
