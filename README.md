@@ -5,7 +5,7 @@
 
 ![Adapty: CRM for mobile apps with subscriptions](/adapty-schema.png)
 
-Adapty SDK is an open-source framework that makes implementing in-app subscriptions in iOS fast and easy. It’s 100% open-source, native and lightweight.
+Adapty SDK is an open-source framework that makes implementing in-app subscriptions in Android fast and easy. It’s 100% open-source, native and lightweight.
 
 ## Install SDK to grow subscriptions:
 
@@ -17,7 +17,7 @@ Return churned subscribers with promotional trigger-based push notifications.
 Explore user's payment events from starting the trial to subscription cancellation or billing issues.
 - [Forward in-app purchases events](https://doc.adapty.io/docs/events?utm_source=github&utm_medium=content&utm_campaign=AdaptySDK-Android)
 Send subscription events to 3rd party analytics, attribution, and ad services with no coding. Even if a user uninstalled an app.
-- [Implement in-app purchases with no server code](https://doc.adapty.io/docs/android-sdk-configuration?utm_source=github&utm_medium=content&utm_campaign=AdaptySDK-iOS)
+- [Implement in-app purchases with no server code](https://doc.adapty.io/docs/android-sdk-configuration?utm_source=github&utm_medium=content&utm_campaign=AdaptySDK-Android)
 In-app purchases with server-side validation in minutes.
 - [Analytics](https://doc.adapty.io/docs/analytics-charts?utm_source=github&utm_medium=content&utm_campaign=AdaptySDK-Android)
 Start analyzing real-time metrics of your app with advanced filters, such as ad network, ad campaign, country, A/B test, etc.
