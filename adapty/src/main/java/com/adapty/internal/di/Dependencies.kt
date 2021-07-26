@@ -113,7 +113,12 @@ internal object Dependencies {
                 }),
 
                 ProductsInteractor::class.java to DIObject({
-                    ProductsInteractor(injectInternal(), injectInternal(), injectInternal())
+                    ProductsInteractor(
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal()
+                    )
                 }),
 
                 PurchaserInteractor::class.java to DIObject({
@@ -121,12 +126,18 @@ internal object Dependencies {
                         appContext,
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
                         injectInternal()
                     )
                 }),
 
                 PurchasesInteractor::class.java to DIObject({
-                    PurchasesInteractor(injectInternal(), injectInternal(), injectInternal())
+                    PurchasesInteractor(
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal()
+                    )
                 }),
 
                 AuthInteractor::class.java to DIObject({

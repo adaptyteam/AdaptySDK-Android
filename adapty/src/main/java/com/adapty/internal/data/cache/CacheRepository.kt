@@ -12,10 +12,7 @@ import com.adapty.internal.data.models.RestoreProductInfo
 import com.adapty.internal.data.models.responses.PaywallsResponse
 import com.adapty.internal.data.models.responses.SyncMetaResponse
 import com.adapty.internal.data.models.responses.UpdateProfileResponse
-import com.adapty.internal.utils.Logger
-import com.adapty.internal.utils.PaywallMapper
-import com.adapty.internal.utils.ProductMapper
-import com.adapty.internal.utils.generateUuid
+import com.adapty.internal.utils.*
 import com.adapty.models.PromoModel
 import com.adapty.models.PurchaserInfoModel
 import com.google.gson.Gson
@@ -41,7 +38,11 @@ internal class CacheRepository(
 
     @JvmSynthetic
     @JvmField
-    var arePaywallsReceivedFromBackend = AtomicBoolean(false)
+    val arePaywallsReceivedFromBackend = AtomicBoolean(false)
+
+    @JvmSynthetic
+    @JvmField
+    val canFallbackPaywallsBeSet = AtomicBoolean(true)
 
     @JvmSynthetic
     fun updateDataOnSyncMeta(attributes: SyncMetaResponse.Data.Attributes?) {
@@ -54,10 +55,14 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
-    fun updateDataOnCreateProfile(attributes: Attributes?) {
+    suspend fun updateDataOnCreateProfile(attributes: Attributes?) {
         attributes?.let { attrs ->
-            attrs.profileId?.let(::saveProfileId) ?: getProfileId()?.let(::saveProfileIdOnDisk)
+            (attrs.profileId ?: (cache[UNSYNCED_PROFILE_ID] as? String))?.let(::saveProfileId)
             attrs.customerUserId?.let(::saveCustomerUserId)
+            savePurchaserInfo(PurchaserInfoMapper.map(attrs))
+
+            cache.remove(UNSYNCED_PROFILE_ID)
+            cache.remove(UNSYNCED_CUSTOMER_USER_ID)
         }
     }
 
@@ -99,23 +104,11 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
-    fun getOrCreateProfileUUID() =
-        getProfileId()?.takeIf(String::isNotEmpty)
-            ?: generateUuid().also(::saveProfileIdInMemory)
-
-    @JvmSynthetic
-    fun getProfileId() = getString(PROFILE_ID)
+    fun getProfileId() = ((cache[UNSYNCED_PROFILE_ID] as? String) ?: getString(PROFILE_ID))
+        ?.takeIf(String::isNotEmpty) ?: generateUuid().also { cache[UNSYNCED_PROFILE_ID] = it }
 
     private fun saveProfileId(profileId: String) {
-        saveProfileIdInMemory(profileId)
-        saveProfileIdOnDisk(profileId)
-    }
-
-    private fun saveProfileIdInMemory(profileId: String) {
         cache[PROFILE_ID] = profileId
-    }
-
-    private fun saveProfileIdOnDisk(profileId: String) {
         preferenceManager.saveString(PROFILE_ID, profileId)
     }
 
@@ -127,9 +120,30 @@ internal class CacheRepository(
     @JvmSynthetic
     fun getCustomerUserId() = getString(CUSTOMER_USER_ID)
 
+    @JvmSynthetic
+    fun getUnsyncedAuthData(): Pair<String?, String?> {
+        return (cache[UNSYNCED_PROFILE_ID] as? String) to (cache[UNSYNCED_CUSTOMER_USER_ID] as? String)
+    }
+
     private fun saveCustomerUserId(customerUserId: String) {
         cache[CUSTOMER_USER_ID] = customerUserId
         preferenceManager.saveString(CUSTOMER_USER_ID, customerUserId)
+    }
+
+    @JvmSynthetic
+    fun prepareCustomerUserIdToSync(newCustomerUserId: String?) {
+        if (newCustomerUserId.isNullOrBlank()) {
+            cache.remove(UNSYNCED_CUSTOMER_USER_ID)
+        } else if (getString(CUSTOMER_USER_ID) != newCustomerUserId) {
+            cache[UNSYNCED_CUSTOMER_USER_ID] = newCustomerUserId
+        }
+    }
+
+    @JvmSynthetic
+    fun prepareProfileIdToSync() {
+        if (cache[UNSYNCED_PROFILE_ID] == null && getString(PROFILE_ID).isNullOrEmpty()) {
+            cache[UNSYNCED_PROFILE_ID] = generateUuid()
+        }
     }
 
     @JvmSynthetic
@@ -250,10 +264,11 @@ internal class CacheRepository(
             cache[PRODUCTS] = it
         } ?: cache.remove(PRODUCTS)
         preferenceManager.saveContainersAndProducts(containers, products)
+        arePaywallsReceivedFromBackend.set(true)
     }
 
     fun saveFallbackPaywalls(paywalls: String): AdaptyError? =
-        if (!arePaywallsReceivedFromBackend.get() && getContainers() == null) {
+        if (canFallbackPaywallsBeSet.get() && getContainers() == null) {
             try {
                 cache[FALLBACK_PAYWALLS] = gson.fromJson(paywalls, PaywallsResponse::class.java)
                 null
@@ -275,11 +290,6 @@ internal class CacheRepository(
         }
 
     @JvmSynthetic
-    fun clearContainersAndProducts() {
-        saveContainersAndProducts(null, null)
-    }
-
-    @JvmSynthetic
     fun clearOnLogout() {
         cache.apply {
             remove(CUSTOMER_USER_ID)
@@ -294,6 +304,7 @@ internal class CacheRepository(
             remove(IAM_SESSION_TOKEN)
         }
         preferenceManager.clearOnLogout()
+        arePaywallsReceivedFromBackend.set(false)
     }
 
     @JvmSynthetic

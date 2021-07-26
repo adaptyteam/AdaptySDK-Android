@@ -13,11 +13,12 @@ import com.adapty.internal.utils.*
 import com.adapty.models.PaywallModel
 import com.adapty.models.ProductModel
 import com.adapty.models.PromoModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import java.io.IOException
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class ProductsInteractor(
+    private val authInteractor: AuthInteractor,
     private val cloudRepository: CloudRepository,
     private val cacheRepository: CacheRepository,
     private val storeManager: StoreManager,
@@ -26,69 +27,54 @@ internal class ProductsInteractor(
     @JvmSynthetic
     fun getPaywalls(
         forceUpdate: Boolean
-    ) = cloudRepository.arePaywallRequestsAllowed
-        .filter { it }
-        .flatMapLatest {
-            when {
-                forceUpdate -> {
-                    cloudRepository.getPaywalls()
-                        .flatMapConcat { postProcessPaywalls(it, maxAttemptCount = 3L) }
-                        .catch { error ->
-                            if (error is AdaptyError && error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR) {
-                                emit(cacheRepository.getPaywallsAndProducts())
-                            } else {
-                                throw error
-                            }
-                        }
-                        .flowOnIO()
+    ) = when {
+        forceUpdate || !cacheRepository.arePaywallsReceivedFromBackend.get() -> {
+            getPaywallsFromCloud()
+        }
+        else -> {
+            cacheRepository.getPaywallsAndProducts()
+                .takeIf { (paywalls, products) -> paywalls != null || products != null }
+                ?.let { cachedPaywalls ->
+                    flowOf(cachedPaywalls)
                 }
-                else -> {
-                    cacheRepository.getPaywallsAndProducts()
-                        .takeIf { (paywalls, _) -> paywalls != null }?.let { cachedPaywalls ->
-                            flowOf(cachedPaywalls)
-                        }
-                        ?: cacheRepository.getFallbackPaywalls()?.let { fallbackPaywalls ->
-                            flowOf(fallbackPaywalls)
-                                .flatMapConcat(::postProcessPaywalls)
-                        } ?: throw AdaptyError(
-                            message = "Paywalls not found",
-                            adaptyErrorCode = AdaptyErrorCode.PAYWALL_NOT_FOUND
-                        )
+                ?: getPaywallsFromCloud()
+        }
+    }
+
+    private fun getPaywallsFromCloud() =
+        authInteractor.runWhenAuthDataSynced {
+            cloudRepository.getPaywalls()
+        }
+            .flatMapConcat { postProcessPaywalls(it, maxAttemptCount = DEFAULT_RETRY_COUNT) }
+            .catch { error ->
+                if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
+                    flow {
+                        cacheRepository.getPaywallsAndProducts()
+                            .takeIf { (paywalls, products) -> paywalls != null || products != null }
+                            ?.let { cachedPaywalls ->
+                                emit(cachedPaywalls)
+                            }
+                            ?: cacheRepository.getFallbackPaywalls()?.let { fallbackPaywalls ->
+                                postProcessPaywalls(fallbackPaywalls, DEFAULT_RETRY_COUNT)
+                                    .onEach(::emit)
+                                    .catch { error -> throw error }
+                                    .collect()
+                            } ?: throw error
+                    }
+                        .onEach { paywalls -> emit(paywalls) }
+                        .catch { error -> throw error }
+                        .collect()
+                } else {
+                    throw error
                 }
             }
-        }
+            .flowOnIO()
 
     @JvmSynthetic
     fun getPaywallsOnStart() =
-        (cloudRepository::getPaywallsForced)
-            .asFlow()
-            .retryWhen { error, attempt ->
-                if (error !is AdaptyError) {
-                    return@retryWhen false
-                }
-
-                if (attempt > 2 && error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR && !cloudRepository.arePaywallRequestsAllowed.value) {
-                    cacheRepository.getContainers()?.let {
-                        cloudRepository.arePaywallRequestsAllowed.compareAndSet(expect = false, update = true)
-                    } ?: cacheRepository.getFallbackPaywalls()?.let {
-                        cloudRepository.arePaywallRequestsAllowed.compareAndSet(expect = false, update = true)
-                    }
-                }
-
-                when (error.getRetryType(true)) {
-                    AdaptyError.RetryType.PROGRESSIVE -> {
-                        delay(getServerErrorDelay(attempt))
-                        return@retryWhen true
-                    }
-                    AdaptyError.RetryType.SIMPLE -> {
-                        delay(NETWORK_ERROR_DELAY_MILLIS)
-                        return@retryWhen true
-                    }
-                    else -> {
-                        return@retryWhen false
-                    }
-                }
-            }
+        authInteractor.runWhenAuthDataSynced(INFINITE_RETRY) {
+            cloudRepository.getPaywalls()
+        }
             .flatMapConcat(::postProcessPaywalls)
             .flowOnIO()
 
@@ -97,22 +83,19 @@ internal class ProductsInteractor(
         cacheRepository.saveFallbackPaywalls(paywalls)
 
     @JvmSynthetic
-    fun getPromo() = cloudRepository.getPromo()
-        .flatMapConcat { promoDto -> postProcessPromo(promoDto, maxAttemptCount = 3) }
+    fun getPromo(maxAttemptCount: Long = DEFAULT_RETRY_COUNT) =
+        authInteractor.runWhenAuthDataSynced(maxAttemptCount) { cloudRepository.getPromo() }
+            .flatMapConcat { promoDto -> postProcessPromo(promoDto, maxAttemptCount) }
 
     @JvmSynthetic
     fun getPromoOnStart() =
-        (cloudRepository::getPromoForced)
-            .asFlow()
-            .retryIfNecessary()
-            .flatMapConcat(::postProcessPromo)
-            .flowOnIO()
+        getPromo(INFINITE_RETRY)
 
     private fun postProcessPaywalls(
         pair: Pair<ArrayList<PaywallsResponse.Data>, ArrayList<ProductDto>>,
-        maxAttemptCount: Long = -1
+        maxAttemptCount: Long = INFINITE_RETRY
     ): Flow<Pair<List<PaywallModel>?, List<ProductModel>?>> {
-        cacheRepository.arePaywallsReceivedFromBackend.compareAndSet(false, true)
+        cacheRepository.canFallbackPaywallsBeSet.set(false)
         val (containers, products) = pair
 
         val data: ArrayList<Any> =
@@ -121,7 +104,6 @@ internal class ProductsInteractor(
         if (data.isEmpty() && products.isEmpty()) {
             return flow {
                 cacheRepository.saveContainersAndProducts(containers, products)
-                cloudRepository.arePaywallRequestsAllowed.compareAndSet(expect = false, update = true)
                 emit(Pair(PaywallMapper.map(containers), products.map(ProductMapper::map)))
             }
         } else {
@@ -145,14 +127,13 @@ internal class ProductsInteractor(
                     containersList.addAll(unfilledContainers)
 
                     cacheRepository.saveContainersAndProducts(containersList, productsList)
-                    cloudRepository.arePaywallRequestsAllowed.compareAndSet(expect = false, update = true)
 
                     Pair(PaywallMapper.map(containersList), productsList.map(ProductMapper::map))
                 }
         }
     }
 
-    private fun postProcessPromo(it: PromoDto?, maxAttemptCount: Long = -1): Flow<PromoModel?> {
+    private fun postProcessPromo(it: PromoDto?, maxAttemptCount: Long = INFINITE_RETRY): Flow<PromoModel?> {
         return it?.let { promo ->
             cacheRepository.getPaywalls()
                 ?.firstOrNull { it.variationId == promo.variationId }
@@ -161,10 +142,10 @@ internal class ProductsInteractor(
                         emit(cacheRepository.setCurrentPromo(PromoMapper.map(promo, paywall)))
                     }
                 }
-                ?: (cloudRepository::getPaywallsForced)
+                ?: (cloudRepository::getPaywalls)
                     .asFlow()
                     .retryIfNecessary(maxAttemptCount)
-                    .flatMapConcat(::postProcessPaywalls)
+                    .flatMapConcat { postProcessPaywalls(it, maxAttemptCount) }
                     .map { (paywalls, _) ->
                         paywalls
                             ?.firstOrNull { it.variationId == promo.variationId }

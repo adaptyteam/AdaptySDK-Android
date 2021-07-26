@@ -5,7 +5,7 @@ import android.content.Intent
 import androidx.annotation.RestrictTo
 import com.adapty.R
 import com.adapty.errors.AdaptyError
-import com.adapty.errors.AdaptyErrorCode
+import com.adapty.errors.AdaptyErrorCode.*
 import com.adapty.internal.data.cloud.KinesisManager
 import com.adapty.internal.data.cloud.StoreManager
 import com.adapty.internal.domain.AuthInteractor
@@ -111,18 +111,12 @@ internal class AdaptyInternal(
         callback: ((AdaptyError?) -> Unit)?
     ) {
         execute {
+            authInteractor.prepareAuthDataToSync(customerUserId)
+
             authInteractor
-                .activate(customerUserId)
-                .flatMapConcat { executeStartRequests() }
-                .flowOnIO()
-                .onEach {
-                    authInteractor.unblockRequests()
-                    callback?.invoke(null)
-                }
-                .catch { error ->
-                    authInteractor.unblockRequests()
-                    callback?.invoke(error.asAdaptyError())
-                }
+                .activateOrIdentify()
+                .onEach { callback?.invoke(null); executeStartRequests() }
+                .catch { error -> callback?.invoke(error.asAdaptyError()); executeStartRequests() }
                 .flowOnMain()
                 .collect()
         }
@@ -135,7 +129,7 @@ internal class AdaptyInternal(
             callback.invoke(
                 AdaptyError(
                     message = "customerUserId should not be empty",
-                    adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+                    adaptyErrorCode = MISSING_PARAMETER
                 )
             )
             return
@@ -145,25 +139,12 @@ internal class AdaptyInternal(
         }
 
         execute {
-            authInteractor.blockRequests()
+            authInteractor.prepareAuthDataToSync(customerUserId)
 
             authInteractor
-                .identify(customerUserId)
-                .flatMapConcat { shouldExecuteStartRequests ->
-                    if (shouldExecuteStartRequests)
-                        executeStartRequests()
-                    else
-                        flowOf(null)
-                }
-                .flowOnIO()
-                .onEach {
-                    authInteractor.unblockRequests()
-                    callback.invoke(null)
-                }
-                .catch { error ->
-                    authInteractor.unblockRequests()
-                    callback.invoke(error.asAdaptyError())
-                }
+                .activateOrIdentify()
+                .onEach { callback.invoke(null); executeStartRequests() }
+                .catch { error -> callback.invoke(error.asAdaptyError()); executeStartRequests() }
                 .flowOnMain()
                 .collect()
         }
@@ -172,7 +153,6 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun logout(callback: (error: AdaptyError?) -> Unit) {
         authInteractor.clearDataOnLogout()
-        authInteractor.blockRequests()
         activate(null, callback)
     }
 
@@ -195,7 +175,7 @@ internal class AdaptyInternal(
                 product,
                 AdaptyError(
                     message = "Product type is null",
-                    adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+                    adaptyErrorCode = MISSING_PARAMETER
                 )
             )
             return
@@ -207,43 +187,74 @@ internal class AdaptyInternal(
             purchaseType,
             subscriptionUpdateParams
         ) { purchase, error ->
-            if (error != null) {
-                callback.invoke(null, null, null, product, error)
-            } else {
-                purchase?.let { purchase ->
-                    execute {
-                        purchasesInteractor.validatePurchase(
-                            purchaseType,
-                            purchase,
-                            product
-                        ).onEach { (purchaserInfo, validationResult) ->
-                            callback.invoke(
-                                purchaserInfo,
-                                purchase.purchaseToken,
-                                validationResult,
-                                product,
-                                null
-                            )
-                        }.catch {
-                            callback.invoke(
-                                null,
-                                purchase.purchaseToken,
-                                null,
-                                product,
-                                error
-                            )
-                        }
-                            .flowOnMain()
-                            .collect()
-                    }
+            when {
+                error?.adaptyErrorCode == ITEM_ALREADY_OWNED -> {
+                    storeManager.findActivePurchaseForProduct(productId, purchaseType)
+                        ?.let { purchase ->
+                            execute {
+                                (if (!purchase.isAcknowledged) {
+                                    storeManager.acknowledgePurchase(purchase, DEFAULT_RETRY_COUNT)
+                                } else {
+                                    flowOf(Unit)
+                                })
+                                    .flatMapConcat {
+                                        purchasesInteractor.validatePurchase(
+                                            purchaseType,
+                                            purchase,
+                                            product
+                                        )
+                                    }.onEach { (purchaserInfo, validationResult) ->
+                                        callback.invoke(
+                                            purchaserInfo,
+                                            purchase.purchaseToken,
+                                            validationResult,
+                                            product,
+                                            null
+                                        )
+                                    }.catch {
+                                        callback.invoke(
+                                            null,
+                                            purchase.purchaseToken,
+                                            null,
+                                            product,
+                                            error
+                                        )
+                                    }
+                                    .flowOnMain()
+                                    .collect()
+                            }
+                        } ?: callback.invoke(null, null, null, product, error)
                 }
-                    ?: callback.invoke(
-                        null,
-                        null,
-                        null,
-                        product,
-                        null
-                    )
+
+                error != null -> callback.invoke(null, null, null, product, error)
+
+                else -> {
+                    purchase?.let { purchase ->
+                        execute {
+                            purchasesInteractor.validatePurchase(purchaseType, purchase, product)
+                                .onEach { (purchaserInfo, validationResult) ->
+                                    callback.invoke(
+                                        purchaserInfo,
+                                        purchase.purchaseToken,
+                                        validationResult,
+                                        product,
+                                        null
+                                    )
+                                }
+                                .catch {
+                                    callback.invoke(
+                                        null,
+                                        purchase.purchaseToken,
+                                        null,
+                                        product,
+                                        error
+                                    )
+                                }
+                                .flowOnMain()
+                                .collect()
+                        }
+                    } ?: callback.invoke(null, null, null, product, null)
+                }
             }
         }
     }
@@ -281,24 +292,22 @@ internal class AdaptyInternal(
         }
     }
 
-    private fun executeStartRequests(): Flow<*> {
-        return authInteractor.onActivateAllowed()
-            .flatMapConcat {
-                purchaserInteractor.syncMetaOnStart()
-                    .onEach { periodicRequestManager.startPeriodicRequests() }
+    private suspend fun executeStartRequests() {
+        purchaserInteractor.syncMetaOnStart()
+            .onEach { periodicRequestManager.startPeriodicRequests() }.catch { }.flowOnMain()
+            .collect()
+        productsInteractor.getPaywallsOnStart().catch { }.collect()
+        productsInteractor.getPromoOnStart().catch { }.collect()
+        purchasesInteractor.syncPurchasesOnStart()
+            .catch { error ->
+                if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
+                    purchaserInteractor.getPurchaserInfoOnStart().catch { }.collect()
+                }
             }
-            .flatMapConcat {
-                productsInteractor.getPaywallsOnStart()
-                    .zip(productsInteractor.getPromoOnStart()) { _, _ -> }
-                    .zip(
-                        purchasesInteractor.syncPurchasesOnStart()
-                            .flatMapConcat { purchaserInteractor.getPurchaserInfoOnStart() }
-                    ) { _, _ -> }
-            }
-            .onEach {
-                purchaserInteractor.syncAttributions()
-                purchasesInteractor.consumeAndAcknowledgeTheUnprocessed()
-            }
+            .collect()
+
+        purchaserInteractor.syncAttributions()
+        purchasesInteractor.consumeAndAcknowledgeTheUnprocessed()
     }
 
     @JvmSynthetic

@@ -5,8 +5,6 @@ import com.adapty.internal.data.models.*
 import com.adapty.internal.data.models.responses.*
 import com.adapty.internal.data.models.responses.UpdateProfileResponse.Data.Attributes
 import com.adapty.internal.utils.PurchaserInfoMapper
-import com.adapty.internal.utils.flowOnIO
-import com.adapty.internal.utils.retryIfNecessary
 import com.adapty.models.PurchaserInfoModel
 import com.adapty.utils.ProfileParameterBuilder
 import com.android.billingclient.api.Purchase
@@ -20,28 +18,8 @@ internal class CloudRepository(
 
     private val isActivateAllowed = MutableStateFlow(false)
 
-    private val areRequestsAllowed = MutableStateFlow(false)
-
     @JvmSynthetic
-    fun blockRequests() {
-        areRequestsAllowed.compareAndSet(expect = true, update = false)
-    }
-
-    @JvmSynthetic
-    fun unblockRequests() {
-        areRequestsAllowed.compareAndSet(expect = false, update = true)
-    }
-
-    @get:JvmSynthetic
-    val arePaywallRequestsAllowed = MutableStateFlow(false)
-
-    @JvmSynthetic
-    fun getPurchaserInfo(): Flow<PurchaserInfoModel?> {
-        return runWhenAllowed { getPurchaserInfoForced() }
-    }
-
-    @JvmSynthetic
-    fun getPurchaserInfoForced(): PurchaserInfoModel? {
+    fun getPurchaserInfo(): PurchaserInfoModel? {
         val response =
             httpClient.newCall(
                 requestFactory.getPurchaserInfoRequest(),
@@ -54,12 +32,7 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun getPaywalls(): Flow<Pair<ArrayList<PaywallsResponse.Data>, ArrayList<ProductDto>>> {
-        return runWhenAllowed { getPaywallsForced() }
-    }
-
-    @JvmSynthetic
-    fun getPaywallsForced(): Pair<ArrayList<PaywallsResponse.Data>, ArrayList<ProductDto>> {
+    fun getPaywalls(): Pair<ArrayList<PaywallsResponse.Data>, ArrayList<ProductDto>> {
         val response = httpClient.newCall(
             requestFactory.getPaywallsRequest(),
             PaywallsResponse::class.java
@@ -74,12 +47,7 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun getPromo(): Flow<PromoDto?> {
-        return runWhenAllowed { getPromoForced() }
-    }
-
-    @JvmSynthetic
-    fun getPromoForced(): PromoDto? {
+    fun getPromo(): PromoDto? {
         val response =
             httpClient.newCall(requestFactory.getPromoRequest(), PromoResponse::class.java)
         when (response) {
@@ -102,42 +70,29 @@ internal class CloudRepository(
                 is Response.Error -> throw response.error
             }
         }
-            .retryIfNecessary()
-            .flowOnIO()
 
     @JvmSynthetic
     fun validatePurchase(
         purchaseType: String,
         purchase: Purchase,
         product: ValidateProductInfo?,
-    ): Flow<ValidateReceiptResponse> =
-        flow {
-            val response = httpClient.newCall(
-                requestFactory.validatePurchaseRequest(
-                    purchaseType,
-                    purchase,
-                    product
-                ),
-                ValidateReceiptResponse::class.java
-            )
-            when (response) {
-                is Response.Success -> emit(response.body)
-                is Response.Error -> throw response.error
-            }
+    ): ValidateReceiptResponse {
+        val response = httpClient.newCall(
+            requestFactory.validatePurchaseRequest(
+                purchaseType,
+                purchase,
+                product
+            ),
+            ValidateReceiptResponse::class.java
+        )
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> throw response.error
         }
-            .retryIfNecessary()
-            .flowOnIO()
-
-    @JvmSynthetic
-    fun syncMeta(
-        advertisingId: String?,
-        pushToken: String?
-    ): Flow<SyncMetaResponse.Data.Attributes?> {
-        return runWhenAllowed { syncMetaForced(advertisingId, pushToken) }
     }
 
     @JvmSynthetic
-    fun syncMetaForced(
+    fun syncMeta(
         advertisingId: String?,
         pushToken: String?
     ): SyncMetaResponse.Data.Attributes? {
@@ -152,12 +107,7 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun restorePurchases(purchases: List<RestoreProductInfo>): Flow<RestoreReceiptResponse> {
-        return runWhenAllowed { restorePurchasesForced(purchases) }
-    }
-
-    @JvmSynthetic
-    fun restorePurchasesForced(purchases: List<RestoreProductInfo>): RestoreReceiptResponse {
+    fun restorePurchases(purchases: List<RestoreProductInfo>): RestoreReceiptResponse {
         val response = httpClient.newCall(
             requestFactory.restorePurchasesRequest(purchases),
             RestoreReceiptResponse::class.java
@@ -169,58 +119,43 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun updateProfile(params: ProfileParameterBuilder): Flow<Attributes?> {
-        return runWhenAllowed {
-            val response =
-                httpClient.newCall(
-                    requestFactory.updateProfileRequest(params),
-                    UpdateProfileResponse::class.java
-                )
-            when (response) {
-                is Response.Success -> response.body.data?.attributes
-                is Response.Error -> throw response.error
-            }
+    fun updateProfile(params: ProfileParameterBuilder): Attributes? {
+        val response =
+            httpClient.newCall(
+                requestFactory.updateProfileRequest(params),
+                UpdateProfileResponse::class.java
+            )
+        when (response) {
+            is Response.Success -> return response.body.data?.attributes
+            is Response.Error -> throw response.error
         }
     }
 
     @JvmSynthetic
-    fun updateAttribution(
-        attributionData: AttributionData,
-    ): Flow<Unit> {
-        return runWhenAllowed {
-            val response = httpClient.newCall(
-                requestFactory.updateAttributionRequest(attributionData),
-                Any::class.java
-            )
-            processEmptyResponse(response)
-        }
+    fun updateAttribution(attributionData: AttributionData) {
+        val response = httpClient.newCall(
+            requestFactory.updateAttributionRequest(attributionData),
+            Any::class.java
+        )
+        processEmptyResponse(response)
     }
 
     @JvmSynthetic
-    fun setTransactionVariationId(
-        transactionId: String,
-        variationId: String,
-    ): Flow<Unit> {
-        return runWhenAllowed {
-            val response = httpClient.newCall(
-                requestFactory.setTransactionVariationIdRequest(transactionId, variationId),
-                Any::class.java
-            )
-            processEmptyResponse(response)
-        }
+    fun setTransactionVariationId(transactionId: String, variationId: String) {
+        val response = httpClient.newCall(
+            requestFactory.setTransactionVariationIdRequest(transactionId, variationId),
+            Any::class.java
+        )
+        processEmptyResponse(response)
     }
 
     @JvmSynthetic
-    fun setExternalAnalyticsEnabled(
-        enabled: Boolean,
-    ): Flow<Unit> {
-        return runWhenAllowed {
-            val response = httpClient.newCall(
-                requestFactory.setExternalAnalyticsEnabledRequest(enabled),
-                Any::class.java
-            )
-            processEmptyResponse(response)
-        }
+    fun setExternalAnalyticsEnabled(enabled: Boolean) {
+        val response = httpClient.newCall(
+            requestFactory.setExternalAnalyticsEnabledRequest(enabled),
+            Any::class.java
+        )
+        processEmptyResponse(response)
     }
 
     private fun processEmptyResponse(response: Response<*>) {
@@ -230,18 +165,9 @@ internal class CloudRepository(
         }
     }
 
-    private fun <T> runWhenAllowed(call: suspend () -> T): Flow<T> {
-        return areRequestsAllowed
-            .filter { it }
-            .take(1)
-            .mapLatest { call() }
-            .retryIfNecessary(3)
-            .flowOnIO()
-    }
-
     @JvmSynthetic
     fun allowActivate() {
-        isActivateAllowed.compareAndSet(expect = false, update = true)
+        isActivateAllowed.value = true
     }
 
     @JvmSynthetic

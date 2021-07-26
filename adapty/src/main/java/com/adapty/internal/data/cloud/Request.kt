@@ -108,7 +108,7 @@ internal class RequestFactory(
     fun updateProfileRequest(params: ProfileParameterBuilder) = buildRequest {
         method = PATCH
         body = gson.toJson(
-            UpdateProfileRequest.create(cacheRepository.getOrCreateProfileUUID(), params)
+            UpdateProfileRequest.create(cacheRepository.getProfileId(), params)
         )
         endPoint = endpointForProfileRequests
     }
@@ -117,7 +117,7 @@ internal class RequestFactory(
     fun createProfileRequest(customerUserId: String?) = buildRequest {
         method = POST
         body = gson.toJson(
-            CreateProfileRequest.create(cacheRepository.getOrCreateProfileUUID(), customerUserId)
+            CreateProfileRequest.create(cacheRepository.getProfileId(), customerUserId)
         )
         endPoint = endpointForProfileRequests
     }
@@ -165,7 +165,7 @@ internal class RequestFactory(
         purchaseType: String,
         purchase: Purchase,
         product: ValidateProductInfo?
-    ) = cacheRepository.getOrCreateProfileUUID().let { uuid ->
+    ) = cacheRepository.getProfileId().let { uuid ->
         buildRequest {
             method = POST
             endPoint = "$inappsEndpointPrefix/google/token/validate/"
@@ -179,7 +179,7 @@ internal class RequestFactory(
     fun restorePurchasesRequest(purchases: List<RestoreProductInfo>) = buildRequest {
         method = POST
         body = gson.toJson(
-            RestoreReceiptRequest.create(cacheRepository.getOrCreateProfileUUID(), purchases)
+            RestoreReceiptRequest.create(cacheRepository.getProfileId(), purchases)
         )
         endPoint = "$inappsEndpointPrefix/google/token/restore/"
     }
@@ -188,7 +188,7 @@ internal class RequestFactory(
     fun getPaywallsRequest() = buildRequest {
         method = GET
         endPoint = "$inappsEndpointPrefix/purchase-containers/"
-        addQueryParam(Pair("profile_id", cacheRepository.getProfileId().orEmpty()))
+        addQueryParam(Pair("profile_id", cacheRepository.getProfileId()))
         addQueryParam(Pair("automatic_paywalls_screen_reporting_enabled", "false"))
         responseCacheKeys = ResponseCacheKeys.forGetPaywalls()
     }
@@ -220,7 +220,7 @@ internal class RequestFactory(
                 TransactionVariationIdRequest.create(
                     transactionId,
                     variationId,
-                    cacheRepository.getOrCreateProfileUUID()
+                    cacheRepository.getProfileId()
                 )
             )
         }

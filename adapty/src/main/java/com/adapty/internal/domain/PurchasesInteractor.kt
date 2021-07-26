@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.*
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class PurchasesInteractor(
+    private val authInteractor: AuthInteractor,
     private val cloudRepository: CloudRepository,
     private val cacheRepository: CacheRepository,
     private val storeManager: StoreManager,
@@ -25,26 +26,31 @@ internal class PurchasesInteractor(
 
     @JvmSynthetic
     fun validatePurchase(purchaseType: String, purchase: Purchase, product: ProductModel?) =
-        cloudRepository.validatePurchase(
-            purchaseType,
-            purchase,
-            product?.let(ProductMapper::mapToValidate)
-        ).map { validationResponse ->
-            validationResponse.data?.attributes
-                ?.let(PurchaserInfoMapper::map)
-                ?.let { purchaserInfo ->
-                    cacheRepository.savePurchaserInfo(purchaserInfo)
-                    Pair(
-                        purchaserInfo,
-                        validationResponse.data.attributes.googleValidationResult
-                    )
-                } ?: Pair(null, validationResponse.data?.attributes?.googleValidationResult)
+        authInteractor.runWhenAuthDataSynced {
+            cloudRepository.validatePurchase(
+                purchaseType,
+                purchase,
+                product?.let(ProductMapper::mapToValidate)
+            )
         }
+            .map { validationResponse ->
+                validationResponse.data?.attributes
+                    ?.let(PurchaserInfoMapper::map)
+                    ?.let { purchaserInfo ->
+                        cacheRepository.savePurchaserInfo(purchaserInfo)
+                        Pair(
+                            purchaserInfo,
+                            validationResponse.data.attributes.googleValidationResult
+                        )
+                    } ?: Pair(null, validationResponse.data?.attributes?.googleValidationResult)
+            }
 
     @JvmSynthetic
     fun restorePurchases() =
-        syncPurchasesInternal(maxAttemptCount = 3) { notSynced ->
-            cloudRepository.restorePurchases(notSynced)
+        syncPurchasesInternal(maxAttemptCount = DEFAULT_RETRY_COUNT) { notSynced ->
+            authInteractor.runWhenAuthDataSynced {
+                cloudRepository.restorePurchases(notSynced)
+            }
         }
             .map { response ->
                 response?.data?.attributes
@@ -60,22 +66,25 @@ internal class PurchasesInteractor(
             .flowOnIO()
 
     @JvmSynthetic
-    fun syncPurchasesOnStart(): Flow<RestoreReceiptResponse?> {
+    fun syncPurchasesOnStart(): Flow<Unit> {
         return syncPurchasesInternal { notSynced ->
-            flow {
-                emit(cloudRepository.restorePurchasesForced(notSynced))
-            }.retryIfNecessary()
-        }.catch { error ->
-            if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
-                emit(null)
-            } else {
-                throw error
+            authInteractor.runWhenAuthDataSynced(INFINITE_RETRY) {
+                cloudRepository.restorePurchases(notSynced)
             }
         }
+            .map { response ->
+                response?.data?.attributes
+                    ?.let(PurchaserInfoMapper::map)
+                    ?.let { purchaserInfo ->
+                        cacheRepository.savePurchaserInfo(purchaserInfo)
+                    }
+                Unit
+            }
+            .flowOnIO()
     }
 
     private fun syncPurchasesInternal(
-        maxAttemptCount: Long = -1,
+        maxAttemptCount: Long = INFINITE_RETRY,
         sendToBackend: (List<RestoreProductInfo>) -> Flow<RestoreReceiptResponse>
     ): Flow<RestoreReceiptResponse?> {
         return storeManager.getPurchaseHistoryDataToRestore(maxAttemptCount)
@@ -135,7 +144,9 @@ internal class PurchasesInteractor(
 
     @JvmSynthetic
     fun setTransactionVariationId(transactionId: String, variationId: String) =
-        cloudRepository.setTransactionVariationId(transactionId, variationId)
+        authInteractor.runWhenAuthDataSynced {
+            cloudRepository.setTransactionVariationId(transactionId, variationId)
+        }
 
     @JvmSynthetic
     fun consumeAndAcknowledgeTheUnprocessed() {
@@ -146,37 +157,43 @@ internal class PurchasesInteractor(
             val products = cacheRepository.getProducts()
 
             inapps?.forEach { purchase ->
-                products?.firstOrNull { it.vendorProductId == purchase.skus.firstOrNull() }?.let { product ->
-                    execute {
-                        storeManager.consumePurchase(purchase)
-                            .flatMapConcat {
-                                cloudRepository.validatePurchase(
-                                    BillingClient.SkuType.INAPP,
-                                    purchase,
-                                    ProductMapper.mapToValidate(product)
-                                )
-                            }
-                            .catch { }
-                            .collect()
+                products?.firstOrNull { it.vendorProductId == purchase.skus.firstOrNull() }
+                    ?.let { product ->
+                        execute {
+                            storeManager.consumePurchase(purchase)
+                                .flatMapConcat {
+                                    authInteractor.runWhenAuthDataSynced(INFINITE_RETRY) {
+                                        cloudRepository.validatePurchase(
+                                            BillingClient.SkuType.INAPP,
+                                            purchase,
+                                            ProductMapper.mapToValidate(product)
+                                        )
+                                    }
+                                }
+                                .catch { }
+                                .collect()
+                        }
                     }
-                }
             }
 
             subs?.forEach { purchase ->
-                products?.firstOrNull { it.vendorProductId == purchase.skus.firstOrNull() }?.let { product ->
-                    execute {
-                        storeManager.acknowledgePurchase(purchase)
-                            .flatMapConcat {
-                                cloudRepository.validatePurchase(
-                                    BillingClient.SkuType.SUBS,
-                                    purchase,
-                                    ProductMapper.mapToValidate(product)
-                                )
-                            }
-                            .catch { }
-                            .collect()
+                products?.firstOrNull { it.vendorProductId == purchase.skus.firstOrNull() }
+                    ?.let { product ->
+                        execute {
+                            storeManager.acknowledgePurchase(purchase)
+                                .flatMapConcat {
+                                    authInteractor.runWhenAuthDataSynced(INFINITE_RETRY) {
+                                        cloudRepository.validatePurchase(
+                                            BillingClient.SkuType.SUBS,
+                                            purchase,
+                                            ProductMapper.mapToValidate(product)
+                                        )
+                                    }
+                                }
+                                .catch { }
+                                .collect()
+                        }
                     }
-                }
             }
         }
     }

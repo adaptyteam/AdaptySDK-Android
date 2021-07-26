@@ -94,11 +94,17 @@ internal val adaptyScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 internal const val NETWORK_ERROR_DELAY_MILLIS = 2000L
 
 @JvmSynthetic
+internal const val INFINITE_RETRY = -1L
+
+@JvmSynthetic
+internal const val DEFAULT_RETRY_COUNT = 3L
+
+@JvmSynthetic
 internal fun getServerErrorDelay(attempt: Long) =
     min((2f.pow(attempt.coerceAtMost(7).toInt()) + 1), 90f).toLong() * 1000L
 
 @JvmSynthetic
-internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long = -1): Flow<T> =
+internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long = INFINITE_RETRY): Flow<T> =
     this.retryWhen { error, attempt ->
         if (error !is AdaptyError || (maxAttemptCount in 0..attempt)) {
             return@retryWhen false

@@ -192,17 +192,9 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
     private fun postProcess(purchase: Purchase) {
         execute {
             if (productsToPurchaseSkuType[purchase.skus.firstOrNull().orEmpty()] == INAPP) {
-                consumePurchase(
-                    ConsumeParams.newBuilder()
-                        .setPurchaseToken(purchase.purchaseToken)
-                        .build(),
-                )
+                consumePurchase(purchase, maxAttemptCount = DEFAULT_RETRY_COUNT)
             } else {
-                acknowledgePurchase(
-                    AcknowledgePurchaseParams.newBuilder()
-                        .setPurchaseToken(purchase.purchaseToken)
-                        .build(),
-                )
+                acknowledgePurchase(purchase, maxAttemptCount = DEFAULT_RETRY_COUNT)
             }.onEach {
                 if (it.responseCode == OK) {
                     makePurchaseCallback?.invoke(purchase, null)
@@ -298,20 +290,15 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
             }
 
     @JvmSynthetic
-    fun acknowledgePurchase(purchase: Purchase) =
-        acknowledgePurchase(
-            AcknowledgePurchaseParams.newBuilder()
-                .setPurchaseToken(purchase.purchaseToken)
-                .build()
-        )
-
-    private fun acknowledgePurchase(
-        params: AcknowledgePurchaseParams,
-    ): Flow<BillingResult> =
+    fun acknowledgePurchase(purchase: Purchase, maxAttemptCount: Long = INFINITE_RETRY) =
         onConnected {
-            storeHelper.acknowledgePurchase(params)
+            storeHelper.acknowledgePurchase(
+                AcknowledgePurchaseParams.newBuilder()
+                    .setPurchaseToken(purchase.purchaseToken)
+                    .build()
+            )
         }
-            .retryOnConnectionError()
+            .retryOnConnectionError(maxAttemptCount)
             .flowOnIO()
 
     @JvmSynthetic
@@ -320,23 +307,27 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
 
     @JvmSynthetic
     fun queryUnacknowledgedSubs() =
-        billingClient.queryPurchases(SUBS).purchasesList?.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED && !it.isAcknowledged }
+        billingClient.queryPurchases(SUBS).purchasesList
+            ?.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED && !it.isAcknowledged }
 
     @JvmSynthetic
-    fun consumePurchase(purchase: Purchase) =
-        consumePurchase(
-            ConsumeParams.newBuilder()
-                .setPurchaseToken(purchase.purchaseToken)
-                .build()
-        )
+    fun findActivePurchaseForProduct(
+        productId: String,
+        @BillingClient.SkuType productType: String
+    ) =
+        billingClient.queryPurchases(productType).purchasesList
+            ?.firstOrNull { it.purchaseState == Purchase.PurchaseState.PURCHASED && it.skus.firstOrNull() == productId }
 
-    private fun consumePurchase(
-        params: ConsumeParams,
-    ): Flow<BillingResult> =
+    @JvmSynthetic
+    fun consumePurchase(purchase: Purchase, maxAttemptCount: Long = INFINITE_RETRY) =
         onConnected {
-            storeHelper.consumePurchase(params)
+            storeHelper.consumePurchase(
+                ConsumeParams.newBuilder()
+                    .setPurchaseToken(purchase.purchaseToken)
+                    .build()
+            )
         }
-            .retryOnConnectionError()
+            .retryOnConnectionError(maxAttemptCount)
             .flowOnIO()
 
     private fun prepareSkuList(data: Any) = when (data) {
@@ -390,7 +381,7 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
         }
     }
 
-    private fun <T> Flow<T>.retryOnConnectionError(maxAttemptCount: Long = -1L): Flow<T> =
+    private fun <T> Flow<T>.retryOnConnectionError(maxAttemptCount: Long = INFINITE_RETRY): Flow<T> =
         this.retryWhen { error, attempt ->
             if (error.isRetryable() && (maxAttemptCount !in 0..attempt)) {
                 delay(2000)

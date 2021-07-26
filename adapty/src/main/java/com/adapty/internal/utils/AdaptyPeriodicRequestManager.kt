@@ -27,12 +27,12 @@ internal class AdaptyPeriodicRequestManager(
         lifecycleManager.stateCallback = this
     }
 
-    private var areRequestsAllowed = AtomicBoolean(false)
+    private val areRequestsAllowed = AtomicBoolean(false)
 
     @JvmSynthetic
     fun startPeriodicRequests() {
         stopAll()
-        areRequestsAllowed.compareAndSet(false, true)
+        areRequestsAllowed.set(true)
         if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
             scheduleAll(initialDelayMillis = TRACKING_INTERVAL)
         }
@@ -77,7 +77,7 @@ internal class AdaptyPeriodicRequestManager(
         execute {
             runPeriodically(initialDelayMillis) {
                 purchaserInteractor
-                    .getPurchaserInfoFromCloud()
+                    .getPurchaserInfoFromCloud(INFINITE_RETRY)
             }
         }.also { schedulePurchaserInfoJob = it }
     }

@@ -3,11 +3,11 @@ package com.adapty.internal.domain
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
-import com.adapty.internal.utils.PurchaserInfoMapper
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flatMapConcat
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
+import com.adapty.internal.utils.DEFAULT_RETRY_COUNT
+import com.adapty.internal.utils.flowOnIO
+import com.adapty.internal.utils.retryIfNecessary
+import kotlinx.coroutines.flow.*
+import java.util.concurrent.Semaphore
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class AuthInteractor(
@@ -16,34 +16,36 @@ internal class AuthInteractor(
 ) {
 
     @JvmSynthetic
-    fun activate(customerUserId: String?) =
-        onActivateAllowed()
-            .map { getProfileIdOnStart() }
-            .flatMapConcat { profileId ->
-                if (profileId.isNullOrEmpty()) {
-                    cloudRepository.createProfile(customerUserId)
-                        .map(cacheRepository::updateDataOnCreateProfile)
-                } else {
-                    flowOf(Unit)
-                }
+    fun activateOrIdentify() =
+        cloudRepository.onActivateAllowed()
+            .flatMapConcat {
+                createProfileIfNeeded()
+                    .retryIfNecessary(DEFAULT_RETRY_COUNT)
+                    .flowOnIO()
             }
+
+    private val authSemaphore = Semaphore(1)
 
     @JvmSynthetic
-    fun identify(customerUserId: String): Flow<Boolean> =
-        cloudRepository.createProfile(customerUserId)
-            .map { newPurchaserInfoResponse ->
-                val isProfileIdChanged = newPurchaserInfoResponse?.profileId?.let { profileId ->
-                    cacheRepository.getProfileId().orEmpty() != profileId
-                } ?: false
-
-                cacheRepository.updateDataOnCreateProfile(newPurchaserInfoResponse)
-                newPurchaserInfoResponse?.let(PurchaserInfoMapper::map)
-                    ?.let { cacheRepository.savePurchaserInfo(it) }
-                if (isProfileIdChanged) {
-                    cacheRepository.clearContainersAndProducts()
-                }
-                isProfileIdChanged
+    fun createProfileIfNeeded(): Flow<Unit> {
+        cacheRepository.getUnsyncedAuthData().let { (newProfileId, newCustomerUserId) ->
+            if (newProfileId.isNullOrEmpty() && newCustomerUserId.isNullOrEmpty()) {
+                return flowOf(Unit)
             }
+        }
+
+        authSemaphore.acquire()
+        val (newProfileId, newCustomerUserId) = cacheRepository.getUnsyncedAuthData()
+        return if (newProfileId.isNullOrEmpty() && newCustomerUserId.isNullOrEmpty()) {
+            authSemaphore.release()
+            flowOf(Unit)
+        } else {
+            cloudRepository.createProfile(newCustomerUserId)
+                .map(cacheRepository::updateDataOnCreateProfile)
+                .onEach { authSemaphore.release() }
+                .catch { error -> authSemaphore.release(); throw error }
+        }
+    }
 
     @JvmSynthetic
     fun clearDataOnLogout() {
@@ -55,22 +57,24 @@ internal class AuthInteractor(
         cacheRepository.saveAppKey(appKey)
 
     @JvmSynthetic
-    fun getProfileIdOnStart() =
-        cacheRepository.getProfileId()
-
-    @JvmSynthetic
     fun getCustomerUserId() =
         cacheRepository.getCustomerUserId()
 
     @JvmSynthetic
-    fun onActivateAllowed() =
-        cloudRepository.onActivateAllowed()
+    fun prepareAuthDataToSync(newCustomerUserId: String?) {
+        cacheRepository.prepareProfileIdToSync()
+        cacheRepository.prepareCustomerUserIdToSync(newCustomerUserId)
+    }
 
     @JvmSynthetic
-    fun blockRequests() =
-        cloudRepository.blockRequests()
-
-    @JvmSynthetic
-    fun unblockRequests() =
-        cloudRepository.unblockRequests()
+    fun <T> runWhenAuthDataSynced(
+        maxAttemptCount: Long = DEFAULT_RETRY_COUNT,
+        call: suspend () -> T
+    ): Flow<T> {
+        return cloudRepository.onActivateAllowed()
+            .flatMapConcat { createProfileIfNeeded() }
+            .mapLatest { call() }
+            .retryIfNecessary(maxAttemptCount)
+            .flowOnIO()
+    }
 }

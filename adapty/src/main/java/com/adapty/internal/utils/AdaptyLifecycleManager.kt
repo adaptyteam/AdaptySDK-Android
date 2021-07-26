@@ -1,5 +1,7 @@
 package com.adapty.internal.utils
 
+import android.os.Handler
+import android.os.Looper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
@@ -23,6 +25,16 @@ internal class AdaptyLifecycleManager(
 
     @JvmSynthetic
     fun init() {
+        if (Thread.currentThread() == Looper.getMainLooper().thread) {
+            initInternal()
+        } else {
+            Handler(Looper.getMainLooper()).post {
+                initInternal()
+            }
+        }
+    }
+
+    private fun initInternal() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
 
         if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {

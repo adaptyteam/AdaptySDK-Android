@@ -4,10 +4,11 @@ import android.content.Context
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
+import com.adapty.internal.utils.*
 import com.adapty.internal.utils.AttributionHelper
+import com.adapty.internal.utils.INFINITE_RETRY
 import com.adapty.internal.utils.execute
 import com.adapty.internal.utils.flowOnIO
-import com.adapty.internal.utils.retryIfNecessary
 import com.adapty.models.AttributionType
 import com.adapty.utils.ProfileParameterBuilder
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.*
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class PurchaserInteractor(
     private val appContext: Context,
+    private val authInteractor: AuthInteractor,
     private val cloudRepository: CloudRepository,
     private val cacheRepository: CacheRepository,
     private val attributionHelper: AttributionHelper,
@@ -38,7 +40,9 @@ internal class PurchaserInteractor(
 
     @JvmSynthetic
     fun updateProfile(params: ProfileParameterBuilder) =
-        cloudRepository.updateProfile(params)
+        authInteractor.runWhenAuthDataSynced {
+            cloudRepository.updateProfile(params)
+        }
             .map(cacheRepository::updateDataOnUpdateProfile)
             .flowOnIO()
 
@@ -46,8 +50,9 @@ internal class PurchaserInteractor(
     fun syncAttributions() {
         cacheRepository.getAttributionData().values.forEach { attributionData ->
             execute {
-                cloudRepository
-                    .updateAttribution(attributionData)
+                authInteractor.runWhenAuthDataSynced(INFINITE_RETRY) {
+                    cloudRepository.updateAttribution(attributionData)
+                }
                     .map { cacheRepository.deleteAttributionData(attributionData.source) }
                     .catch { }
                     .collect()
@@ -56,25 +61,27 @@ internal class PurchaserInteractor(
     }
 
     @JvmSynthetic
-    fun getPurchaserInfoFromCloud() =
-        cloudRepository.getPurchaserInfo()
-            .map(cacheRepository::savePurchaserInfo)
-
-    @JvmSynthetic
-    fun getPurchaserInfoOnStart() =
-        (cloudRepository::getPurchaserInfoForced)
-            .asFlow()
-            .retryIfNecessary()
+    fun getPurchaserInfoFromCloud(maxAttemptCount: Long = DEFAULT_RETRY_COUNT) =
+        authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
+            cloudRepository.getPurchaserInfo()
+        }
             .map(cacheRepository::savePurchaserInfo)
             .flowOnIO()
 
     @JvmSynthetic
+    fun getPurchaserInfoOnStart() =
+        getPurchaserInfoFromCloud(INFINITE_RETRY)
+
+    @JvmSynthetic
     fun syncMetaOnStart() =
+        syncMeta(INFINITE_RETRY, null)
+
+    private fun syncMeta(maxAttemptCount: Long, newToken: String?) =
         getAdIdIfAvailable()
             .flatMapConcat { adId ->
-                flow {
-                    emit(cloudRepository.syncMetaForced(adId, cacheRepository.getPushToken()))
-                }.retryIfNecessary()
+                authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
+                    cloudRepository.syncMeta(adId, newToken ?: cacheRepository.getPushToken())
+                }
             }
             .map(cacheRepository::updateDataOnSyncMeta)
             .flowOnIO()
@@ -82,23 +89,22 @@ internal class PurchaserInteractor(
     @JvmSynthetic
     fun refreshPushToken(newToken: String): Flow<Unit> {
         cacheRepository.savePushToken(newToken)
-        return cacheRepository.getProfileId()?.takeIf(String::isNotEmpty)?.let {
-            syncMetaWithNewToken(newToken)
-        } ?: flowOf(Unit)
+        return syncMeta(DEFAULT_RETRY_COUNT, newToken)
     }
 
     @JvmSynthetic
     fun setExternalAnalyticsEnabled(enabled: Boolean) =
-        cloudRepository.setExternalAnalyticsEnabled(enabled)
-            .also { cacheRepository.saveExternalAnalyticsEnabled(enabled) }
+        authInteractor.runWhenAuthDataSynced {
+            cloudRepository.setExternalAnalyticsEnabled(enabled)
+        }.also { cacheRepository.saveExternalAnalyticsEnabled(enabled) }
 
     @JvmSynthetic
     fun updateAttribution(attribution: Any, source: AttributionType, networkUserId: String?) =
         saveAttributionData(attribution, source, networkUserId)
             .flatMapConcat { attributionData ->
-                cloudRepository
-                    .updateAttribution(attributionData)
-                    .map { cacheRepository.deleteAttributionData(attributionData.source) }
+                authInteractor.runWhenAuthDataSynced {
+                    cloudRepository.updateAttribution(attributionData)
+                }.map { cacheRepository.deleteAttributionData(attributionData.source) }
             }
             .flowOnIO()
 
@@ -120,12 +126,6 @@ internal class PurchaserInteractor(
     @JvmSynthetic
     fun subscribeOnPromoChanges() =
         cacheRepository.subscribeOnPromoChanges()
-
-    private fun syncMetaWithNewToken(newToken: String) =
-        getAdIdIfAvailable()
-            .flatMapConcat { adId -> cloudRepository.syncMeta(adId, newToken) }
-            .map(cacheRepository::updateDataOnSyncMeta)
-            .flowOnIO()
 
     private fun launchPurchaserInfoUpdate() {
         execute {
