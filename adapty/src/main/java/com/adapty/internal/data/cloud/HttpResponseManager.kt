@@ -5,7 +5,7 @@ import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cache.ResponseCacheKeys
-import com.adapty.internal.utils.Logger
+import com.adapty.internal.utils.NetworkLogger
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -26,6 +26,7 @@ internal interface HttpResponseManager {
 internal class DefaultHttpResponseManager(
     private val bodyConverter: ResponseBodyConverter,
     private val cacheRepository: CacheRepository,
+    private val networkLogger: NetworkLogger,
 ) : HttpResponseManager {
 
     override fun <T> handleResponse(
@@ -38,14 +39,14 @@ internal class DefaultHttpResponseManager(
 
         if (connection.isSuccessful()) {
             val response = connection.evaluateSuccessfulResponse(isInGzip, responseCacheKeys)
-            Logger.logVerbose { "Request is successful. ${connection.url} Response: $response" }
+            networkLogger.logResponse { "Request is successful. ${connection.url} Response: $response" }
             return bodyConverter.convertSuccess(response, classOfT)
 
         } else {
             val response = toStringUtf8(connection.errorStream, isInGzip)
             val errorMessage =
                 "Request is unsuccessful. ${connection.url} Code: ${connection.responseCode}, Response: $response"
-            Logger.logError { errorMessage }
+            networkLogger.logError { errorMessage }
             return Response.Error(
                 AdaptyError(
                     message = errorMessage,

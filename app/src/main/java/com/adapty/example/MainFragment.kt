@@ -111,7 +111,16 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         }
 
         update_custom_attribution.setOnClickListener {
-            Adapty.updateAttribution(hashMapOf("key1" to "test1", "key2" to true), AttributionType.CUSTOM) { error ->
+            //you can only use the keys below, but all of them are optional
+            val attribution = mapOf(
+                "status" to "non_organic", //the only possible values for this key: non_organic|organic|unknown
+                "channel" to "Google Ads",
+                "campaign" to "Adapty in-app",
+                "ad_group" to "adapty ad_groupadapty ad_groupadapty ad",
+                "ad_set" to "adapty ad_set",
+                "creative" to "12312312312312"
+            )
+            Adapty.updateAttribution(attribution, AttributionType.CUSTOM) { error ->
                 last_response_result.text = error?.message ?: "success"
             }
         }

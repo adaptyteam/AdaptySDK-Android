@@ -31,7 +31,7 @@ internal class KinesisManager(
         execute {
             flow<List<AwsRecordModel>> {
                 if (!cacheRepository.getExternalAnalyticsEnabled()) {
-                    Logger.logVerbose { "We can't handle analytics events, since you've opted it out." }
+                    Logger.logAnalytics { "We can't handle analytics events, since you've opted it out." }
                     throw ExternalAnalyticsDisabledExeption()
                 }
 

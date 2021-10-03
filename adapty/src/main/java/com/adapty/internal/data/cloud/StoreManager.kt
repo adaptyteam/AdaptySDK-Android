@@ -11,13 +11,14 @@ import com.adapty.internal.data.models.responses.PaywallsResponse
 import com.adapty.internal.utils.*
 import com.adapty.models.SubscriptionUpdateParamModel
 import com.android.billingclient.api.*
-import com.android.billingclient.api.BillingClient.BillingResponseCode.OK
+import com.android.billingclient.api.BillingClient.BillingResponseCode.*
 import com.android.billingclient.api.BillingClient.SkuType.INAPP
 import com.android.billingclient.api.BillingClient.SkuType.SUBS
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.IOException
+import kotlin.coroutines.resumeWithException
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class StoreManager(context: Context) : PurchasesUpdatedListener {
@@ -173,7 +174,7 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
                         postProcess(purchase)
                 }
             }
-            BillingClient.BillingResponseCode.USER_CANCELED -> {
+            USER_CANCELED -> {
                 makePurchaseCallback?.invoke(
                     null, AdaptyError(
                         message = "Purchase: USER_CANCELED",
@@ -351,29 +352,35 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
             emit(billingClient.startConnectionSync())
         }
             .take(1)
-            .flatMapConcat { connected ->
-                if (connected) {
-                    flowOf(Unit)
-                } else {
-                    delay(2000)
-                    restoreConnection()
-                }
-            }
 
-    private suspend fun BillingClient.startConnectionSync(): Boolean {
-        return suspendCancellableCoroutine<Boolean> { continuation ->
+    private suspend fun BillingClient.startConnectionSync() {
+        return suspendCancellableCoroutine { continuation ->
             var resumed = false
             startConnection(object : BillingClientStateListener {
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     if (!resumed) {
-                        continuation.resume(billingResult.responseCode == OK) {}
+                        if (billingResult.responseCode == OK) {
+                            continuation.resume(Unit) {}
+                        } else {
+                            continuation.resumeWithException(
+                                AdaptyError(
+                                    message = "Play Market request failed: ${billingResult.debugMessage}",
+                                    adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)
+                                )
+                            )
+                        }
                         resumed = true
                     }
                 }
 
                 override fun onBillingServiceDisconnected() {
                     if (!resumed) {
-                        continuation.resume(false) {}
+                        continuation.resumeWithException(
+                            AdaptyError(
+                                message = "Play Market request failed: SERVICE_DISCONNECTED",
+                                adaptyErrorCode = AdaptyErrorCode.fromBilling(SERVICE_DISCONNECTED)
+                            )
+                        )
                         resumed = true
                     }
                 }

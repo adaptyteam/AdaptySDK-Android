@@ -7,7 +7,7 @@ import com.adapty.internal.utils.DEFAULT_RETRY_COUNT
 import com.adapty.internal.utils.flowOnIO
 import com.adapty.internal.utils.retryIfNecessary
 import kotlinx.coroutines.flow.*
-import java.util.concurrent.Semaphore
+import kotlinx.coroutines.sync.Semaphore
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class AuthInteractor(
@@ -18,16 +18,13 @@ internal class AuthInteractor(
     @JvmSynthetic
     fun activateOrIdentify() =
         cloudRepository.onActivateAllowed()
-            .flatMapConcat {
-                createProfileIfNeeded()
-                    .retryIfNecessary(DEFAULT_RETRY_COUNT)
-                    .flowOnIO()
-            }
+            .flatMapConcat { createProfileIfNeeded() }
+            .retryIfNecessary(DEFAULT_RETRY_COUNT)
+            .flowOnIO()
 
     private val authSemaphore = Semaphore(1)
 
-    @JvmSynthetic
-    fun createProfileIfNeeded(): Flow<Unit> {
+    private suspend fun createProfileIfNeeded(): Flow<Unit> {
         cacheRepository.getUnsyncedAuthData().let { (newProfileId, newCustomerUserId) ->
             if (newProfileId.isNullOrEmpty() && newCustomerUserId.isNullOrEmpty()) {
                 return flowOf(Unit)
