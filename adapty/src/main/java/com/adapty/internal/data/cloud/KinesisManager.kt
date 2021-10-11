@@ -32,7 +32,7 @@ internal class KinesisManager(
             flow<List<AwsRecordModel>> {
                 if (!cacheRepository.getExternalAnalyticsEnabled()) {
                     Logger.logAnalytics { "We can't handle analytics events, since you've opted it out." }
-                    throw ExternalAnalyticsDisabledExeption()
+                    throw ExternalAnalyticsDisabledException()
                 }
 
                 if (cacheRepository.getIamAccessKeyId() == null || cacheRepository.getIamSecretKey() == null || cacheRepository.getIamSessionToken() == null)
@@ -85,7 +85,7 @@ internal class KinesisManager(
         }
     }
 
-    private class ExternalAnalyticsDisabledExeption : Exception()
+    private class ExternalAnalyticsDisabledException : Exception()
 
     private fun formatCurrentDateTime(): String =
         Calendar.getInstance().time.let(dateFormatter::format)

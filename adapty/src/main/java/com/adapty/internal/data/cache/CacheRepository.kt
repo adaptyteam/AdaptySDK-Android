@@ -50,14 +50,15 @@ internal class CacheRepository(
             attrs.iamAccessKeyId?.let(::saveIamAccessKeyId)
             attrs.iamSecretKey?.let(::saveIamSecretKey)
             attrs.iamSessionToken?.let(::saveIamSessionToken)
-            attrs.profileId?.takeIf { it != getProfileId() }?.let(::saveProfileId)
+            attrs.profileId?.takeIf { it != getProfileId() }?.let(::onNewProfileIdReceived)
         }
     }
 
     @JvmSynthetic
     suspend fun updateDataOnCreateProfile(attributes: Attributes?) {
         attributes?.let { attrs ->
-            (attrs.profileId ?: (cache[UNSYNCED_PROFILE_ID] as? String))?.let(::saveProfileId)
+            (attrs.profileId ?: (cache[UNSYNCED_PROFILE_ID] as? String))
+                ?.let(::onNewProfileIdReceived)
             attrs.customerUserId?.let(::saveCustomerUserId)
             savePurchaserInfo(PurchaserInfoMapper.map(attrs))
 
@@ -70,7 +71,7 @@ internal class CacheRepository(
     fun updateDataOnUpdateProfile(attributes: UpdateProfileResponse.Data.Attributes?) {
         attributes?.profileId
             ?.takeIf { it != getProfileId() }
-            ?.let(::saveProfileId)
+            ?.let(::onNewProfileIdReceived)
     }
 
     @JvmSynthetic
@@ -110,6 +111,11 @@ internal class CacheRepository(
     private fun saveProfileId(profileId: String) {
         cache[PROFILE_ID] = profileId
         preferenceManager.saveString(PROFILE_ID, profileId)
+    }
+
+    private fun onNewProfileIdReceived(newProfileId: String) {
+        clearCachedRequestData()
+        saveProfileId(newProfileId)
     }
 
     @JvmSynthetic
@@ -307,6 +313,18 @@ internal class CacheRepository(
         arePaywallsReceivedFromBackend.set(false)
     }
 
+    private fun clearCachedRequestData() {
+        cache.apply {
+            remove(UPDATE_PROFILE_REQUEST_KEY)
+            remove(UPDATE_ADJUST_REQUEST_KEY)
+            remove(UPDATE_APPSFLYER_REQUEST_KEY)
+            remove(UPDATE_BRANCH_REQUEST_KEY)
+            remove(UPDATE_CUSTOM_ATTRIBUTION_REQUEST_KEY)
+            remove(SYNC_META_REQUEST_KEY)
+        }
+        preferenceManager.clearCachedRequestData()
+    }
+
     @JvmSynthetic
     fun getPushToken() =
         cache.safeGetOrPut(PUSH_TOKEN, { tokenRetriever.getTokenOrNull() }) as? String
@@ -327,7 +345,7 @@ internal class CacheRepository(
         cache.safeGetOrPut(key, { preferenceManager.getString(key) }) as? String
 
     @JvmSynthetic
-    internal fun saveResponseData(map: Map<String, String>) {
+    internal fun saveRequestOrResponseLatestData(map: Map<String, String>) {
         map.forEach { (key, value) ->
             cache[key] = value
         }

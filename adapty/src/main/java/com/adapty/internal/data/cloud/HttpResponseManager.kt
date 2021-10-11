@@ -87,7 +87,7 @@ internal class DefaultHttpResponseManager(
         } else {
             toStringUtf8(inputStream, isInGzip).also { response ->
                 if (responseCacheKeys != null && currentResponseHash != null) {
-                    cacheRepository.saveResponseData(
+                    cacheRepository.saveRequestOrResponseLatestData(
                         mapOf(
                             responseCacheKeys.responseKey to response,
                             responseCacheKeys.responseHashKey to currentResponseHash

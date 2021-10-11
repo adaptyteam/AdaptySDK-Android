@@ -4,11 +4,8 @@ import android.content.Context
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
+import com.adapty.internal.data.cloud.RequestShouldNotBeSentException
 import com.adapty.internal.utils.*
-import com.adapty.internal.utils.AttributionHelper
-import com.adapty.internal.utils.INFINITE_RETRY
-import com.adapty.internal.utils.execute
-import com.adapty.internal.utils.flowOnIO
 import com.adapty.models.AttributionType
 import com.adapty.utils.ProfileParameterBuilder
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
@@ -44,6 +41,7 @@ internal class PurchaserInteractor(
             cloudRepository.updateProfile(params)
         }
             .map(cacheRepository::updateDataOnUpdateProfile)
+            .skipRequestShouldNotBeSentException()
             .flowOnIO()
 
     @JvmSynthetic
@@ -106,6 +104,7 @@ internal class PurchaserInteractor(
                     cloudRepository.updateAttribution(attributionData)
                 }.map { cacheRepository.deleteAttributionData(attributionData.source) }
             }
+            .skipRequestShouldNotBeSentException()
             .flowOnIO()
 
     @JvmSynthetic
@@ -148,4 +147,7 @@ internal class PurchaserInteractor(
                 }
             )
         }.flowOnIO()
+
+    private fun Flow<Unit>.skipRequestShouldNotBeSentException(): Flow<Unit> =
+        this.catch { error -> if (error is RequestShouldNotBeSentException) emit(Unit) else throw error }
 }

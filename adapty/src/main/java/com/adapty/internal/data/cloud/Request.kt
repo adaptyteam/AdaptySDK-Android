@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
+import com.adapty.internal.data.cache.RequestCacheOptions
 import com.adapty.internal.data.cache.ResponseCacheKeys
 import com.adapty.internal.data.cloud.Request.Method.*
 import com.adapty.internal.data.models.AttributionData
@@ -33,6 +34,10 @@ internal class Request internal constructor(val baseUrl: String) {
 
     @JvmSynthetic
     @JvmField
+    var requestCacheOptions: RequestCacheOptions? = null
+
+    @JvmSynthetic
+    @JvmField
     var body = ""
 
     internal class Builder(private val baseRequest: Request = Request(baseUrl = "https://api.adapty.io/api/v1/")) {
@@ -52,6 +57,10 @@ internal class Request internal constructor(val baseUrl: String) {
         @JvmSynthetic
         @JvmField
         var responseCacheKeys: ResponseCacheKeys? = null
+
+        @JvmSynthetic
+        @JvmField
+        var requestCacheOptions: RequestCacheOptions? = null
 
         private var queryParams = arrayListOf<Pair<String, String>>()
 
@@ -76,6 +85,7 @@ internal class Request internal constructor(val baseUrl: String) {
             }.toString()
             body = this@Builder.body ?: ""
             responseCacheKeys = this@Builder.responseCacheKeys
+            requestCacheOptions = this@Builder.requestCacheOptions
         }
     }
 
@@ -111,6 +121,7 @@ internal class RequestFactory(
             UpdateProfileRequest.create(cacheRepository.getProfileId(), params)
         )
         endPoint = endpointForProfileRequests
+        requestCacheOptions = RequestCacheOptions.forUpdateProfile()
     }
 
     @JvmSynthetic
@@ -158,6 +169,7 @@ internal class RequestFactory(
         )
         endPoint =
             "${endpointForProfileRequests}installation-metas/${cacheRepository.getInstallationMetaId()}/"
+        requestCacheOptions = RequestCacheOptions.forSyncMeta()
     }
 
     @JvmSynthetic
@@ -202,6 +214,7 @@ internal class RequestFactory(
         body = gson.toJson(
             UpdateAttributionRequest.create(attributionData)
         )
+        requestCacheOptions = RequestCacheOptions.forUpdateAttribution(attributionData.source)
     }
 
     @JvmSynthetic

@@ -32,6 +32,7 @@ internal object Dependencies {
     internal val map = hashMapOf<Class<*>, Map<String?, DIObject<*>>>()
 
     private const val KINESIS = "kinesis"
+    private const val BASE = "base"
 
     private fun <T> singleVariantDiObject(
         initializer: () -> T,
@@ -72,14 +73,21 @@ internal object Dependencies {
 
                 HttpClient::class.java to mapOf(
                     null to DIObject({
-                        HttpClient(
+                        DefaultHttpClient(
+                            injectInternal(named = BASE),
+                            injectInternal(),
+                            injectInternal(),
+                        )
+                    }),
+                    BASE to DIObject({
+                        BaseHttpClient(
                             injectInternal(),
                             injectInternal(),
                             injectInternal(),
                         )
                     }),
                     KINESIS to DIObject({
-                        HttpClient(
+                        BaseHttpClient(
                             injectInternal(named = KINESIS),
                             injectInternal(named = KINESIS),
                             injectInternal(named = KINESIS),

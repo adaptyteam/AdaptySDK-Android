@@ -28,16 +28,28 @@ internal class PreferenceManager(context: Context, private val gson: Gson) {
     @JvmSynthetic
     fun clearOnLogout() {
         editor
-            .putString(CUSTOMER_USER_ID, null)
-            .putString(INSTALLATION_META_ID, null)
-            .putString(PROFILE_ID, null)
-            .putString(CONTAINERS, null)
-            .putString(PRODUCTS, null)
-            .putString(SYNCED_PURCHASES, null)
-            .putString(PURCHASER_INFO, null)
-            .putString(IAM_ACCESS_KEY_ID, null)
-            .putString(IAM_SECRET_KEY, null)
-            .putString(IAM_SESSION_TOKEN, null)
+            .remove(CUSTOMER_USER_ID)
+            .remove(INSTALLATION_META_ID)
+            .remove(PROFILE_ID)
+            .remove(CONTAINERS)
+            .remove(PRODUCTS)
+            .remove(SYNCED_PURCHASES)
+            .remove(PURCHASER_INFO)
+            .remove(IAM_ACCESS_KEY_ID)
+            .remove(IAM_SECRET_KEY)
+            .remove(IAM_SESSION_TOKEN)
+            .commit()
+    }
+
+    @JvmSynthetic
+    fun clearCachedRequestData() {
+        editor
+            .remove(UPDATE_PROFILE_REQUEST_KEY)
+            .remove(UPDATE_ADJUST_REQUEST_KEY)
+            .remove(UPDATE_APPSFLYER_REQUEST_KEY)
+            .remove(UPDATE_BRANCH_REQUEST_KEY)
+            .remove(UPDATE_CUSTOM_ATTRIBUTION_REQUEST_KEY)
+            .remove(SYNC_META_REQUEST_KEY)
             .commit()
     }
 
