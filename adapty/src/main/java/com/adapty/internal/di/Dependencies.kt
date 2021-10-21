@@ -160,7 +160,14 @@ internal object Dependencies {
 
                 AttributionHelper::class.java to singleVariantDiObject({ AttributionHelper() }),
 
-                StoreManager::class.java to singleVariantDiObject({ StoreManager(appContext) }),
+                CurrencyHelper::class.java to singleVariantDiObject({ CurrencyHelper() }),
+
+                StoreManager::class.java to singleVariantDiObject({
+                    StoreManager(
+                        appContext,
+                        injectInternal()
+                    )
+                }),
 
                 AdaptyPeriodicRequestManager::class.java to singleVariantDiObject({
                     AdaptyPeriodicRequestManager(

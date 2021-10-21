@@ -292,19 +292,23 @@ internal class AdaptyInternal(
         }
     }
 
-    private suspend fun executeStartRequests() {
-        purchaserInteractor.syncMetaOnStart()
-            .onEach { periodicRequestManager.startPeriodicRequests() }.catch { }.flowOnMain()
-            .collect()
-        productsInteractor.getPaywallsOnStart().catch { }.collect()
-        productsInteractor.getPromoOnStart().catch { }.collect()
-        purchasesInteractor.syncPurchasesOnStart()
-            .catch { error ->
-                if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
-                    purchaserInteractor.getPurchaserInfoOnStart().catch { }.collect()
+    private fun executeStartRequests() {
+        execute {
+            purchaserInteractor.syncMetaOnStart()
+                .onEach { periodicRequestManager.startPeriodicRequests() }.catch { }.flowOnMain()
+                .collect()
+        }
+        execute { productsInteractor.getPaywallsOnStart().catch { }.collect() }
+        execute { productsInteractor.getPromoOnStart().catch { }.collect() }
+        execute {
+            purchasesInteractor.syncPurchasesOnStart()
+                .catch { error ->
+                    if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
+                        purchaserInteractor.getPurchaserInfoOnStart().catch { }.collect()
+                    }
                 }
-            }
-            .collect()
+                .collect()
+        }
 
         purchaserInteractor.syncAttributions()
         purchasesInteractor.consumeAndAcknowledgeTheUnprocessed()

@@ -6,7 +6,7 @@ class AdaptyError internal constructor(
     val originalError: Throwable? = null,
     message: String = "",
     val adaptyErrorCode: AdaptyErrorCode = AdaptyErrorCode.UNKNOWN
-) : Throwable(message, originalError) {
+) : Exception(message, originalError) {
 
     @JvmSynthetic
     internal fun getRetryType(isInfinite: Boolean) = when {

@@ -17,11 +17,13 @@ import com.android.billingclient.api.BillingClient.SkuType.SUBS
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Semaphore
 import java.io.IOException
 import kotlin.coroutines.resumeWithException
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class StoreManager(context: Context) : PurchasesUpdatedListener {
+internal class StoreManager(context: Context, private val currencyHelper: CurrencyHelper) :
+    PurchasesUpdatedListener {
 
     private val billingClient = BillingClient
         .newBuilder(context)
@@ -138,14 +140,14 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
                     is PaywallsResponse.Data -> {
                         data.attributes?.products?.forEach { product ->
                             if (skuDetails.sku == product.vendorProductId) {
-                                product.setDetails(skuDetails)
+                                product.setDetails(skuDetails, currencyHelper)
                             }
                         }
                     }
                     is ArrayList<*> -> {
                         data.filterIsInstance(ProductDto::class.java).forEach { product ->
                             if (skuDetails.sku == product.vendorProductId) {
-                                product.setDetails(skuDetails)
+                                product.setDetails(skuDetails, currencyHelper)
                             }
                         }
                     }
@@ -353,7 +355,10 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
         }
             .take(1)
 
+    private val startConnectionSemaphore = Semaphore(1)
+
     private suspend fun BillingClient.startConnectionSync() {
+        startConnectionSemaphore.acquire()
         return suspendCancellableCoroutine { continuation ->
             var resumed = false
             startConnection(object : BillingClientStateListener {
@@ -370,6 +375,7 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
                             )
                         }
                         resumed = true
+                        startConnectionSemaphore.release()
                     }
                 }
 
@@ -382,6 +388,7 @@ internal class StoreManager(context: Context) : PurchasesUpdatedListener {
                             )
                         )
                         resumed = true
+                        startConnectionSemaphore.release()
                     }
                 }
             })

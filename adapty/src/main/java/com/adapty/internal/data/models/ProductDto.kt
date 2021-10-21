@@ -1,8 +1,8 @@
 package com.adapty.internal.data.models
 
 import androidx.annotation.RestrictTo
+import com.adapty.internal.utils.CurrencyHelper
 import com.adapty.internal.utils.ProductMapper
-import com.adapty.internal.utils.getCurrencySymbol
 import com.adapty.models.ProductDiscountModel
 import com.adapty.models.ProductSubscriptionPeriodModel
 import com.android.billingclient.api.SkuDetails
@@ -33,7 +33,7 @@ internal class ProductDto(
 ) {
 
     @JvmSynthetic
-    fun setDetails(sd: SkuDetails?) {
+    fun setDetails(sd: SkuDetails?, currencyHelper: CurrencyHelper) {
         if (sd == null) return
 
         skuDetails = sd
@@ -43,7 +43,7 @@ internal class ProductDto(
             .divide(BigDecimal.valueOf(1_000_000L))
         localizedPrice = sd.price
         currencyCode = sd.priceCurrencyCode
-        currencySymbol = getCurrencySymbol(sd.priceCurrencyCode)
+        currencySymbol = currencyHelper.getCurrencySymbol(sd.priceCurrencyCode)
         subscriptionPeriod = sd.subscriptionPeriod.takeIf(String::isNotEmpty)
             ?.let(ProductMapper::mapSubscriptionPeriodModel)
         introductoryDiscount =

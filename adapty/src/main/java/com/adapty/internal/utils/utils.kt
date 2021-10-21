@@ -27,33 +27,6 @@ internal fun getCurrentLocale(context: Context) =
         context.resources.configuration.locale
     }
 
-private val currencyLocaleMap by lazy {
-    hashMapOf<Currency, Locale>().apply {
-        for (locale in Locale.getAvailableLocales()) {
-            try {
-                val currency = Currency.getInstance(locale)
-                this[currency] = locale
-            } catch (e: Exception) {
-            }
-        }
-    }
-}
-
-private val currencyMap by lazy {
-    hashMapOf<String, Currency>()
-}
-
-@JvmSynthetic
-internal fun getCurrencySymbol(currencyCode: String) =
-    currencyMap.getOrPut(currencyCode, { Currency.getInstance(currencyCode) }).getOnlySymbol() ?: currencyCode
-
-private fun Currency.getOnlySymbol(): String? {
-    if (!currencyLocaleMap.containsKey(this)) return null
-
-    val rawSign = getSymbol(currencyLocaleMap[this])
-    return rawSign.firstOrNull { char -> char !in CharRange('A', 'Z') }?.toString() ?: rawSign
-}
-
 private val priceFormatter by lazy {
     DecimalFormat("0.00", DecimalFormatSymbols(Locale.US))
 }
