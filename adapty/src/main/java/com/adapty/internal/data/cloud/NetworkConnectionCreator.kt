@@ -114,7 +114,7 @@ internal class KinesisConnectionCreator(
             headersMap.map { it.key.trim().toLowerCase(Locale.ENGLISH) }.sorted()
                 .joinToString(";")
         val canonicalPath = if (url.path.isEmpty()) "/" else url.path
-        val canonicalQuery = url.query ?: ""
+        val canonicalQuery = url.query.orEmpty()
         val canonicalHeaders = headersMap.map {
             it.key.trim().toLowerCase(Locale.ENGLISH) + ":" + it.value
         }.sorted().joinToString("\n")

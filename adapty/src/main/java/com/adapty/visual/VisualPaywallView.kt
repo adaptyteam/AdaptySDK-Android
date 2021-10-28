@@ -85,7 +85,7 @@ class VisualPaywallView : WebView {
         paywall.products.forEach {
             visualPaywall = visualPaywall
                 ?.replace("%adapty_title_${it.vendorProductId}%", it.localizedTitle)
-                ?.replace("%adapty_price_${it.vendorProductId}%", it.localizedPrice ?: "")
+                ?.replace("%adapty_price_${it.vendorProductId}%", it.localizedPrice.orEmpty())
                 ?.replace("%adapty_duration_${it.vendorProductId}%", "${it.subscriptionPeriod}")
                 ?.replace(
                     "%adapty_introductory_price_${it.vendorProductId}%",
@@ -203,7 +203,7 @@ class VisualPaywallView : WebView {
                     context.resources.getQuantityString(pluralsRes, numberOfUnits)
                 )
             } ?: return@let ""
-        } ?: ""
+        }.orEmpty()
 
     @JvmSynthetic
     internal fun onCancel() {

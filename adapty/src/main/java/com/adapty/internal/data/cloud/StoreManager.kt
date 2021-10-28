@@ -335,7 +335,7 @@ internal class StoreManager(context: Context, private val currencyHelper: Curren
 
     private fun prepareSkuList(data: Any) = when (data) {
         is PaywallsResponse.Data -> {
-            data.attributes?.products?.mapNotNull { it.vendorProductId } ?: listOf()
+            data.attributes?.products?.mapNotNull { it.vendorProductId }.orEmpty()
         }
         is ArrayList<*> -> {
             data.filterIsInstance(ProductDto::class.java).mapNotNull { it.vendorProductId }

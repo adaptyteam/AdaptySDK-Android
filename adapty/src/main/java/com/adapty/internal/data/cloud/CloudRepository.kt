@@ -3,9 +3,6 @@ package com.adapty.internal.data.cloud
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.*
 import com.adapty.internal.data.models.responses.*
-import com.adapty.internal.data.models.responses.UpdateProfileResponse.Data.Attributes
-import com.adapty.internal.utils.PurchaserInfoMapper
-import com.adapty.models.PurchaserInfoModel
 import com.adapty.utils.ProfileParameterBuilder
 import com.android.billingclient.api.Purchase
 import kotlinx.coroutines.flow.*
@@ -19,14 +16,14 @@ internal class CloudRepository(
     private val isActivateAllowed = MutableStateFlow(false)
 
     @JvmSynthetic
-    fun getPurchaserInfo(): PurchaserInfoModel? {
+    fun getPurchaserInfo(): ProfileResponseData.Attributes? {
         val response =
             httpClient.newCall(
                 requestFactory.getPurchaserInfoRequest(),
                 PurchaserInfoResponse::class.java
             )
         when (response) {
-            is Response.Success -> return response.body.let(PurchaserInfoMapper::map)
+            is Response.Success -> return response.body.data?.attributes
             is Response.Error -> throw response.error
         }
     }
@@ -119,16 +116,13 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun updateProfile(params: ProfileParameterBuilder): Attributes? {
+    fun updateProfile(params: ProfileParameterBuilder) {
         val response =
             httpClient.newCall(
                 requestFactory.updateProfileRequest(params),
-                UpdateProfileResponse::class.java
+                Any::class.java
             )
-        when (response) {
-            is Response.Success -> return response.body.data?.attributes
-            is Response.Error -> throw response.error
-        }
+        processEmptyResponse(response)
     }
 
     @JvmSynthetic

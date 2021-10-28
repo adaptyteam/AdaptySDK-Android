@@ -4,14 +4,10 @@ import android.os.Build
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.data.models.AttributionData
-import com.adapty.internal.data.models.AwsRecordModel
-import com.adapty.internal.data.models.ProductDto
+import com.adapty.internal.data.models.*
 import com.adapty.internal.data.models.ProfileResponseData.Attributes
-import com.adapty.internal.data.models.RestoreProductInfo
 import com.adapty.internal.data.models.responses.PaywallsResponse
 import com.adapty.internal.data.models.responses.SyncMetaResponse
-import com.adapty.internal.data.models.responses.UpdateProfileResponse
 import com.adapty.internal.utils.*
 import com.adapty.models.PromoModel
 import com.adapty.models.PurchaserInfoModel
@@ -50,7 +46,6 @@ internal class CacheRepository(
             attrs.iamAccessKeyId?.let(::saveIamAccessKeyId)
             attrs.iamSecretKey?.let(::saveIamSecretKey)
             attrs.iamSessionToken?.let(::saveIamSessionToken)
-            attrs.profileId?.takeIf { it != getProfileId() }?.let(::onNewProfileIdReceived)
         }
     }
 
@@ -68,16 +63,14 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
-    fun updateDataOnUpdateProfile(attributes: UpdateProfileResponse.Data.Attributes?) {
-        attributes?.profileId
-            ?.takeIf { it != getProfileId() }
-            ?.let(::onNewProfileIdReceived)
+    suspend fun updateOnPurchaserInfoReceived(attrs: ContainsPurchaserInfo?): PurchaserInfoModel? {
+        attrs?.profileId?.takeIf { it != getProfileId() }?.let(::onNewProfileIdReceived)
+        return attrs?.let { savePurchaserInfo(PurchaserInfoMapper.map(attrs)) }
     }
 
-    @JvmSynthetic
-    suspend fun savePurchaserInfo(purchaserInfo: PurchaserInfoModel?) =
+    private suspend fun savePurchaserInfo(purchaserInfo: PurchaserInfoModel) =
         purchaserInfo.also {
-            purchaserInfo?.let { currentPurchaserInfo.emit(it) }
+            currentPurchaserInfo.emit(purchaserInfo)
             saveData(PURCHASER_INFO, purchaserInfo)
         }
 

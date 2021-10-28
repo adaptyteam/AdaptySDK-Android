@@ -83,7 +83,7 @@ internal class Request internal constructor(val baseUrl: String) {
                     append(value)
                 }
             }.toString()
-            body = this@Builder.body ?: ""
+            body = this@Builder.body.orEmpty()
             responseCacheKeys = this@Builder.responseCacheKeys
             requestCacheOptions = this@Builder.requestCacheOptions
         }

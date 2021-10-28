@@ -34,7 +34,7 @@ internal object PaywallMapper {
             adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
         ),
         products = paywallDto.products
-            ?.map { productDto -> ProductMapper.map(productDto, paywallDto) } ?: listOf(),
+            ?.map { productDto -> ProductMapper.map(productDto, paywallDto) }.orEmpty(),
         customPayloadString = paywallDto.customPayload,
         customPayload = try {
             paywallDto.customPayload?.let { gson.fromJson<Map<String, Any>>(it, type) }

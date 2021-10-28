@@ -19,7 +19,7 @@ internal class BaseHttpClient(
     override fun <T> newCall(request: Request, classOfT: Class<T>): Response<T> {
         networkLogger.logRequest {
             "${request.method.name} ${request.url}${
-                request.body.takeIf(String::isNotEmpty)?.let { body -> " Body: $body" } ?: ""
+                request.body.takeIf(String::isNotEmpty)?.let { body -> " Body: $body" }.orEmpty()
             }"
         }
 
@@ -31,7 +31,7 @@ internal class BaseHttpClient(
             return responseManager.handleResponse(connection, request.responseCacheKeys, classOfT)
 
         } catch (e: Exception) {
-            networkLogger.logError { e.localizedMessage ?: e.message ?: "" }
+            networkLogger.logError { e.localizedMessage ?: e.message.orEmpty() }
             return Response.Error(
                 AdaptyError(
                     originalError = e,

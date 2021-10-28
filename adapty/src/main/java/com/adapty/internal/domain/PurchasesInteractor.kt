@@ -33,16 +33,11 @@ internal class PurchasesInteractor(
                 product?.let(ProductMapper::mapToValidate)
             )
         }
-            .map { validationResponse ->
-                validationResponse.data?.attributes
-                    ?.let(PurchaserInfoMapper::map)
-                    ?.let { purchaserInfo ->
-                        cacheRepository.savePurchaserInfo(purchaserInfo)
-                        Pair(
-                            purchaserInfo,
-                            validationResponse.data.attributes.googleValidationResult
-                        )
-                    } ?: Pair(null, validationResponse.data?.attributes?.googleValidationResult)
+            .map { response ->
+                cacheRepository.updateOnPurchaserInfoReceived(response.data?.attributes)
+                    .let { purchaserInfo ->
+                        purchaserInfo to response.data?.attributes?.googleValidationResult
+                    }
             }
 
     @JvmSynthetic
@@ -53,15 +48,10 @@ internal class PurchasesInteractor(
             }
         }
             .map { response ->
-                response?.data?.attributes
-                    ?.let(PurchaserInfoMapper::map)
-                    ?.let { purchaserInfo ->
-                        cacheRepository.savePurchaserInfo(purchaserInfo)
-                        Pair(
-                            purchaserInfo,
-                            response.data.attributes.googleValidationResult
-                        )
-                    } ?: Pair(null, response?.data?.attributes?.googleValidationResult)
+                cacheRepository.updateOnPurchaserInfoReceived(response.data?.attributes)
+                    .let { purchaserInfo ->
+                        purchaserInfo to response.data?.attributes?.googleValidationResult
+                    }
             }
             .flowOnIO()
 
@@ -73,11 +63,7 @@ internal class PurchasesInteractor(
             }
         }
             .map { response ->
-                response?.data?.attributes
-                    ?.let(PurchaserInfoMapper::map)
-                    ?.let { purchaserInfo ->
-                        cacheRepository.savePurchaserInfo(purchaserInfo)
-                    }
+                cacheRepository.updateOnPurchaserInfoReceived(response.data?.attributes)
                 Unit
             }
             .flowOnIO()
@@ -86,7 +72,7 @@ internal class PurchasesInteractor(
     private fun syncPurchasesInternal(
         maxAttemptCount: Long = INFINITE_RETRY,
         sendToBackend: (List<RestoreProductInfo>) -> Flow<RestoreReceiptResponse>
-    ): Flow<RestoreReceiptResponse?> {
+    ): Flow<RestoreReceiptResponse> {
         return storeManager.getPurchaseHistoryDataToRestore(maxAttemptCount)
             .zip(flowOf(cacheRepository.getSyncedPurchases())) { historyPurchases, savedPurchases ->
                 Pair(historyPurchases, savedPurchases)
@@ -168,6 +154,8 @@ internal class PurchasesInteractor(
                                             purchase,
                                             ProductMapper.mapToValidate(product)
                                         )
+                                    }.map { response ->
+                                        cacheRepository.updateOnPurchaserInfoReceived(response.data?.attributes)
                                     }
                                 }
                                 .catch { }
@@ -188,6 +176,8 @@ internal class PurchasesInteractor(
                                             purchase,
                                             ProductMapper.mapToValidate(product)
                                         )
+                                    }.map { response ->
+                                        cacheRepository.updateOnPurchaserInfoReceived(response.data?.attributes)
                                     }
                                 }
                                 .catch { }

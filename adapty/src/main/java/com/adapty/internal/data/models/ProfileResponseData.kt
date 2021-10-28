@@ -14,16 +14,19 @@ internal class ProfileResponseData(
 ) {
     internal class Attributes(
         @SerializedName("profile_id")
-        val profileId: String?,
+        override val profileId: String?,
         @SerializedName("customer_user_id")
-        val customerUserId: String?,
+        override val customerUserId: String?,
         @SerializedName("paid_access_levels")
-        val accessLevels: HashMap<String, AccessLevelInfo>?,
+        override val accessLevels: HashMap<String, AccessLevelInfo>?,
         @SerializedName("subscriptions")
-        val subscriptions: HashMap<String, SubscriptionsInfo>?,
+        override val subscriptions: HashMap<String, SubscriptionsInfo>?,
         @SerializedName("non_subscriptions")
-        val nonSubscriptions: HashMap<String, ArrayList<NonSubscriptionsInfo>>?,
-    ) {
+        override val nonSubscriptions: HashMap<String, ArrayList<NonSubscriptionsInfo>>?,
+    ) : ContainsPurchaserInfo {
+
+        override fun extractPurchaserInfo(): Attributes = this
+
         internal class AccessLevelInfo(
             @SerializedName("is_active")
             val isActive: Boolean?,

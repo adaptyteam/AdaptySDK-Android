@@ -40,7 +40,6 @@ internal class PurchaserInteractor(
         authInteractor.runWhenAuthDataSynced {
             cloudRepository.updateProfile(params)
         }
-            .map(cacheRepository::updateDataOnUpdateProfile)
             .skipRequestShouldNotBeSentException()
             .flowOnIO()
 
@@ -63,7 +62,7 @@ internal class PurchaserInteractor(
         authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
             cloudRepository.getPurchaserInfo()
         }
-            .map(cacheRepository::savePurchaserInfo)
+            .map(cacheRepository::updateOnPurchaserInfoReceived)
             .flowOnIO()
 
     @JvmSynthetic

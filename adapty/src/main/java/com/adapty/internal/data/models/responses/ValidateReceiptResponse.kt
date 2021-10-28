@@ -1,6 +1,7 @@
 package com.adapty.internal.data.models.responses
 
 import androidx.annotation.RestrictTo
+import com.adapty.internal.data.models.ContainsPurchaserInfo
 import com.adapty.internal.data.models.ProfileResponseData
 import com.adapty.internal.data.models.ProfileResponseData.Attributes.*
 import com.adapty.models.GoogleValidationResult
@@ -24,17 +25,18 @@ internal class ValidateReceiptResponse(
             @SerializedName("google_validation_result")
             val googleValidationResult: GoogleValidationResult?,
             @SerializedName("profile_id")
-            val profileId: String?,
+            override val profileId: String?,
             @SerializedName("customer_user_id")
-            val customerUserId: String?,
+            override val customerUserId: String?,
             @SerializedName("paid_access_levels")
-            val accessLevels: HashMap<String, AccessLevelInfo>?,
+            override val accessLevels: HashMap<String, AccessLevelInfo>?,
             @SerializedName("subscriptions")
-            val subscriptions: HashMap<String, SubscriptionsInfo>?,
+            override val subscriptions: HashMap<String, SubscriptionsInfo>?,
             @SerializedName("non_subscriptions")
-            val nonSubscriptions: HashMap<String, ArrayList<NonSubscriptionsInfo>>?,
-        ) {
-            fun extractPurchaserInfo() = ProfileResponseData.Attributes(
+            override val nonSubscriptions: HashMap<String, ArrayList<NonSubscriptionsInfo>>?,
+        ) : ContainsPurchaserInfo {
+
+            override fun extractPurchaserInfo() = ProfileResponseData.Attributes(
                 profileId,
                 customerUserId,
                 accessLevels,

@@ -29,7 +29,7 @@ object Adapty {
         appKey: String,
         customerUserId: String? = null,
     ) {
-        Logger.logMethodCall { "activate($appKey, ${customerUserId ?: ""})" }
+        Logger.logMethodCall { "activate($appKey, ${customerUserId.orEmpty()})" }
 
         require(appKey.isNotBlank()) { "Public SDK key must not be empty." }
         require(context.applicationContext is Application) { "Application context must be provided." }
@@ -111,7 +111,7 @@ object Adapty {
         subscriptionUpdateParams: SubscriptionUpdateParamModel? = null,
         adaptyCallback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String?, googleValidationResult: GoogleValidationResult?, product: ProductModel, error: AdaptyError?) -> Unit
     ) {
-        Logger.logMethodCall { "makePurchase(vendorProductId = ${product.vendorProductId}${subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; prorationMode = ${it.prorationMode}" } ?: ""})" }
+        Logger.logMethodCall { "makePurchase(vendorProductId = ${product.vendorProductId}${subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; prorationMode = ${it.prorationMode}" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
             adaptyCallback.invoke(null, null, null, product, notInitializedError)

@@ -21,8 +21,8 @@ internal object ProductMapper {
                 message = "vendorProductId in ProductModel should not be null",
                 adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
             ),
-            localizedTitle = productDto.localizedTitle ?: "",
-            localizedDescription = productDto.localizedDescription ?: "",
+            localizedTitle = productDto.localizedTitle.orEmpty(),
+            localizedDescription = productDto.localizedDescription.orEmpty(),
             paywallName = paywallDto.name,
             paywallABTestName = paywallDto.abTestName,
             variationId = paywallDto.variationId,
@@ -44,8 +44,8 @@ internal object ProductMapper {
                 message = "vendorProductId in ProductModel should not be null",
                 adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
             ),
-            localizedTitle = productDto.localizedTitle ?: "",
-            localizedDescription = productDto.localizedDescription ?: "",
+            localizedTitle = productDto.localizedTitle.orEmpty(),
+            localizedDescription = productDto.localizedDescription.orEmpty(),
             paywallName = productDto.paywallName,
             paywallABTestName = productDto.paywallABTestName,
             variationId = productDto.variationId,
