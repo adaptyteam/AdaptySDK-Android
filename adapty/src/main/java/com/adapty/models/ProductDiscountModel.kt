@@ -6,7 +6,8 @@ class ProductDiscountModel(
     val price: BigDecimal,
     val numberOfPeriods: Int,
     val localizedPrice: String,
-    val subscriptionPeriod: ProductSubscriptionPeriodModel
+    val subscriptionPeriod: ProductSubscriptionPeriodModel,
+    val localizedSubscriptionPeriod: String,
 ) {
 
     override fun equals(other: Any?): Boolean {
@@ -32,6 +33,6 @@ class ProductDiscountModel(
     }
 
     override fun toString(): String {
-        return "ProductDiscountModel(price=$price, numberOfPeriods=$numberOfPeriods, localizedPrice='$localizedPrice', subscriptionPeriod=$subscriptionPeriod)"
+        return "ProductDiscountModel(price=$price, numberOfPeriods=$numberOfPeriods, localizedPrice='$localizedPrice', subscriptionPeriod=$subscriptionPeriod, localizedSubscriptionPeriod='$localizedSubscriptionPeriod')"
     }
 }

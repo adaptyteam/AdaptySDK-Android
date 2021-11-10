@@ -3,7 +3,6 @@ package com.adapty.internal.data.models
 import androidx.annotation.RestrictTo
 import com.adapty.internal.utils.CurrencyHelper
 import com.adapty.internal.utils.ProductMapper
-import com.adapty.models.ProductDiscountModel
 import com.adapty.models.ProductSubscriptionPeriodModel
 import com.android.billingclient.api.SkuDetails
 import com.google.gson.annotations.SerializedName
@@ -27,13 +26,13 @@ internal class ProductDto(
     var subscriptionPeriod: ProductSubscriptionPeriodModel?,
     @SerializedName("introductory_offer_eligibility")
     val introductoryOfferEligibility: Boolean?,
-    var introductoryDiscount: ProductDiscountModel?,
+    var introductoryDiscount: ProductDiscount?,
     var freeTrialPeriod: ProductSubscriptionPeriodModel?,
     var skuDetails: SkuDetails?,
 ) {
 
     @JvmSynthetic
-    fun setDetails(sd: SkuDetails?, currencyHelper: CurrencyHelper) {
+    fun setDetails(sd: SkuDetails?, currencyHelper: CurrencyHelper, productMapper: ProductMapper) {
         if (sd == null) return
 
         skuDetails = sd
@@ -45,19 +44,19 @@ internal class ProductDto(
         currencyCode = sd.priceCurrencyCode
         currencySymbol = currencyHelper.getCurrencySymbol(sd.priceCurrencyCode)
         subscriptionPeriod = sd.subscriptionPeriod.takeIf(String::isNotEmpty)
-            ?.let(ProductMapper::mapSubscriptionPeriodModel)
+            ?.let(productMapper::mapSubscriptionPeriodModel)
         introductoryDiscount =
             sd.introductoryPrice.takeIf(String::isNotEmpty)?.let { introductoryPrice ->
-                ProductDiscountModel(
+                ProductDiscount(
                     price = BigDecimal.valueOf(sd.introductoryPriceAmountMicros)
                         .divide(BigDecimal.valueOf(1_000_000L)),
                     numberOfPeriods = sd.introductoryPriceCycles,
                     localizedPrice = introductoryPrice,
-                    subscriptionPeriod = ProductMapper.mapSubscriptionPeriodModel(sd.introductoryPricePeriod)
+                    subscriptionPeriod = productMapper.mapSubscriptionPeriodModel(sd.introductoryPricePeriod)
                 )
             }
         freeTrialPeriod =
             sd.freeTrialPeriod.takeIf(String::isNotEmpty)
-                ?.let(ProductMapper::mapSubscriptionPeriodModel)
+                ?.let(productMapper::mapSubscriptionPeriodModel)
     }
 }

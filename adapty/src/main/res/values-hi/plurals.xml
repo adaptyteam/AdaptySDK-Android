@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d सप्ताह</item>
+        <item quantity="other">%d सप्ताह</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d दिन</item>
+        <item quantity="other">%d दिन</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d माह</item>
+        <item quantity="other">%d माह</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d वर्ष</item>
+        <item quantity="other">%d वर्ष</item>
+    </plurals>
+</resources>

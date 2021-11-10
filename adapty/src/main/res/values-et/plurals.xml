@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d nädal</item>
+        <item quantity="other">%d nädalat</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d ööpäev</item>
+        <item quantity="other">%d ööpäeva</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d kuu</item>
+        <item quantity="other">%d kuud</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d aasta</item>
+        <item quantity="other">%d aastat</item>
+    </plurals>
+</resources>

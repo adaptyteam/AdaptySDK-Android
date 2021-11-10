@@ -8,7 +8,7 @@ import com.adapty.models.PaywallModel
 import com.adapty.models.PromoModel
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal object PromoMapper {
+internal class PromoMapper {
 
     @JvmSynthetic
     fun map(promoDto: PromoDto, paywall: PaywallModel) = PromoModel(

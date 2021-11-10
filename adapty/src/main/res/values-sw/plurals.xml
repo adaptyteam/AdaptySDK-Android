@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">wiki %d</item>
+        <item quantity="other">wiki %d</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">siku %d</item>
+        <item quantity="other">siku %d</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">mwezi %d</item>
+        <item quantity="other">miezi %d</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">mwaka %d</item>
+        <item quantity="other">miaka %d</item>
+    </plurals>
+</resources>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d linggo</item>
+        <item quantity="other">%d na linggo</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d araw</item>
+        <item quantity="other">%d na araw</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d buwan</item>
+        <item quantity="other">%d buwan</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d taon</item>
+        <item quantity="other">%d na taon</item>
+    </plurals>
+</resources>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d недеља</item>
+        <item quantity="few">%d недеље</item>
+        <item quantity="other">%d недеља</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d дан</item>
+        <item quantity="few">%d дана</item>
+        <item quantity="other">%d дана</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d месец</item>
+        <item quantity="few">%d месеца</item>
+        <item quantity="other">%d месеци</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d година</item>
+        <item quantity="few">%d године</item>
+        <item quantity="other">%d година</item>
+    </plurals>
+</resources>

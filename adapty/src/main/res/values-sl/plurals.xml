@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d teden</item>
+        <item quantity="two">%d tedna</item>
+        <item quantity="few">%d tednov</item>
+        <item quantity="other">%d tednov</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d dan</item>
+        <item quantity="two">%d dneva</item>
+        <item quantity="few">%d dni</item>
+        <item quantity="other">%d dni</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d mesec</item>
+        <item quantity="two">%d meseca</item>
+        <item quantity="few">%d mesecev</item>
+        <item quantity="other">%d mesecev</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d leto</item>
+        <item quantity="two">%d leti</item>
+        <item quantity="few">%d let</item>
+        <item quantity="other">%d let</item>
+    </plurals>
+</resources>

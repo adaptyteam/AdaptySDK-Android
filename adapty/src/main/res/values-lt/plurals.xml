@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d savaitė</item>
+        <item quantity="few">%d savaitės</item>
+        <item quantity="many">%d savaitės</item>
+        <item quantity="other">%d savaičių</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d diena</item>
+        <item quantity="few">%d dienos</item>
+        <item quantity="many">%d dienos</item>
+        <item quantity="other">%d dienų</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d mėnuo</item>
+        <item quantity="few">%d mėnesiai</item>
+        <item quantity="many">%d mėnesio</item>
+        <item quantity="other">%d mėnesių</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d metai</item>
+        <item quantity="few">%d metai</item>
+        <item quantity="many">%d metų</item>
+        <item quantity="other">%d metų</item>
+    </plurals>
+</resources>

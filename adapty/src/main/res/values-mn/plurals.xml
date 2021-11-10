@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d долоо хоног</item>
+        <item quantity="other">%d долоо хоног</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d хоног</item>
+        <item quantity="other">%d хоног</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d сар</item>
+        <item quantity="other">%d сар</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d жил</item>
+        <item quantity="other">%d жил</item>
+    </plurals>
+</resources>

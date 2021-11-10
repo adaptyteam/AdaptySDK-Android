@@ -24,6 +24,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class CacheRepository(
     private val preferenceManager: PreferenceManager,
     private val tokenRetriever: PushTokenRetriever,
+    private val paywallMapper: PaywallMapper,
+    private val productMapper: ProductMapper,
+    private val purchaserInfoMapper: PurchaserInfoMapper,
     private val gson: Gson,
 ) {
 
@@ -55,7 +58,7 @@ internal class CacheRepository(
             (attrs.profileId ?: (cache[UNSYNCED_PROFILE_ID] as? String))
                 ?.let(::onNewProfileIdReceived)
             attrs.customerUserId?.let(::saveCustomerUserId)
-            savePurchaserInfo(PurchaserInfoMapper.map(attrs))
+            savePurchaserInfo(purchaserInfoMapper.map(attrs))
 
             cache.remove(UNSYNCED_PROFILE_ID)
             cache.remove(UNSYNCED_CUSTOMER_USER_ID)
@@ -65,7 +68,7 @@ internal class CacheRepository(
     @JvmSynthetic
     suspend fun updateOnPurchaserInfoReceived(attrs: ContainsPurchaserInfo?): PurchaserInfoModel? {
         attrs?.profileId?.takeIf { it != getProfileId() }?.let(::onNewProfileIdReceived)
-        return attrs?.let { savePurchaserInfo(PurchaserInfoMapper.map(attrs)) }
+        return attrs?.let { savePurchaserInfo(purchaserInfoMapper.map(attrs)) }
     }
 
     private suspend fun savePurchaserInfo(purchaserInfo: PurchaserInfoModel) =
@@ -197,7 +200,7 @@ internal class CacheRepository(
     fun getContainers() = getData<ArrayList<PaywallsResponse.Data>>(CONTAINERS)
 
     @JvmSynthetic
-    fun getPaywalls() = getContainers()?.let(PaywallMapper::map)
+    fun getPaywalls() = getContainers()?.let(paywallMapper::map)
 
     @JvmSynthetic
     fun getFallbackPaywalls() = (cache[FALLBACK_PAYWALLS] as? PaywallsResponse)?.let { fallback ->
@@ -249,7 +252,7 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
-    fun getPaywallsAndProducts() = Pair(getPaywalls(), getProducts()?.map(ProductMapper::map))
+    fun getPaywallsAndProducts() = Pair(getPaywalls(), getProducts()?.map(productMapper::map))
 
     @JvmSynthetic
     fun saveContainersAndProducts(

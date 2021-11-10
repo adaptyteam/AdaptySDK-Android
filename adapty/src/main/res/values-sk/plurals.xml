@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d týždeň</item>
+        <item quantity="few">%d týždne</item>
+        <item quantity="many">%d týždňa</item>
+        <item quantity="other">%d týždňov</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d deň</item>
+        <item quantity="few">%d dni</item>
+        <item quantity="many">%d dňa</item>
+        <item quantity="other">%d dní</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d mesiac</item>
+        <item quantity="few">%d mesiace</item>
+        <item quantity="many">%d mesiaca</item>
+        <item quantity="other">%d mesiacov</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d rok</item>
+        <item quantity="few">%d roky</item>
+        <item quantity="many">%d roka</item>
+        <item quantity="other">%d rokov</item>
+    </plurals>
+</resources>

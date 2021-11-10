@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d uke</item>
+        <item quantity="other">%d uker</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d døgn</item>
+        <item quantity="other">%d døgn</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d måned</item>
+        <item quantity="other">%d måneder</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d år</item>
+        <item quantity="other">%d år</item>
+    </plurals>
+</resources>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">שבוע</item>
+        <item quantity="two">שבועיים</item>
+        <item quantity="many">%d שבועות</item>
+        <item quantity="other">%d שבועות</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d יום</item>
+        <item quantity="two">יומיים</item>
+        <item quantity="many">%d יום</item>
+        <item quantity="other">%d ימים</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">חודש</item>
+        <item quantity="two">חודשיים</item>
+        <item quantity="many">%d חודשים</item>
+        <item quantity="other">%d חודשים</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">שנה</item>
+        <item quantity="two">שנתיים</item>
+        <item quantity="many">%d שנים</item>
+        <item quantity="other">%d שנים</item>
+    </plurals>
+</resources>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d апта</item>
+        <item quantity="other">%d апта</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d тәулік</item>
+        <item quantity="other">%d тәулік</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d ай</item>
+        <item quantity="other">%d ай</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d жыл</item>
+        <item quantity="other">%d жыл</item>
+    </plurals>
+</resources>

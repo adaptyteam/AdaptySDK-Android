@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d тыдзень</item>
+        <item quantity="few">%d тыдні</item>
+        <item quantity="many">%d тыдняў</item>
+        <item quantity="other">%d тыдня</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d суткі</item>
+        <item quantity="few">%d сутак</item>
+        <item quantity="many">%d сутак</item>
+        <item quantity="other">%d сутак</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d месяц</item>
+        <item quantity="few">%d месяца</item>
+        <item quantity="many">%d месяцаў</item>
+        <item quantity="other">%d месяца</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d год</item>
+        <item quantity="few">%d гады</item>
+        <item quantity="many">%d гадоў</item>
+        <item quantity="other">%d года</item>
+    </plurals>
+</resources>

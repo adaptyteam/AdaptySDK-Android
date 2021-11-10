@@ -15,9 +15,11 @@ class ProductModel(
     val currencyCode: String?,
     val currencySymbol: String?,
     val subscriptionPeriod: ProductSubscriptionPeriodModel?,
+    val localizedSubscriptionPeriod: String?,
     val introductoryOfferEligibility: Boolean,
     val introductoryDiscount: ProductDiscountModel?,
     val freeTrialPeriod: ProductSubscriptionPeriodModel?,
+    val localizedFreeTrialPeriod: String?,
     val skuDetails: SkuDetails?,
 ) {
 
@@ -66,6 +68,6 @@ class ProductModel(
     }
 
     override fun toString(): String {
-        return "ProductModel(vendorProductId=$vendorProductId, localizedTitle=$localizedTitle, localizedDescription=$localizedDescription, paywallName=$paywallName, paywallABTestName=$paywallABTestName, variationId=$variationId, price=$price, localizedPrice=$localizedPrice, currencyCode=$currencyCode, currencySymbol=$currencySymbol, subscriptionPeriod=$subscriptionPeriod, introductoryOfferEligibility=$introductoryOfferEligibility, introductoryDiscount=$introductoryDiscount, freeTrialPeriod=$freeTrialPeriod, skuDetails=$skuDetails)"
+        return "ProductModel(vendorProductId=$vendorProductId, localizedTitle=$localizedTitle, localizedDescription=$localizedDescription, paywallName=$paywallName, paywallABTestName=$paywallABTestName, variationId=$variationId, price=$price, localizedPrice=$localizedPrice, currencyCode=$currencyCode, currencySymbol=$currencySymbol, subscriptionPeriod=$subscriptionPeriod, localizedSubscriptionPeriod=$localizedSubscriptionPeriod, introductoryOfferEligibility=$introductoryOfferEligibility, introductoryDiscount=$introductoryDiscount, freeTrialPeriod=$freeTrialPeriod, localizedFreeTrialPeriod=$localizedFreeTrialPeriod, skuDetails=$skuDetails)"
     }
 }

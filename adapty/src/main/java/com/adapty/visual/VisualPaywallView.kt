@@ -14,14 +14,11 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.webkit.WebViewClientCompat
 import com.adapty.Adapty
-import com.adapty.R
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.VisualPaywallManager
 import com.adapty.models.PaywallModel
-import com.adapty.models.PeriodUnit
 import com.adapty.models.ProductModel
-import com.adapty.models.ProductSubscriptionPeriodModel
 
 @SuppressLint("SetJavaScriptEnabled")
 class VisualPaywallView : WebView {
@@ -86,18 +83,21 @@ class VisualPaywallView : WebView {
             visualPaywall = visualPaywall
                 ?.replace("%adapty_title_${it.vendorProductId}%", it.localizedTitle)
                 ?.replace("%adapty_price_${it.vendorProductId}%", it.localizedPrice.orEmpty())
-                ?.replace("%adapty_duration_${it.vendorProductId}%", "${it.subscriptionPeriod}")
+                ?.replace(
+                    "%adapty_duration_${it.vendorProductId}%",
+                    it.localizedSubscriptionPeriod.orEmpty()
+                )
                 ?.replace(
                     "%adapty_introductory_price_${it.vendorProductId}%",
                     "${it.introductoryDiscount?.localizedPrice}"
                 )
                 ?.replace(
                     "%adapty_introductory_duration_${it.vendorProductId}%",
-                    getLocalizedSubscriptionPeriod(it.introductoryDiscount?.subscriptionPeriod)
+                    it.introductoryDiscount?.localizedSubscriptionPeriod.orEmpty()
                 )
                 ?.replace(
                     "%adapty_trial_duration_${it.vendorProductId}%",
-                    getLocalizedSubscriptionPeriod(it.freeTrialPeriod)
+                    it.localizedFreeTrialPeriod.orEmpty()
                 )
         }
         post {
@@ -186,24 +186,6 @@ class VisualPaywallView : WebView {
             )
         }
     }
-
-    private fun getLocalizedSubscriptionPeriod(subscriptionPeriod: ProductSubscriptionPeriodModel?) =
-        subscriptionPeriod?.let {
-            val pluralsRes = when (it.unit) {
-                PeriodUnit.D -> R.plurals.adapty_day
-                PeriodUnit.W -> R.plurals.adapty_week
-                PeriodUnit.M -> R.plurals.adapty_month
-                PeriodUnit.Y -> R.plurals.adapty_year
-                else -> return@let ""
-            }
-            it.numberOfUnits?.let { numberOfUnits ->
-                context.resources.getString(
-                    R.string.adapty_localized_subscription_period,
-                    numberOfUnits,
-                    context.resources.getQuantityString(pluralsRes, numberOfUnits)
-                )
-            } ?: return@let ""
-        }.orEmpty()
 
     @JvmSynthetic
     internal fun onCancel() {

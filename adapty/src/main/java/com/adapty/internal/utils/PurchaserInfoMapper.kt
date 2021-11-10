@@ -10,7 +10,7 @@ import com.adapty.models.PurchaserInfoModel
 import com.adapty.models.SubscriptionInfoModel
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal object PurchaserInfoMapper {
+internal class PurchaserInfoMapper {
 
     @JvmSynthetic
     fun map(attrs: ContainsPurchaserInfo) = attrs.extractPurchaserInfo().let { dto ->

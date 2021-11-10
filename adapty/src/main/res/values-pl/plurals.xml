@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d tydzień</item>
+        <item quantity="few">%d tygodnie</item>
+        <item quantity="many">%d tygodni</item>
+        <item quantity="other">%d tygodnia</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d doba</item>
+        <item quantity="few">%d doby</item>
+        <item quantity="many">%d dób</item>
+        <item quantity="other">%d doby</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d miesiąc</item>
+        <item quantity="few">%d miesiące</item>
+        <item quantity="many">%d miesięcy</item>
+        <item quantity="other">%d miesiąca</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d rok</item>
+        <item quantity="few">%d lata</item>
+        <item quantity="many">%d lat</item>
+        <item quantity="other">%d roku</item>
+    </plurals>
+</resources>

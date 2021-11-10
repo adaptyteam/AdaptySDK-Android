@@ -22,6 +22,7 @@ internal class PurchasesInteractor(
     private val cloudRepository: CloudRepository,
     private val cacheRepository: CacheRepository,
     private val storeManager: StoreManager,
+    private val productMapper: ProductMapper,
 ) {
 
     @JvmSynthetic
@@ -30,7 +31,7 @@ internal class PurchasesInteractor(
             cloudRepository.validatePurchase(
                 purchaseType,
                 purchase,
-                product?.let(ProductMapper::mapToValidate)
+                product?.let(productMapper::mapToValidate)
             )
         }
             .map { response ->
@@ -106,7 +107,7 @@ internal class PurchasesInteractor(
                 val product = getElementFromContainers(containers, products, productId)
 
                 product?.let { product ->
-                    purchase.setDetails(product.skuDetails)
+                    purchase.setDetails(product.skuDetails, productMapper)
                     purchase.localizedTitle = product.localizedTitle
                 }
             }
@@ -152,7 +153,7 @@ internal class PurchasesInteractor(
                                         cloudRepository.validatePurchase(
                                             BillingClient.SkuType.INAPP,
                                             purchase,
-                                            ProductMapper.mapToValidate(product)
+                                            productMapper.mapToValidate(product)
                                         )
                                     }.map { response ->
                                         cacheRepository.updateOnPurchaserInfoReceived(response.data?.attributes)
@@ -174,7 +175,7 @@ internal class PurchasesInteractor(
                                         cloudRepository.validatePurchase(
                                             BillingClient.SkuType.SUBS,
                                             purchase,
-                                            ProductMapper.mapToValidate(product)
+                                            productMapper.mapToValidate(product)
                                         )
                                     }.map { response ->
                                         cacheRepository.updateOnPurchaserInfoReceived(response.data?.attributes)

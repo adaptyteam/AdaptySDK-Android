@@ -68,6 +68,9 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
                     )
                 }),
 
@@ -162,10 +165,27 @@ internal object Dependencies {
 
                 CurrencyHelper::class.java to singleVariantDiObject({ CurrencyHelper() }),
 
+                PaywallMapper::class.java to singleVariantDiObject({
+                    PaywallMapper(
+                        injectInternal(),
+                        injectInternal(),
+                    )
+                }),
+
+                ProductMapper::class.java to singleVariantDiObject({ ProductMapper(appContext) }),
+
+                PromoMapper::class.java to singleVariantDiObject({ PromoMapper() }),
+
+                ProrationModeMapper::class.java to singleVariantDiObject({ ProrationModeMapper() }),
+
+                PurchaserInfoMapper::class.java to singleVariantDiObject({ PurchaserInfoMapper() }),
+
                 StoreManager::class.java to singleVariantDiObject({
                     StoreManager(
                         appContext,
-                        injectInternal()
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
                     )
                 }),
 
@@ -186,6 +206,9 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
                         injectInternal()
                     )
                 }),
@@ -202,6 +225,7 @@ internal object Dependencies {
 
                 PurchasesInteractor::class.java to singleVariantDiObject({
                     PurchasesInteractor(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),

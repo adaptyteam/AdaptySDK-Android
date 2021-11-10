@@ -22,8 +22,12 @@ import java.io.IOException
 import kotlin.coroutines.resumeWithException
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class StoreManager(context: Context, private val currencyHelper: CurrencyHelper) :
-    PurchasesUpdatedListener {
+internal class StoreManager(
+    context: Context,
+    private val currencyHelper: CurrencyHelper,
+    private val productMapper: ProductMapper,
+    private val prorationModeMapper: ProrationModeMapper,
+) : PurchasesUpdatedListener {
 
     private val billingClient = BillingClient
         .newBuilder(context)
@@ -140,14 +144,14 @@ internal class StoreManager(context: Context, private val currencyHelper: Curren
                     is PaywallsResponse.Data -> {
                         data.attributes?.products?.forEach { product ->
                             if (skuDetails.sku == product.vendorProductId) {
-                                product.setDetails(skuDetails, currencyHelper)
+                                product.setDetails(skuDetails, currencyHelper, productMapper)
                             }
                         }
                     }
                     is ArrayList<*> -> {
                         data.filterIsInstance(ProductDto::class.java).forEach { product ->
                             if (skuDetails.sku == product.vendorProductId) {
-                                product.setDetails(skuDetails, currencyHelper)
+                                product.setDetails(skuDetails, currencyHelper, productMapper)
                             }
                         }
                     }
@@ -280,7 +284,7 @@ internal class StoreManager(context: Context, private val currencyHelper: Curren
                 BillingFlowParams.SubscriptionUpdateParams.newBuilder()
                     .setOldSkuPurchaseToken(subToBeReplaced.purchaseToken)
                     .setReplaceSkusProrationMode(
-                        ProrationModeMapper.map(subscriptionUpdateParams.prorationMode)
+                        prorationModeMapper.map(subscriptionUpdateParams.prorationMode)
                     )
                     .build()
             }

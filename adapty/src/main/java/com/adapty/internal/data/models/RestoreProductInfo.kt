@@ -30,13 +30,13 @@ internal class RestoreProductInfo(
 ) {
 
     @JvmSynthetic
-    fun setDetails(sd: SkuDetails?) {
+    fun setDetails(sd: SkuDetails?, productMapper: ProductMapper) {
         if (sd == null) return
 
         localizedDescription = sd.description
         price = formatPrice(sd.priceAmountMicros)
         currencyCode = sd.priceCurrencyCode
-        subscriptionPeriod = ProductMapper.mapSubscriptionPeriodModel(sd.subscriptionPeriod)
+        subscriptionPeriod = productMapper.mapSubscriptionPeriodModel(sd.subscriptionPeriod)
     }
 
     override fun equals(other: Any?): Boolean {

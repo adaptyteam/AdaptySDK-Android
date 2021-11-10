@@ -22,6 +22,9 @@ internal class ProductsInteractor(
     private val cloudRepository: CloudRepository,
     private val cacheRepository: CacheRepository,
     private val storeManager: StoreManager,
+    private val paywallMapper: PaywallMapper,
+    private val productMapper: ProductMapper,
+    private val promoMapper: PromoMapper,
 ) {
 
     @JvmSynthetic
@@ -104,7 +107,7 @@ internal class ProductsInteractor(
         if (data.isEmpty() && products.isEmpty()) {
             return flow {
                 cacheRepository.saveContainersAndProducts(containers, products)
-                emit(Pair(PaywallMapper.map(containers), products.map(ProductMapper::map)))
+                emit(Pair(paywallMapper.map(containers), products.map(productMapper::map)))
             }
         } else {
             if (products.isNotEmpty())
@@ -128,7 +131,7 @@ internal class ProductsInteractor(
 
                     cacheRepository.saveContainersAndProducts(containersList, productsList)
 
-                    Pair(PaywallMapper.map(containersList), productsList.map(ProductMapper::map))
+                    Pair(paywallMapper.map(containersList), productsList.map(productMapper::map))
                 }
         }
     }
@@ -139,7 +142,7 @@ internal class ProductsInteractor(
                 ?.firstOrNull { it.variationId == promo.variationId }
                 ?.let { paywall ->
                     flow {
-                        emit(cacheRepository.setCurrentPromo(PromoMapper.map(promo, paywall)))
+                        emit(cacheRepository.setCurrentPromo(promoMapper.map(promo, paywall)))
                     }
                 }
                 ?: (cloudRepository::getPaywalls)
@@ -150,7 +153,7 @@ internal class ProductsInteractor(
                         paywalls
                             ?.firstOrNull { it.variationId == promo.variationId }
                             ?.let { paywall ->
-                                cacheRepository.setCurrentPromo(PromoMapper.map(promo, paywall))
+                                cacheRepository.setCurrentPromo(promoMapper.map(promo, paywall))
                             }
                             ?: throw AdaptyError(
                                 message = "Paywall not found",

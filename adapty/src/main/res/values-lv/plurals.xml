@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="zero">%d nedēļu</item>
+        <item quantity="one">%d nedēļa</item>
+        <item quantity="other">%d nedēļas</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="zero">%d dienu</item>
+        <item quantity="one">%d diena</item>
+        <item quantity="other">%d dienas</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="zero">%d mēnešu</item>
+        <item quantity="one">%d mēnesis</item>
+        <item quantity="other">%d mēneši</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="zero">%d gadu</item>
+        <item quantity="one">%d gads</item>
+        <item quantity="other">%d gadi</item>
+    </plurals>
+</resources>

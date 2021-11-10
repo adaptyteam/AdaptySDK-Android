@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="one">%d ሳምንት</item>
+        <item quantity="other">%d ሳምንታት</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="one">%d ቀናት</item>
+        <item quantity="other">%d ቀናት</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="one">%d ወር</item>
+        <item quantity="other">%d ወራት</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="one">%d ዓመት</item>
+        <item quantity="other">%d ዓመታት</item>
+    </plurals>
+</resources>

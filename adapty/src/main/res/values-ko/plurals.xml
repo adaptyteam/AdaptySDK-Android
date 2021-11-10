@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="adapty_week">
+        <item quantity="other">%d주</item>
+    </plurals>
+
+    <plurals name="adapty_day">
+        <item quantity="other">%d일</item>
+    </plurals>
+
+    <plurals name="adapty_month">
+        <item quantity="other">%d개월</item>
+    </plurals>
+
+    <plurals name="adapty_year">
+        <item quantity="other">%d년</item>
+    </plurals>
+</resources>

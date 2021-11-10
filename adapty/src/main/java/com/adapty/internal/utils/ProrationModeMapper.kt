@@ -6,7 +6,7 @@ import com.adapty.models.SubscriptionUpdateParamModel.ProrationMode.*
 import com.android.billingclient.api.BillingFlowParams
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal object ProrationModeMapper {
+internal class ProrationModeMapper {
 
     @JvmSynthetic
     fun map(prorationMode: SubscriptionUpdateParamModel.ProrationMode) = when (prorationMode) {
