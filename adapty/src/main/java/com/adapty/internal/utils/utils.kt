@@ -9,9 +9,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.retryWhen
-import java.math.BigDecimal
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
 import java.util.*
 import kotlin.math.min
 import kotlin.math.pow
@@ -26,18 +23,6 @@ internal fun getCurrentLocale(context: Context) =
     } else {
         context.resources.configuration.locale
     }
-
-private val priceFormatter by lazy {
-    DecimalFormat("0.00", DecimalFormatSymbols(Locale.US))
-}
-
-@JvmSynthetic
-internal fun formatPrice(priceAmountMicros: Long): String {
-    return priceFormatter.format(
-        BigDecimal.valueOf(priceAmountMicros)
-            .divide(BigDecimal.valueOf(1_000_000L))
-    )
-}
 
 @JvmSynthetic
 internal fun Throwable.asAdaptyError(): AdaptyError {

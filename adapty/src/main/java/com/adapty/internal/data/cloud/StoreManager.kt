@@ -6,7 +6,7 @@ import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.ProductDto
-import com.adapty.internal.data.models.RestoreProductInfo
+import com.adapty.internal.data.models.PurchaseHistoryRecordModel
 import com.adapty.internal.data.models.responses.PaywallsResponse
 import com.adapty.internal.utils.*
 import com.adapty.models.SubscriptionUpdateParamModel
@@ -50,7 +50,7 @@ internal class StoreManager(
         ).map { fullSkuList -> fillInfo(fullSkuList, data) }
 
     @JvmSynthetic
-    fun getPurchaseHistoryDataToRestore(maxAttemptCount: Long): Flow<ArrayList<RestoreProductInfo>> =
+    fun getPurchaseHistoryDataToRestore(maxAttemptCount: Long): Flow<ArrayList<PurchaseHistoryRecordModel>> =
         getPurchaseHistoryDataToRestoreForType(SUBS, maxAttemptCount)
             .flatMapConcat { subsHistoryList ->
                 getPurchaseHistoryDataToRestoreForType(INAPP, maxAttemptCount)
@@ -60,24 +60,27 @@ internal class StoreManager(
     private fun getPurchaseHistoryDataToRestoreForType(
         @BillingClient.SkuType type: String,
         maxAttemptCount: Long,
-    ): Flow<List<RestoreProductInfo>> {
+    ): Flow<List<PurchaseHistoryRecordModel>> {
         return onConnected {
             storeHelper.queryPurchaseHistoryForType(type)
                 .map { purchaseHistoryRecordList ->
                     purchaseHistoryRecordList.map { purchase ->
-                        RestoreProductInfo(
-                            isSubscription = type == SUBS,
-                            productId = purchase.skus.firstOrNull(),
-                            purchaseToken = purchase.purchaseToken,
-                            transactionId = if (type == SUBS) billingClient.queryPurchases(SUBS)
-                                .purchasesList?.firstOrNull { it.purchaseToken == purchase.purchaseToken }?.orderId else null,
+                        PurchaseHistoryRecordModel(
+                            purchase,
+                            type,
+                            type.takeIf { it == SUBS }?.let {
+                                billingClient.queryPurchases(SUBS).purchasesList
+                                    ?.firstOrNull { it.purchaseToken == purchase.purchaseToken }
+                                    ?.orderId
+                            }
                         )
                     }
                 }
         }.retryOnConnectionError(maxAttemptCount)
     }
 
-    private fun querySkuDetails(
+    @JvmSynthetic
+    fun querySkuDetails(
         skuList: List<String>,
         maxAttemptCount: Long,
     ): Flow<List<SkuDetails>> =

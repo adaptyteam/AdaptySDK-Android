@@ -70,11 +70,16 @@ abstract class AdaptyPushHandler(protected val context: Context) {
             .putExtra("source", data["source"])
             .putExtra("profile_id", data["profile_id"])
             .putExtra("promo_delivery_id", data["promo_delivery_id"])
+        val flags = if (Build.VERSION.SDK_INT >= 23) {
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+        } else {
+            PendingIntent.FLAG_ONE_SHOT
+        }
         return PendingIntent.getActivity(
             context,
             0,
             intent,
-            PendingIntent.FLAG_ONE_SHOT
+            flags
         )
     }
 

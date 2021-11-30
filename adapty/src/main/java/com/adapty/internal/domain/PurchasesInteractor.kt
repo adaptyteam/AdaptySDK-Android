@@ -6,9 +6,7 @@ import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.StoreManager
-import com.adapty.internal.data.models.ProductDto
 import com.adapty.internal.data.models.RestoreProductInfo
-import com.adapty.internal.data.models.responses.PaywallsResponse
 import com.adapty.internal.data.models.responses.RestoreReceiptResponse
 import com.adapty.internal.utils.*
 import com.adapty.models.ProductModel
@@ -75,18 +73,37 @@ internal class PurchasesInteractor(
         sendToBackend: (List<RestoreProductInfo>) -> Flow<RestoreReceiptResponse>
     ): Flow<RestoreReceiptResponse> {
         return storeManager.getPurchaseHistoryDataToRestore(maxAttemptCount)
-            .zip(flowOf(cacheRepository.getSyncedPurchases())) { historyPurchases, savedPurchases ->
-                Pair(historyPurchases, savedPurchases)
+            .zip(flowOf(cacheRepository.getSyncedPurchases())) { historyData, savedPurchases ->
+                historyData to savedPurchases
             }
-            .flatMapConcat { (historyPurchases, savedPurchases) ->
-                fillProductInfoFromCache(historyPurchases).filterNot(savedPurchases::contains)
-                    .takeIf { it.isNotEmpty() }?.let { notSynced ->
+            .flatMapConcat { (historyData, savedPurchases) ->
+                historyData.filter { historyRecord ->
+                    savedPurchases.firstOrNull { savedPurchase ->
+                        savedPurchase.productId == historyRecord.purchase.skus.firstOrNull()
+                    } == null
+                }.takeIf { it.isNotEmpty() }?.let { notSyncedRecords ->
+                    storeManager.querySkuDetails(
+                        notSyncedRecords.mapNotNull { it.purchase.skus.firstOrNull() },
+                        maxAttemptCount,
+                    ).flatMapConcat { skuDetailsList ->
+                        val notSynced =
+                            notSyncedRecords.map { record ->
+                                productMapper.mapToRestore(
+                                    record,
+                                    skuDetailsList
+                                        .firstOrNull { it.sku == record.purchase.skus.firstOrNull() }
+                                )
+                            }
+
                         sendToBackend(notSynced)
                             .map { response ->
-                                cacheRepository.saveSyncedPurchases(historyPurchases)
+                                cacheRepository.saveSyncedPurchases(
+                                    savedPurchases.apply { addAll(notSynced) }
+                                )
                                 response
                             }
                     }
+                }
                     ?: "No purchases to restore".let { errorMessage ->
                         Logger.logError { errorMessage }
                         throw AdaptyError(
@@ -96,37 +113,6 @@ internal class PurchasesInteractor(
                     }
             }
             .flowOnIO()
-    }
-
-    private fun fillProductInfoFromCache(historyPurchases: ArrayList<RestoreProductInfo>): ArrayList<RestoreProductInfo> {
-
-        val containers = cacheRepository.getContainers()
-        val products = cacheRepository.getProducts()
-        return historyPurchases.onEach { purchase ->
-            purchase.productId?.let { productId ->
-                val product = getElementFromContainers(containers, products, productId)
-
-                product?.let { product ->
-                    purchase.setDetails(product.skuDetails, productMapper)
-                    purchase.localizedTitle = product.localizedTitle
-                }
-            }
-        }
-    }
-
-    private fun getElementFromContainers(
-        containers: ArrayList<PaywallsResponse.Data>?,
-        prods: ArrayList<ProductDto>?,
-        id: String
-    ): ProductDto? {
-        containers?.forEach { container ->
-            container.attributes?.products?.forEach { product ->
-                if (product.vendorProductId == id) {
-                    return product
-                }
-            }
-        }
-        return prods?.firstOrNull { it.vendorProductId == id }
     }
 
     @JvmSynthetic

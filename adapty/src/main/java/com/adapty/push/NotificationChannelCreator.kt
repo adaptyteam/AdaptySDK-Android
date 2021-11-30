@@ -7,9 +7,12 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
+import androidx.annotation.RestrictTo
 
-class NotificationChannelCreator(private val context: Context) {
+@RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+internal class NotificationChannelCreator(private val context: Context) {
 
+    @JvmSynthetic
     fun createNotificationChannelIfDontExist(channelId: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(

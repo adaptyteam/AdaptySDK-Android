@@ -15,6 +15,10 @@ import com.adapty.internal.utils.*
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import java.math.BigDecimal
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
+import java.text.Format
+import java.util.*
 import kotlin.LazyThreadSafetyMode.NONE
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -50,6 +54,10 @@ internal object Dependencies {
                         BigDecimal::class.java,
                         BigDecimalTypeAdapter()
                     ).create()
+                }),
+
+                Format::class.java to singleVariantDiObject({
+                    DecimalFormat("0.00", DecimalFormatSymbols(Locale.US))
                 }),
 
                 PreferenceManager::class.java to singleVariantDiObject({
@@ -172,7 +180,12 @@ internal object Dependencies {
                     )
                 }),
 
-                ProductMapper::class.java to singleVariantDiObject({ ProductMapper(appContext) }),
+                ProductMapper::class.java to singleVariantDiObject({
+                    ProductMapper(
+                        appContext,
+                        injectInternal(),
+                    )
+                }),
 
                 PromoMapper::class.java to singleVariantDiObject({ PromoMapper() }),
 

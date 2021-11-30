@@ -5,18 +5,21 @@ import androidx.annotation.RestrictTo
 import com.adapty.R
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.data.models.PaywallDto
-import com.adapty.internal.data.models.ProductDiscount
-import com.adapty.internal.data.models.ProductDto
-import com.adapty.internal.data.models.ValidateProductInfo
+import com.adapty.internal.data.models.*
 import com.adapty.models.PeriodUnit
 import com.adapty.models.ProductDiscountModel
 import com.adapty.models.ProductModel
 import com.adapty.models.ProductSubscriptionPeriodModel
+import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.SkuDetails
 import java.math.BigDecimal
+import java.text.Format
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class ProductMapper(private val context: Context) {
+internal class ProductMapper(
+    private val context: Context,
+    private val priceFormatter: Format,
+) {
 
     @JvmSynthetic
     fun map(productDto: ProductDto, paywallDto: PaywallDto) =
@@ -77,6 +80,24 @@ internal class ProductMapper(private val context: Context) {
         )
 
     @JvmSynthetic
+    fun mapToRestore(
+        historyRecord: PurchaseHistoryRecordModel,
+        skuDetails: SkuDetails?,
+    ) =
+        RestoreProductInfo(
+            isSubscription = historyRecord.type == BillingClient.SkuType.SUBS,
+            productId = historyRecord.purchase.skus.firstOrNull(),
+            purchaseToken = historyRecord.purchase.purchaseToken,
+            transactionId = historyRecord.transactionId,
+            localizedTitle = skuDetails?.title,
+            localizedDescription = skuDetails?.description,
+            price = skuDetails?.priceAmountMicros?.let(::formatPrice),
+            currencyCode = skuDetails?.priceCurrencyCode,
+            subscriptionPeriod = skuDetails?.subscriptionPeriod
+                ?.let(::mapSubscriptionPeriodModel),
+        )
+
+    @JvmSynthetic
     fun mapSubscriptionPeriodModel(period: String?) = ProductSubscriptionPeriodModel(
         unit = period?.let(::getPeriodUnit)?.let(PeriodUnit::valueOf),
         numberOfUnits = period?.let(::getPeriodNumberOfUnits)
@@ -89,6 +110,13 @@ internal class ProductMapper(private val context: Context) {
         subscriptionPeriod = productDiscount.subscriptionPeriod,
         localizedSubscriptionPeriod = getLocalizedSubscriptionPeriod(productDiscount.subscriptionPeriod)
     )
+
+    private fun formatPrice(priceAmountMicros: Long): String {
+        return priceFormatter.format(
+            BigDecimal.valueOf(priceAmountMicros)
+                .divide(BigDecimal.valueOf(1_000_000L))
+        )
+    }
 
     private fun getPeriodUnit(period: String) =
         period.takeIf(String::isNotEmpty)?.last()?.toString()

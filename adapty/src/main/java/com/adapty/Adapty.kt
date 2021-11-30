@@ -62,6 +62,7 @@ object Adapty {
     }
 
     @JvmStatic
+    @JvmOverloads
     fun getPurchaserInfo(
         forceUpdate: Boolean = false,
         adaptyCallback: (purchaserInfo: PurchaserInfoModel?, error: AdaptyError?) -> Unit
