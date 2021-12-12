@@ -94,7 +94,14 @@ internal class ProductMapper(
             price = skuDetails?.priceAmountMicros?.let(::formatPrice),
             currencyCode = skuDetails?.priceCurrencyCode,
             subscriptionPeriod = skuDetails?.subscriptionPeriod
-                ?.let(::mapSubscriptionPeriodModel),
+                ?.takeIf(String::isNotEmpty)?.let(::mapSubscriptionPeriodModel),
+        )
+
+    @JvmSynthetic
+    fun mapToSyncedPurchase(historyRecord: PurchaseHistoryRecordModel) =
+        SyncedPurchase(
+            purchaseToken = historyRecord.purchase.purchaseToken,
+            purchaseTime = historyRecord.purchase.purchaseTime,
         )
 
     @JvmSynthetic

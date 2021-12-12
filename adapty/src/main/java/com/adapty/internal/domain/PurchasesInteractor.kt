@@ -41,9 +41,9 @@ internal class PurchasesInteractor(
 
     @JvmSynthetic
     fun restorePurchases() =
-        syncPurchasesInternal(maxAttemptCount = DEFAULT_RETRY_COUNT) { notSynced ->
+        syncPurchasesInternal(maxAttemptCount = DEFAULT_RETRY_COUNT, byUser = true) { dataToSync ->
             authInteractor.runWhenAuthDataSynced {
-                cloudRepository.restorePurchases(notSynced)
+                cloudRepository.restorePurchases(dataToSync)
             }
         }
             .map { response ->
@@ -56,9 +56,9 @@ internal class PurchasesInteractor(
 
     @JvmSynthetic
     fun syncPurchasesOnStart(): Flow<Unit> {
-        return syncPurchasesInternal { notSynced ->
+        return syncPurchasesInternal { dataToSync ->
             authInteractor.runWhenAuthDataSynced(INFINITE_RETRY) {
-                cloudRepository.restorePurchases(notSynced)
+                cloudRepository.restorePurchases(dataToSync)
             }
         }
             .map { response ->
@@ -70,35 +70,41 @@ internal class PurchasesInteractor(
 
     private fun syncPurchasesInternal(
         maxAttemptCount: Long = INFINITE_RETRY,
+        byUser: Boolean = false,
         sendToBackend: (List<RestoreProductInfo>) -> Flow<RestoreReceiptResponse>
     ): Flow<RestoreReceiptResponse> {
         return storeManager.getPurchaseHistoryDataToRestore(maxAttemptCount)
-            .zip(flowOf(cacheRepository.getSyncedPurchases())) { historyData, savedPurchases ->
-                historyData to savedPurchases
+            .zip(flowOf(cacheRepository.getSyncedPurchases())) { historyData, syncedPurchases ->
+                historyData to syncedPurchases
             }
-            .flatMapConcat { (historyData, savedPurchases) ->
-                historyData.filter { historyRecord ->
-                    savedPurchases.firstOrNull { savedPurchase ->
-                        savedPurchase.productId == historyRecord.purchase.skus.firstOrNull()
-                    } == null
-                }.takeIf { it.isNotEmpty() }?.let { notSyncedRecords ->
+            .flatMapConcat { (historyData, syncedPurchases) ->
+                when {
+                    byUser -> historyData
+                    else -> {
+                        historyData.filter { historyRecord ->
+                            syncedPurchases.firstOrNull { purchase ->
+                                purchase.purchaseToken == historyRecord.purchase.purchaseToken && purchase.purchaseTime == historyRecord.purchase.purchaseTime
+                            } == null
+                        }
+                    }
+                }.takeIf { it.isNotEmpty() }?.let { dataToSync ->
                     storeManager.querySkuDetails(
-                        notSyncedRecords.mapNotNull { it.purchase.skus.firstOrNull() },
+                        dataToSync.mapNotNull { it.purchase.skus.firstOrNull() },
                         maxAttemptCount,
                     ).flatMapConcat { skuDetailsList ->
-                        val notSynced =
-                            notSyncedRecords.map { record ->
+                        sendToBackend(
+                            dataToSync.map { historyRecord ->
                                 productMapper.mapToRestore(
-                                    record,
+                                    historyRecord,
                                     skuDetailsList
-                                        .firstOrNull { it.sku == record.purchase.skus.firstOrNull() }
+                                        .firstOrNull { it.sku == historyRecord.purchase.skus.firstOrNull() }
                                 )
                             }
-
-                        sendToBackend(notSynced)
+                        )
                             .map { response ->
                                 cacheRepository.saveSyncedPurchases(
-                                    savedPurchases.apply { addAll(notSynced) }
+                                    dataToSync.map(productMapper::mapToSyncedPurchase)
+                                        .union(syncedPurchases.filter { it.purchaseToken != null && it.purchaseTime != null }).toHashSet()
                                 )
                                 response
                             }

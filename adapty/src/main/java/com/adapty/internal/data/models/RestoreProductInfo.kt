@@ -7,23 +7,23 @@ import com.google.gson.annotations.SerializedName
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class RestoreProductInfo(
     @SerializedName("is_subscription")
-    val isSubscription: Boolean? = null,
+    val isSubscription: Boolean?,
     @SerializedName("product_id")
-    val productId: String? = null,
+    val productId: String?,
     @SerializedName("purchase_token")
-    val purchaseToken: String? = null,
+    val purchaseToken: String?,
     @SerializedName("title")
-    var localizedTitle: String? = null,
+    var localizedTitle: String?,
     @SerializedName("localizedDescription")
-    var localizedDescription: String? = null,
+    var localizedDescription: String?,
     @SerializedName("price")
-    var price: String? = null,
+    var price: String?,
     @SerializedName("currencyCode")
-    var currencyCode: String? = null,
+    var currencyCode: String?,
     @SerializedName("subscriptionPeriod")
-    var subscriptionPeriod: ProductSubscriptionPeriodModel? = null,
+    var subscriptionPeriod: ProductSubscriptionPeriodModel?,
     @SerializedName("transaction_id")
-    val transactionId: String? = null
+    val transactionId: String?
 ) {
 
     override fun equals(other: Any?): Boolean {

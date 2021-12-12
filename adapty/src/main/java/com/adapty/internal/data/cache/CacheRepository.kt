@@ -212,10 +212,10 @@ internal class CacheRepository(
 
     @JvmSynthetic
     fun getSyncedPurchases() =
-        getData<ArrayList<RestoreProductInfo>>(SYNCED_PURCHASES) ?: arrayListOf()
+        getData<HashSet<SyncedPurchase>>(SYNCED_PURCHASES) ?: setOf()
 
     @JvmSynthetic
-    fun saveSyncedPurchases(data: ArrayList<RestoreProductInfo>) {
+    fun saveSyncedPurchases(data: HashSet<SyncedPurchase>) {
         saveData(SYNCED_PURCHASES, data)
     }
 
