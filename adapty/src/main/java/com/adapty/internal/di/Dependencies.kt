@@ -12,6 +12,7 @@ import com.adapty.internal.domain.ProductsInteractor
 import com.adapty.internal.domain.PurchaserInteractor
 import com.adapty.internal.domain.PurchasesInteractor
 import com.adapty.internal.utils.*
+import com.adapty.models.PurchaserInfoModel
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import java.math.BigDecimal
@@ -50,10 +51,14 @@ internal object Dependencies {
         map.putAll(
             listOf(
                 Gson::class.java to singleVariantDiObject({
-                    GsonBuilder().registerTypeAdapter(
-                        BigDecimal::class.java,
-                        BigDecimalTypeAdapter()
-                    ).create()
+                    GsonBuilder()
+                        .registerTypeAdapter(
+                            BigDecimal::class.java,
+                            BigDecimalDeserializer()
+                        ).registerTypeAdapter(
+                            PurchaserInfoModel::class.java,
+                            PurchaserInfoModelDeserializer(Gson())
+                        ).create()
                 }),
 
                 Format::class.java to singleVariantDiObject({

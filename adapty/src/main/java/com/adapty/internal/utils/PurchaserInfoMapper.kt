@@ -15,6 +15,7 @@ internal class PurchaserInfoMapper {
     @JvmSynthetic
     fun map(attrs: ContainsPurchaserInfo) = attrs.extractPurchaserInfo().let { dto ->
         PurchaserInfoModel(
+            profileId = dto.profileId.orEmpty(),
             customerUserId = dto.customerUserId,
             nonSubscriptions = dto.nonSubscriptions?.mapValues { entry ->
                 entry.value.map { nonSub ->

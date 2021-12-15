@@ -1,6 +1,7 @@
 package com.adapty.models
 
 class PurchaserInfoModel(
+    val profileId: String,
     val customerUserId: String?,
     val accessLevels: Map<String, AccessLevelInfoModel>,
     val subscriptions: Map<String, SubscriptionInfoModel>,
@@ -12,6 +13,7 @@ class PurchaserInfoModel(
 
         other as PurchaserInfoModel
 
+        if (profileId != other.profileId) return false
         if (customerUserId != other.customerUserId) return false
         if (accessLevels != other.accessLevels) return false
         if (subscriptions != other.subscriptions) return false
@@ -21,7 +23,8 @@ class PurchaserInfoModel(
     }
 
     override fun hashCode(): Int {
-        var result = customerUserId?.hashCode() ?: 0
+        var result = profileId.hashCode()
+        result = 31 * result + (customerUserId?.hashCode() ?: 0)
         result = 31 * result + accessLevels.hashCode()
         result = 31 * result + subscriptions.hashCode()
         result = 31 * result + nonSubscriptions.hashCode()
@@ -29,6 +32,6 @@ class PurchaserInfoModel(
     }
 
     override fun toString(): String {
-        return "PurchaserInfoModel(customerUserId=$customerUserId, accessLevels=$accessLevels, subscriptions=$subscriptions, nonSubscriptions=$nonSubscriptions)"
+        return "PurchaserInfoModel(profileId=$profileId, customerUserId=$customerUserId, accessLevels=$accessLevels, subscriptions=$subscriptions, nonSubscriptions=$nonSubscriptions)"
     }
 }
