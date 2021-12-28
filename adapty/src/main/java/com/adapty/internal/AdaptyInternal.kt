@@ -13,6 +13,7 @@ import com.adapty.internal.domain.ProductsInteractor
 import com.adapty.internal.domain.PurchaserInteractor
 import com.adapty.internal.domain.PurchasesInteractor
 import com.adapty.internal.utils.*
+import com.adapty.listeners.OnPaywallsForConfigReceivedListener
 import com.adapty.listeners.OnPromoReceivedListener
 import com.adapty.listeners.OnPurchaserInfoUpdatedListener
 import com.adapty.listeners.VisualPaywallListener
@@ -57,6 +58,21 @@ internal class AdaptyInternal(
                 purchaserInteractor
                     .subscribeOnPromoChanges()
                     .onEach { value?.onPromoReceived(it) }
+                    .catch { }
+                    .flowOnMain()
+                    .collect()
+            }
+            field = value
+        }
+
+    @get:JvmSynthetic
+    @set:JvmSynthetic
+    var onPaywallsForConfigReceivedListener: OnPaywallsForConfigReceivedListener? = null
+        set(value) {
+            execute {
+                productsInteractor
+                    .subscribeOnRemoteConfigDataChanges()
+                    .onEach { value?.onPaywallsForConfigReceived(it) }
                     .catch { }
                     .flowOnMain()
                     .collect()

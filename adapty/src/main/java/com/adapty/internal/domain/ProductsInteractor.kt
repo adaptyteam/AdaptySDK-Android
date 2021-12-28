@@ -48,6 +48,9 @@ internal class ProductsInteractor(
         authInteractor.runWhenAuthDataSynced {
             cloudRepository.getPaywalls()
         }
+            .onEach { (containers, _) ->
+                cacheRepository.setCurrentRemoteConfigData(paywallMapper.map(containers))
+            }
             .flatMapConcat { postProcessPaywalls(it, maxAttemptCount = DEFAULT_RETRY_COUNT) }
             .catch { error ->
                 if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
@@ -55,9 +58,13 @@ internal class ProductsInteractor(
                         cacheRepository.getPaywallsAndProducts()
                             .takeIf { (paywalls, products) -> paywalls != null || products != null }
                             ?.let { cachedPaywalls ->
+                                val (paywalls, _) = cachedPaywalls
+                                paywalls?.let { cacheRepository.setCurrentRemoteConfigData(paywalls) }
                                 emit(cachedPaywalls)
                             }
                             ?: cacheRepository.getFallbackPaywalls()?.let { fallbackPaywalls ->
+                                val (containers, _) = fallbackPaywalls
+                                cacheRepository.setCurrentRemoteConfigData(paywallMapper.map(containers))
                                 postProcessPaywalls(fallbackPaywalls, DEFAULT_RETRY_COUNT)
                                     .onEach(::emit)
                                     .catch { error -> throw error }
@@ -78,6 +85,9 @@ internal class ProductsInteractor(
         authInteractor.runWhenAuthDataSynced(INFINITE_RETRY) {
             cloudRepository.getPaywalls()
         }
+            .onEach { (containers, _) ->
+                cacheRepository.setCurrentRemoteConfigData(paywallMapper.map(containers))
+            }
             .flatMapConcat(::postProcessPaywalls)
             .flowOnIO()
 
@@ -93,6 +103,10 @@ internal class ProductsInteractor(
     @JvmSynthetic
     fun getPromoOnStart() =
         getPromo(INFINITE_RETRY)
+
+    @JvmSynthetic
+    fun subscribeOnRemoteConfigDataChanges() =
+        cacheRepository.subscribeOnRemoteConfigDataChanges()
 
     private fun postProcessPaywalls(
         pair: Pair<ArrayList<PaywallsResponse.Data>, ArrayList<ProductDto>>,

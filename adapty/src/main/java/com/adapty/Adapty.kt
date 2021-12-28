@@ -12,6 +12,7 @@ import com.adapty.internal.AdaptyInternal
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.Logger
+import com.adapty.listeners.OnPaywallsForConfigReceivedListener
 import com.adapty.listeners.OnPromoReceivedListener
 import com.adapty.listeners.OnPurchaserInfoUpdatedListener
 import com.adapty.listeners.VisualPaywallListener
@@ -211,6 +212,12 @@ object Adapty {
     fun setOnPromoReceivedListener(onPromoReceivedListener: OnPromoReceivedListener?) {
         if (!checkActivated()) return
         adaptyInternal.onPromoReceivedListener = onPromoReceivedListener
+    }
+
+    @JvmStatic
+    fun setOnPaywallsForConfigReceivedListener(onPaywallsForConfigReceivedListener: OnPaywallsForConfigReceivedListener?) {
+        if (!checkActivated()) return
+        adaptyInternal.onPaywallsForConfigReceivedListener = onPaywallsForConfigReceivedListener
     }
 
     @JvmStatic

@@ -9,6 +9,7 @@ import com.adapty.internal.data.models.ProfileResponseData.Attributes
 import com.adapty.internal.data.models.responses.PaywallsResponse
 import com.adapty.internal.data.models.responses.SyncMetaResponse
 import com.adapty.internal.utils.*
+import com.adapty.models.PaywallModel
 import com.adapty.models.PromoModel
 import com.adapty.models.PurchaserInfoModel
 import com.google.gson.Gson
@@ -32,6 +33,7 @@ internal class CacheRepository(
 
     private val currentPurchaserInfo = MutableSharedFlow<PurchaserInfoModel>()
     private val currentPromo = MutableSharedFlow<PromoModel>()
+    private val currentRemoteConfigData = MutableSharedFlow<List<PaywallModel>>()
 
     private val cache = ConcurrentHashMap<String, Any>(32)
 
@@ -82,6 +84,11 @@ internal class CacheRepository(
         promo.also { currentPromo.emit(promo) }
 
     @JvmSynthetic
+    suspend fun setCurrentRemoteConfigData(remoteConfigs: List<PaywallModel>) {
+        currentRemoteConfigData.emit(remoteConfigs)
+    }
+
+    @JvmSynthetic
     fun subscribeOnPurchaserInfoChanges() =
         currentPurchaserInfo
             .distinctUntilChanged()
@@ -89,6 +96,11 @@ internal class CacheRepository(
     @JvmSynthetic
     fun subscribeOnPromoChanges() =
         currentPromo
+            .distinctUntilChanged()
+
+    @JvmSynthetic
+    fun subscribeOnRemoteConfigDataChanges() =
+        currentRemoteConfigData
             .distinctUntilChanged()
 
     @JvmSynthetic
