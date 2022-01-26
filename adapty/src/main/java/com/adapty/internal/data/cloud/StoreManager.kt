@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resumeWithException
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -37,7 +38,7 @@ internal class StoreManager(
 
     private val storeHelper = StoreHelper(billingClient)
 
-    private var makePurchaseCallback: ((purchase: Purchase?, error: AdaptyError?) -> Unit)? = null
+    private var makePurchaseCallback: MakePurchaseCallback? = null
 
     @JvmSynthetic
     fun fillBillingInfo(
@@ -107,14 +108,15 @@ internal class StoreManager(
     private fun <T> concatResults(list1: List<T>, list2: List<T>) =
         ArrayList(list1).apply { addAll(list2) }
 
-    private fun <T> onError(
+    private fun onError(
+        purchase: Purchase?,
         billingResult: BillingResult,
-        callback: ((data: T?, error: AdaptyError?) -> Unit)?
+        callback: MakePurchaseCallback?
     ) {
         val message = "Play Market request failed: ${billingResult.debugMessage}"
         Logger.logError { message }
         callback?.invoke(
-            null, AdaptyError(
+            purchase, AdaptyError(
                 message = message,
                 adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)
             )
@@ -122,13 +124,14 @@ internal class StoreManager(
     }
 
     private fun onError(
+        purchase: Purchase?,
         error: Throwable,
-        callback: ((purchase: Purchase?, error: AdaptyError?) -> Unit)?
+        callback: MakePurchaseCallback?
     ) {
         val message = error.message ?: "Play Market request failed"
         Logger.logError { message }
         callback?.invoke(
-            null,
+            purchase,
             (error as? AdaptyError) ?: AdaptyError(
                 originalError = error,
                 message = message,
@@ -174,13 +177,18 @@ internal class StoreManager(
             OK -> {
                 if (purchases == null) {
                     makePurchaseCallback?.invoke(null, null)
-                    makePurchaseCallback = null
                     return
                 }
 
                 for (purchase in purchases) {
-                    if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED && !purchase.isAcknowledged)
+                    if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
                         postProcess(purchase)
+                    } else {
+                        makePurchaseCallback?.invoke(purchase, AdaptyError(
+                            message = "Purchase: PENDING_PURCHASE",
+                            adaptyErrorCode = AdaptyErrorCode.PENDING_PURCHASE
+                        ))
+                    }
                 }
             }
             USER_CANCELED -> {
@@ -190,32 +198,33 @@ internal class StoreManager(
                         adaptyErrorCode = AdaptyErrorCode.USER_CANCELED
                     )
                 )
-                makePurchaseCallback = null
             }
             else -> {
-                onError(billingResult, makePurchaseCallback)
-                makePurchaseCallback = null
+                onError(null, billingResult, makePurchaseCallback)
             }
         }
     }
 
     private fun postProcess(purchase: Purchase) {
+        if (purchase.isAcknowledged) {
+            makePurchaseCallback?.invoke(purchase, null)
+            return
+        }
+
         execute {
             if (productsToPurchaseSkuType[purchase.skus.firstOrNull().orEmpty()] == INAPP) {
                 consumePurchase(purchase, maxAttemptCount = DEFAULT_RETRY_COUNT)
             } else {
                 acknowledgePurchase(purchase, maxAttemptCount = DEFAULT_RETRY_COUNT)
-            }.onEach {
-                if (it.responseCode == OK) {
-                    makePurchaseCallback?.invoke(purchase, null)
-                } else {
-                    onError(it, makePurchaseCallback)
-                }
-                makePurchaseCallback = null
-            }.catch {
-                onError(it, makePurchaseCallback)
-                makePurchaseCallback = null
             }
+                .catch { error -> onError(purchase, error, makePurchaseCallback) }
+                .onEach { billingResult ->
+                    if (billingResult.responseCode == OK) {
+                        makePurchaseCallback?.invoke(purchase, null)
+                    } else {
+                        onError(purchase, billingResult, makePurchaseCallback)
+                    }
+                }
                 .flowOnMain()
                 .collect()
         }
@@ -227,7 +236,7 @@ internal class StoreManager(
         productId: String,
         purchaseType: String,
         subscriptionUpdateParams: SubscriptionUpdateParamModel?,
-        callback: (purchase: Purchase?, error: AdaptyError?) -> Unit
+        callback: MakePurchaseCallback
     ) {
         execute {
             onConnected {
@@ -251,10 +260,11 @@ internal class StoreManager(
                 }
             }
                 .flowOnIO()
+                .catch { error -> onError(null, error, callback) }
                 .onEach { (skuDetailsList, subscriptionUpdateParams) ->
                     skuDetailsList.firstOrNull { it.sku == productId }?.let { skuDetails ->
                         productsToPurchaseSkuType[productId] = purchaseType
-                        makePurchaseCallback = callback
+                        makePurchaseCallback = MakePurchaseCallbackWrapper(productId, callback)
 
                         billingClient.launchBillingFlow(
                             activity,
@@ -271,7 +281,6 @@ internal class StoreManager(
                         )
                     )
                 }
-                .catch { onError(it, callback) }
                 .flowOnMain()
                 .collect()
         }
@@ -476,5 +485,23 @@ private class StoreHelper(private val billingClient: BillingClient) {
             message = "Play Market request failed: ${billingResult.debugMessage}",
             adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)
         )
+    }
+}
+
+private typealias MakePurchaseCallback = (purchase: Purchase?, error: AdaptyError?) -> Unit
+
+private class MakePurchaseCallbackWrapper(
+    private val productId: String,
+    private val callback: MakePurchaseCallback
+) : MakePurchaseCallback {
+
+    private val wasInvoked = AtomicBoolean(false)
+
+    override operator fun invoke(purchase: Purchase?, error: AdaptyError?) {
+        if (purchase?.skus?.firstOrNull()?.equals(productId) != false) {
+            if (wasInvoked.compareAndSet(false, true)) {
+                callback.invoke(if (error == null) purchase else null, error)
+            }
+        }
     }
 }

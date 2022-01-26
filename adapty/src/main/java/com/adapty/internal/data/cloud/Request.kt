@@ -40,6 +40,10 @@ internal class Request internal constructor(val baseUrl: String) {
     @JvmField
     var body = ""
 
+    @JvmSynthetic
+    @JvmField
+    var currentDataWhenSent: CurrentDataWhenSent? = null
+
     internal class Builder(private val baseRequest: Request = Request(baseUrl = "https://api.adapty.io/api/v1/")) {
 
         @get:JvmSynthetic
@@ -53,6 +57,10 @@ internal class Request internal constructor(val baseUrl: String) {
         @JvmSynthetic
         @JvmField
         var body: String? = null
+
+        @JvmSynthetic
+        @JvmField
+        var currentDataWhenSent: CurrentDataWhenSent? = null
 
         @JvmSynthetic
         @JvmField
@@ -86,12 +94,15 @@ internal class Request internal constructor(val baseUrl: String) {
             body = this@Builder.body.orEmpty()
             responseCacheKeys = this@Builder.responseCacheKeys
             requestCacheOptions = this@Builder.requestCacheOptions
+            currentDataWhenSent = this@Builder.currentDataWhenSent
         }
     }
 
     internal enum class Method {
         GET, POST, PATCH
     }
+
+    internal class CurrentDataWhenSent(val profileId: String)
 }
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -104,34 +115,45 @@ internal class RequestFactory(
     private val inappsEndpointPrefix = "sdk/in-apps"
     private val profilesEndpointPrefix = "sdk/analytics/profiles"
 
-    private val endpointForProfileRequests: String
-        get() = "$profilesEndpointPrefix/${cacheRepository.getProfileId()}/"
-
-    @JvmSynthetic
-    fun getPurchaserInfoRequest() = buildRequest {
-        method = GET
-        endPoint = endpointForProfileRequests
-        responseCacheKeys = ResponseCacheKeys.forGetPurchaserInfo()
+    private fun getEndpointForProfileRequests(profileId: String): String {
+        return "$profilesEndpointPrefix/$profileId/"
     }
 
     @JvmSynthetic
-    fun updateProfileRequest(params: ProfileParameterBuilder) = buildRequest {
-        method = PATCH
-        body = gson.toJson(
-            UpdateProfileRequest.create(cacheRepository.getProfileId(), params)
-        )
-        endPoint = endpointForProfileRequests
-        requestCacheOptions = RequestCacheOptions.forUpdateProfile()
-    }
+    fun getPurchaserInfoRequest() =
+        cacheRepository.getProfileId().let { profileId ->
+            buildRequest {
+                method = GET
+                endPoint = getEndpointForProfileRequests(profileId)
+                responseCacheKeys = ResponseCacheKeys.forGetPurchaserInfo()
+                currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
+            }
+        }
 
     @JvmSynthetic
-    fun createProfileRequest(customerUserId: String?) = buildRequest {
-        method = POST
-        body = gson.toJson(
-            CreateProfileRequest.create(cacheRepository.getProfileId(), customerUserId)
-        )
-        endPoint = endpointForProfileRequests
-    }
+    fun updateProfileRequest(params: ProfileParameterBuilder) =
+        cacheRepository.getProfileId().let { profileId ->
+            buildRequest {
+                method = PATCH
+                body = gson.toJson(
+                    UpdateProfileRequest.create(profileId, params)
+                )
+                endPoint = getEndpointForProfileRequests(profileId)
+                requestCacheOptions = RequestCacheOptions.forUpdateProfile()
+            }
+        }
+
+    @JvmSynthetic
+    fun createProfileRequest(customerUserId: String?) =
+        cacheRepository.getProfileId().let { profileId ->
+            buildRequest {
+                method = POST
+                body = gson.toJson(
+                    CreateProfileRequest.create(profileId, customerUserId)
+                )
+                endPoint = getEndpointForProfileRequests(profileId)
+            }
+        }
 
     @JvmSynthetic
     fun syncMetaInstallRequest(
@@ -168,7 +190,7 @@ internal class RequestFactory(
             )
         )
         endPoint =
-            "${endpointForProfileRequests}installation-metas/${cacheRepository.getInstallationMetaId()}/"
+            "${getEndpointForProfileRequests(cacheRepository.getProfileId())}installation-metas/${cacheRepository.getInstallationMetaId()}/"
         requestCacheOptions = RequestCacheOptions.forSyncMeta()
     }
 
@@ -177,24 +199,29 @@ internal class RequestFactory(
         purchaseType: String,
         purchase: Purchase,
         product: ValidateProductInfo?
-    ) = cacheRepository.getProfileId().let { uuid ->
+    ) = cacheRepository.getProfileId().let { profileId ->
         buildRequest {
             method = POST
             endPoint = "$inappsEndpointPrefix/google/token/validate/"
             body = gson.toJson(
-                ValidateReceiptRequest.create(uuid, purchase, product, purchaseType)
+                ValidateReceiptRequest.create(profileId, purchase, product, purchaseType)
             )
+            currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
         }
     }
 
     @JvmSynthetic
-    fun restorePurchasesRequest(purchases: List<RestoreProductInfo>) = buildRequest {
-        method = POST
-        body = gson.toJson(
-            RestoreReceiptRequest.create(cacheRepository.getProfileId(), purchases)
-        )
-        endPoint = "$inappsEndpointPrefix/google/token/restore/"
-    }
+    fun restorePurchasesRequest(purchases: List<RestoreProductInfo>) =
+        cacheRepository.getProfileId().let { profileId ->
+            buildRequest {
+                method = POST
+                body = gson.toJson(
+                    RestoreReceiptRequest.create(profileId, purchases)
+                )
+                endPoint = "$inappsEndpointPrefix/google/token/restore/"
+                currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
+            }
+        }
 
     @JvmSynthetic
     fun getPaywallsRequest() = buildRequest {
@@ -210,7 +237,7 @@ internal class RequestFactory(
         attributionData: AttributionData,
     ) = buildRequest {
         method = POST
-        endPoint = "${endpointForProfileRequests}attribution/"
+        endPoint = "${getEndpointForProfileRequests(cacheRepository.getProfileId())}attribution/"
         body = gson.toJson(
             UpdateAttributionRequest.create(attributionData)
         )
@@ -220,7 +247,7 @@ internal class RequestFactory(
     @JvmSynthetic
     fun getPromoRequest() = buildRequest {
         method = GET
-        endPoint = "${endpointForProfileRequests}promo/"
+        endPoint = "${getEndpointForProfileRequests(cacheRepository.getProfileId())}promo/"
         responseCacheKeys = ResponseCacheKeys.forGetPromo()
     }
 
@@ -241,7 +268,7 @@ internal class RequestFactory(
     @JvmSynthetic
     fun setExternalAnalyticsEnabledRequest(enabled: Boolean) = buildRequest {
         method = POST
-        endPoint = "${endpointForProfileRequests}analytics-enabled/"
+        endPoint = "${getEndpointForProfileRequests(cacheRepository.getProfileId())}analytics-enabled/"
         body = gson.toJson(
             ExternalAnalyticsEnabledRequest.create(enabled)
         )

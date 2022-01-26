@@ -42,8 +42,8 @@ internal class AdaptyInternal(
             execute {
                 purchaserInteractor
                     .subscribeOnPurchaserInfoChanges()
-                    .onEach { value?.onPurchaserInfoReceived(it) }
                     .catch { }
+                    .onEach { value?.onPurchaserInfoReceived(it) }
                     .flowOnMain()
                     .collect()
             }
@@ -57,8 +57,8 @@ internal class AdaptyInternal(
             execute {
                 purchaserInteractor
                     .subscribeOnPromoChanges()
-                    .onEach { value?.onPromoReceived(it) }
                     .catch { }
+                    .onEach { value?.onPromoReceived(it) }
                     .flowOnMain()
                     .collect()
             }
@@ -72,8 +72,8 @@ internal class AdaptyInternal(
             execute {
                 productsInteractor
                     .subscribeOnRemoteConfigDataChanges()
-                    .onEach { value?.onPaywallsForConfigReceived(it) }
                     .catch { }
+                    .onEach { value?.onPaywallsForConfigReceived(it) }
                     .flowOnMain()
                     .collect()
             }
@@ -94,13 +94,8 @@ internal class AdaptyInternal(
         execute {
             purchaserInteractor
                 .getPurchaserInfo(forceUpdate)
+                .catch { error -> callback(null, error.asAdaptyError()) }
                 .onEach { purchaserInfo -> callback(purchaserInfo, null) }
-                .catch { error ->
-                    callback(
-                        null,
-                        error.asAdaptyError()
-                    )
-                }
                 .flowOnMain()
                 .collect()
         }
@@ -114,8 +109,8 @@ internal class AdaptyInternal(
         execute {
             purchaserInteractor
                 .updateProfile(params)
-                .onEach { callback.invoke(null) }
                 .catch { error -> callback.invoke(error.asAdaptyError()) }
+                .onEach { callback.invoke(null) }
                 .flowOnMain()
                 .collect()
         }
@@ -131,8 +126,8 @@ internal class AdaptyInternal(
 
             authInteractor
                 .activateOrIdentify()
-                .onEach { callback?.invoke(null); executeStartRequests() }
                 .catch { error -> callback?.invoke(error.asAdaptyError()); executeStartRequests() }
+                .onEach { callback?.invoke(null); executeStartRequests() }
                 .flowOnMain()
                 .collect()
         }
@@ -159,8 +154,8 @@ internal class AdaptyInternal(
 
             authInteractor
                 .activateOrIdentify()
-                .onEach { callback.invoke(null); executeStartRequests() }
                 .catch { error -> callback.invoke(error.asAdaptyError()); executeStartRequests() }
+                .onEach { callback.invoke(null); executeStartRequests() }
                 .flowOnMain()
                 .collect()
         }
@@ -219,14 +214,6 @@ internal class AdaptyInternal(
                                             purchase,
                                             product
                                         )
-                                    }.onEach { (purchaserInfo, validationResult) ->
-                                        callback.invoke(
-                                            purchaserInfo,
-                                            purchase.purchaseToken,
-                                            validationResult,
-                                            product,
-                                            null
-                                        )
                                     }.catch {
                                         callback.invoke(
                                             null,
@@ -234,6 +221,14 @@ internal class AdaptyInternal(
                                             null,
                                             product,
                                             error
+                                        )
+                                    }.onEach { (purchaserInfo, validationResult) ->
+                                        callback.invoke(
+                                            purchaserInfo,
+                                            purchase.purchaseToken,
+                                            validationResult,
+                                            product,
+                                            null
                                         )
                                     }
                                     .flowOnMain()
@@ -248,15 +243,6 @@ internal class AdaptyInternal(
                     purchase?.let { purchase ->
                         execute {
                             purchasesInteractor.validatePurchase(purchaseType, purchase, product)
-                                .onEach { (purchaserInfo, validationResult) ->
-                                    callback.invoke(
-                                        purchaserInfo,
-                                        purchase.purchaseToken,
-                                        validationResult,
-                                        product,
-                                        null
-                                    )
-                                }
                                 .catch {
                                     callback.invoke(
                                         null,
@@ -264,6 +250,15 @@ internal class AdaptyInternal(
                                         null,
                                         product,
                                         error
+                                    )
+                                }
+                                .onEach { (purchaserInfo, validationResult) ->
+                                    callback.invoke(
+                                        purchaserInfo,
+                                        purchase.purchaseToken,
+                                        validationResult,
+                                        product,
+                                        null
                                     )
                                 }
                                 .flowOnMain()
@@ -280,11 +275,11 @@ internal class AdaptyInternal(
         execute {
             purchasesInteractor
                 .restorePurchases()
-                .onEach { (purchaserInfo, validationResultList) ->
-                    callback.invoke(purchaserInfo, validationResultList, null)
-                }
                 .catch { error ->
                     callback.invoke(null, null, error.asAdaptyError())
+                }
+                .onEach { (purchaserInfo, validationResultList) ->
+                    callback.invoke(purchaserInfo, validationResultList, null)
                 }
                 .flowOnMain()
                 .collect()
@@ -299,10 +294,8 @@ internal class AdaptyInternal(
         execute {
             productsInteractor
                 .getPaywalls(forceUpdate)
+                .catch { error -> callback(null, null, error.asAdaptyError()) }
                 .onEach { (paywalls, products) -> callback(paywalls, products, null) }
-                .catch { error ->
-                    callback(null, null, error.asAdaptyError())
-                }
                 .flowOnMain()
                 .collect()
         }
@@ -335,8 +328,8 @@ internal class AdaptyInternal(
         execute {
             productsInteractor
                 .getPromo()
-                .onEach { promo -> callback(promo, null) }
                 .catch { error -> callback(null, error.asAdaptyError()) }
+                .onEach { promo -> callback(promo, null) }
                 .flowOnMain()
                 .collect()
         }
@@ -381,7 +374,7 @@ internal class AdaptyInternal(
     ) {
         kinesisManager.trackEvent(
             "promo_push_opened",
-            mapOf("promo_delivery_id" to intent.getStringExtra("promo_delivery_id"))
+            mapOf("promo_delivery_id" to intent.getStringExtra("promo_delivery_id").orEmpty())
         )
         getPromo(adaptyCallback)
     }
@@ -407,8 +400,8 @@ internal class AdaptyInternal(
         execute {
             purchaserInteractor
                 .updateAttribution(attribution, source, networkUserId)
-                .onEach { callback.invoke(null) }
                 .catch { error -> callback.invoke(error.asAdaptyError()) }
+                .onEach { callback.invoke(null) }
                 .flowOnMain()
                 .collect()
         }
@@ -423,8 +416,8 @@ internal class AdaptyInternal(
         execute {
             purchasesInteractor
                 .setTransactionVariationId(transactionId, variationId)
-                .onEach { callback.invoke(null) }
                 .catch { error -> callback.invoke(error.asAdaptyError()) }
+                .onEach { callback.invoke(null) }
                 .flowOnMain()
                 .collect()
         }
@@ -438,8 +431,8 @@ internal class AdaptyInternal(
         execute {
             purchaserInteractor
                 .setExternalAnalyticsEnabled(enabled)
-                .onEach { callback.invoke(null) }
                 .catch { error -> callback.invoke(error.asAdaptyError()) }
+                .onEach { callback.invoke(null) }
                 .flowOnMain()
                 .collect()
         }

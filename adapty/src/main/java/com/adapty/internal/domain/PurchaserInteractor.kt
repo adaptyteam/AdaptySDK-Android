@@ -62,7 +62,12 @@ internal class PurchaserInteractor(
         authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
             cloudRepository.getPurchaserInfo()
         }
-            .map(cacheRepository::updateOnPurchaserInfoReceived)
+            .map { (attrs, currentDataWhenRequestSent) ->
+                cacheRepository.updateOnPurchaserInfoReceived(
+                    attrs,
+                    currentDataWhenRequestSent?.profileId,
+                )
+            }
             .flowOnIO()
 
     @JvmSynthetic

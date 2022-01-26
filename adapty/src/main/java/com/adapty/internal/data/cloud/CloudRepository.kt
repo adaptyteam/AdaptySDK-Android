@@ -16,14 +16,15 @@ internal class CloudRepository(
     private val isActivateAllowed = MutableStateFlow(false)
 
     @JvmSynthetic
-    fun getPurchaserInfo(): ProfileResponseData.Attributes? {
+    fun getPurchaserInfo(): Pair<ProfileResponseData.Attributes?, Request.CurrentDataWhenSent?> {
+        val request = requestFactory.getPurchaserInfoRequest()
         val response =
             httpClient.newCall(
-                requestFactory.getPurchaserInfoRequest(),
+                request,
                 PurchaserInfoResponse::class.java
             )
         when (response) {
-            is Response.Success -> return response.body.data?.attributes
+            is Response.Success -> return response.body.data?.attributes to request.currentDataWhenSent
             is Response.Error -> throw response.error
         }
     }
@@ -73,17 +74,14 @@ internal class CloudRepository(
         purchaseType: String,
         purchase: Purchase,
         product: ValidateProductInfo?,
-    ): ValidateReceiptResponse {
+    ): Pair<ValidateReceiptResponse, Request.CurrentDataWhenSent?> {
+        val request = requestFactory.validatePurchaseRequest(purchaseType, purchase, product)
         val response = httpClient.newCall(
-            requestFactory.validatePurchaseRequest(
-                purchaseType,
-                purchase,
-                product
-            ),
+            request,
             ValidateReceiptResponse::class.java
         )
         when (response) {
-            is Response.Success -> return response.body
+            is Response.Success -> return response.body to request.currentDataWhenSent
             is Response.Error -> throw response.error
         }
     }
@@ -104,13 +102,14 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun restorePurchases(purchases: List<RestoreProductInfo>): RestoreReceiptResponse {
+    fun restorePurchases(purchases: List<RestoreProductInfo>): Pair<RestoreReceiptResponse, Request.CurrentDataWhenSent?> {
+        val request = requestFactory.restorePurchasesRequest(purchases)
         val response = httpClient.newCall(
-            requestFactory.restorePurchasesRequest(purchases),
+            request,
             RestoreReceiptResponse::class.java
         )
         when (response) {
-            is Response.Success -> return response.body
+            is Response.Success -> return response.body to request.currentDataWhenSent
             is Response.Error -> throw response.error
         }
     }

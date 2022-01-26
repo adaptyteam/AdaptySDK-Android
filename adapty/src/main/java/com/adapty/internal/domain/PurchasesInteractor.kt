@@ -5,6 +5,7 @@ import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
+import com.adapty.internal.data.cloud.Request
 import com.adapty.internal.data.cloud.StoreManager
 import com.adapty.internal.data.models.RestoreProductInfo
 import com.adapty.internal.data.models.responses.RestoreReceiptResponse
@@ -32,11 +33,13 @@ internal class PurchasesInteractor(
                 product?.let(productMapper::mapToValidate)
             )
         }
-            .map { response ->
-                cacheRepository.updateOnPurchaserInfoReceived(response.data?.attributes)
-                    .let { purchaserInfo ->
-                        purchaserInfo to response.data?.attributes?.googleValidationResult
-                    }
+            .map { (response, currentDataWhenRequestSent) ->
+                cacheRepository.updateOnPurchaserInfoReceived(
+                    response.data?.attributes,
+                    currentDataWhenRequestSent?.profileId,
+                ).let { purchaserInfo ->
+                    purchaserInfo to response.data?.attributes?.googleValidationResult
+                }
             }
 
     @JvmSynthetic
@@ -46,11 +49,13 @@ internal class PurchasesInteractor(
                 cloudRepository.restorePurchases(dataToSync)
             }
         }
-            .map { response ->
-                cacheRepository.updateOnPurchaserInfoReceived(response.data?.attributes)
-                    .let { purchaserInfo ->
-                        purchaserInfo to response.data?.attributes?.googleValidationResult
-                    }
+            .map { (response, currentDataWhenRequestSent) ->
+                cacheRepository.updateOnPurchaserInfoReceived(
+                    response.data?.attributes,
+                    currentDataWhenRequestSent?.profileId,
+                ).let { purchaserInfo ->
+                    purchaserInfo to response.data?.attributes?.googleValidationResult
+                }
             }
             .flowOnIO()
 
@@ -61,8 +66,11 @@ internal class PurchasesInteractor(
                 cloudRepository.restorePurchases(dataToSync)
             }
         }
-            .map { response ->
-                cacheRepository.updateOnPurchaserInfoReceived(response.data?.attributes)
+            .map { (response, currentDataWhenRequestSent) ->
+                cacheRepository.updateOnPurchaserInfoReceived(
+                    response.data?.attributes,
+                    currentDataWhenRequestSent?.profileId,
+                )
                 Unit
             }
             .flowOnIO()
@@ -71,8 +79,8 @@ internal class PurchasesInteractor(
     private fun syncPurchasesInternal(
         maxAttemptCount: Long = INFINITE_RETRY,
         byUser: Boolean = false,
-        sendToBackend: (List<RestoreProductInfo>) -> Flow<RestoreReceiptResponse>
-    ): Flow<RestoreReceiptResponse> {
+        sendToBackend: (List<RestoreProductInfo>) -> Flow<Pair<RestoreReceiptResponse, Request.CurrentDataWhenSent?>>
+    ): Flow<Pair<RestoreReceiptResponse, Request.CurrentDataWhenSent?>> {
         return storeManager.getPurchaseHistoryDataToRestore(maxAttemptCount)
             .zip(flowOf(cacheRepository.getSyncedPurchases())) { historyData, syncedPurchases ->
                 historyData to syncedPurchases
@@ -147,8 +155,11 @@ internal class PurchasesInteractor(
                                             purchase,
                                             productMapper.mapToValidate(product)
                                         )
-                                    }.map { response ->
-                                        cacheRepository.updateOnPurchaserInfoReceived(response.data?.attributes)
+                                    }.map { (response, currentDataWhenRequestSent) ->
+                                        cacheRepository.updateOnPurchaserInfoReceived(
+                                            response.data?.attributes,
+                                            currentDataWhenRequestSent?.profileId,
+                                        )
                                     }
                                 }
                                 .catch { }
@@ -169,8 +180,11 @@ internal class PurchasesInteractor(
                                             purchase,
                                             productMapper.mapToValidate(product)
                                         )
-                                    }.map { response ->
-                                        cacheRepository.updateOnPurchaserInfoReceived(response.data?.attributes)
+                                    }.map { (response, currentDataWhenRequestSent) ->
+                                        cacheRepository.updateOnPurchaserInfoReceived(
+                                            response.data?.attributes,
+                                            currentDataWhenRequestSent?.profileId,
+                                        )
                                     }
                                 }
                                 .catch { }

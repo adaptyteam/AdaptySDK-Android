@@ -68,7 +68,14 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
-    suspend fun updateOnPurchaserInfoReceived(attrs: ContainsPurchaserInfo?): PurchaserInfoModel? {
+    suspend fun updateOnPurchaserInfoReceived(
+        attrs: ContainsPurchaserInfo?,
+        profileIdWhenRequestSent: String?,
+    ): PurchaserInfoModel? {
+        if (profileIdWhenRequestSent != null && getProfileId() != profileIdWhenRequestSent) {
+            return attrs?.let(purchaserInfoMapper::map)
+        }
+
         attrs?.profileId?.takeIf { it != getProfileId() }?.let(::onNewProfileIdReceived)
         return attrs?.let { savePurchaserInfo(purchaserInfoMapper.map(attrs)) }
     }
