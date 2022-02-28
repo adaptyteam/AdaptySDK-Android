@@ -8,7 +8,6 @@ import com.adapty.internal.data.models.responses.PaywallsResponse
 import com.adapty.models.PaywallModel
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import java.util.ArrayList
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class PaywallMapper(
@@ -45,6 +44,6 @@ internal class PaywallMapper(
     )
 
     @JvmSynthetic
-    fun map(containers: ArrayList<PaywallsResponse.Data>) =
+    fun map(containers: List<PaywallsResponse.Data>) =
         containers.mapNotNull { it.attributes }.map { paywallDto -> map(paywallDto) }
 }
