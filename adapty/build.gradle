@@ -7,8 +7,8 @@ android {
     defaultConfig {
         minSdkVersion 16
         targetSdkVersion 29
-        buildConfigField 'int', 'VERSION_CODE', "10901"
-        buildConfigField 'String', 'VERSION_NAME', "\"1.9.1\""
+        buildConfigField 'int', 'VERSION_CODE', "11000"
+        buildConfigField 'String', 'VERSION_NAME', "\"1.10.0\""
 
         consumerProguardFiles 'consumer-rules.pro'
     }
