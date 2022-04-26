@@ -80,7 +80,10 @@ internal class AdaptyInternal(
             field = value
         }
 
-    fun init(appKey: String) {
+    private var isObserverMode = false
+
+    fun init(appKey: String, observerMode: Boolean) {
+        isObserverMode = observerMode
         authInteractor.saveAppKey(appKey)
         lifecycleManager.init()
     }
@@ -320,7 +323,7 @@ internal class AdaptyInternal(
         }
 
         purchaserInteractor.syncAttributions()
-        purchasesInteractor.consumeAndAcknowledgeTheUnprocessed()
+        if (!isObserverMode) purchasesInteractor.consumeAndAcknowledgeTheUnprocessed()
     }
 
     @JvmSynthetic

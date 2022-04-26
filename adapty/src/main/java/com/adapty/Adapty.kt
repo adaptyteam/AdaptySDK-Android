@@ -29,6 +29,7 @@ object Adapty {
         context: Context,
         appKey: String,
         customerUserId: String? = null,
+        observerMode: Boolean = false,
     ) {
         Logger.logMethodCall { "activate($appKey, ${customerUserId.orEmpty()})" }
 
@@ -41,7 +42,7 @@ object Adapty {
             return
         }
 
-        init(context, appKey)
+        init(context, appKey, observerMode)
         adaptyInternal.activate(customerUserId, null)
     }
 
@@ -283,11 +284,11 @@ object Adapty {
         adaptyErrorCode = AdaptyErrorCode.ADAPTY_NOT_INITIALIZED
     )
 
-    private fun init(context: Context, appKey: String) {
+    private fun init(context: Context, appKey: String, observerMode: Boolean) {
         try {
             lock.writeLock().lock()
             Dependencies.init(context.applicationContext)
-            adaptyInternal.init(appKey)
+            adaptyInternal.init(appKey, observerMode)
             isActivated = true
         } finally {
             lock.writeLock().unlock()
