@@ -6,9 +6,9 @@ import com.adapty.models.ProductModel
 import com.adapty.models.PurchaserInfoModel
 import com.adapty.visual.VisualPaywallActivity
 
-interface VisualPaywallListener {
+public interface VisualPaywallListener {
 
-    fun onPurchased(
+    public fun onPurchased(
         purchaserInfo: PurchaserInfoModel?,
         purchaseToken: String?,
         googleValidationResult: GoogleValidationResult?,
@@ -16,18 +16,18 @@ interface VisualPaywallListener {
         modalActivity: VisualPaywallActivity?
     )
 
-    fun onPurchaseFailure(
+    public fun onPurchaseFailure(
         product: ProductModel,
         error: AdaptyError,
         modalActivity: VisualPaywallActivity?
     )
 
-    fun onRestorePurchases(
+    public fun onRestorePurchases(
         purchaserInfo: PurchaserInfoModel?,
         googleValidationResultList: List<GoogleValidationResult>?,
         error: AdaptyError?,
         modalActivity: VisualPaywallActivity?
     )
 
-    fun onCancel(modalActivity: VisualPaywallActivity?)
+    public fun onCancel(modalActivity: VisualPaywallActivity?)
 }

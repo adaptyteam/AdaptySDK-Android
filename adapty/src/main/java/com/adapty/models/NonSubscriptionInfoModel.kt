@@ -1,14 +1,14 @@
 package com.adapty.models
 
-class NonSubscriptionInfoModel(
-    val purchaseId: String,
-    val vendorProductId: String,
-    val vendorTransactionId: String?,
-    val store: String,
-    val purchasedAt: String?,
-    val isOneTime: Boolean,
-    val isSandbox: Boolean,
-    val isRefund: Boolean
+public class NonSubscriptionInfoModel(
+    public val purchaseId: String,
+    public val vendorProductId: String,
+    public val vendorTransactionId: String?,
+    public val store: String,
+    public val purchasedAt: String?,
+    public val isOneTime: Boolean,
+    public val isSandbox: Boolean,
+    public val isRefund: Boolean
 ) {
 
     override fun equals(other: Any?): Boolean {

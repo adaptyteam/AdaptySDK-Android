@@ -21,13 +21,13 @@ import com.adapty.models.PaywallModel
 import com.adapty.models.ProductModel
 
 @SuppressLint("SetJavaScriptEnabled")
-class VisualPaywallView : WebView {
+public class VisualPaywallView : WebView {
 
-    constructor(context: Context) : super(context)
+    public constructor(context: Context) : super(context)
 
-    constructor(context: Context, attrs: AttributeSet?) : super(context, attrs)
+    public constructor(context: Context, attrs: AttributeSet?) : super(context, attrs)
 
-    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(
+    public constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(
         context,
         attrs,
         defStyleAttr
@@ -71,7 +71,7 @@ class VisualPaywallView : WebView {
     private val visualPaywallManager: VisualPaywallManager by inject()
 
     @JvmOverloads
-    fun showPaywall(paywall: PaywallModel, paddingTop: Int = 0, paddingBottom: Int = 0) {
+    public fun showPaywall(paywall: PaywallModel, paddingTop: Int = 0, paddingBottom: Int = 0) {
         paywallId = paywall.variationId
 
         visualPaywallManager.logEvent(paywallId, "paywall_showed")

@@ -1,16 +1,16 @@
 package com.adapty.models
 
-class PaywallModel(
-    val developerId: String,
-    val name: String?,
-    val abTestName: String?,
-    val revision: Int,
-    val isPromo: Boolean,
-    val variationId: String,
-    val products: List<ProductModel>,
-    val customPayloadString: String?,
-    val customPayload: Map<String, Any>?,
-    val visualPaywall: String?,
+public class PaywallModel(
+    public val developerId: String,
+    public val name: String?,
+    public val abTestName: String?,
+    public val revision: Int,
+    public val isPromo: Boolean,
+    public val variationId: String,
+    public val products: List<ProductModel>,
+    public val customPayloadString: String?,
+    public val customPayload: Map<String, Any>?,
+    public val visualPaywall: String?,
 ) {
 
     override fun equals(other: Any?): Boolean {

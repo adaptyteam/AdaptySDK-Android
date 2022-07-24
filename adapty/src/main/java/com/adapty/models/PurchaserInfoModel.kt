@@ -1,11 +1,11 @@
 package com.adapty.models
 
-class PurchaserInfoModel(
-    val profileId: String,
-    val customerUserId: String?,
-    val accessLevels: Map<String, AccessLevelInfoModel>,
-    val subscriptions: Map<String, SubscriptionInfoModel>,
-    val nonSubscriptions: Map<String, List<NonSubscriptionInfoModel>>,
+public class PurchaserInfoModel(
+    public val profileId: String,
+    public val customerUserId: String?,
+    public val accessLevels: Map<String, AccessLevelInfoModel>,
+    public val subscriptions: Map<String, SubscriptionInfoModel>,
+    public val nonSubscriptions: Map<String, List<NonSubscriptionInfoModel>>,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

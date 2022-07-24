@@ -116,7 +116,8 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(named = KINESIS),
-                        injectInternal()
+                        injectInternal(),
+                        injectInternal(),
                     )
                 }),
 

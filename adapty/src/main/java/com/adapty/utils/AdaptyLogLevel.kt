@@ -1,38 +1,38 @@
 package com.adapty.utils
 
-class AdaptyLogLevel private constructor(@JvmField @JvmSynthetic internal val value: Int) {
+public class AdaptyLogLevel private constructor(@JvmField @JvmSynthetic internal val value: Int) {
 
-    companion object {
+    public companion object {
 
         /**
          * No logs
          */
         @JvmField
-        val NONE = AdaptyLogLevel(0)
+        public val NONE: AdaptyLogLevel = AdaptyLogLevel(0)
 
         /**
          * Logging errors
          */
         @JvmField
-        val ERROR = AdaptyLogLevel(1)
+        public val ERROR: AdaptyLogLevel = AdaptyLogLevel(1)
 
         /**
          * Logging network requests
          */
         @JvmField
-        val REQUESTS = AdaptyLogLevel(2)
+        public val REQUESTS: AdaptyLogLevel = AdaptyLogLevel(2)
 
         /**
          * Logging successful network responses
          */
         @JvmField
-        val RESPONSES = AdaptyLogLevel(4)
+        public val RESPONSES: AdaptyLogLevel = AdaptyLogLevel(4)
 
         /**
          * Logging public method calls
          */
         @JvmField
-        val PUBLIC_METHOD_CALLS = AdaptyLogLevel(8)
+        public val PUBLIC_METHOD_CALLS: AdaptyLogLevel = AdaptyLogLevel(8)
 
         /**
          * Debug log level
@@ -42,7 +42,7 @@ class AdaptyLogLevel private constructor(@JvmField @JvmSynthetic internal val va
          * Excluding errors and analytics
          */
         @JvmField
-        val DEBUG = REQUESTS + RESPONSES + PUBLIC_METHOD_CALLS
+        public val DEBUG: AdaptyLogLevel = REQUESTS + RESPONSES + PUBLIC_METHOD_CALLS
 
         /**
          * Verbose log level
@@ -52,30 +52,30 @@ class AdaptyLogLevel private constructor(@JvmField @JvmSynthetic internal val va
          * Excluding analytics
          */
         @JvmField
-        val VERBOSE = DEBUG + ERROR
+        public val VERBOSE: AdaptyLogLevel = DEBUG + ERROR
 
         /**
          * Logging analytics
          */
         @JvmField
-        val ANALYTICS = AdaptyLogLevel(16)
+        public val ANALYTICS: AdaptyLogLevel = AdaptyLogLevel(16)
 
         /**
          * All logs
          */
         @JvmField
-        val ALL = VERBOSE + ANALYTICS
+        public val ALL: AdaptyLogLevel = VERBOSE + ANALYTICS
     }
 
     /**
      * Adds [other] log level to this
      */
     @JvmName("with")
-    operator fun plus(other: AdaptyLogLevel) = AdaptyLogLevel(value or other.value)
+    public operator fun plus(other: AdaptyLogLevel): AdaptyLogLevel = AdaptyLogLevel(value or other.value)
 
     /**
      * Excludes [other] log level from this
      */
     @JvmName("without")
-    operator fun minus(other: AdaptyLogLevel) = AdaptyLogLevel(value and other.value.inv())
+    public operator fun minus(other: AdaptyLogLevel): AdaptyLogLevel = AdaptyLogLevel(value and other.value.inv())
 }

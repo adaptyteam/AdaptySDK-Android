@@ -1,11 +1,11 @@
 package com.adapty.models
 
-class SubscriptionUpdateParamModel(
-    val oldSubVendorProductId: String,
-    val prorationMode: ProrationMode,
+public class SubscriptionUpdateParamModel(
+    public val oldSubVendorProductId: String,
+    public val prorationMode: ProrationMode,
 ) {
 
-    enum class ProrationMode {
+    public enum class ProrationMode {
         IMMEDIATE_WITH_TIME_PRORATION,
         IMMEDIATE_AND_CHARGE_PRORATED_PRICE,
         IMMEDIATE_WITHOUT_PRORATION,

@@ -2,6 +2,6 @@ package com.adapty.listeners
 
 import com.adapty.models.PurchaserInfoModel
 
-interface OnPurchaserInfoUpdatedListener {
-    fun onPurchaserInfoReceived(purchaserInfo: PurchaserInfoModel)
+public interface OnPurchaserInfoUpdatedListener {
+    public fun onPurchaserInfoReceived(purchaserInfo: PurchaserInfoModel)
 }

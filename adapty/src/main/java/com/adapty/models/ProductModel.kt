@@ -3,24 +3,24 @@ package com.adapty.models
 import com.android.billingclient.api.SkuDetails
 import java.math.BigDecimal
 
-class ProductModel(
-    val vendorProductId: String,
-    val localizedTitle: String,
-    val localizedDescription: String,
-    val paywallName: String?,
-    val paywallABTestName: String?,
-    val variationId: String?,
-    val price: BigDecimal,
-    val localizedPrice: String?,
-    val currencyCode: String?,
-    val currencySymbol: String?,
-    val subscriptionPeriod: ProductSubscriptionPeriodModel?,
-    val localizedSubscriptionPeriod: String?,
-    val introductoryOfferEligibility: Boolean,
-    val introductoryDiscount: ProductDiscountModel?,
-    val freeTrialPeriod: ProductSubscriptionPeriodModel?,
-    val localizedFreeTrialPeriod: String?,
-    val skuDetails: SkuDetails?,
+public class ProductModel(
+    public val vendorProductId: String,
+    public val localizedTitle: String,
+    public val localizedDescription: String,
+    public val paywallName: String?,
+    public val paywallABTestName: String?,
+    public val variationId: String?,
+    public val price: BigDecimal,
+    public val localizedPrice: String?,
+    public val currencyCode: String?,
+    public val currencySymbol: String?,
+    public val subscriptionPeriod: ProductSubscriptionPeriodModel?,
+    public val localizedSubscriptionPeriod: String?,
+    public val introductoryOfferEligibility: Boolean,
+    public val introductoryDiscount: ProductDiscountModel?,
+    public val freeTrialPeriod: ProductSubscriptionPeriodModel?,
+    public val localizedFreeTrialPeriod: String?,
+    public val skuDetails: SkuDetails?,
 ) {
 
     override fun equals(other: Any?): Boolean {

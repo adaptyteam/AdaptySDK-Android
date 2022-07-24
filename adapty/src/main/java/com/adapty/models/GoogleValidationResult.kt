@@ -2,79 +2,79 @@ package com.adapty.models
 
 import com.google.gson.annotations.SerializedName
 
-class GoogleValidationResult(
+public class GoogleValidationResult(
     @SerializedName("kind")
-    val kind: String?,
+    public val kind: String?,
     @SerializedName("startTimeMillis")
-    val startTimeMillis: String?,
+    public val startTimeMillis: String?,
     @SerializedName("expiryTimeMillis")
-    val expiryTimeMillis: String?,
+    public val expiryTimeMillis: String?,
     @SerializedName("autoResumeTimeMillis")
-    val autoResumeTimeMillis: String?,
+    public val autoResumeTimeMillis: String?,
     @SerializedName("autoRenewing")
-    val autoRenewing: Boolean?,
+    public val autoRenewing: Boolean?,
     @SerializedName("priceCurrencyCode")
-    val priceCurrencyCode: String?,
+    public val priceCurrencyCode: String?,
     @SerializedName("priceAmountMicros")
-    val priceAmountMicros: String?,
+    public val priceAmountMicros: String?,
     @SerializedName("introductoryPriceInfo")
-    val introductoryPriceInfo: IntroductoryPriceInfo?,
+    public val introductoryPriceInfo: IntroductoryPriceInfo?,
     @SerializedName("countryCode")
-    val countryCode: String?,
+    public val countryCode: String?,
     @SerializedName("developerPayload")
-    val developerPayload: String?,
+    public val developerPayload: String?,
     @SerializedName("paymentState")
-    val paymentState: Int?,
+    public val paymentState: Int?,
     @SerializedName("cancelReason")
-    val cancelReason: Int?,
+    public val cancelReason: Int?,
     @SerializedName("userCancellationTimeMillis")
-    val userCancellationTimeMillis: String?,
+    public val userCancellationTimeMillis: String?,
     @SerializedName("cancelSurveyResult")
-    val cancelSurveyResult: SubscriptionCancelSurveyResult?,
+    public val cancelSurveyResult: SubscriptionCancelSurveyResult?,
     @SerializedName("orderId")
-    val orderId: String?,
+    public val orderId: String?,
     @SerializedName("linkedPurchaseToken")
-    val linkedPurchaseToken: String?,
+    public val linkedPurchaseToken: String?,
     @SerializedName("purchaseType")
-    val purchaseType: Int?,
+    public val purchaseType: Int?,
     @SerializedName("priceChange")
-    val priceChange: SubscriptionPriceChange?,
+    public val priceChange: SubscriptionPriceChange?,
     @SerializedName("profileName")
-    val profileName: String?,
+    public val profileName: String?,
     @SerializedName("emailAddress")
-    val emailAddress: String?,
+    public val emailAddress: String?,
     @SerializedName("givenName")
-    val givenName: String?,
+    public val givenName: String?,
     @SerializedName("familyName")
-    val familyName: String?,
+    public val familyName: String?,
     @SerializedName("profileId")
-    val profileId: String?,
+    public val profileId: String?,
     @SerializedName("acknowledgementState")
-    val acknowledgementState: Int?,
+    public val acknowledgementState: Int?,
     @SerializedName("externalAccountId")
-    val externalAccountId: String?,
+    public val externalAccountId: String?,
     @SerializedName("promotionType")
-    val promotionType: Int?,
+    public val promotionType: Int?,
     @SerializedName("promotionCode")
-    val promotionCode: String?,
+    public val promotionCode: String?,
     @SerializedName("obfuscatedExternalAccountId")
-    val obfuscatedExternalAccountId: String?,
+    public val obfuscatedExternalAccountId: String?,
     @SerializedName("obfuscatedExternalProfileId")
-    val obfuscatedExternalProfileId: String?,
+    public val obfuscatedExternalProfileId: String?,
     @SerializedName("purchaseTimeMillis")
-    val purchaseTimeMillis: String?,
+    public val purchaseTimeMillis: String?,
     @SerializedName("purchaseState")
-    val purchaseState: Int?,
+    public val purchaseState: Int?,
     @SerializedName("consumptionState")
-    val consumptionState: Int?,
+    public val consumptionState: Int?,
     @SerializedName("purchaseToken")
-    val purchaseToken: String?,
+    public val purchaseToken: String?,
     @SerializedName("productId")
-    val productId: String?,
+    public val productId: String?,
     @SerializedName("quantity")
-    val quantity: Int?,
+    public val quantity: Int?,
     @SerializedName("regionCode")
-    val regionCode: String?,
+    public val regionCode: String?,
 ) {
 
     override fun equals(other: Any?): Boolean {
@@ -168,15 +168,15 @@ class GoogleValidationResult(
     }
 }
 
-class IntroductoryPriceInfo(
+public class IntroductoryPriceInfo(
     @SerializedName("introductoryPriceCurrencyCode")
-    val introductoryPriceCurrencyCode: String?,
+    public val introductoryPriceCurrencyCode: String?,
     @SerializedName("introductoryPriceAmountMicros")
-    val introductoryPriceAmountMicros: String?,
+    public val introductoryPriceAmountMicros: String?,
     @SerializedName("introductoryPricePeriod")
-    val introductoryPricePeriod: String?,
+    public val introductoryPricePeriod: String?,
     @SerializedName("introductoryPriceCycles")
-    val introductoryPriceCycles: Int?,
+    public val introductoryPriceCycles: Int?,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -205,11 +205,11 @@ class IntroductoryPriceInfo(
     }
 }
 
-class SubscriptionCancelSurveyResult(
+public class SubscriptionCancelSurveyResult(
     @SerializedName("userInputCancelReason")
-    val userInputCancelReason: String?,
+    public val userInputCancelReason: String?,
     @SerializedName("cancelSurveyReason")
-    val cancelSurveyReason: Int?,
+    public val cancelSurveyReason: Int?,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -234,17 +234,17 @@ class SubscriptionCancelSurveyResult(
     }
 }
 
-class SubscriptionPriceChange(
+public class SubscriptionPriceChange(
     @SerializedName("newPrice")
-    val newPrice: Price?,
+    public val newPrice: Price?,
     @SerializedName("state")
-    val state: Int?,
+    public val state: Int?,
 ) {
-    class Price(
+    public class Price(
         @SerializedName("priceMicros")
-        val priceMicros: String?,
+        public val priceMicros: String?,
         @SerializedName("currency")
-        val currency: String?,
+        public val currency: String?,
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true

@@ -2,7 +2,7 @@ package com.adapty.errors
 
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 
-enum class AdaptyErrorCode(val value: Int) {
+public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
     UNKNOWN(0),
     USER_CANCELED(2),
     ITEM_UNAVAILABLE(5),

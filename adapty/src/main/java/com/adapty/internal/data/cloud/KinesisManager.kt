@@ -1,8 +1,11 @@
 package com.adapty.internal.data.cloud
 
 import androidx.annotation.RestrictTo
+import com.adapty.errors.AdaptyError
+import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.models.AwsRecordModel
+import com.adapty.internal.domain.PurchaserInteractor
 import com.adapty.internal.utils.Logger
 import com.adapty.internal.utils.execute
 import com.adapty.internal.utils.generateUuid
@@ -12,9 +15,11 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.sync.Semaphore
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -22,10 +27,14 @@ internal class KinesisManager(
     private val cacheRepository: CacheRepository,
     private val gson: Gson,
     private val httpClient: HttpClient,
-    private val requestFactory: RequestFactory
+    private val requestFactory: RequestFactory,
+    private val purchaserInteractor: PurchaserInteractor,
 ) {
     private val kinesisStream = "adapty-data-pipeline-prod"
     private val sessionId = generateUuid()
+
+    private val keysSyncSemaphore = Semaphore(1)
+    private val isSyncingKeys = AtomicBoolean(false)
 
     fun trackEvent(eventName: String, subMap: Map<String, String>? = null) {
         execute {
@@ -79,9 +88,21 @@ internal class KinesisManager(
                         ArrayList(savedRecords.subtract(sentRecords)).takeLast(50)
                     )
                 }
-            }
-                .catch { }
-                .collect()
+            }.catch { error ->
+                if ((error as? AdaptyError)?.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST) {
+                    val shouldResync = isSyncingKeys.compareAndSet(false, true)
+                    keysSyncSemaphore.acquire()
+                    if (shouldResync) {
+                        purchaserInteractor.syncMetaOnStart()
+                            .onEach { isSyncingKeys.set(false); keysSyncSemaphore.release() }
+                            .catch { isSyncingKeys.set(false); keysSyncSemaphore.release() }
+                            .collect()
+                    } else {
+                        keysSyncSemaphore.release()
+                    }
+                }
+
+            }.collect()
         }
     }
 

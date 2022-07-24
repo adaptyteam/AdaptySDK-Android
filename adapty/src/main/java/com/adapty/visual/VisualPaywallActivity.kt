@@ -12,9 +12,9 @@ import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.VisualPaywallManager
 import java.lang.ref.WeakReference
 
-class VisualPaywallActivity : AppCompatActivity() {
+public class VisualPaywallActivity : AppCompatActivity() {
 
-    companion object {
+    internal companion object {
         internal const val PAYWALL_ID_EXTRA = "PAYWALL_ID_EXTRA"
     }
 
@@ -83,7 +83,7 @@ class VisualPaywallActivity : AppCompatActivity() {
         visualPaywallView.showPaywall(paywall, paddingTop, paddingBottom)
     }
 
-    fun close() {
+    public fun close() {
         visualPaywallManager.currentVisualPaywallActivity = null
         super.onBackPressed()
         overridePendingTransition(R.anim.adapty_paywall_no_anim, R.anim.adapty_paywall_slide_down)

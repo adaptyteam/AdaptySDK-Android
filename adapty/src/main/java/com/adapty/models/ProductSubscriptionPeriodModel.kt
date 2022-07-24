@@ -1,8 +1,8 @@
 package com.adapty.models
 
-class ProductSubscriptionPeriodModel(
-    val unit: PeriodUnit?,
-    val numberOfUnits: Int?
+public class ProductSubscriptionPeriodModel(
+    public val unit: PeriodUnit?,
+    public val numberOfUnits: Int?
 ) {
 
     override fun equals(other: Any?): Boolean {
@@ -28,9 +28,25 @@ class ProductSubscriptionPeriodModel(
     }
 }
 
-enum class PeriodUnit(val period: String) {
-    D("day"),
-    W("week"),
-    M("month"),
-    Y("year")
+public enum class PeriodUnit {
+
+    /**
+     * Day
+     */
+    D,
+
+    /**
+     * Week
+     */
+    W,
+
+    /**
+     * Month
+     */
+    M,
+
+    /**
+     * Year
+     */
+    Y
 }

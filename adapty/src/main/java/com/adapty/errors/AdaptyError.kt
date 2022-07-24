@@ -2,10 +2,10 @@ package com.adapty.errors
 
 import java.io.IOException
 
-class AdaptyError internal constructor(
-    val originalError: Throwable? = null,
+public class AdaptyError internal constructor(
+    public val originalError: Throwable? = null,
     message: String = "",
-    val adaptyErrorCode: AdaptyErrorCode = AdaptyErrorCode.UNKNOWN
+    public val adaptyErrorCode: AdaptyErrorCode = AdaptyErrorCode.UNKNOWN
 ) : Exception(message, originalError) {
 
     @JvmSynthetic

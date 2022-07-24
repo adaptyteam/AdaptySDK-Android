@@ -3,7 +3,7 @@ package com.adapty.utils
 import com.adapty.models.Date
 import com.adapty.models.Gender
 
-class ProfileParameterBuilder {
+public class ProfileParameterBuilder {
 
     @get:JvmSynthetic
     internal var email: String? = null
@@ -61,72 +61,72 @@ class ProfileParameterBuilder {
     internal var customAttributes: Map<String, Any>? = null
         private set
 
-    fun withEmail(email: String): ProfileParameterBuilder {
+    public fun withEmail(email: String): ProfileParameterBuilder {
         this.email = email
         return this
     }
 
-    fun withPhoneNumber(phoneNumber: String): ProfileParameterBuilder {
+    public fun withPhoneNumber(phoneNumber: String): ProfileParameterBuilder {
         this.phoneNumber = phoneNumber
         return this
     }
 
-    fun withFacebookUserId(facebookUserId: String): ProfileParameterBuilder {
+    public fun withFacebookUserId(facebookUserId: String): ProfileParameterBuilder {
         this.facebookUserId = facebookUserId
         return this
     }
 
-    fun withFacebookAnonymousId(facebookAnonymousId: String): ProfileParameterBuilder {
+    public fun withFacebookAnonymousId(facebookAnonymousId: String): ProfileParameterBuilder {
         this.facebookAnonymousId = facebookAnonymousId
         return this
     }
 
-    fun withMixpanelUserId(mixpanelUserId: String): ProfileParameterBuilder {
+    public fun withMixpanelUserId(mixpanelUserId: String): ProfileParameterBuilder {
         this.mixpanelUserId = mixpanelUserId
         return this
     }
 
-    fun withAmplitudeUserId(amplitudeUserId: String): ProfileParameterBuilder {
+    public fun withAmplitudeUserId(amplitudeUserId: String): ProfileParameterBuilder {
         this.amplitudeUserId = amplitudeUserId
         return this
     }
 
-    fun withAmplitudeDeviceId(amplitudeDeviceId: String): ProfileParameterBuilder {
+    public fun withAmplitudeDeviceId(amplitudeDeviceId: String): ProfileParameterBuilder {
         this.amplitudeDeviceId = amplitudeDeviceId
         return this
     }
 
-    fun withAppmetricaProfileId(appmetricaProfileId: String): ProfileParameterBuilder {
+    public fun withAppmetricaProfileId(appmetricaProfileId: String): ProfileParameterBuilder {
         this.appmetricaProfileId = appmetricaProfileId
         return this
     }
 
-    fun withAppmetricaDeviceId(appmetricaDeviceId: String): ProfileParameterBuilder {
+    public fun withAppmetricaDeviceId(appmetricaDeviceId: String): ProfileParameterBuilder {
         this.appmetricaDeviceId = appmetricaDeviceId
         return this
     }
 
-    fun withFirstName(firstName: String): ProfileParameterBuilder {
+    public fun withFirstName(firstName: String): ProfileParameterBuilder {
         this.firstName = firstName
         return this
     }
 
-    fun withLastName(lastName: String): ProfileParameterBuilder {
+    public fun withLastName(lastName: String): ProfileParameterBuilder {
         this.lastName = lastName
         return this
     }
 
-    fun withGender(gender: Gender): ProfileParameterBuilder {
+    public fun withGender(gender: Gender): ProfileParameterBuilder {
         this.gender = gender.toString()
         return this
     }
 
-    fun withBirthday(birthday: Date): ProfileParameterBuilder {
+    public fun withBirthday(birthday: Date): ProfileParameterBuilder {
         this.birthday = birthday.toString()
         return this
     }
 
-    fun withCustomAttributes(customAttributes: Map<String, Any>): ProfileParameterBuilder {
+    public fun withCustomAttributes(customAttributes: Map<String, Any>): ProfileParameterBuilder {
         this.customAttributes = customAttributes
         return this
     }

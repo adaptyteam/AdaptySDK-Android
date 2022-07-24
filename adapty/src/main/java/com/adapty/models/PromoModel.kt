@@ -1,10 +1,10 @@
 package com.adapty.models
 
-class PromoModel(
-    val promoType: String,
-    val variationId: String,
-    val expiresAt: String?,
-    val paywall: PaywallModel?,
+public class PromoModel(
+    public val promoType: String,
+    public val variationId: String,
+    public val expiresAt: String?,
+    public val paywall: PaywallModel?,
 ) {
 
     override fun equals(other: Any?): Boolean {

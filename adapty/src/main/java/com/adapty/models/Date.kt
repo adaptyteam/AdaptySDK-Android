@@ -7,7 +7,7 @@ package com.adapty.models
  * month and date numbers start with 1.
  * For example, Date(year = 1970, month = 1, date = 3) represents January 3, 1970.
  */
-class Date(
+public class Date(
     private val year: Int,
     private val month: Int,
     private val date: Int

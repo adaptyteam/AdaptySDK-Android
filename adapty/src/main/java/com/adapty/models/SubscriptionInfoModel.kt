@@ -1,25 +1,25 @@
 package com.adapty.models
 
-class SubscriptionInfoModel(
-    val isActive: Boolean,
-    val vendorProductId: String,
-    val vendorTransactionId: String?,
-    val vendorOriginalTransactionId: String?,
-    val store: String,
-    val activatedAt: String?,
-    val renewedAt: String?,
-    val expiresAt: String?,
-    val startsAt: String?,
-    val isLifetime: Boolean,
-    val activeIntroductoryOfferType: String?,
-    val activePromotionalOfferType: String?,
-    val willRenew: Boolean,
-    val isInGracePeriod: Boolean,
-    val unsubscribedAt: String?,
-    val billingIssueDetectedAt: String?,
-    val isSandbox: Boolean,
-    val isRefund: Boolean,
-    val cancellationReason: String?
+public class SubscriptionInfoModel(
+    public val isActive: Boolean,
+    public val vendorProductId: String,
+    public val vendorTransactionId: String?,
+    public val vendorOriginalTransactionId: String?,
+    public val store: String,
+    public val activatedAt: String?,
+    public val renewedAt: String?,
+    public val expiresAt: String?,
+    public val startsAt: String?,
+    public val isLifetime: Boolean,
+    public val activeIntroductoryOfferType: String?,
+    public val activePromotionalOfferType: String?,
+    public val willRenew: Boolean,
+    public val isInGracePeriod: Boolean,
+    public val unsubscribedAt: String?,
+    public val billingIssueDetectedAt: String?,
+    public val isSandbox: Boolean,
+    public val isRefund: Boolean,
+    public val cancellationReason: String?
 ) {
 
     override fun equals(other: Any?): Boolean {

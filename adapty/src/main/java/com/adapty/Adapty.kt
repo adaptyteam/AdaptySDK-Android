@@ -21,11 +21,11 @@ import com.adapty.utils.AdaptyLogLevel
 import com.adapty.utils.ProfileParameterBuilder
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
-object Adapty {
+public object Adapty {
 
     @JvmStatic
     @JvmOverloads
-    fun activate(
+    public fun activate(
         context: Context,
         appKey: String,
         customerUserId: String? = null,
@@ -47,14 +47,14 @@ object Adapty {
     }
 
     @JvmStatic
-    fun identify(customerUserId: String, adaptyCallback: (error: AdaptyError?) -> Unit) {
+    public fun identify(customerUserId: String, adaptyCallback: (error: AdaptyError?) -> Unit) {
         Logger.logMethodCall { "identify($customerUserId)" }
         if (!checkActivated(adaptyCallback)) return
         adaptyInternal.identify(customerUserId, adaptyCallback)
     }
 
     @JvmStatic
-    fun updateProfile(
+    public fun updateProfile(
         params: ProfileParameterBuilder,
         adaptyCallback: (error: AdaptyError?) -> Unit
     ) {
@@ -65,7 +65,7 @@ object Adapty {
 
     @JvmStatic
     @JvmOverloads
-    fun getPurchaserInfo(
+    public fun getPurchaserInfo(
         forceUpdate: Boolean = false,
         adaptyCallback: (purchaserInfo: PurchaserInfoModel?, error: AdaptyError?) -> Unit
     ) {
@@ -80,7 +80,7 @@ object Adapty {
 
     @JvmStatic
     @JvmOverloads
-    fun getPaywalls(
+    public fun getPaywalls(
         forceUpdate: Boolean = false,
         adaptyCallback: (paywalls: List<PaywallModel>?, products: List<ProductModel>?, error: AdaptyError?) -> Unit
     ) {
@@ -94,7 +94,7 @@ object Adapty {
     }
 
     @JvmStatic
-    fun getPromo(
+    public fun getPromo(
         adaptyCallback: (promo: PromoModel?, error: AdaptyError?) -> Unit
     ) {
         Logger.logMethodCall { "getPromo()" }
@@ -108,7 +108,7 @@ object Adapty {
 
     @JvmStatic
     @JvmOverloads
-    fun makePurchase(
+    public fun makePurchase(
         activity: Activity,
         product: ProductModel,
         subscriptionUpdateParams: SubscriptionUpdateParamModel? = null,
@@ -124,7 +124,7 @@ object Adapty {
     }
 
     @JvmStatic
-    fun restorePurchases(
+    public fun restorePurchases(
         adaptyCallback: (purchaserInfo: PurchaserInfoModel?, googleValidationResultList: List<GoogleValidationResult>?, error: AdaptyError?) -> Unit
     ) {
         Logger.logMethodCall { "restorePurchases()" }
@@ -138,7 +138,7 @@ object Adapty {
 
     @JvmStatic
     @JvmOverloads
-    fun updateAttribution(
+    public fun updateAttribution(
         attribution: Any,
         source: AttributionType,
         networkUserId: String? = null,
@@ -153,7 +153,7 @@ object Adapty {
     }
 
     @JvmStatic
-    fun setExternalAnalyticsEnabled(
+    public fun setExternalAnalyticsEnabled(
         enabled: Boolean,
         adaptyCallback: (error: AdaptyError?) -> Unit
     ) {
@@ -163,7 +163,7 @@ object Adapty {
     }
 
     @JvmStatic
-    fun setTransactionVariationId(
+    public fun setTransactionVariationId(
         transactionId: String,
         variationId: String,
         adaptyCallback: (error: AdaptyError?) -> Unit
@@ -174,20 +174,20 @@ object Adapty {
     }
 
     @JvmStatic
-    fun logout(adaptyCallback: (error: AdaptyError?) -> Unit) {
+    public fun logout(adaptyCallback: (error: AdaptyError?) -> Unit) {
         Logger.logMethodCall { "logout()" }
         if (!checkActivated(adaptyCallback)) return
         adaptyInternal.logout(adaptyCallback)
     }
 
     @JvmStatic
-    fun refreshPushToken(newToken: String) {
+    public fun refreshPushToken(newToken: String) {
         if (!checkActivated()) return
         adaptyInternal.refreshPushToken(newToken)
     }
 
     @JvmStatic
-    fun handlePromoIntent(
+    public fun handlePromoIntent(
         intent: Intent?,
         adaptyCallback: (promo: PromoModel?, error: AdaptyError?) -> Unit
     ): Boolean {
@@ -204,37 +204,37 @@ object Adapty {
     }
 
     @JvmStatic
-    fun setOnPurchaserInfoUpdatedListener(onPurchaserInfoUpdatedListener: OnPurchaserInfoUpdatedListener?) {
+    public fun setOnPurchaserInfoUpdatedListener(onPurchaserInfoUpdatedListener: OnPurchaserInfoUpdatedListener?) {
         if (!checkActivated()) return
         adaptyInternal.onPurchaserInfoUpdatedListener = onPurchaserInfoUpdatedListener
     }
 
     @JvmStatic
-    fun setOnPromoReceivedListener(onPromoReceivedListener: OnPromoReceivedListener?) {
+    public fun setOnPromoReceivedListener(onPromoReceivedListener: OnPromoReceivedListener?) {
         if (!checkActivated()) return
         adaptyInternal.onPromoReceivedListener = onPromoReceivedListener
     }
 
     @JvmStatic
-    fun setOnPaywallsForConfigReceivedListener(onPaywallsForConfigReceivedListener: OnPaywallsForConfigReceivedListener?) {
+    public fun setOnPaywallsForConfigReceivedListener(onPaywallsForConfigReceivedListener: OnPaywallsForConfigReceivedListener?) {
         if (!checkActivated()) return
         adaptyInternal.onPaywallsForConfigReceivedListener = onPaywallsForConfigReceivedListener
     }
 
     @JvmStatic
-    fun setVisualPaywallListener(visualPaywallListener: VisualPaywallListener?) {
+    public fun setVisualPaywallListener(visualPaywallListener: VisualPaywallListener?) {
         if (!checkActivated()) return
         adaptyInternal.setVisualPaywallListener(visualPaywallListener)
     }
 
     @JvmStatic
-    fun setLogLevel(logLevel: AdaptyLogLevel) {
+    public fun setLogLevel(logLevel: AdaptyLogLevel) {
         Logger.logLevel = logLevel.value
     }
 
     @JvmStatic
     @JvmOverloads
-    fun setFallbackPaywalls(
+    public fun setFallbackPaywalls(
         paywalls: String,
         adaptyCallback: ((error: AdaptyError?) -> Unit)? = null
     ) {
@@ -246,7 +246,7 @@ object Adapty {
     }
 
     @JvmStatic
-    fun showVisualPaywall(
+    public fun showVisualPaywall(
         activity: Activity,
         paywall: PaywallModel,
     ) {
@@ -256,14 +256,14 @@ object Adapty {
     }
 
     @JvmStatic
-    fun closeVisualPaywall() {
+    public fun closeVisualPaywall() {
         Logger.logMethodCall { "closeVisualPaywall()" }
         if (!checkActivated()) return
         adaptyInternal.closeVisualPaywall()
     }
 
     @JvmStatic
-    fun logShowPaywall(paywall: PaywallModel) {
+    public fun logShowPaywall(paywall: PaywallModel) {
         if (!checkActivated()) return
         adaptyInternal.logShowPaywall(paywall)
     }

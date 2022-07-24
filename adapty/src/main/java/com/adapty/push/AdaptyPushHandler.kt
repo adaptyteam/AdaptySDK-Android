@@ -11,9 +11,9 @@ import android.media.RingtoneManager
 import android.os.Build
 import kotlin.random.Random
 
-abstract class AdaptyPushHandler(protected val context: Context) {
+public abstract class AdaptyPushHandler(protected val context: Context) {
 
-    companion object {
+    private companion object {
         private const val DEFAULT_CHANNEL_ID = "Offers"
     }
 
@@ -21,17 +21,17 @@ abstract class AdaptyPushHandler(protected val context: Context) {
         NotificationChannelCreator(context)
     }
 
-    abstract val clickAction: String
+    public abstract val clickAction: String
 
-    abstract val smallIconResId: Int
+    public abstract val smallIconResId: Int
 
-    open val largeIcon: Bitmap? = null
+    public open val largeIcon: Bitmap? = null
 
-    open val channelId: String = DEFAULT_CHANNEL_ID
+    public open val channelId: String = DEFAULT_CHANNEL_ID
 
-    open val customizedNotificationBuilder: Notification.Builder? = null
+    public open val customizedNotificationBuilder: Notification.Builder? = null
 
-    fun handleNotification(data: Map<String, String>): Boolean {
+    public fun handleNotification(data: Map<String, String>): Boolean {
         if (data["source"] == "adapty") {
             notificationChannelCreator.createNotificationChannelIfDontExist(channelId)
 
