@@ -93,6 +93,7 @@ public object Adapty {
         adaptyInternal.getPaywalls(forceUpdate, adaptyCallback)
     }
 
+    @Deprecated("The functionality is deprecated and will be removed in future releases.")
     @JvmStatic
     public fun getPromo(
         adaptyCallback: (promo: PromoModel?, error: AdaptyError?) -> Unit
@@ -180,12 +181,14 @@ public object Adapty {
         adaptyInternal.logout(adaptyCallback)
     }
 
+    @Deprecated("The functionality is deprecated and will be removed in future releases.")
     @JvmStatic
     public fun refreshPushToken(newToken: String) {
         if (!checkActivated()) return
         adaptyInternal.refreshPushToken(newToken)
     }
 
+    @Deprecated("The functionality is deprecated and will be removed in future releases.")
     @JvmStatic
     public fun handlePromoIntent(
         intent: Intent?,
@@ -209,6 +212,7 @@ public object Adapty {
         adaptyInternal.onPurchaserInfoUpdatedListener = onPurchaserInfoUpdatedListener
     }
 
+    @Deprecated("The functionality is deprecated and will be removed in future releases.")
     @JvmStatic
     public fun setOnPromoReceivedListener(onPromoReceivedListener: OnPromoReceivedListener?) {
         if (!checkActivated()) return
@@ -221,6 +225,7 @@ public object Adapty {
         adaptyInternal.onPaywallsForConfigReceivedListener = onPaywallsForConfigReceivedListener
     }
 
+    @Deprecated("The functionality is deprecated and will be removed in future releases.")
     @JvmStatic
     public fun setVisualPaywallListener(visualPaywallListener: VisualPaywallListener?) {
         if (!checkActivated()) return
@@ -239,12 +244,11 @@ public object Adapty {
         adaptyCallback: ((error: AdaptyError?) -> Unit)? = null
     ) {
         Logger.logMethodCall { "setFallbackPaywalls()" }
-        adaptyCallback?.let { callback ->
-            if (!checkActivated(callback)) return
-        } ?: if (!checkActivated()) return
+        if (!checkActivated(adaptyCallback)) return
         adaptyInternal.setFallbackPaywalls(paywalls, adaptyCallback)
     }
 
+    @Deprecated("The functionality is deprecated and will be removed in future releases.")
     @JvmStatic
     public fun showVisualPaywall(
         activity: Activity,
@@ -255,6 +259,7 @@ public object Adapty {
         adaptyInternal.showVisualPaywall(activity, paywall)
     }
 
+    @Deprecated("The functionality is deprecated and will be removed in future releases.")
     @JvmStatic
     public fun closeVisualPaywall() {
         Logger.logMethodCall { "closeVisualPaywall()" }
@@ -295,18 +300,10 @@ public object Adapty {
         }
     }
 
-    private fun checkActivated(adaptyCallback: (error: AdaptyError?) -> Unit): Boolean {
+    private fun checkActivated(adaptyCallback: ((error: AdaptyError?) -> Unit)? = null): Boolean {
         if (!isActivated) {
             logNotInitializedError()
-            adaptyCallback.invoke(notInitializedError)
-            return false
-        }
-        return true
-    }
-
-    private fun checkActivated(): Boolean {
-        if (!isActivated) {
-            logNotInitializedError()
+            adaptyCallback?.invoke(notInitializedError)
             return false
         }
         return true

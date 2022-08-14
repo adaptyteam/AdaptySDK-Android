@@ -12,6 +12,7 @@ import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.VisualPaywallManager
 import java.lang.ref.WeakReference
 
+@Deprecated("The functionality is deprecated and will be removed in future releases.")
 public class VisualPaywallActivity : AppCompatActivity() {
 
     internal companion object {

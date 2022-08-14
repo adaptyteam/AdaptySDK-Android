@@ -11,6 +11,7 @@ import android.media.RingtoneManager
 import android.os.Build
 import kotlin.random.Random
 
+@Deprecated("The functionality is deprecated and will be removed in future releases.")
 public abstract class AdaptyPushHandler(protected val context: Context) {
 
     private companion object {

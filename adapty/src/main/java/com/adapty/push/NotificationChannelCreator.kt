@@ -9,6 +9,7 @@ import android.media.RingtoneManager
 import android.os.Build
 import androidx.annotation.RestrictTo
 
+@Deprecated("The functionality is deprecated and will be removed in future releases.")
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class NotificationChannelCreator(private val context: Context) {
 

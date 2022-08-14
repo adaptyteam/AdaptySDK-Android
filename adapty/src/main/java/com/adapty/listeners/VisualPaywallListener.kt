@@ -6,6 +6,7 @@ import com.adapty.models.ProductModel
 import com.adapty.models.PurchaserInfoModel
 import com.adapty.visual.VisualPaywallActivity
 
+@Deprecated("The functionality is deprecated and will be removed in future releases.")
 public interface VisualPaywallListener {
 
     public fun onPurchased(

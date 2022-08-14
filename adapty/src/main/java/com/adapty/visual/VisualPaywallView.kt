@@ -20,6 +20,7 @@ import com.adapty.internal.utils.VisualPaywallManager
 import com.adapty.models.PaywallModel
 import com.adapty.models.ProductModel
 
+@Deprecated("The functionality is deprecated and will be removed in future releases.")
 @SuppressLint("SetJavaScriptEnabled")
 public class VisualPaywallView : WebView {
 

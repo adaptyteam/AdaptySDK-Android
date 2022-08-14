@@ -57,19 +57,17 @@ internal class DefaultHttpResponseManager(
     }
 
     private fun toStringUtf8(inputStream: InputStream, isInGzip: Boolean): String {
-        val reader = BufferedReader(
+        return BufferedReader(
             InputStreamReader(
                 if (isInGzip) GZIPInputStream(inputStream) else inputStream,
                 Charsets.UTF_8
             )
-        )
-        val total = StringBuilder()
-        var line: String? = reader.readLine()
-        while (line != null) {
-            total.append(line).append('\n')
-            line = reader.readLine()
+        ).useLines { lines ->
+            lines.fold(StringBuilder()) { total, line ->
+                if (total.isNotEmpty()) total.append('\n')
+                total.append(line)
+            }.toString()
         }
-        return total.toString()
     }
 
     private fun HttpURLConnection.isSuccessful() = responseCode in 200..299

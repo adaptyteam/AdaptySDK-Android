@@ -40,6 +40,13 @@ internal class PurchaserInteractor(
         authInteractor.runWhenAuthDataSynced {
             cloudRepository.updateProfile(params)
         }
+            .map { (attrs, currentDataWhenRequestSent) ->
+                cacheRepository.updateOnPurchaserInfoReceived(
+                    attrs,
+                    currentDataWhenRequestSent?.profileId,
+                )
+                Unit
+            }
             .skipRequestShouldNotBeSentException()
             .flowOnIO()
 
@@ -144,7 +151,7 @@ internal class PurchaserInteractor(
                 cacheRepository.getExternalAnalyticsEnabled().takeIf { it }?.let {
                     try {
                         AdvertisingIdClient.getAdvertisingIdInfo(appContext)
-                            ?.takeIf { !it.isLimitAdTrackingEnabled }?.id
+                            .takeIf { !it.isLimitAdTrackingEnabled }?.id
                     } catch (e: Exception) {
                         null
                     }

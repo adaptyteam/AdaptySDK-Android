@@ -42,6 +42,12 @@ internal class PurchaserInfoModelDeserializer(
                     object : TypeToken<Map<String, List<NonSubscriptionInfoModel>>>() {}.type
                 )
             }.orEmpty(),
+            jsonObject.get("customAttributes")?.asJsonObject?.let { customAttributes ->
+                gson.fromJson<Map<String, Any>>(
+                    customAttributes,
+                    object : TypeToken<Map<String, Any>>() {}.type
+                )
+            }.orEmpty(),
         )
     }
 }

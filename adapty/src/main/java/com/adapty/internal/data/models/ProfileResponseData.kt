@@ -23,6 +23,8 @@ internal class ProfileResponseData(
         override val subscriptions: HashMap<String, SubscriptionsInfo>?,
         @SerializedName("non_subscriptions")
         override val nonSubscriptions: HashMap<String, ArrayList<NonSubscriptionsInfo>>?,
+        @SerializedName("custom_attributes")
+        override val customAttributes: HashMap<String, Any>?,
     ) : ContainsPurchaserInfo {
 
         override fun extractPurchaserInfo(): Attributes = this

@@ -10,6 +10,7 @@ internal interface ContainsPurchaserInfo {
     val accessLevels: HashMap<String, ProfileResponseData.Attributes.AccessLevelInfo>?
     val subscriptions: HashMap<String, ProfileResponseData.Attributes.SubscriptionsInfo>?
     val nonSubscriptions: HashMap<String, ArrayList<ProfileResponseData.Attributes.NonSubscriptionsInfo>>?
+    val customAttributes: HashMap<String, Any>?
 
     fun extractPurchaserInfo(): ProfileResponseData.Attributes
 }

@@ -6,6 +6,7 @@ public class PurchaserInfoModel(
     public val accessLevels: Map<String, AccessLevelInfoModel>,
     public val subscriptions: Map<String, SubscriptionInfoModel>,
     public val nonSubscriptions: Map<String, List<NonSubscriptionInfoModel>>,
+    public val customAttributes: Map<String, Any>,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -18,6 +19,7 @@ public class PurchaserInfoModel(
         if (accessLevels != other.accessLevels) return false
         if (subscriptions != other.subscriptions) return false
         if (nonSubscriptions != other.nonSubscriptions) return false
+        if (customAttributes != other.customAttributes) return false
 
         return true
     }
@@ -28,10 +30,11 @@ public class PurchaserInfoModel(
         result = 31 * result + accessLevels.hashCode()
         result = 31 * result + subscriptions.hashCode()
         result = 31 * result + nonSubscriptions.hashCode()
+        result = 31 * result + customAttributes.hashCode()
         return result
     }
 
     override fun toString(): String {
-        return "PurchaserInfoModel(profileId=$profileId, customerUserId=$customerUserId, accessLevels=$accessLevels, subscriptions=$subscriptions, nonSubscriptions=$nonSubscriptions)"
+        return "PurchaserInfoModel(profileId=$profileId, customerUserId=$customerUserId, accessLevels=$accessLevels, subscriptions=$subscriptions, nonSubscriptions=$nonSubscriptions, customAttributes=$customAttributes)"
     }
 }

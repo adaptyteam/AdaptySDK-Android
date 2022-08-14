@@ -1,5 +1,6 @@
 package com.adapty.models
 
+@Deprecated("The functionality is deprecated and will be removed in future releases.")
 public class PromoModel(
     public val promoType: String,
     public val variationId: String,

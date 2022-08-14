@@ -92,6 +92,7 @@ internal class PurchaserInfoMapper {
                     cancellationReason = sub.cancellationReason
                 )
             }.orEmpty(),
+            customAttributes = dto.customAttributes.orEmpty()
         )
     }
 }

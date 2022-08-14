@@ -61,7 +61,7 @@ internal class CloudRepository(
         flow {
             val response = httpClient.newCall(
                 requestFactory.createProfileRequest(customerUserId),
-                CreateProfileResponse::class.java
+                PurchaserInfoResponse::class.java
             )
             when (response) {
                 is Response.Success -> emit(response.body.data?.attributes)
@@ -115,13 +115,17 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun updateProfile(params: ProfileParameterBuilder) {
+    fun updateProfile(params: ProfileParameterBuilder): Pair<ProfileResponseData.Attributes?, Request.CurrentDataWhenSent?> {
+        val request = requestFactory.updateProfileRequest(params)
         val response =
             httpClient.newCall(
-                requestFactory.updateProfileRequest(params),
-                Any::class.java
+                request,
+                PurchaserInfoResponse::class.java
             )
-        processEmptyResponse(response)
+        when (response) {
+            is Response.Success -> return response.body.data?.attributes to request.currentDataWhenSent
+            is Response.Error -> throw response.error
+        }
     }
 
     @JvmSynthetic

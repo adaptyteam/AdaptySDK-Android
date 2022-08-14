@@ -140,6 +140,8 @@ internal class RequestFactory(
                 )
                 endPoint = getEndpointForProfileRequests(profileId)
                 requestCacheOptions = RequestCacheOptions.forUpdateProfile()
+                responseCacheKeys = ResponseCacheKeys.forGetPurchaserInfo()
+                currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
             }
         }
 

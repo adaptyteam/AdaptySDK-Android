@@ -5,11 +5,13 @@ public class PaywallModel(
     public val name: String?,
     public val abTestName: String?,
     public val revision: Int,
+    @Deprecated("The functionality is deprecated and will be removed in future releases.")
     public val isPromo: Boolean,
     public val variationId: String,
     public val products: List<ProductModel>,
     public val customPayloadString: String?,
     public val customPayload: Map<String, Any>?,
+    @Deprecated("The functionality is deprecated and will be removed in future releases.")
     public val visualPaywall: String?,
 ) {
 
