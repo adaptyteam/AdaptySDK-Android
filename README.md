@@ -9,7 +9,7 @@
 </h1>
 
 <p align="center">
-<a href="https://go.adapty.io/subhub-community-android-rep"><img src="https://img.shields.io/badge/Adapty-discord-purple"></a>
+<a href="https://discord.gg/subscriptions-hub"><img src="https://img.shields.io/badge/Adapty-discord-purple"></a>
 <a href="http://bit.ly/3s0Bu3r"><img src="https://jitpack.io/v/adaptyteam/AdaptySDK-Android.svg"></a>
 <a href="https://github.com/adaptyteam/AdaptySDK-Android/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-brightgreen.svg"></a>
 </p>
@@ -17,7 +17,7 @@
 
 <p align="center">
     <a href="https://adapty.io/?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android"><b>Website</b></a> •
-    <a href="https://go.adapty.io/subhub-community-android-rep"><b>Discord</b></a> •
+    <a href="https://discord.gg/subscriptions-hub"><b>Discord</b></a> •
     <a href="https://twitter.com/AdaptyTeam"><b>Twitter</b></a>
 </p>
 
