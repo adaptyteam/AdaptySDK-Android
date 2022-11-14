@@ -1,10 +1,9 @@
 package com.adapty.internal.data.cloud
 
-import android.content.Context
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
-import com.adapty.internal.data.cloud.Request.Method.*
-import com.adapty.internal.utils.getCurrentLocale
+import com.adapty.internal.data.cloud.Request.Method.GET
+import com.adapty.internal.data.cloud.Request.Method.POST
 import java.io.BufferedWriter
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -28,7 +27,6 @@ internal interface NetworkConnectionCreator {
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class DefaultConnectionCreator(
-    private val context: Context,
     private val cacheRepository: CacheRepository,
 ) : NetworkConnectionCreator {
 
@@ -49,17 +47,7 @@ internal class DefaultConnectionCreator(
             setRequestProperty("ADAPTY-SDK-PROFILE-ID", cacheRepository.getProfileId())
             setRequestProperty("ADAPTY-SDK-PLATFORM", "Android")
             setRequestProperty("ADAPTY-SDK-VERSION", com.adapty.BuildConfig.VERSION_NAME)
-            setRequestProperty(
-                "ADAPTY-SDK-VERSION-BUILD",
-                com.adapty.BuildConfig.VERSION_CODE.toString()
-            )
             setRequestProperty(AUTHORIZATION_KEY, "$API_KEY_PREFIX${cacheRepository.getAppKey()}")
-            getCurrentLocale(context)?.let {
-                setRequestProperty(
-                    "ADAPTY-SDK-LOCALE",
-                    "${it.language}_${it.country}"
-                )
-            }
             request.responseCacheKeys?.responseHashKey?.let(cacheRepository::getString)
                 ?.let { latestResponseHash ->
                     setRequestProperty("ADAPTY-SDK-PREVIOUS-RESPONSE-HASH", latestResponseHash)
@@ -100,7 +88,7 @@ internal class KinesisConnectionCreator(
 
         val date = getIso8601Time()
 
-        val headersMap = hashMapOf(
+        val headersMap = mapOf(
             "X-Amz-Security-Token" to iamSessionToken,
             "Host" to "kinesis.us-east-1.amazonaws.com",
             "X-Amz-Date" to date,
@@ -118,7 +106,7 @@ internal class KinesisConnectionCreator(
         val canonicalHeaders = headersMap.map {
             it.key.trim().toLowerCase(Locale.ENGLISH) + ":" + it.value
         }.sorted().joinToString("\n")
-        val canonicalRequest = arrayListOf(
+        val canonicalRequest = listOf(
             POST.name,
             canonicalPath,
             canonicalQuery,
@@ -128,13 +116,13 @@ internal class KinesisConnectionCreator(
             request.body.sha256()
         ).joinToString("\n")
 
-        val credential = arrayListOf(
+        val credential = listOf(
             date.substring(0..7),
             region,
             serviceType,
             "aws4_request"
         ).joinToString("/")
-        val stringToSign = arrayListOf(
+        val stringToSign = listOf(
             "AWS4-HMAC-SHA256",
             date,
             credential,

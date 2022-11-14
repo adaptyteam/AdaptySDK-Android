@@ -5,6 +5,8 @@ import android.os.Build
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyError.RetryType
 import com.adapty.errors.AdaptyErrorCode
+import com.adapty.utils.ImmutableList
+import com.adapty.utils.ImmutableMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -30,6 +32,16 @@ internal fun Throwable.asAdaptyError(): AdaptyError {
         originalError = this,
         adaptyErrorCode = AdaptyErrorCode.UNKNOWN
     )
+}
+
+@JvmSynthetic
+internal fun <T> List<T>.immutableWithInterop(): ImmutableList<T> {
+    return ImmutableList(this)
+}
+
+@JvmSynthetic
+internal fun <K, V> Map<K, V>.immutableWithInterop(): ImmutableMap<K, V> {
+    return ImmutableMap(this)
 }
 
 @JvmSynthetic

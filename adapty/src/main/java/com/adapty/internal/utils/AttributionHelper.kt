@@ -2,7 +2,7 @@ package com.adapty.internal.utils
 
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.AttributionData
-import com.adapty.models.AttributionType
+import com.adapty.models.AdaptyAttributionSource
 import org.json.JSONObject
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -11,7 +11,7 @@ internal class AttributionHelper {
     @JvmSynthetic
     fun createAttributionData(
         attribution: Any,
-        source: AttributionType,
+        source: AdaptyAttributionSource,
         networkUserId: String?
     ) = AttributionData(
         source.toString(),
@@ -43,7 +43,7 @@ internal class AttributionHelper {
         }
     }
 
-    private fun convertAdjustAttributionToMap(adjustAttribution: Any) = hashMapOf(
+    private fun convertAdjustAttributionToMap(adjustAttribution: Any) = mapOf(
         "adgroup" to getAdjustProperty(adjustAttribution, "adgroup"),
         "adid" to getAdjustProperty(adjustAttribution, "adid"),
         "campaign" to getAdjustProperty(adjustAttribution, "campaign"),

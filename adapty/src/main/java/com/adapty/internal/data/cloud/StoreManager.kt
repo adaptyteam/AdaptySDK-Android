@@ -5,11 +5,10 @@ import android.content.Context
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.data.models.ProductDto
+import com.adapty.internal.data.models.ProductStoreData
 import com.adapty.internal.data.models.PurchaseHistoryRecordModel
-import com.adapty.internal.data.models.responses.PaywallsResponse
 import com.adapty.internal.utils.*
-import com.adapty.models.SubscriptionUpdateParamModel
+import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.android.billingclient.api.*
 import com.android.billingclient.api.BillingClient.BillingResponseCode.*
 import com.android.billingclient.api.BillingClient.SkuType.INAPP
@@ -25,7 +24,6 @@ import kotlin.coroutines.resumeWithException
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class StoreManager(
     context: Context,
-    private val currencyHelper: CurrencyHelper,
     private val productMapper: ProductMapper,
     private val prorationModeMapper: ProrationModeMapper,
 ) : PurchasesUpdatedListener {
@@ -41,17 +39,22 @@ internal class StoreManager(
     private var makePurchaseCallback: MakePurchaseCallback? = null
 
     @JvmSynthetic
-    fun fillBillingInfo(
-        data: ArrayList<Any>,
+    fun getProductStoreData(
+        productIds: List<String>,
         maxAttemptCount: Long,
-    ): Flow<ArrayList<Any>> =
+    ): Flow<Map<String, ProductStoreData>> =
         querySkuDetails(
-            data.map(::prepareSkuList).flatten().distinct(),
+            productIds,
             maxAttemptCount
-        ).map { fullSkuList -> fillInfo(fullSkuList, data) }
+        )
+            .map { fullSkuList ->
+                fullSkuList.associate { skuDetails ->
+                    skuDetails.sku to productMapper.mapBillingInfoToProductStoreData(skuDetails)
+                }
+            }
 
     @JvmSynthetic
-    fun getPurchaseHistoryDataToRestore(maxAttemptCount: Long): Flow<ArrayList<PurchaseHistoryRecordModel>> =
+    fun getPurchaseHistoryDataToRestore(maxAttemptCount: Long): Flow<List<PurchaseHistoryRecordModel>> =
         getPurchaseHistoryDataToRestoreForType(SUBS, maxAttemptCount)
             .flatMapConcat { subsHistoryList ->
                 getPurchaseHistoryDataToRestoreForType(INAPP, maxAttemptCount)
@@ -105,7 +108,7 @@ internal class StoreManager(
         }.retryOnConnectionError(maxAttemptCount)
     }
 
-    private fun <T> concatResults(list1: List<T>, list2: List<T>) =
+    private fun <T> concatResults(list1: List<T>, list2: List<T>): List<T> =
         ArrayList(list1).apply { addAll(list2) }
 
     private fun onError(
@@ -140,33 +143,6 @@ internal class StoreManager(
         )
     }
 
-    private fun fillInfo(
-        skuDetailsList: List<SkuDetails>,
-        dataList: ArrayList<Any>
-    ): ArrayList<Any> {
-        skuDetailsList.forEach { skuDetails ->
-            dataList.forEach { data ->
-                when (data) {
-                    is PaywallsResponse.Data -> {
-                        data.attributes?.products?.forEach { product ->
-                            if (skuDetails.sku == product.vendorProductId) {
-                                product.setDetails(skuDetails, currencyHelper, productMapper)
-                            }
-                        }
-                    }
-                    is ArrayList<*> -> {
-                        data.filterIsInstance(ProductDto::class.java).forEach { product ->
-                            if (skuDetails.sku == product.vendorProductId) {
-                                product.setDetails(skuDetails, currencyHelper, productMapper)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return dataList
-    }
-
     private val productsToPurchaseSkuType = hashMapOf<String, String>()
 
     override fun onPurchasesUpdated(
@@ -182,7 +158,7 @@ internal class StoreManager(
 
                 for (purchase in purchases) {
                     if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                        postProcess(purchase)
+                        makePurchaseCallback?.invoke(purchase, null)
                     } else {
                         makePurchaseCallback?.invoke(purchase, AdaptyError(
                             message = "Purchase: PENDING_PURCHASE",
@@ -205,37 +181,31 @@ internal class StoreManager(
         }
     }
 
-    private fun postProcess(purchase: Purchase) {
-        if (purchase.isAcknowledged) {
-            makePurchaseCallback?.invoke(purchase, null)
-            return
-        }
-
-        execute {
-            if (productsToPurchaseSkuType[purchase.skus.firstOrNull().orEmpty()] == INAPP) {
-                consumePurchase(purchase, maxAttemptCount = DEFAULT_RETRY_COUNT)
-            } else {
-                acknowledgePurchase(purchase, maxAttemptCount = DEFAULT_RETRY_COUNT)
-            }
-                .catch { error -> onError(purchase, error, makePurchaseCallback) }
-                .onEach { billingResult ->
-                    if (billingResult.responseCode == OK) {
-                        makePurchaseCallback?.invoke(purchase, null)
-                    } else {
-                        onError(purchase, billingResult, makePurchaseCallback)
-                    }
+    @JvmSynthetic
+    fun postProcess(purchase: Purchase) =
+        when {
+            purchase.isAcknowledged -> flowOf(Unit)
+            else -> (when(productsToPurchaseSkuType[purchase.skus.firstOrNull().orEmpty()]) {
+                INAPP -> consumePurchase(purchase, maxAttemptCount = DEFAULT_RETRY_COUNT)
+                else -> acknowledgePurchase(purchase, maxAttemptCount = DEFAULT_RETRY_COUNT)
+            }).map { billingResult ->
+                if (billingResult.responseCode != OK) {
+                    val message = "Play Market request failed: ${billingResult.debugMessage}"
+                    Logger.logError { message }
+                    throw AdaptyError(
+                        message = message,
+                        adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)
+                    )
                 }
-                .flowOnMain()
-                .collect()
+            }
         }
-    }
 
     @JvmSynthetic
     fun makePurchase(
         activity: Activity,
         productId: String,
         purchaseType: String,
-        subscriptionUpdateParams: SubscriptionUpdateParamModel?,
+        subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
         callback: MakePurchaseCallback
     ) {
         execute {
@@ -261,16 +231,20 @@ internal class StoreManager(
             }
                 .flowOnIO()
                 .catch { error -> onError(null, error, callback) }
-                .onEach { (skuDetailsList, subscriptionUpdateParams) ->
+                .onEach { (skuDetailsList, billingFlowSubUpdateParams) ->
                     skuDetailsList.firstOrNull { it.sku == productId }?.let { skuDetails ->
                         productsToPurchaseSkuType[productId] = purchaseType
-                        makePurchaseCallback = MakePurchaseCallbackWrapper(productId, callback)
+                        makePurchaseCallback = MakePurchaseCallbackWrapper(
+                            productId,
+                            subscriptionUpdateParams?.oldSubVendorProductId,
+                            callback,
+                        )
 
                         billingClient.launchBillingFlow(
                             activity,
                             BillingFlowParams.newBuilder()
                                 .setSkuDetails(skuDetails)
-                                .apply { subscriptionUpdateParams?.let(::setSubscriptionUpdateParams) }
+                                .apply { billingFlowSubUpdateParams?.let(::setSubscriptionUpdateParams) }
                                 .build()
                         )
                     } ?: callback.invoke(
@@ -288,7 +262,7 @@ internal class StoreManager(
 
     private fun buildSubscriptionUpdateParams(
         purchasesList: List<Purchase>?,
-        subscriptionUpdateParams: SubscriptionUpdateParamModel,
+        subscriptionUpdateParams: AdaptySubscriptionUpdateParameters,
     ): BillingFlowParams.SubscriptionUpdateParams =
         purchasesList
             ?.firstOrNull { it.skus.firstOrNull() == subscriptionUpdateParams.oldSubVendorProductId }
@@ -321,13 +295,16 @@ internal class StoreManager(
             .flowOnIO()
 
     @JvmSynthetic
-    fun queryInapps() =
-        billingClient.queryPurchases(INAPP).purchasesList?.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
-
-    @JvmSynthetic
-    fun queryUnacknowledgedSubs() =
-        billingClient.queryPurchases(SUBS).purchasesList
-            ?.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED && !it.isAcknowledged }
+    fun queryActiveSubsAndInApps(maxAttemptCount: Long) =
+        onConnected {
+            storeHelper.queryActivePurchasesForType(SUBS)
+                .flatMapConcat { activeSubs ->
+                    storeHelper.queryActivePurchasesForType(INAPP)
+                        .map { inapps -> activeSubs to inapps }
+                }
+        }
+            .retryOnConnectionError(maxAttemptCount)
+            .flowOnIO()
 
     @JvmSynthetic
     fun findActivePurchaseForProduct(
@@ -348,18 +325,6 @@ internal class StoreManager(
         }
             .retryOnConnectionError(maxAttemptCount)
             .flowOnIO()
-
-    private fun prepareSkuList(data: Any) = when (data) {
-        is PaywallsResponse.Data -> {
-            data.attributes?.products?.mapNotNull { it.vendorProductId }.orEmpty()
-        }
-        is ArrayList<*> -> {
-            data.filterIsInstance(ProductDto::class.java).mapNotNull { it.vendorProductId }
-        }
-        else -> {
-            listOf()
-        }
-    }
 
     private fun <T> onConnected(call: () -> Flow<T>): Flow<T> =
         restoreConnection()
@@ -437,7 +402,7 @@ private class StoreHelper(private val billingClient: BillingClient) {
             val skuDetailsResult = billingClient.querySkuDetails(params)
             if (skuDetailsResult.billingResult.responseCode == OK) {
                 emit(
-                    skuDetailsResult.skuDetailsList ?: arrayListOf<SkuDetails>()
+                    skuDetailsResult.skuDetailsList.orEmpty()
                 )
             } else {
                 throwException(skuDetailsResult.billingResult)
@@ -449,14 +414,19 @@ private class StoreHelper(private val billingClient: BillingClient) {
         flow {
             val purchaseHistoryResult = billingClient.queryPurchaseHistory(type)
             if (purchaseHistoryResult.billingResult.responseCode == OK) {
-                emit(
-                    purchaseHistoryResult.purchaseHistoryRecordList
-                        ?: arrayListOf<PurchaseHistoryRecord>()
-                )
+                emit(purchaseHistoryResult.purchaseHistoryRecordList.orEmpty())
             } else {
                 throwException(purchaseHistoryResult.billingResult)
             }
         }
+
+    @JvmSynthetic
+    fun queryActivePurchasesForType(@BillingClient.SkuType type: String) =
+        queryPurchaseHistoryForType(type)
+            .map {
+                billingClient.queryPurchases(type).purchasesList
+                    ?.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }.orEmpty()
+            }
 
     @JvmSynthetic
     fun acknowledgePurchase(params: AcknowledgePurchaseParams) =
@@ -492,15 +462,17 @@ private typealias MakePurchaseCallback = (purchase: Purchase?, error: AdaptyErro
 
 private class MakePurchaseCallbackWrapper(
     private val productId: String,
+    private val oldSubProductId: String?,
     private val callback: MakePurchaseCallback
 ) : MakePurchaseCallback {
 
     private val wasInvoked = AtomicBoolean(false)
 
     override operator fun invoke(purchase: Purchase?, error: AdaptyError?) {
-        if (purchase?.skus?.firstOrNull()?.equals(productId) != false) {
+        val purchaseSku = purchase?.skus?.firstOrNull()
+        if (purchaseSku == null || listOfNotNull(productId, oldSubProductId).contains(purchaseSku)) {
             if (wasInvoked.compareAndSet(false, true)) {
-                callback.invoke(if (error == null) purchase else null, error)
+                callback.invoke(if (error == null && productId == purchaseSku) purchase else null, error)
             }
         }
     }

@@ -5,14 +5,12 @@ import androidx.annotation.RestrictTo
 import com.adapty.internal.AdaptyInternal
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cache.PreferenceManager
-import com.adapty.internal.data.cache.PushTokenRetriever
 import com.adapty.internal.data.cloud.*
 import com.adapty.internal.domain.AuthInteractor
 import com.adapty.internal.domain.ProductsInteractor
-import com.adapty.internal.domain.PurchaserInteractor
+import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.domain.PurchasesInteractor
 import com.adapty.internal.utils.*
-import com.adapty.models.PurchaserInfoModel
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import java.math.BigDecimal
@@ -55,9 +53,6 @@ internal object Dependencies {
                         .registerTypeAdapter(
                             BigDecimal::class.java,
                             BigDecimalDeserializer()
-                        ).registerTypeAdapter(
-                            PurchaserInfoModel::class.java,
-                            PurchaserInfoModelDeserializer(Gson())
                         ).create()
                 }),
 
@@ -71,7 +66,7 @@ internal object Dependencies {
 
                 CloudRepository::class.java to singleVariantDiObject({
                     CloudRepository(
-                        injectInternal(),
+                        injectInternal(named = BASE),
                         injectInternal()
                     )
                 }),
@@ -80,21 +75,10 @@ internal object Dependencies {
                     CacheRepository(
                         injectInternal(),
                         injectInternal(),
-                        injectInternal(),
-                        injectInternal(),
-                        injectInternal(),
-                        injectInternal(),
                     )
                 }),
 
                 HttpClient::class.java to mapOf(
-                    null to DIObject({
-                        DefaultHttpClient(
-                            injectInternal(named = BASE),
-                            injectInternal(),
-                            injectInternal(),
-                        )
-                    }),
                     BASE to DIObject({
                         BaseHttpClient(
                             injectInternal(),
@@ -123,7 +107,7 @@ internal object Dependencies {
 
                 NetworkConnectionCreator::class.java to mapOf(
                     null to DIObject({
-                        DefaultConnectionCreator(appContext, injectInternal())
+                        DefaultConnectionCreator(injectInternal())
                     }),
                     KINESIS to DIObject({
                         KinesisConnectionCreator(injectInternal())
@@ -167,57 +151,66 @@ internal object Dependencies {
 
                 RequestFactory::class.java to singleVariantDiObject({
                     RequestFactory(
-                        appContext,
                         injectInternal(),
-                        injectInternal()
+                        injectInternal(),
                     )
                 }),
 
-                PushTokenRetriever::class.java to singleVariantDiObject({ PushTokenRetriever() }),
+                InstallationMetaCreator::class.java to singleVariantDiObject({
+                    InstallationMetaCreator(appContext, injectInternal())
+                }),
+
+                AdIdRetriever::class.java to singleVariantDiObject({
+                    AdIdRetriever(appContext, injectInternal())
+                }),
+
+                CustomAttributeValidator::class.java to singleVariantDiObject({
+                    CustomAttributeValidator()
+                }),
+
+                PaywallPicker::class.java to singleVariantDiObject({ PaywallPicker() }),
+
+                ProductPicker::class.java to singleVariantDiObject({ ProductPicker() }),
 
                 AttributionHelper::class.java to singleVariantDiObject({ AttributionHelper() }),
 
                 CurrencyHelper::class.java to singleVariantDiObject({ CurrencyHelper() }),
 
                 PaywallMapper::class.java to singleVariantDiObject({
-                    PaywallMapper(
-                        injectInternal(),
-                        injectInternal(),
-                    )
+                    PaywallMapper(injectInternal())
                 }),
 
                 ProductMapper::class.java to singleVariantDiObject({
                     ProductMapper(
                         appContext,
                         injectInternal(),
+                        injectInternal(),
                     )
                 }),
 
-                PromoMapper::class.java to singleVariantDiObject({ PromoMapper() }),
-
                 ProrationModeMapper::class.java to singleVariantDiObject({ ProrationModeMapper() }),
 
-                PurchaserInfoMapper::class.java to singleVariantDiObject({ PurchaserInfoMapper() }),
+                ProfileMapper::class.java to singleVariantDiObject({ ProfileMapper() }),
 
                 StoreManager::class.java to singleVariantDiObject({
                     StoreManager(
                         appContext,
                         injectInternal(),
                         injectInternal(),
+                    )
+                }),
+
+                LifecycleAwareRequestRunner::class.java to singleVariantDiObject({
+                    LifecycleAwareRequestRunner(
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
                         injectInternal(),
                     )
                 }),
 
-                AdaptyPeriodicRequestManager::class.java to singleVariantDiObject({
-                    AdaptyPeriodicRequestManager(
-                        injectInternal(),
-                        injectInternal(),
-                        injectInternal()
-                    )
-                }),
-
-                AdaptyLifecycleManager::class.java to singleVariantDiObject({
-                    AdaptyLifecycleManager(injectInternal())
+                LifecycleManager::class.java to singleVariantDiObject({
+                    LifecycleManager(injectInternal())
                 }),
 
                 ProductsInteractor::class.java to singleVariantDiObject({
@@ -228,17 +221,20 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
                         injectInternal()
                     )
                 }),
 
-                PurchaserInteractor::class.java to singleVariantDiObject({
-                    PurchaserInteractor(
-                        appContext,
+                ProfileInteractor::class.java to singleVariantDiObject({
+                    ProfileInteractor(
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
-                        injectInternal()
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
                     )
                 }),
 
@@ -248,25 +244,17 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
                         injectInternal()
                     )
                 }),
 
                 AuthInteractor::class.java to singleVariantDiObject({
-                    AuthInteractor(injectInternal(), injectInternal())
-                }),
-
-                VisualPaywallManager::class.java to singleVariantDiObject({
-                    VisualPaywallManager(
-                        injectInternal(),
-                        injectInternal()
-                    )
+                    AuthInteractor(injectInternal(), injectInternal(), injectInternal(), injectInternal())
                 }),
 
                 AdaptyInternal::class.java to singleVariantDiObject({
                     AdaptyInternal(
-                        injectInternal(),
-                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),

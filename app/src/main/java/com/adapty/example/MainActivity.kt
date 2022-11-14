@@ -1,10 +1,8 @@
 package com.adapty.example
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import com.adapty.Adapty
 
 class MainActivity : AppCompatActivity() {
 
@@ -14,26 +12,6 @@ class MainActivity : AppCompatActivity() {
 
         if (savedInstanceState == null) {
             addFragment(MainFragment.newInstance(), false)
-        }
-
-        handleIntent(intent)
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        handleIntent(intent)
-    }
-
-    private fun handleIntent(intent: Intent) {
-        if (Adapty.handlePromoIntent(intent) { promo, error ->
-                //your logic for callback
-            }
-        ) {
-            //your logic for the case user did click on promo notification,
-            //for example show loading indicator
-        } else {
-            //your logic for other cases
         }
     }
 

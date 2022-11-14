@@ -4,21 +4,20 @@ import android.Manifest
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
+import androidx.annotation.IntRange
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.AdaptyInternal
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.Logger
-import com.adapty.listeners.OnPaywallsForConfigReceivedListener
-import com.adapty.listeners.OnPromoReceivedListener
-import com.adapty.listeners.OnPurchaserInfoUpdatedListener
-import com.adapty.listeners.VisualPaywallListener
+import com.adapty.listeners.OnProfileUpdatedListener
 import com.adapty.models.*
 import com.adapty.utils.AdaptyLogLevel
-import com.adapty.utils.ProfileParameterBuilder
+import com.adapty.utils.AdaptyResult
+import com.adapty.utils.ErrorCallback
+import com.adapty.utils.ResultCallback
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 public object Adapty {
@@ -28,8 +27,8 @@ public object Adapty {
     public fun activate(
         context: Context,
         appKey: String,
-        customerUserId: String? = null,
         observerMode: Boolean = false,
+        customerUserId: String? = null,
     ) {
         Logger.logMethodCall { "activate($appKey, ${customerUserId.orEmpty()})" }
 
@@ -47,189 +46,121 @@ public object Adapty {
     }
 
     @JvmStatic
-    public fun identify(customerUserId: String, adaptyCallback: (error: AdaptyError?) -> Unit) {
+    public fun identify(customerUserId: String, callback: ErrorCallback) {
         Logger.logMethodCall { "identify($customerUserId)" }
-        if (!checkActivated(adaptyCallback)) return
-        adaptyInternal.identify(customerUserId, adaptyCallback)
+        if (!checkActivated(callback)) return
+        adaptyInternal.identify(customerUserId, callback)
     }
 
     @JvmStatic
-    public fun updateProfile(
-        params: ProfileParameterBuilder,
-        adaptyCallback: (error: AdaptyError?) -> Unit
-    ) {
+    public fun updateProfile(params: AdaptyProfileParameters, callback: ErrorCallback) {
         Logger.logMethodCall { "updateProfile()" }
-        if (!checkActivated(adaptyCallback)) return
-        adaptyInternal.updateProfile(params, adaptyCallback)
+        if (!checkActivated(callback)) return
+        adaptyInternal.updateProfile(params, callback)
     }
 
     @JvmStatic
-    @JvmOverloads
-    public fun getPurchaserInfo(
-        forceUpdate: Boolean = false,
-        adaptyCallback: (purchaserInfo: PurchaserInfoModel?, error: AdaptyError?) -> Unit
-    ) {
-        Logger.logMethodCall { "getPurchaserInfo(forceUpdate = $forceUpdate)" }
+    public fun getProfile(callback: ResultCallback<AdaptyProfile>) {
+        Logger.logMethodCall { "getProfile()" }
         if (!isActivated) {
             logNotInitializedError()
-            adaptyCallback.invoke(null, notInitializedError)
+            callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getPurchaserInfo(forceUpdate, adaptyCallback)
+        adaptyInternal.getProfile(callback)
     }
 
     @JvmStatic
-    @JvmOverloads
-    public fun getPaywalls(
-        forceUpdate: Boolean = false,
-        adaptyCallback: (paywalls: List<PaywallModel>?, products: List<ProductModel>?, error: AdaptyError?) -> Unit
-    ) {
-        Logger.logMethodCall { "getPaywalls(forceUpdate = $forceUpdate)" }
+    public fun getPaywall(id: String, callback: ResultCallback<AdaptyPaywall>) {
+        Logger.logMethodCall { "getPaywall(id = $id)" }
         if (!isActivated) {
             logNotInitializedError()
-            adaptyCallback.invoke(null, null, notInitializedError)
+            callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getPaywalls(forceUpdate, adaptyCallback)
+        adaptyInternal.getPaywall(id, callback)
     }
 
-    @Deprecated("The functionality is deprecated and will be removed in future releases.")
     @JvmStatic
-    public fun getPromo(
-        adaptyCallback: (promo: PromoModel?, error: AdaptyError?) -> Unit
+    public fun getPaywallProducts(
+        paywall: AdaptyPaywall,
+        callback: ResultCallback<List<AdaptyPaywallProduct>>,
     ) {
-        Logger.logMethodCall { "getPromo()" }
+        Logger.logMethodCall { "getPaywallProducts(id = ${paywall.id})" }
         if (!isActivated) {
             logNotInitializedError()
-            adaptyCallback.invoke(null, notInitializedError)
+            callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getPromo(adaptyCallback)
+        adaptyInternal.getPaywallProducts(paywall, callback)
     }
 
     @JvmStatic
     @JvmOverloads
     public fun makePurchase(
         activity: Activity,
-        product: ProductModel,
-        subscriptionUpdateParams: SubscriptionUpdateParamModel? = null,
-        adaptyCallback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String?, googleValidationResult: GoogleValidationResult?, product: ProductModel, error: AdaptyError?) -> Unit
+        product: AdaptyPaywallProduct,
+        subscriptionUpdateParams: AdaptySubscriptionUpdateParameters? = null,
+        callback: ResultCallback<AdaptyProfile?>,
     ) {
         Logger.logMethodCall { "makePurchase(vendorProductId = ${product.vendorProductId}${subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; prorationMode = ${it.prorationMode}" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
-            adaptyCallback.invoke(null, null, null, product, notInitializedError)
+            callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.makePurchase(activity, product, subscriptionUpdateParams, adaptyCallback)
+        adaptyInternal.makePurchase(activity, product, subscriptionUpdateParams, callback)
     }
 
     @JvmStatic
-    public fun restorePurchases(
-        adaptyCallback: (purchaserInfo: PurchaserInfoModel?, googleValidationResultList: List<GoogleValidationResult>?, error: AdaptyError?) -> Unit
-    ) {
+    public fun restorePurchases(callback: ResultCallback<AdaptyProfile>) {
         Logger.logMethodCall { "restorePurchases()" }
         if (!isActivated) {
             logNotInitializedError()
-            adaptyCallback.invoke(null, null, notInitializedError)
+            callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.restorePurchases(adaptyCallback)
+        adaptyInternal.restorePurchases(callback)
     }
 
     @JvmStatic
     @JvmOverloads
     public fun updateAttribution(
         attribution: Any,
-        source: AttributionType,
+        source: AdaptyAttributionSource,
         networkUserId: String? = null,
-        adaptyCallback: (error: AdaptyError?) -> Unit
+        callback: ErrorCallback,
     ) {
         Logger.logMethodCall { "updateAttribution(source = $source)" }
-        if (BuildConfig.DEBUG && source == AttributionType.APPSFLYER) {
+        if (BuildConfig.DEBUG && source == AdaptyAttributionSource.APPSFLYER) {
             require(networkUserId != null) { "networkUserId is required for AppsFlyer attribution, otherwise we won't be able to send specific events." }
         }
-        if (!checkActivated(adaptyCallback)) return
-        adaptyInternal.updateAttribution(attribution, source, networkUserId, adaptyCallback)
+        if (!checkActivated(callback)) return
+        adaptyInternal.updateAttribution(attribution, source, networkUserId, callback)
     }
 
     @JvmStatic
-    public fun setExternalAnalyticsEnabled(
-        enabled: Boolean,
-        adaptyCallback: (error: AdaptyError?) -> Unit
-    ) {
-        Logger.logMethodCall { "setExternalAnalyticsEnabled($enabled)" }
-        if (!checkActivated(adaptyCallback)) return
-        adaptyInternal.setExternalAnalyticsEnabled(enabled, adaptyCallback)
-    }
-
-    @JvmStatic
-    public fun setTransactionVariationId(
-        transactionId: String,
+    public fun setVariationId(
+        forTransactionId: String,
         variationId: String,
-        adaptyCallback: (error: AdaptyError?) -> Unit
+        callback: ErrorCallback,
     ) {
-        Logger.logMethodCall { "setTransactionVariationId(transactionId = $transactionId, variationId = $variationId)" }
-        if (!checkActivated(adaptyCallback)) return
-        adaptyInternal.setTransactionVariationId(transactionId, variationId, adaptyCallback)
+        Logger.logMethodCall { "setVariationId(variationId = $variationId for transactionId = $forTransactionId)" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.setVariationId(forTransactionId, variationId, callback)
     }
 
     @JvmStatic
-    public fun logout(adaptyCallback: (error: AdaptyError?) -> Unit) {
+    public fun logout(callback: ErrorCallback) {
         Logger.logMethodCall { "logout()" }
-        if (!checkActivated(adaptyCallback)) return
-        adaptyInternal.logout(adaptyCallback)
+        if (!checkActivated(callback)) return
+        adaptyInternal.logout(callback)
     }
 
-    @Deprecated("The functionality is deprecated and will be removed in future releases.")
     @JvmStatic
-    public fun refreshPushToken(newToken: String) {
+    public fun setOnProfileUpdatedListener(onProfileUpdatedListener: OnProfileUpdatedListener?) {
         if (!checkActivated()) return
-        adaptyInternal.refreshPushToken(newToken)
-    }
-
-    @Deprecated("The functionality is deprecated and will be removed in future releases.")
-    @JvmStatic
-    public fun handlePromoIntent(
-        intent: Intent?,
-        adaptyCallback: (promo: PromoModel?, error: AdaptyError?) -> Unit
-    ): Boolean {
-        if (intent?.getStringExtra("source") != "adapty") {
-            return false
-        }
-        if (!isActivated) {
-            logNotInitializedError()
-            adaptyCallback.invoke(null, notInitializedError)
-            return false
-        }
-        adaptyInternal.handlePromoIntent(intent, adaptyCallback)
-        return true
-    }
-
-    @JvmStatic
-    public fun setOnPurchaserInfoUpdatedListener(onPurchaserInfoUpdatedListener: OnPurchaserInfoUpdatedListener?) {
-        if (!checkActivated()) return
-        adaptyInternal.onPurchaserInfoUpdatedListener = onPurchaserInfoUpdatedListener
-    }
-
-    @Deprecated("The functionality is deprecated and will be removed in future releases.")
-    @JvmStatic
-    public fun setOnPromoReceivedListener(onPromoReceivedListener: OnPromoReceivedListener?) {
-        if (!checkActivated()) return
-        adaptyInternal.onPromoReceivedListener = onPromoReceivedListener
-    }
-
-    @JvmStatic
-    public fun setOnPaywallsForConfigReceivedListener(onPaywallsForConfigReceivedListener: OnPaywallsForConfigReceivedListener?) {
-        if (!checkActivated()) return
-        adaptyInternal.onPaywallsForConfigReceivedListener = onPaywallsForConfigReceivedListener
-    }
-
-    @Deprecated("The functionality is deprecated and will be removed in future releases.")
-    @JvmStatic
-    public fun setVisualPaywallListener(visualPaywallListener: VisualPaywallListener?) {
-        if (!checkActivated()) return
-        adaptyInternal.setVisualPaywallListener(visualPaywallListener)
+        adaptyInternal.onProfileUpdatedListener = onProfileUpdatedListener
     }
 
     @JvmStatic
@@ -239,38 +170,31 @@ public object Adapty {
 
     @JvmStatic
     @JvmOverloads
-    public fun setFallbackPaywalls(
-        paywalls: String,
-        adaptyCallback: ((error: AdaptyError?) -> Unit)? = null
-    ) {
+    public fun setFallbackPaywalls(paywalls: String, callback: ErrorCallback? = null) {
         Logger.logMethodCall { "setFallbackPaywalls()" }
-        if (!checkActivated(adaptyCallback)) return
-        adaptyInternal.setFallbackPaywalls(paywalls, adaptyCallback)
+        if (!checkActivated(callback)) return
+        adaptyInternal.setFallbackPaywalls(paywalls, callback)
     }
 
-    @Deprecated("The functionality is deprecated and will be removed in future releases.")
     @JvmStatic
-    public fun showVisualPaywall(
-        activity: Activity,
-        paywall: PaywallModel,
+    @JvmOverloads
+    public fun logShowPaywall(paywall: AdaptyPaywall, callback: ErrorCallback? = null) {
+        Logger.logMethodCall { "logShowPaywall()" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.logShowPaywall(paywall, callback)
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    public fun logShowOnboarding(
+        name: String?,
+        screenName: String?,
+        @IntRange(from = 1) screenOrder: Int,
+        callback: ErrorCallback? = null,
     ) {
-        Logger.logMethodCall { "showVisualPaywall()" }
-        if (!checkActivated()) return
-        adaptyInternal.showVisualPaywall(activity, paywall)
-    }
-
-    @Deprecated("The functionality is deprecated and will be removed in future releases.")
-    @JvmStatic
-    public fun closeVisualPaywall() {
-        Logger.logMethodCall { "closeVisualPaywall()" }
-        if (!checkActivated()) return
-        adaptyInternal.closeVisualPaywall()
-    }
-
-    @JvmStatic
-    public fun logShowPaywall(paywall: PaywallModel) {
-        if (!checkActivated()) return
-        adaptyInternal.logShowPaywall(paywall)
+        Logger.logMethodCall { "logShowOnboarding()" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.logShowOnboarding(name, screenName, screenOrder, callback)
     }
 
     private val adaptyInternal: AdaptyInternal by inject()
@@ -300,10 +224,10 @@ public object Adapty {
         }
     }
 
-    private fun checkActivated(adaptyCallback: ((error: AdaptyError?) -> Unit)? = null): Boolean {
+    private fun checkActivated(callback: ErrorCallback? = null): Boolean {
         if (!isActivated) {
             logNotInitializedError()
-            adaptyCallback?.invoke(notInitializedError)
+            callback?.onResult(notInitializedError)
             return false
         }
         return true

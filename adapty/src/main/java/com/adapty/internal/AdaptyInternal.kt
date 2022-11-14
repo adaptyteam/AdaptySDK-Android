@@ -1,79 +1,44 @@
 package com.adapty.internal
 
 import android.app.Activity
-import android.content.Intent
 import androidx.annotation.RestrictTo
-import com.adapty.R
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode.*
 import com.adapty.internal.data.cloud.KinesisManager
-import com.adapty.internal.data.cloud.StoreManager
 import com.adapty.internal.domain.AuthInteractor
 import com.adapty.internal.domain.ProductsInteractor
-import com.adapty.internal.domain.PurchaserInteractor
+import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.domain.PurchasesInteractor
 import com.adapty.internal.utils.*
-import com.adapty.listeners.OnPaywallsForConfigReceivedListener
-import com.adapty.listeners.OnPromoReceivedListener
-import com.adapty.listeners.OnPurchaserInfoUpdatedListener
-import com.adapty.listeners.VisualPaywallListener
+import com.adapty.listeners.OnProfileUpdatedListener
 import com.adapty.models.*
-import com.adapty.utils.ProfileParameterBuilder
-import com.adapty.visual.VisualPaywallActivity
-import kotlinx.coroutines.flow.*
+import com.adapty.utils.AdaptyResult
+import com.adapty.utils.ErrorCallback
+import com.adapty.utils.ResultCallback
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.onEach
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class AdaptyInternal(
     private val authInteractor: AuthInteractor,
-    private val purchaserInteractor: PurchaserInteractor,
+    private val profileInteractor: ProfileInteractor,
     private val purchasesInteractor: PurchasesInteractor,
     private val productsInteractor: ProductsInteractor,
-    private val storeManager: StoreManager,
     private val kinesisManager: KinesisManager,
-    private val periodicRequestManager: AdaptyPeriodicRequestManager,
-    private val lifecycleManager: AdaptyLifecycleManager,
-    private val visualPaywallManager: VisualPaywallManager,
+    private val lifecycleAwareRequestRunner: LifecycleAwareRequestRunner,
+    private val lifecycleManager: LifecycleManager,
 ) {
 
     @get:JvmSynthetic
     @set:JvmSynthetic
-    var onPurchaserInfoUpdatedListener: OnPurchaserInfoUpdatedListener? = null
+    var onProfileUpdatedListener: OnProfileUpdatedListener? = null
         set(value) {
             execute {
-                purchaserInteractor
-                    .subscribeOnPurchaserInfoChanges()
+                profileInteractor
+                    .subscribeOnProfileChanges()
                     .catch { }
-                    .onEach { value?.onPurchaserInfoReceived(it) }
-                    .flowOnMain()
-                    .collect()
-            }
-            field = value
-        }
-
-    @get:JvmSynthetic
-    @set:JvmSynthetic
-    var onPromoReceivedListener: OnPromoReceivedListener? = null
-        set(value) {
-            execute {
-                purchaserInteractor
-                    .subscribeOnPromoChanges()
-                    .catch { }
-                    .onEach { value?.onPromoReceived(it) }
-                    .flowOnMain()
-                    .collect()
-            }
-            field = value
-        }
-
-    @get:JvmSynthetic
-    @set:JvmSynthetic
-    var onPaywallsForConfigReceivedListener: OnPaywallsForConfigReceivedListener? = null
-        set(value) {
-            execute {
-                productsInteractor
-                    .subscribeOnRemoteConfigDataChanges()
-                    .catch { }
-                    .onEach { value?.onPaywallsForConfigReceived(it) }
+                    .onEach { value?.onProfileReceived(it) }
                     .flowOnMain()
                     .collect()
             }
@@ -90,15 +55,14 @@ internal class AdaptyInternal(
 
 
     @JvmSynthetic
-    fun getPurchaserInfo(
-        forceUpdate: Boolean,
-        callback: (purchaserInfo: PurchaserInfoModel?, error: AdaptyError?) -> Unit
+    fun getProfile(
+        callback: ResultCallback<AdaptyProfile>
     ) {
         execute {
-            purchaserInteractor
-                .getPurchaserInfo(forceUpdate)
-                .catch { error -> callback(null, error.asAdaptyError()) }
-                .onEach { purchaserInfo -> callback(purchaserInfo, null) }
+            profileInteractor
+                .getProfile()
+                .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
+                .onEach { profile -> callback.onResult(AdaptyResult.Success(profile)) }
                 .flowOnMain()
                 .collect()
         }
@@ -106,14 +70,14 @@ internal class AdaptyInternal(
 
     @JvmSynthetic
     fun updateProfile(
-        params: ProfileParameterBuilder,
-        callback: (error: AdaptyError?) -> Unit
+        params: AdaptyProfileParameters,
+        callback: ErrorCallback
     ) {
         execute {
-            purchaserInteractor
+            profileInteractor
                 .updateProfile(params)
-                .catch { error -> callback.invoke(error.asAdaptyError()) }
-                .onEach { callback.invoke(null) }
+                .catch { error -> callback.onResult(error.asAdaptyError()) }
+                .onEach { callback.onResult(null) }
                 .flowOnMain()
                 .collect()
         }
@@ -122,25 +86,41 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun activate(
         customerUserId: String?,
-        callback: ((AdaptyError?) -> Unit)?
+        callback: ErrorCallback?
     ) {
         execute {
             authInteractor.prepareAuthDataToSync(customerUserId)
 
             authInteractor
                 .activateOrIdentify()
-                .catch { error -> callback?.invoke(error.asAdaptyError()); executeStartRequests() }
-                .onEach { callback?.invoke(null); executeStartRequests() }
+                .catch { error -> callback?.onResult(error.asAdaptyError()); executeStartRequests() }
+                .onEach { callback?.onResult(null); executeStartRequests() }
                 .flowOnMain()
+                .collect()
+        }
+        execute {
+            profileInteractor.getAnalyticsCredsOnStart()
+                .catch { }
+                .flowOnMain()
+                .collect()
+        }
+        execute { productsInteractor.getProductsOnStart().catch { }.collect() }
+        execute {
+            purchasesInteractor.syncPurchasesOnStart()
+                .catch { error ->
+                    if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
+                        profileInteractor.getProfileOnStart().catch { }.collect()
+                    }
+                }
                 .collect()
         }
     }
 
     @JvmSynthetic
-    fun identify(customerUserId: String, callback: (error: AdaptyError?) -> Unit) {
+    fun identify(customerUserId: String, callback: ErrorCallback) {
         if (customerUserId.isBlank()) {
             Logger.logError { "customerUserId should not be empty" }
-            callback.invoke(
+            callback.onResult(
                 AdaptyError(
                     message = "customerUserId should not be empty",
                     adaptyErrorCode = MISSING_PARAMETER
@@ -148,7 +128,7 @@ internal class AdaptyInternal(
             )
             return
         } else if (customerUserId == authInteractor.getCustomerUserId()) {
-            callback.invoke(null)
+            callback.onResult(null)
             return
         }
 
@@ -157,15 +137,18 @@ internal class AdaptyInternal(
 
             authInteractor
                 .activateOrIdentify()
-                .catch { error -> callback.invoke(error.asAdaptyError()); executeStartRequests() }
-                .onEach { callback.invoke(null); executeStartRequests() }
+                .catch { error -> callback.onResult(error.asAdaptyError()); executeStartRequests() }
+                .onEach { profileIdHasChanged ->
+                    callback.onResult(null)
+                    executeStartRequests(profileIdHasChanged)
+                }
                 .flowOnMain()
                 .collect()
         }
     }
 
     @JvmSynthetic
-    fun logout(callback: (error: AdaptyError?) -> Unit) {
+    fun logout(callback: ErrorCallback) {
         authInteractor.clearDataOnLogout()
         activate(null, callback)
     }
@@ -173,280 +156,157 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun makePurchase(
         activity: Activity,
-        product: ProductModel,
-        subscriptionUpdateParams: SubscriptionUpdateParamModel?,
-        callback: (purchaserInfo: PurchaserInfoModel?, purchaseToken: String?, googleValidationResult: GoogleValidationResult?, product: ProductModel, error: AdaptyError?) -> Unit
+        product: AdaptyPaywallProduct,
+        subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
+        callback: ResultCallback<AdaptyProfile?>
     ) {
 
-        val productId = product.vendorProductId
-        val purchaseType = product.skuDetails?.type
+        execute {
+            purchasesInteractor.makePurchase(activity, product, subscriptionUpdateParams)
+                .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
+                .onEach { profile -> callback.onResult(AdaptyResult.Success(profile)) }
+                .flowOnMain()
+                .collect()
+        }
+    }
 
-        if (purchaseType == null) {
-            callback.invoke(
-                null,
-                null,
-                null,
-                product,
+    @JvmSynthetic
+    fun restorePurchases(callback: ResultCallback<AdaptyProfile>) {
+        execute {
+            purchasesInteractor
+                .restorePurchases()
+                .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
+                .onEach { profile -> callback.onResult(AdaptyResult.Success(profile)) }
+                .flowOnMain()
+                .collect()
+        }
+    }
+
+    @JvmSynthetic
+    fun getPaywall(
+        id: String,
+        callback: ResultCallback<AdaptyPaywall>
+    ) {
+        execute {
+            productsInteractor
+                .getPaywall(id)
+                .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
+                .onEach { paywall -> callback.onResult(AdaptyResult.Success(paywall)) }
+                .flowOnMain()
+                .collect()
+        }
+    }
+
+    @JvmSynthetic
+    fun getPaywallProducts(
+        paywall: AdaptyPaywall,
+        callback: ResultCallback<List<AdaptyPaywallProduct>>
+    ) {
+        execute {
+            productsInteractor
+                .getPaywallProducts(paywall)
+                .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
+                .onEach { products -> callback.onResult(AdaptyResult.Success(products)) }
+                .flowOnMain()
+                .collect()
+        }
+    }
+
+    private fun executeStartRequests(newProfileIdDuringThisSession: Boolean = true) {
+        execute { profileInteractor.syncMetaOnStart().catch { }.collect() }
+
+        if (newProfileIdDuringThisSession) {
+            lifecycleAwareRequestRunner.restart()
+
+            execute {
+                purchasesInteractor.syncPurchasesIfNeeded()
+                    .catch { error ->
+                        if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
+                            profileInteractor.getProfileOnStart().catch { }.collect()
+                        }
+                    }
+                    .collect()
+            }
+        }
+
+        if (!isObserverMode) execute { purchasesInteractor.consumeAndAcknowledgeTheUnprocessed() }
+    }
+
+    @JvmSynthetic
+    fun setFallbackPaywalls(paywalls: String, callback: ErrorCallback?) {
+        productsInteractor.setFallbackPaywalls(paywalls).let { error -> callback?.onResult(error) }
+    }
+
+    @JvmSynthetic
+    fun logShowPaywall(paywall: AdaptyPaywall, callback: ErrorCallback?) {
+        kinesisManager.trackEvent(
+            "paywall_showed",
+            mapOf(
+                "variation_id" to paywall.variationId
+            ),
+            callback,
+        )
+    }
+
+    @JvmSynthetic
+    fun logShowOnboarding(
+        name: String?,
+        screenName: String?,
+        screenOrder: Int,
+        callback: ErrorCallback?,
+    ) {
+        if (screenOrder < 1) {
+            val errorMessage = "screenOrder must be greater than or equal to 1"
+            Logger.logError { errorMessage }
+            callback?.onResult(
                 AdaptyError(
-                    message = "Product type is null",
-                    adaptyErrorCode = MISSING_PARAMETER
+                    message = errorMessage,
+                    adaptyErrorCode = WRONG_PARAMETER
                 )
             )
             return
         }
 
-        storeManager.makePurchase(
-            activity,
-            productId,
-            purchaseType,
-            subscriptionUpdateParams
-        ) { purchase, error ->
-            when {
-                error?.adaptyErrorCode == ITEM_ALREADY_OWNED -> {
-                    storeManager.findActivePurchaseForProduct(productId, purchaseType)
-                        ?.let { purchase ->
-                            execute {
-                                (if (!purchase.isAcknowledged) {
-                                    storeManager.acknowledgePurchase(purchase, DEFAULT_RETRY_COUNT)
-                                } else {
-                                    flowOf(Unit)
-                                })
-                                    .flatMapConcat {
-                                        purchasesInteractor.validatePurchase(
-                                            purchaseType,
-                                            purchase,
-                                            product
-                                        )
-                                    }.catch {
-                                        callback.invoke(
-                                            null,
-                                            purchase.purchaseToken,
-                                            null,
-                                            product,
-                                            error
-                                        )
-                                    }.onEach { (purchaserInfo, validationResult) ->
-                                        callback.invoke(
-                                            purchaserInfo,
-                                            purchase.purchaseToken,
-                                            validationResult,
-                                            product,
-                                            null
-                                        )
-                                    }
-                                    .flowOnMain()
-                                    .collect()
-                            }
-                        } ?: callback.invoke(null, null, null, product, error)
-                }
-
-                error != null -> callback.invoke(null, null, null, product, error)
-
-                else -> {
-                    purchase?.let { purchase ->
-                        execute {
-                            purchasesInteractor.validatePurchase(purchaseType, purchase, product)
-                                .catch {
-                                    callback.invoke(
-                                        null,
-                                        purchase.purchaseToken,
-                                        null,
-                                        product,
-                                        error
-                                    )
-                                }
-                                .onEach { (purchaserInfo, validationResult) ->
-                                    callback.invoke(
-                                        purchaserInfo,
-                                        purchase.purchaseToken,
-                                        validationResult,
-                                        product,
-                                        null
-                                    )
-                                }
-                                .flowOnMain()
-                                .collect()
-                        }
-                    } ?: callback.invoke(null, null, null, product, null)
-                }
-            }
-        }
-    }
-
-    @JvmSynthetic
-    fun restorePurchases(callback: (purchaserInfo: PurchaserInfoModel?, googleValidationResultList: List<GoogleValidationResult>?, error: AdaptyError?) -> Unit) {
-        execute {
-            purchasesInteractor
-                .restorePurchases()
-                .catch { error ->
-                    callback.invoke(null, null, error.asAdaptyError())
-                }
-                .onEach { (purchaserInfo, validationResultList) ->
-                    callback.invoke(purchaserInfo, validationResultList, null)
-                }
-                .flowOnMain()
-                .collect()
-        }
-    }
-
-    @JvmSynthetic
-    fun getPaywalls(
-        forceUpdate: Boolean,
-        callback: (paywalls: List<PaywallModel>?, products: List<ProductModel>?, error: AdaptyError?) -> Unit
-    ) {
-        execute {
-            productsInteractor
-                .getPaywalls(forceUpdate)
-                .catch { error -> callback(null, null, error.asAdaptyError()) }
-                .onEach { (paywalls, products) -> callback(paywalls, products, null) }
-                .flowOnMain()
-                .collect()
-        }
-    }
-
-    private fun executeStartRequests() {
-        execute {
-            purchaserInteractor.syncMetaOnStart()
-                .onEach { periodicRequestManager.startPeriodicRequests() }.catch { }.flowOnMain()
-                .collect()
-        }
-        execute { productsInteractor.getPaywallsOnStart().catch { }.collect() }
-        execute { productsInteractor.getPromoOnStart().catch { }.collect() }
-        execute {
-            purchasesInteractor.syncPurchasesOnStart()
-                .catch { error ->
-                    if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
-                        purchaserInteractor.getPurchaserInfoOnStart().catch { }.collect()
-                    }
-                }
-                .collect()
-        }
-
-        purchaserInteractor.syncAttributions()
-        if (!isObserverMode) purchasesInteractor.consumeAndAcknowledgeTheUnprocessed()
-    }
-
-    @JvmSynthetic
-    fun getPromo(callback: (promo: PromoModel?, error: AdaptyError?) -> Unit) {
-        execute {
-            productsInteractor
-                .getPromo()
-                .catch { error -> callback(null, error.asAdaptyError()) }
-                .onEach { promo -> callback(promo, null) }
-                .flowOnMain()
-                .collect()
-        }
-    }
-
-    @JvmSynthetic
-    fun setFallbackPaywalls(paywalls: String, callback: ((error: AdaptyError?) -> Unit)?) {
-        productsInteractor.setFallbackPaywalls(paywalls).let { error -> callback?.invoke(error) }
-    }
-
-    @JvmSynthetic
-    fun showVisualPaywall(
-        activity: Activity,
-        paywall: PaywallModel
-    ) {
-        activity.runOnUiThread {
-            activity.startActivity(
-                Intent(activity, VisualPaywallActivity::class.java)
-                    .putExtra(VisualPaywallActivity.PAYWALL_ID_EXTRA, paywall.variationId)
-            )
-            activity.overridePendingTransition(
-                R.anim.adapty_paywall_slide_up,
-                R.anim.adapty_paywall_no_anim
-            )
-        }
-    }
-
-    @JvmSynthetic
-    fun closeVisualPaywall() {
-        visualPaywallManager.closePaywall()
-    }
-
-    @JvmSynthetic
-    fun setVisualPaywallListener(visualPaywallListener: VisualPaywallListener?) {
-        visualPaywallManager.listener = visualPaywallListener
-    }
-
-    @JvmSynthetic
-    fun handlePromoIntent(
-        intent: Intent,
-        adaptyCallback: (promo: PromoModel?, error: AdaptyError?) -> Unit
-    ) {
         kinesisManager.trackEvent(
-            "promo_push_opened",
-            mapOf("promo_delivery_id" to intent.getStringExtra("promo_delivery_id").orEmpty())
-        )
-        getPromo(adaptyCallback)
-    }
-
-    @JvmSynthetic
-    fun logShowPaywall(paywall: PaywallModel) {
-        kinesisManager.trackEvent(
-            "paywall_showed",
-            mapOf(
-                "is_promo" to "${paywall.isPromo}",
-                "variation_id" to paywall.variationId
-            )
+            "onboarding_screen_showed",
+            hashMapOf<String, Any>("onboarding_screen_order" to screenOrder)
+                .apply {
+                    name?.let { put("onboarding_name", name) }
+                    screenName?.let { put("onboarding_screen_name", screenName) }
+                },
+            callback,
         )
     }
 
     @JvmSynthetic
     fun updateAttribution(
         attribution: Any,
-        source: AttributionType,
+        source: AdaptyAttributionSource,
         networkUserId: String?,
-        callback: (error: AdaptyError?) -> Unit
+        callback: ErrorCallback
     ) {
         execute {
-            purchaserInteractor
+            profileInteractor
                 .updateAttribution(attribution, source, networkUserId)
-                .catch { error -> callback.invoke(error.asAdaptyError()) }
-                .onEach { callback.invoke(null) }
+                .catch { error -> callback.onResult(error.asAdaptyError()) }
+                .onEach { callback.onResult(null) }
                 .flowOnMain()
                 .collect()
         }
     }
 
     @JvmSynthetic
-    fun setTransactionVariationId(
+    fun setVariationId(
         transactionId: String,
         variationId: String,
-        callback: (error: AdaptyError?) -> Unit
+        callback: ErrorCallback
     ) {
         execute {
             purchasesInteractor
-                .setTransactionVariationId(transactionId, variationId)
-                .catch { error -> callback.invoke(error.asAdaptyError()) }
-                .onEach { callback.invoke(null) }
+                .setVariationId(transactionId, variationId)
+                .catch { error -> callback.onResult(error.asAdaptyError()) }
+                .onEach { callback.onResult(null) }
                 .flowOnMain()
-                .collect()
-        }
-    }
-
-    @JvmSynthetic
-    fun setExternalAnalyticsEnabled(
-        enabled: Boolean,
-        callback: (error: AdaptyError?) -> Unit
-    ) {
-        execute {
-            purchaserInteractor
-                .setExternalAnalyticsEnabled(enabled)
-                .catch { error -> callback.invoke(error.asAdaptyError()) }
-                .onEach { callback.invoke(null) }
-                .flowOnMain()
-                .collect()
-        }
-    }
-
-    @JvmSynthetic
-    fun refreshPushToken(newToken: String) {
-        execute {
-            purchaserInteractor
-                .refreshPushToken(newToken)
-                .catch { }
                 .collect()
         }
     }

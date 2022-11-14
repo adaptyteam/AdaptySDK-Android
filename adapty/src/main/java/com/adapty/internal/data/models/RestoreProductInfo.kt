@@ -1,7 +1,7 @@
 package com.adapty.internal.data.models
 
 import androidx.annotation.RestrictTo
-import com.adapty.models.ProductSubscriptionPeriodModel
+import com.adapty.models.AdaptyProductSubscriptionPeriod
 import com.google.gson.annotations.SerializedName
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -21,7 +21,7 @@ internal class RestoreProductInfo(
     @SerializedName("currencyCode")
     var currencyCode: String?,
     @SerializedName("subscriptionPeriod")
-    var subscriptionPeriod: ProductSubscriptionPeriodModel?,
+    var subscriptionPeriod: AdaptyProductSubscriptionPeriod?,
     @SerializedName("transaction_id")
     val transactionId: String?
 ) {

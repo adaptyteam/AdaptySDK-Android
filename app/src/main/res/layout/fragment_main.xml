@@ -20,54 +20,34 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <Button
-            android:id="@+id/get_purchaser_info"
+            android:id="@+id/get_profile"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Get Purchaser Info"
-            android:textAllCaps="false"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/restore_purchases"
-            app:layout_constraintWidth_percent="0.5" />
-
-        <Button
-            android:id="@+id/get_purchaser_info_force_update"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="(force update)"
-            android:textAllCaps="false"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/get_purchaser_info"
-            app:layout_constraintWidth_percent="0.5" />
-
-        <Button
-            android:id="@+id/get_paywalls"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="Get Paywalls"
-            android:textAllCaps="false"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/get_purchaser_info"
-            app:layout_constraintWidth_percent="0.5" />
-
-        <Button
-            android:id="@+id/get_paywalls_force_update"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="(force update)"
-            android:textAllCaps="false"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/get_paywalls"
-            app:layout_constraintWidth_percent="0.5" />
-
-        <Button
-            android:id="@+id/get_promo"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="Get Promo"
+            android:text="Get Profile"
             android:textAllCaps="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/get_paywalls" />
+            app:layout_constraintTop_toBottomOf="@id/restore_purchases" />
+
+        <EditText
+            android:id="@+id/paywall_id"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="5dp"
+            android:layout_marginRight="5dp"
+            android:hint="Paywall Id"
+            app:layout_constraintEnd_toStartOf="@+id/identify"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/get_profile" />
+
+        <Button
+            android:id="@+id/get_paywall_by_id"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Get Paywall"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/get_profile" />
 
         <Button
             android:id="@+id/update_profile"
@@ -77,7 +57,7 @@
             android:textAllCaps="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/get_promo" />
+            app:layout_constraintTop_toBottomOf="@id/get_paywall_by_id" />
 
         <Button
             android:id="@+id/update_custom_attribution"

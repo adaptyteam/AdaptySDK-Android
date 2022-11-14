@@ -22,12 +22,13 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
     ITEM_ALREADY_OWNED(107),
     ITEM_NOT_OWNED(108),
     NO_PURCHASES_TO_RESTORE(1004),
-    FALLBACK_PAYWALLS_NOT_REQUIRED(1008),
     AUTHENTICATION_ERROR(2002),
     BAD_REQUEST(2003),
     SERVER_ERROR(2004),
     REQUEST_FAILED(2005),
-    MISSING_PARAMETER(2007);
+    MISSING_PARAMETER(2007),
+    ANALYTICS_DISABLED(3000),
+    WRONG_PARAMETER(3001);
 
     internal companion object {
         @JvmSynthetic

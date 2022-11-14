@@ -3,9 +3,8 @@ package com.adapty.internal.domain
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
-import com.adapty.internal.utils.DEFAULT_RETRY_COUNT
-import com.adapty.internal.utils.flowOnIO
-import com.adapty.internal.utils.retryIfNecessary
+import com.adapty.internal.utils.*
+import com.adapty.models.AdaptyProfileParameters
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Semaphore
 
@@ -13,6 +12,8 @@ import kotlinx.coroutines.sync.Semaphore
 internal class AuthInteractor(
     private val cloudRepository: CloudRepository,
     private val cacheRepository: CacheRepository,
+    private val installationMetaCreator: InstallationMetaCreator,
+    private val adIdRetriever: AdIdRetriever,
 ) {
 
     @JvmSynthetic
@@ -24,10 +25,10 @@ internal class AuthInteractor(
 
     private val authSemaphore = Semaphore(1)
 
-    private suspend fun createProfileIfNeeded(): Flow<Unit> {
+    private suspend fun createProfileIfNeeded(): Flow<Boolean> {
         cacheRepository.getUnsyncedAuthData().let { (newProfileId, newCustomerUserId) ->
             if (newProfileId.isNullOrEmpty() && newCustomerUserId.isNullOrEmpty()) {
-                return flowOf(Unit)
+                return flowOf(false)
             }
         }
 
@@ -35,12 +36,20 @@ internal class AuthInteractor(
         val (newProfileId, newCustomerUserId) = cacheRepository.getUnsyncedAuthData()
         return if (newProfileId.isNullOrEmpty() && newCustomerUserId.isNullOrEmpty()) {
             authSemaphore.release()
-            flowOf(Unit)
+            flowOf(false)
         } else {
-            cloudRepository.createProfile(newCustomerUserId)
-                .map(cacheRepository::updateDataOnCreateProfile)
-                .onEach { authSemaphore.release() }
-                .catch { error -> authSemaphore.release(); throw error }
+            createInstallationMeta()
+                .flatMapConcat { installationMeta ->
+                    val params = cacheRepository.getExternalAnalyticsEnabled()?.let { enabled ->
+                        AdaptyProfileParameters.Builder().withExternalAnalyticsDisabled(!enabled).build()
+                    }
+                    cloudRepository.createProfile(newCustomerUserId, installationMeta, params)
+                        .map { attrs ->
+                            cacheRepository.updateDataOnCreateProfile(attrs, installationMeta)
+                        }
+                        .onEach { authSemaphore.release() }
+                        .catch { error -> authSemaphore.release(); throw error }
+                }
         }
     }
 
@@ -56,6 +65,10 @@ internal class AuthInteractor(
     @JvmSynthetic
     fun getCustomerUserId() =
         cacheRepository.getCustomerUserId()
+
+    @JvmSynthetic
+    fun createInstallationMeta() =
+        adIdRetriever.getAdIdIfAvailable().map { adId -> installationMetaCreator.create(adId) }
 
     @JvmSynthetic
     fun prepareAuthDataToSync(newCustomerUserId: String?) {

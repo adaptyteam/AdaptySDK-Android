@@ -5,13 +5,11 @@ import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.Fragment
 import com.adapty.Adapty
-import com.adapty.listeners.OnPromoReceivedListener
-import com.adapty.listeners.OnPurchaserInfoUpdatedListener
-import com.adapty.models.AttributionType
-import com.adapty.models.Date
-import com.adapty.models.PromoModel
-import com.adapty.models.PurchaserInfoModel
-import com.adapty.utils.ProfileParameterBuilder
+import com.adapty.listeners.OnProfileUpdatedListener
+import com.adapty.models.AdaptyAttributionSource
+import com.adapty.models.AdaptyProfile
+import com.adapty.models.AdaptyProfileParameters
+import com.adapty.utils.AdaptyResult
 import kotlinx.android.synthetic.main.fragment_main.*
 
 /**
@@ -33,77 +31,73 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         super.onViewCreated(view, savedInstanceState)
 
         restore_purchases.setOnClickListener {
-            Adapty.restorePurchases { purchaserInfo, googleValidationResultList, error ->
-                last_response_result.text =
-                    error?.let { "error:\n${error.message}" } ?: "Purchaser Info:\n$purchaserInfo\n\nValidationResults:\n$googleValidationResultList"
-            }
-        }
-
-        get_purchaser_info.setOnClickListener {
-            Adapty.getPurchaserInfo { purchaserInfo, error ->
-                last_response_result.text =
-                    error?.let { "error:\n${error.message}" }
-                        ?: "purchaser info: $purchaserInfo"
-            }
-        }
-
-        get_purchaser_info_force_update.setOnClickListener {
-            Adapty.getPurchaserInfo(forceUpdate = true) { purchaserInfo, error ->
-                last_response_result.text =
-                    error?.let { "error:\n${error.message}" }
-                        ?: "purchaser info: $purchaserInfo"
-            }
-        }
-
-        get_paywalls.setOnClickListener {
-            progressDialog.show()
-
-            Adapty.getPaywalls { paywalls, products, error ->
-                last_response_result.text =
-                    error?.let { "error:\n${error.message}" }
-                        ?: "Paywalls are fetched successfully"
-
-                progressDialog.hide()
-                paywalls?.let {
-                    (activity as? MainActivity)?.addFragment(
-                        PaywallListFragment.newInstance(paywalls),
-                        true
-                    )
+            Adapty.restorePurchases { result ->
+                last_response_result.text = when (result) {
+                    is AdaptyResult.Success -> "Profile:\n${result.value}"
+                    is AdaptyResult.Error -> "error:\n${result.error.message}"
                 }
             }
         }
 
-        get_paywalls_force_update.setOnClickListener {
-            progressDialog.show()
-
-            Adapty.getPaywalls(forceUpdate = true) { paywalls, products, error ->
+        get_profile.setOnClickListener {
+            Adapty.getProfile { result ->
                 last_response_result.text =
-                    error?.let { "error:\n${error.message}" }
-                        ?: "Paywalls are fetched successfully"
-
-                progressDialog.hide()
-                paywalls?.let {
-                    (activity as? MainActivity)?.addFragment(
-                        PaywallListFragment.newInstance(paywalls),
-                        true
-                    )
-                }
+                    when (result) {
+                        is AdaptyResult.Success -> {
+                            "profile: ${result.value}"
+                        }
+                        is AdaptyResult.Error -> {
+                            "error:\n${result.error.message}"
+                        }
+                    }
             }
         }
 
-        get_promo.setOnClickListener {
-            Adapty.getPromo { promo, error ->
-                last_response_result.text =
-                    error?.let { "error:\n${error.message}" }
-                        ?: "promo:\n$promo"
+        get_paywall_by_id.setOnClickListener {
+            progressDialog.show()
+
+            Adapty.getPaywall(paywall_id.text.toString()) { result ->
+                when (result) {
+                    is AdaptyResult.Success -> {
+                        val paywall = result.value
+                        Adapty.getPaywallProducts(paywall) { productResult ->
+                            progressDialog.cancel()
+
+                            when (productResult) {
+                                is AdaptyResult.Success -> {
+                                    last_response_result.text =
+                                        "Paywall: $paywall\n\nProducts: ${productResult.value}"
+
+                                    Adapty.logShowPaywall(paywall)
+
+                                    (activity as? MainActivity)?.addFragment(
+                                        ProductListFragment.newInstance(productResult.value),
+                                        true
+                                    )
+                                }
+                                is AdaptyResult.Error -> {
+                                    last_response_result.text =
+                                        "error:\n${productResult.error.message}"
+                                }
+                            }
+                        }
+                    }
+                    is AdaptyResult.Error -> {
+                        last_response_result.text = "error:\n${result.error.message}"
+                        progressDialog.cancel()
+                    }
+                }
             }
         }
 
         update_profile.setOnClickListener {
-            val params = ProfileParameterBuilder()
+            val params = AdaptyProfileParameters.Builder()
                 .withEmail("email@example.com")
-                .withBirthday(Date(1970, 1, 3))
-                .withCustomAttributes(mapOf("key1" to "test", "key2" to 5))
+                .withBirthday(AdaptyProfile.Date(1970, 1, 3))
+                .withCustomAttribute("key1", "test")
+                .withCustomAttribute("key3", 5.0)
+                .withRemovedCustomAttribute("key2")
+                .build()
 
             Adapty.updateProfile(params) { error ->
                 last_response_result.text = error?.let { "error:\n${error.message}" } ?: "Profile updated"
@@ -120,7 +114,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 "ad_set" to "adapty ad_set",
                 "creative" to "12312312312312"
             )
-            Adapty.updateAttribution(attribution, AttributionType.CUSTOM) { error ->
+            Adapty.updateAttribution(attribution, AdaptyAttributionSource.CUSTOM) { error ->
                 last_response_result.text = error?.message ?: "success"
             }
         }
@@ -137,15 +131,9 @@ class MainFragment : Fragment(R.layout.fragment_main) {
             }
         }
 
-        Adapty.setOnPurchaserInfoUpdatedListener(object : OnPurchaserInfoUpdatedListener {
-            override fun onPurchaserInfoReceived(purchaserInfo: PurchaserInfoModel) {
-                showToast("Updated purchase info:\n${purchaserInfo}")
-            }
-        })
-
-        Adapty.setOnPromoReceivedListener(object : OnPromoReceivedListener {
-            override fun onPromoReceived(promo: PromoModel) {
-                showToast("New promo received:\n${promo}")
+        Adapty.setOnProfileUpdatedListener(object : OnProfileUpdatedListener {
+            override fun onProfileReceived(profile: AdaptyProfile) {
+                showToast("Profile:\n${profile}")
             }
         })
     }

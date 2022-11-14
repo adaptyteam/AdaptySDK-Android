@@ -6,108 +6,78 @@ import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.*
 import com.adapty.internal.data.models.ProfileResponseData.Attributes
+import com.adapty.internal.data.models.responses.AnalyticsCredsResponse
+import com.adapty.internal.data.models.responses.PaywallResponse
 import com.adapty.internal.data.models.responses.PaywallsResponse
-import com.adapty.internal.data.models.responses.SyncMetaResponse
-import com.adapty.internal.utils.*
-import com.adapty.models.PaywallModel
-import com.adapty.models.PromoModel
-import com.adapty.models.PurchaserInfoModel
+import com.adapty.internal.data.models.responses.ProductsResponse
+import com.adapty.internal.utils.Logger
+import com.adapty.internal.utils.generateUuid
 import com.google.gson.Gson
-import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class CacheRepository(
     private val preferenceManager: PreferenceManager,
-    private val tokenRetriever: PushTokenRetriever,
-    private val paywallMapper: PaywallMapper,
-    private val productMapper: ProductMapper,
-    private val purchaserInfoMapper: PurchaserInfoMapper,
     private val gson: Gson,
 ) {
 
-    private val currentPurchaserInfo = MutableSharedFlow<PurchaserInfoModel>()
-    private val currentPromo = MutableSharedFlow<PromoModel>()
-    private val currentRemoteConfigData = MutableSharedFlow<List<PaywallModel>>()
+    private val currentProfile = MutableSharedFlow<Attributes>()
 
     private val cache = ConcurrentHashMap<String, Any>(32)
 
     @JvmSynthetic
-    @JvmField
-    val arePaywallsReceivedFromBackend = AtomicBoolean(false)
-
-    @JvmSynthetic
-    @JvmField
-    val canFallbackPaywallsBeSet = AtomicBoolean(true)
-
-    @JvmSynthetic
-    fun updateDataOnSyncMeta(attributes: SyncMetaResponse.Data.Attributes?) {
-        attributes?.let { attrs ->
-            attrs.iamAccessKeyId?.let(::saveIamAccessKeyId)
-            attrs.iamSecretKey?.let(::saveIamSecretKey)
-            attrs.iamSessionToken?.let(::saveIamSessionToken)
-        }
+    fun updateAnalyticsCreds(data: AnalyticsCredsResponse.Data?) {
+        data?.iamAccessKeyId?.let(::saveIamAccessKeyId)
+        data?.iamSecretKey?.let(::saveIamSecretKey)
+        data?.iamSessionToken?.let(::saveIamSessionToken)
     }
 
     @JvmSynthetic
-    suspend fun updateDataOnCreateProfile(attributes: Attributes?) {
-        attributes?.let { attrs ->
-            (attrs.profileId ?: (cache[UNSYNCED_PROFILE_ID] as? String))
-                ?.let(::onNewProfileIdReceived)
-            attrs.customerUserId?.let(::saveCustomerUserId)
-            savePurchaserInfo(purchaserInfoMapper.map(attrs))
+    suspend fun updateDataOnCreateProfile(
+        attrs: Attributes,
+        installationMeta: InstallationMeta,
+    ): Boolean {
+        var profileIdHasChanged = false
+        (attrs.profileId ?: (cache[UNSYNCED_PROFILE_ID] as? String))?.let { profileId ->
+            profileIdHasChanged = profileId != preferenceManager.getString(PROFILE_ID)
 
-            cache.remove(UNSYNCED_PROFILE_ID)
-            cache.remove(UNSYNCED_CUSTOMER_USER_ID)
+            if (profileIdHasChanged) onNewProfileIdReceived(profileId)
         }
+        attrs.customerUserId?.let(::saveCustomerUserId)
+        saveProfile(attrs)
+
+        cache.remove(UNSYNCED_PROFILE_ID)
+        cache.remove(UNSYNCED_CUSTOMER_USER_ID)
+        saveLastSentInstallationMeta(installationMeta)
+        return profileIdHasChanged
     }
 
     @JvmSynthetic
-    suspend fun updateOnPurchaserInfoReceived(
-        attrs: ContainsPurchaserInfo?,
+    suspend fun updateOnProfileReceived(
+        attrs: Attributes,
         profileIdWhenRequestSent: String?,
-    ): PurchaserInfoModel? {
+    ): Attributes {
         if (profileIdWhenRequestSent != null && getProfileId() != profileIdWhenRequestSent) {
-            return attrs?.let(purchaserInfoMapper::map)
+            return attrs
         }
 
-        attrs?.profileId?.takeIf { it != getProfileId() }?.let(::onNewProfileIdReceived)
-        return attrs?.let { savePurchaserInfo(purchaserInfoMapper.map(attrs)) }
+        return saveProfile(attrs)
     }
 
-    private suspend fun savePurchaserInfo(purchaserInfo: PurchaserInfoModel) =
-        purchaserInfo.also {
-            currentPurchaserInfo.emit(purchaserInfo)
-            saveData(PURCHASER_INFO, purchaserInfo)
+    private suspend fun saveProfile(profile: Attributes) =
+        profile.also {
+            currentProfile.emit(profile)
+            saveData(PROFILE, profile)
         }
 
     @JvmSynthetic
-    suspend fun setCurrentPromo(promo: PromoModel) =
-        promo.also { currentPromo.emit(promo) }
-
-    @JvmSynthetic
-    suspend fun setCurrentRemoteConfigData(remoteConfigs: List<PaywallModel>) {
-        currentRemoteConfigData.emit(remoteConfigs)
-    }
-
-    @JvmSynthetic
-    fun subscribeOnPurchaserInfoChanges() =
-        currentPurchaserInfo
-            .distinctUntilChanged()
-
-    @JvmSynthetic
-    fun subscribeOnPromoChanges() =
-        currentPromo
-            .distinctUntilChanged()
-
-    @JvmSynthetic
-    fun subscribeOnRemoteConfigDataChanges() =
-        currentRemoteConfigData
+    fun subscribeOnProfileChanges() =
+        currentProfile
             .distinctUntilChanged()
 
     @JvmSynthetic
@@ -129,14 +99,21 @@ internal class CacheRepository(
     }
 
     private fun onNewProfileIdReceived(newProfileId: String) {
-        clearCachedRequestData()
+        clearData(
+            containsKeys = setOf(
+                PROFILE,
+                SYNCED_PURCHASES,
+                PURCHASES_HAVE_BEEN_SYNCED,
+                APP_OPENED_TIME,
+                PRODUCT_RESPONSE,
+                PRODUCT_RESPONSE_HASH,
+                PROFILE_RESPONSE,
+                PROFILE_RESPONSE_HASH,
+            ),
+            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART),
+        )
         saveProfileId(newProfileId)
     }
-
-    @JvmSynthetic
-    fun getOrCreateMetaUUID() =
-        getInstallationMetaId()?.takeIf(String::isNotEmpty)
-            ?: generateUuid().also(::saveInstallationMetaId)
 
     @JvmSynthetic
     fun getCustomerUserId() = getString(CUSTOMER_USER_ID)
@@ -167,12 +144,45 @@ internal class CacheRepository(
         }
     }
 
+    private val installationMetaLock = ReentrantReadWriteLock()
+
     @JvmSynthetic
-    fun getInstallationMetaId() = getString(INSTALLATION_META_ID)
+    fun getInstallationMetaId(): String {
+        try {
+            installationMetaLock.readLock().lock()
+            val id = getString(INSTALLATION_META_ID)
+            if (!id.isNullOrEmpty()) {
+                return id
+            }
+        } finally {
+            installationMetaLock.readLock().unlock()
+        }
+
+        try {
+            installationMetaLock.writeLock().lock()
+            val id = getString(INSTALLATION_META_ID)
+            if (!id.isNullOrEmpty()) {
+                return id
+            }
+
+            return generateUuid().also(::saveInstallationMetaId)
+        } finally {
+            installationMetaLock.writeLock().unlock()
+        }
+    }
 
     private fun saveInstallationMetaId(installationMetaId: String) {
         cache[INSTALLATION_META_ID] = installationMetaId
         preferenceManager.saveString(INSTALLATION_META_ID, installationMetaId)
+    }
+
+    @JvmSynthetic
+    fun getInstallationMeta() =
+        getData(LAST_SENT_INSTALLATION_META, InstallationMeta::class.java)
+
+    @JvmSynthetic
+    fun saveLastSentInstallationMeta(installationMeta: InstallationMeta) {
+        saveData(LAST_SENT_INSTALLATION_META, installationMeta)
     }
 
     @JvmSynthetic
@@ -200,10 +210,23 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
+    fun getPurchasesHaveBeenSynced() =
+        cache.safeGetOrPut(
+            PURCHASES_HAVE_BEEN_SYNCED,
+            { preferenceManager.getBoolean(PURCHASES_HAVE_BEEN_SYNCED, false) }) as? Boolean
+            ?: false
+
+    @JvmSynthetic
+    fun setPurchasesHaveBeenSynced(synced: Boolean) {
+        cache[PURCHASES_HAVE_BEEN_SYNCED] = synced
+        preferenceManager.saveBoolean(PURCHASES_HAVE_BEEN_SYNCED, synced)
+    }
+
+    @JvmSynthetic
     fun getExternalAnalyticsEnabled() =
         cache.safeGetOrPut(
             EXTERNAL_ANALYTICS_ENABLED,
-            { preferenceManager.getBoolean(EXTERNAL_ANALYTICS_ENABLED, true) }) as? Boolean ?: true
+            { preferenceManager.getBoolean(EXTERNAL_ANALYTICS_ENABLED, null) }) as? Boolean
 
     @JvmSynthetic
     fun saveExternalAnalyticsEnabled(enabled: Boolean) {
@@ -212,141 +235,120 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
-    fun getPurchaserInfo() =
-        getData<PurchaserInfoModel>(PURCHASER_INFO, PurchaserInfoModel::class.java)
+    fun getLastAppOpenedTime() =
+        cache.safeGetOrPut(
+            APP_OPENED_TIME,
+            { preferenceManager.getLong(APP_OPENED_TIME, 0L) }) as? Long ?: 0L
 
     @JvmSynthetic
-    fun getContainers() = getData<ArrayList<PaywallsResponse.Data>>(CONTAINERS)
-
-    @JvmSynthetic
-    fun getPaywalls() = getContainers()?.let(paywallMapper::map)
-
-    @JvmSynthetic
-    fun getFallbackPaywalls() = (cache[FALLBACK_PAYWALLS] as? PaywallsResponse)?.let { fallback ->
-        Pair(fallback.data ?: arrayListOf(), fallback.meta?.products ?: arrayListOf())
+    fun saveLastAppOpenedTime(timeMillis: Long) {
+        cache[APP_OPENED_TIME] = timeMillis
+        preferenceManager.saveLong(APP_OPENED_TIME, timeMillis)
     }
 
     @JvmSynthetic
-    fun getProducts() = getData<ArrayList<ProductDto>>(PRODUCTS)
+    fun getProfile() =
+        getData(PROFILE, Attributes::class.java)
+
+    @JvmSynthetic
+    fun getFallbackPaywalls() = (cache[FALLBACK_PAYWALLS] as? PaywallsResponse)?.let { fallback ->
+        fallback.data.orEmpty() to fallback.meta?.products.orEmpty()
+    }
+
+    @JvmSynthetic
+    fun getProducts() =
+        try {
+            getString(ResponseCacheKeys.forGetProducts().responseKey)
+                ?.let { gson.fromJson(it, ProductsResponse::class.java).data }
+        } catch (e: Exception) {
+            null
+        }
 
     @JvmSynthetic
     fun getSyncedPurchases() =
-        getData<HashSet<SyncedPurchase>>(SYNCED_PURCHASES) ?: setOf()
+        getData<HashSet<SyncedPurchase>>(SYNCED_PURCHASES).orEmpty()
 
     @JvmSynthetic
-    fun saveSyncedPurchases(data: HashSet<SyncedPurchase>) {
+    fun saveSyncedPurchases(data: Set<SyncedPurchase>) {
         saveData(SYNCED_PURCHASES, data)
+    }
+
+    @JvmSynthetic
+    fun getValidateProductInfos() =
+        getData<HashSet<ValidateProductInfo>>(YET_UNPROCESSED_VALIDATE_PRODUCT_INFO)
+            ?: hashSetOf()
+
+    @JvmSynthetic
+    fun saveValidateProductInfo(validateProductInfo: ValidateProductInfo) {
+        saveData(
+            YET_UNPROCESSED_VALIDATE_PRODUCT_INFO,
+            setOf(validateProductInfo).union(getValidateProductInfos()),
+        )
+    }
+
+    @JvmSynthetic
+    fun deleteValidateProductInfo(validateProductInfo: ValidateProductInfo) {
+        getValidateProductInfos().let {
+            it.remove(validateProductInfo)
+            saveData(YET_UNPROCESSED_VALIDATE_PRODUCT_INFO, it)
+        }
     }
 
     @JvmSynthetic
     fun getKinesisRecords() = getData<ArrayList<AwsRecordModel>>(KINESIS_RECORDS) ?: arrayListOf()
 
     @JvmSynthetic
-    fun saveKinesisRecords(data: ArrayList<AwsRecordModel>) {
+    fun saveKinesisRecords(data: List<AwsRecordModel>) {
         saveData(KINESIS_RECORDS, data)
     }
 
-    @JvmSynthetic
-    fun getAttributionData(): MutableMap<String, AttributionData> =
-        getData<MutableMap<String, AttributionData>>(ATTRIBUTION_DATA) ?: mutableMapOf()
-
-    @JvmSynthetic
-    fun saveAttributionData(attributionData: AttributionData) {
-        attributionData.source.let { key ->
-            getAttributionData().let {
-                it[key] = attributionData
-                saveData(ATTRIBUTION_DATA, it)
-            }
+    fun getPaywall(id: String): PaywallDto? {
+        return try {
+            getString(ResponseCacheKeys.forGetPaywall(id).responseKey)
+                ?.let { gson.fromJson(it, PaywallResponse::class.java).data.attributes }
+        } catch (e: Exception) {
+            null
         }
     }
 
     @JvmSynthetic
-    fun deleteAttributionData(key: String?) {
-        key?.let {
-            getAttributionData().let {
-                it.remove(key)
-                saveData(ATTRIBUTION_DATA, it)
-            }
-        }
-    }
-
-    @JvmSynthetic
-    fun getPaywallsAndProducts() = Pair(getPaywalls(), getProducts()?.map(productMapper::map))
-
-    @JvmSynthetic
-    fun saveContainersAndProducts(
-        containers: ArrayList<PaywallsResponse.Data>?,
-        products: ArrayList<ProductDto>?
-    ) {
-        containers?.let {
-            cache[CONTAINERS] = it
-        } ?: cache.remove(CONTAINERS)
-        products?.let {
-            cache[PRODUCTS] = it
-        } ?: cache.remove(PRODUCTS)
-        preferenceManager.saveContainersAndProducts(containers, products)
-        arePaywallsReceivedFromBackend.set(true)
-    }
-
     fun saveFallbackPaywalls(paywalls: String): AdaptyError? =
-        if (canFallbackPaywallsBeSet.get() && getContainers() == null) {
-            try {
-                cache[FALLBACK_PAYWALLS] = gson.fromJson(paywalls, PaywallsResponse::class.java)
-                null
-            } catch (e: JsonSyntaxException) {
-                Logger.logError { "Couldn't set fallback paywalls. $e" }
-                AdaptyError(
-                    originalError = e,
-                    message = "Couldn't set fallback paywalls. Invalid JSON",
-                    adaptyErrorCode = AdaptyErrorCode.INVALID_JSON
-                )
-            }
-        } else {
-            val errorMessage = "Fallback paywalls are not required"
-            Logger.logError { errorMessage }
+        try {
+            cache[FALLBACK_PAYWALLS] = gson.fromJson(paywalls, PaywallsResponse::class.java)
+            null
+        } catch (e: Exception) {
+            Logger.logError { "Couldn't set fallback paywalls. $e" }
             AdaptyError(
-                message = errorMessage,
-                adaptyErrorCode = AdaptyErrorCode.FALLBACK_PAYWALLS_NOT_REQUIRED
+                originalError = e,
+                message = "Couldn't set fallback paywalls. Invalid JSON",
+                adaptyErrorCode = AdaptyErrorCode.INVALID_JSON
             )
         }
 
     @JvmSynthetic
     fun clearOnLogout() {
-        cache.apply {
-            remove(CUSTOMER_USER_ID)
-            remove(INSTALLATION_META_ID)
-            remove(PROFILE_ID)
-            remove(CONTAINERS)
-            remove(PRODUCTS)
-            remove(SYNCED_PURCHASES)
-            remove(PURCHASER_INFO)
-            remove(IAM_ACCESS_KEY_ID)
-            remove(IAM_SECRET_KEY)
-            remove(IAM_SESSION_TOKEN)
-        }
-        preferenceManager.clearOnLogout()
-        arePaywallsReceivedFromBackend.set(false)
+        clearData(
+            containsKeys = setOf(
+                CUSTOMER_USER_ID,
+                PROFILE_ID,
+                PROFILE,
+                SYNCED_PURCHASES,
+                PURCHASES_HAVE_BEEN_SYNCED,
+                APP_OPENED_TIME,
+                PRODUCT_RESPONSE,
+                PRODUCT_RESPONSE_HASH,
+                PROFILE_RESPONSE,
+                PROFILE_RESPONSE_HASH,
+            ),
+            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART),
+        )
     }
 
-    private fun clearCachedRequestData() {
-        cache.apply {
-            remove(UPDATE_PROFILE_REQUEST_KEY)
-            remove(UPDATE_ADJUST_REQUEST_KEY)
-            remove(UPDATE_APPSFLYER_REQUEST_KEY)
-            remove(UPDATE_BRANCH_REQUEST_KEY)
-            remove(UPDATE_CUSTOM_ATTRIBUTION_REQUEST_KEY)
-            remove(SYNC_META_REQUEST_KEY)
-        }
-        preferenceManager.clearCachedRequestData()
-    }
+    private fun clearData(containsKeys: Set<String>, startsWithKeys: Set<String>) {
+        val keysToRemove = preferenceManager.getKeysToRemove(containsKeys, startsWithKeys)
 
-    @JvmSynthetic
-    fun getPushToken() =
-        cache.safeGetOrPut(PUSH_TOKEN, { tokenRetriever.getTokenOrNull() }) as? String
-
-    @JvmSynthetic
-    fun savePushToken(token: String) {
-        cache[PUSH_TOKEN] = token
+        cache.apply { keysToRemove.forEach(::remove) }
+        preferenceManager.clearData(keysToRemove)
     }
 
     @get:JvmSynthetic

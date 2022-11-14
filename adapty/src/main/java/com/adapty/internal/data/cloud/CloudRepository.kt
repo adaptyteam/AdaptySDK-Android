@@ -3,7 +3,7 @@ package com.adapty.internal.data.cloud
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.*
 import com.adapty.internal.data.models.responses.*
-import com.adapty.utils.ProfileParameterBuilder
+import com.adapty.models.AdaptyProfileParameters
 import com.android.billingclient.api.Purchase
 import kotlinx.coroutines.flow.*
 
@@ -16,40 +16,51 @@ internal class CloudRepository(
     private val isActivateAllowed = MutableStateFlow(false)
 
     @JvmSynthetic
-    fun getPurchaserInfo(): Pair<ProfileResponseData.Attributes?, Request.CurrentDataWhenSent?> {
-        val request = requestFactory.getPurchaserInfoRequest()
+    fun getProfile(): Pair<ProfileResponseData.Attributes, Request.CurrentDataWhenSent?> {
+        val request = requestFactory.getProfileRequest()
         val response =
             httpClient.newCall(
                 request,
-                PurchaserInfoResponse::class.java
+                ProfileResponse::class.java
             )
         when (response) {
-            is Response.Success -> return response.body.data?.attributes to request.currentDataWhenSent
+            is Response.Success -> return response.body.data.attributes to request.currentDataWhenSent
             is Response.Error -> throw response.error
         }
     }
 
     @JvmSynthetic
-    fun getPaywalls(): Pair<ArrayList<PaywallsResponse.Data>, ArrayList<ProductDto>> {
+    fun getProducts(): List<ProductDto> {
         val response = httpClient.newCall(
-            requestFactory.getPaywallsRequest(),
-            PaywallsResponse::class.java
+            requestFactory.getProductsRequest(),
+            ProductsResponse::class.java
         )
         when (response) {
-            is Response.Success -> return Pair(
-                response.body.data ?: arrayListOf(),
-                response.body.meta?.products ?: arrayListOf()
-            )
+            is Response.Success -> return response.body.data.orEmpty()
             is Response.Error -> throw response.error
         }
     }
 
     @JvmSynthetic
-    fun getPromo(): PromoDto? {
-        val response =
-            httpClient.newCall(requestFactory.getPromoRequest(), PromoResponse::class.java)
+    fun getProductIds(): List<String> {
+        val response = httpClient.newCall(
+            requestFactory.getProductIdsRequest(),
+            ProductIdsResponse::class.java
+        )
         when (response) {
-            is Response.Success -> return response.body.data?.attributes
+            is Response.Success -> return response.body.data.orEmpty()
+            is Response.Error -> throw response.error
+        }
+    }
+
+    @JvmSynthetic
+    fun getPaywall(id: String): PaywallDto {
+        val response = httpClient.newCall(
+            requestFactory.getPaywallRequest(id),
+            PaywallResponse::class.java
+        )
+        when (response) {
+            is Response.Success -> return response.body.data.attributes
             is Response.Error -> throw response.error
         }
     }
@@ -57,14 +68,16 @@ internal class CloudRepository(
     @JvmSynthetic
     fun createProfile(
         customerUserId: String?,
-    ): Flow<ProfileResponseData.Attributes?> =
+        installationMeta: InstallationMeta,
+        params: AdaptyProfileParameters?,
+    ): Flow<ProfileResponseData.Attributes> =
         flow {
             val response = httpClient.newCall(
-                requestFactory.createProfileRequest(customerUserId),
-                PurchaserInfoResponse::class.java
+                requestFactory.createProfileRequest(customerUserId, installationMeta, params),
+                ProfileResponse::class.java
             )
             when (response) {
-                is Response.Success -> emit(response.body.data?.attributes)
+                is Response.Success -> emit(response.body.data.attributes)
                 is Response.Error -> throw response.error
             }
         }
@@ -74,11 +87,11 @@ internal class CloudRepository(
         purchaseType: String,
         purchase: Purchase,
         product: ValidateProductInfo?,
-    ): Pair<ValidateReceiptResponse, Request.CurrentDataWhenSent?> {
+    ): Pair<ProfileResponse, Request.CurrentDataWhenSent?> {
         val request = requestFactory.validatePurchaseRequest(purchaseType, purchase, product)
         val response = httpClient.newCall(
             request,
-            ValidateReceiptResponse::class.java
+            ProfileResponse::class.java
         )
         when (response) {
             is Response.Success -> return response.body to request.currentDataWhenSent
@@ -87,26 +100,23 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun syncMeta(
-        advertisingId: String?,
-        pushToken: String?
-    ): SyncMetaResponse.Data.Attributes? {
+    fun getAnalyticsCreds(): AnalyticsCredsResponse.Data? {
         val response = httpClient.newCall(
-            requestFactory.syncMetaInstallRequest(pushToken, advertisingId),
-            SyncMetaResponse::class.java
+            requestFactory.getAnalyticsCreds(),
+            AnalyticsCredsResponse::class.java
         )
         when (response) {
-            is Response.Success -> return response.body.data?.attributes
+            is Response.Success -> return response.body.data
             is Response.Error -> throw response.error
         }
     }
 
     @JvmSynthetic
-    fun restorePurchases(purchases: List<RestoreProductInfo>): Pair<RestoreReceiptResponse, Request.CurrentDataWhenSent?> {
+    fun restorePurchases(purchases: List<RestoreProductInfo>): Pair<ProfileResponse, Request.CurrentDataWhenSent?> {
         val request = requestFactory.restorePurchasesRequest(purchases)
         val response = httpClient.newCall(
             request,
-            RestoreReceiptResponse::class.java
+            ProfileResponse::class.java
         )
         when (response) {
             is Response.Success -> return response.body to request.currentDataWhenSent
@@ -115,15 +125,18 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun updateProfile(params: ProfileParameterBuilder): Pair<ProfileResponseData.Attributes?, Request.CurrentDataWhenSent?> {
-        val request = requestFactory.updateProfileRequest(params)
+    fun updateProfile(
+        params: AdaptyProfileParameters?,
+        installationMeta: InstallationMeta?,
+    ): Pair<ProfileResponseData.Attributes, Request.CurrentDataWhenSent?> {
+        val request = requestFactory.updateProfileRequest(params, installationMeta)
         val response =
             httpClient.newCall(
                 request,
-                PurchaserInfoResponse::class.java
+                ProfileResponse::class.java
             )
         when (response) {
-            is Response.Success -> return response.body.data?.attributes to request.currentDataWhenSent
+            is Response.Success -> return response.body.data.attributes to request.currentDataWhenSent
             is Response.Error -> throw response.error
         }
     }
@@ -138,18 +151,9 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun setTransactionVariationId(transactionId: String, variationId: String) {
+    fun setVariationId(transactionId: String, variationId: String) {
         val response = httpClient.newCall(
-            requestFactory.setTransactionVariationIdRequest(transactionId, variationId),
-            Any::class.java
-        )
-        processEmptyResponse(response)
-    }
-
-    @JvmSynthetic
-    fun setExternalAnalyticsEnabled(enabled: Boolean) {
-        val response = httpClient.newCall(
-            requestFactory.setExternalAnalyticsEnabledRequest(enabled),
+            requestFactory.setVariationIdRequest(transactionId, variationId),
             Any::class.java
         )
         processEmptyResponse(response)

@@ -8,19 +8,24 @@ internal class ResponseCacheKeys private constructor(
     val responseHashKey: String,
 ) {
     companion object {
-        fun forGetPurchaserInfo() = ResponseCacheKeys(
-            responseKey = "get_purchaser_info_response",
-            responseHashKey = "get_purchaser_info_response_hash"
+        fun forGetProfile() = ResponseCacheKeys(
+            responseKey = PROFILE_RESPONSE,
+            responseHashKey = PROFILE_RESPONSE_HASH
         )
 
-        fun forGetPaywalls() = ResponseCacheKeys(
-            responseKey = "get_paywalls_response",
-            responseHashKey = "get_paywalls_response_hash"
+        fun forGetProducts() = ResponseCacheKeys(
+            responseKey = PRODUCT_RESPONSE,
+            responseHashKey = PRODUCT_RESPONSE_HASH
         )
 
-        fun forGetPromo() = ResponseCacheKeys(
-            responseKey = "get_promo_response",
-            responseHashKey = "get_promo_response_hash"
+        fun forGetProductIds() = ResponseCacheKeys(
+            responseKey = PRODUCT_IDS_RESPONSE,
+            responseHashKey = PRODUCT_IDS_RESPONSE_HASH
+        )
+
+        fun forGetPaywall(id: String) = ResponseCacheKeys(
+            responseKey = "$PAYWALL_RESPONSE_START_PART${id}$PAYWALL_RESPONSE_END_PART",
+            responseHashKey = "$PAYWALL_RESPONSE_START_PART${id}$PAYWALL_RESPONSE_HASH_END_PART"
         )
     }
 }
