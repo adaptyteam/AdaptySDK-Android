@@ -12,6 +12,8 @@ public class AdaptyProfileParameters private constructor(
     public val amplitudeDeviceId: String?,
     public val appmetricaProfileId: String?,
     public val appmetricaDeviceId: String?,
+    public val oneSignalPlayerId: String?,
+    public val pushwooshHwid: String?,
     public val firstName: String?,
     public val lastName: String?,
     public val gender: String?,
@@ -31,6 +33,8 @@ public class AdaptyProfileParameters private constructor(
         private var amplitudeDeviceId: String? = null,
         private var appmetricaProfileId: String? = null,
         private var appmetricaDeviceId: String? = null,
+        private var oneSignalPlayerId: String? = null,
+        private var pushwooshHwid: String? = null,
         private var firstName: String? = null,
         private var lastName: String? = null,
         private var gender: String? = null,
@@ -78,6 +82,16 @@ public class AdaptyProfileParameters private constructor(
 
         public fun withAppmetricaDeviceId(appmetricaDeviceId: String?): Builder {
             this.appmetricaDeviceId = appmetricaDeviceId
+            return this
+        }
+
+        public fun withOneSignalPlayerId(oneSignalPlayerId: String?): Builder {
+            this.oneSignalPlayerId = oneSignalPlayerId
+            return this
+        }
+
+        public fun withPushwooshHwid(pushwooshHwid: String?): Builder {
+            this.pushwooshHwid = pushwooshHwid
             return this
         }
 
@@ -131,6 +145,8 @@ public class AdaptyProfileParameters private constructor(
                 this.amplitudeDeviceId,
                 this.appmetricaProfileId,
                 this.appmetricaDeviceId,
+                this.oneSignalPlayerId,
+                this.pushwooshHwid,
                 this.firstName,
                 this.lastName,
                 this.gender,
@@ -151,6 +167,8 @@ public class AdaptyProfileParameters private constructor(
                 params.amplitudeDeviceId,
                 params.appmetricaProfileId,
                 params.appmetricaDeviceId,
+                params.oneSignalPlayerId,
+                params.pushwooshHwid,
                 params.firstName,
                 params.lastName,
                 params.gender,

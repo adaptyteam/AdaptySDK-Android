@@ -30,8 +30,8 @@ internal class PaywallMapper(private val gson: Gson) {
         ),
         vendorProductIds = paywallDto.products.mapNotNull { it.vendorProductId }
             .immutableWithInterop(),
-        customPayloadString = paywallDto.customPayload,
-        customPayload = (try {
+        remoteConfigString = paywallDto.customPayload,
+        remoteConfig = (try {
             paywallDto.customPayload?.let { gson.fromJson<Map<String, Any>>(it, type) }
         } catch (e: Exception) {
             null

@@ -48,6 +48,10 @@ internal class CreateOrUpdateProfileRequest(
             private val appmetricaDeviceId: String?,
             @SerializedName("mixpanel_user_id")
             private val mixpanelUserId: String?,
+            @SerializedName("one_signal_player_id")
+            private val oneSignalPlayerId: String?,
+            @SerializedName("pushwoosh_hwid")
+            private val pushwooshHwid: String?,
             @SerializedName("analytics_disabled")
             private val analyticsDisabled: Boolean?,
             @SerializedName("custom_attributes")
@@ -70,6 +74,8 @@ internal class CreateOrUpdateProfileRequest(
                     amplitudeDeviceId = updateProfileParams?.amplitudeDeviceId,
                     appmetricaProfileId = updateProfileParams?.appmetricaProfileId,
                     appmetricaDeviceId = updateProfileParams?.appmetricaDeviceId,
+                    oneSignalPlayerId = updateProfileParams?.oneSignalPlayerId,
+                    pushwooshHwid = updateProfileParams?.pushwooshHwid,
                     firstName = updateProfileParams?.firstName,
                     lastName = updateProfileParams?.lastName,
                     gender = updateProfileParams?.gender,
