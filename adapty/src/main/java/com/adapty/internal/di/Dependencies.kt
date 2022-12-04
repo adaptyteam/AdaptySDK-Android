@@ -22,8 +22,6 @@ import kotlin.LazyThreadSafetyMode.NONE
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal object Dependencies {
-    private lateinit var appContext: Context
-
     internal inline fun <reified T> inject(named: String? = null) = lazy(NONE) {
         injectInternal<T>(named)
     }
@@ -43,9 +41,7 @@ internal object Dependencies {
     ): Map<String?, DIObject<T>> = mapOf(null to DIObject(initializer, initType))
 
     @JvmSynthetic
-    internal fun init(context: Context) {
-        appContext = context
-
+    internal fun init(appContext: Context, apiKey: String) {
         map.putAll(
             listOf(
                 Gson::class.java to singleVariantDiObject({
@@ -83,12 +79,10 @@ internal object Dependencies {
                         BaseHttpClient(
                             injectInternal(),
                             injectInternal(),
-                            injectInternal(),
                         )
                     }),
                     KINESIS to DIObject({
                         BaseHttpClient(
-                            injectInternal(named = KINESIS),
                             injectInternal(named = KINESIS),
                             injectInternal(named = KINESIS),
                         )
@@ -107,10 +101,10 @@ internal object Dependencies {
 
                 NetworkConnectionCreator::class.java to mapOf(
                     null to DIObject({
-                        DefaultConnectionCreator(injectInternal())
+                        DefaultConnectionCreator(injectInternal(), apiKey)
                     }),
                     KINESIS to DIObject({
-                        KinesisConnectionCreator(injectInternal())
+                        KinesisConnectionCreator(injectInternal(), injectInternal())
                     }),
                 ),
 
@@ -119,14 +113,12 @@ internal object Dependencies {
                         DefaultHttpResponseManager(
                             injectInternal(),
                             injectInternal(),
-                            injectInternal(),
                         )
                     }),
                     KINESIS to DIObject({
                         DefaultHttpResponseManager(
                             injectInternal(named = KINESIS),
                             injectInternal(),
-                            injectInternal(named = KINESIS),
                         )
                     }),
                 ),
@@ -137,15 +129,6 @@ internal object Dependencies {
                     }),
                     KINESIS to DIObject({
                         KinesisResponseBodyConverter(injectInternal())
-                    }),
-                ),
-
-                NetworkLogger::class.java to mapOf(
-                    null to DIObject({
-                        DefaultNetworkLogger()
-                    }),
-                    KINESIS to DIObject({
-                        KinesisNetworkLogger()
                     }),
                 ),
 
@@ -176,6 +159,8 @@ internal object Dependencies {
 
                 CurrencyHelper::class.java to singleVariantDiObject({ CurrencyHelper() }),
 
+                HashingHelper::class.java to singleVariantDiObject({ HashingHelper() }),
+
                 PaywallMapper::class.java to singleVariantDiObject({
                     PaywallMapper(injectInternal())
                 }),
@@ -195,7 +180,6 @@ internal object Dependencies {
                 StoreManager::class.java to singleVariantDiObject({
                     StoreManager(
                         appContext,
-                        injectInternal(),
                         injectInternal(),
                     )
                 }),
@@ -250,7 +234,13 @@ internal object Dependencies {
                 }),
 
                 AuthInteractor::class.java to singleVariantDiObject({
-                    AuthInteractor(injectInternal(), injectInternal(), injectInternal(), injectInternal())
+                    AuthInteractor(
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal()
+                    )
                 }),
 
                 AdaptyInternal::class.java to singleVariantDiObject({

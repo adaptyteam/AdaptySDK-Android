@@ -1,11 +1,11 @@
 package com.adapty.internal.domain.models
 
 import androidx.annotation.RestrictTo
+import com.adapty.models.AdaptyEligibility
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class Product(
     val vendorProductId: String,
-    val introductoryOfferEligibility: Boolean?,
+    val introductoryOfferEligibility: AdaptyEligibility,
     val timestamp: Long,
-    val source: Source,
 )

@@ -36,7 +36,10 @@ internal class ProductsInteractor(
                 .map { cloudRepository.getPaywall(id) }
         }
             .flattenConcat()
-            .map { paywall -> paywallMapper.map(paywall) }
+            .map { paywall ->
+                val products = productMapper.map(paywall.products, Source.CLOUD)
+                paywallMapper.map(paywall, products)
+            }
             .catch { error ->
                 if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
                     val cachedPaywall = cacheRepository.getPaywall(id)
@@ -44,7 +47,18 @@ internal class ProductsInteractor(
                             ?.firstOrNull { it.attributes?.developerId == id }?.attributes
                     val chosenPaywall =
                         paywallPicker.pick(cachedPaywall, fallbackPaywall) ?: throw error
-                    emit(paywallMapper.map(chosenPaywall))
+
+                    val productsFromCachedPaywall =
+                        productMapper.map(cachedPaywall?.products.orEmpty(), Source.CACHE)
+                    val productsFromFallbackPaywall =
+                        productMapper.map(fallbackPaywall?.products.orEmpty(), Source.FALLBACK)
+
+                    val chosenProducts = productPicker.pick(
+                        productsFromCachedPaywall,
+                        productsFromFallbackPaywall,
+                        chosenPaywall.products.mapNotNullTo(mutableSetOf()) { it.vendorProductId },
+                    )
+                    emit(paywallMapper.map(chosenPaywall, chosenProducts))
                 } else {
                     throw error
                 }
@@ -57,8 +71,7 @@ internal class ProductsInteractor(
             purchasesInteractor
                 .syncPurchasesIfNeeded()
                 .map {
-                    cloudRepository.getProducts()
-                        .map { productDto -> productMapper.map(productDto, Source.CLOUD) }
+                    productMapper.map(cloudRepository.getProducts(), Source.CLOUD)
                 }
         }.flattenConcat().map { allProducts ->
             allProducts.filter { product -> product.vendorProductId in paywall.vendorProductIds }
@@ -70,10 +83,8 @@ internal class ProductsInteractor(
         }.catch { error ->
             if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
                 val products = productPicker.pick(
-                    cacheRepository.getProducts().orEmpty()
-                        .map { productDto -> productMapper.map(productDto, Source.CACHE) },
-                    cacheRepository.getFallbackPaywalls()?.second.orEmpty()
-                        .map { productDto -> productMapper.map(productDto, Source.FALLBACK) },
+                    productMapper.map(cacheRepository.getProducts().orEmpty(), Source.CACHE),
+                    productMapper.map(cacheRepository.getFallbackPaywalls()?.second.orEmpty(), Source.FALLBACK),
                     paywall.vendorProductIds.toSet(),
                 )
 
@@ -97,7 +108,7 @@ internal class ProductsInteractor(
         cloudRepository.onActivateAllowed()
             .mapLatest { cloudRepository.getProductIds() }
             .retryIfNecessary(INFINITE_RETRY)
-            .flatMapConcat { productIds -> storeManager.getProductStoreData(productIds, INFINITE_RETRY) }
+            .flatMapConcat { productIds -> storeManager.querySkuDetails(productIds, INFINITE_RETRY) }
             .flowOnIO()
 
     @JvmSynthetic
@@ -109,6 +120,11 @@ internal class ProductsInteractor(
         maxAttemptCount: Long,
     ) : Flow<Map<String, ProductStoreData>> {
         val productIds = products.map { it.vendorProductId }.distinct()
-        return storeManager.getProductStoreData(productIds, maxAttemptCount)
+        return storeManager.querySkuDetails(productIds, maxAttemptCount)
+            .map { skuDetailsList ->
+                skuDetailsList.associate { skuDetails ->
+                    skuDetails.sku to productMapper.mapBillingInfoToProductStoreData(skuDetails)
+                }
+            }
     }
 }

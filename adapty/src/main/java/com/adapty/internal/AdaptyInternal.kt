@@ -12,6 +12,7 @@ import com.adapty.internal.domain.PurchasesInteractor
 import com.adapty.internal.utils.*
 import com.adapty.listeners.OnProfileUpdatedListener
 import com.adapty.models.*
+import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyResult
 import com.adapty.utils.ErrorCallback
 import com.adapty.utils.ResultCallback
@@ -49,7 +50,7 @@ internal class AdaptyInternal(
 
     fun init(appKey: String, observerMode: Boolean) {
         isObserverMode = observerMode
-        authInteractor.saveAppKey(appKey)
+        authInteractor.handleAppKey(appKey)
         lifecycleManager.init()
     }
 
@@ -119,7 +120,7 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun identify(customerUserId: String, callback: ErrorCallback) {
         if (customerUserId.isBlank()) {
-            Logger.logError { "customerUserId should not be empty" }
+            Logger.log(ERROR) { "customerUserId should not be empty" }
             callback.onResult(
                 AdaptyError(
                     message = "customerUserId should not be empty",
@@ -257,7 +258,7 @@ internal class AdaptyInternal(
     ) {
         if (screenOrder < 1) {
             val errorMessage = "screenOrder must be greater than or equal to 1"
-            Logger.logError { errorMessage }
+            Logger.log(ERROR) { errorMessage }
             callback?.onResult(
                 AdaptyError(
                     message = errorMessage,

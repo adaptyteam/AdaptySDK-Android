@@ -53,12 +53,21 @@ internal class ProductMapper(
             currencySymbol = productStoreData.currencySymbol,
             subscriptionPeriod = productStoreData.subscriptionPeriod,
             localizedSubscriptionPeriod = productStoreData.subscriptionPeriod?.let(::getLocalizedSubscriptionPeriod),
-            introductoryOfferEligibility = mapIntroductoryOfferEligibility(product),
+            introductoryOfferEligibility = product.introductoryOfferEligibility,
             introductoryDiscount = productStoreData.introductoryDiscount?.let(::mapProductDiscount),
             freeTrialPeriod = productStoreData.freeTrialPeriod,
             localizedFreeTrialPeriod = productStoreData.freeTrialPeriod?.let(::getLocalizedSubscriptionPeriod),
             skuDetails = productStoreData.skuDetails,
+            timestamp = product.timestamp,
+            payloadData = AdaptyPaywallProduct.Payload(
+                productStoreData.skuDetails.priceAmountMicros,
+                productStoreData.skuDetails.type,
+            )
         )
+
+    @JvmSynthetic
+    fun map(productDtos: List<ProductDto>, source: Source) =
+        productDtos.map { productDto -> map(productDto, source) }
 
     @JvmSynthetic
     fun map(productDto: ProductDto, source: Source) =
@@ -67,9 +76,8 @@ internal class ProductMapper(
                 message = "vendorProductId in Product should not be null",
                 adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
             ),
-            introductoryOfferEligibility = productDto.introductoryOfferEligibility,
+            introductoryOfferEligibility = mapIntroductoryOfferEligibility(productDto, source),
             timestamp = productDto.timestamp ?: 0L,
-            source = source,
         )
 
     @JvmSynthetic
@@ -101,12 +109,22 @@ internal class ProductMapper(
         )
 
     @JvmSynthetic
-    fun mapToValidate(product: AdaptyPaywallProduct) =
+    fun mapToMakePurchase(product: AdaptyPaywallProduct) =
+        MakePurchaseProductInfo(
+            vendorProductId = product.vendorProductId,
+            type = product.payloadData.type,
+            priceAmountMicros = product.payloadData.priceAmountMicros,
+            currencyCode = product.currencyCode,
+            variationId = product.variationId,
+        )
+
+    @JvmSynthetic
+    fun mapToValidate(product: MakePurchaseProductInfo) =
         ValidateProductInfo(
             vendorProductId = product.vendorProductId,
-            variationId = product.variationId,
+            originalPrice = formatPrice(product.priceAmountMicros),
             priceLocale = product.currencyCode,
-            originalPrice = formatPrice(product.skuDetails.priceAmountMicros)
+            variationId = product.variationId,
         )
 
     @JvmSynthetic
@@ -134,14 +152,14 @@ internal class ProductMapper(
             purchaseTime = historyRecord.purchase.purchaseTime,
         )
 
-    private fun mapIntroductoryOfferEligibility(product: Product) =
+    private fun mapIntroductoryOfferEligibility(productDto: ProductDto, source: Source) =
         when {
-            product.introductoryOfferEligibility == null || product.source == Source.FALLBACK -> UNKNOWN
-            product.introductoryOfferEligibility == true -> ELIGIBLE
+            productDto.introductoryOfferEligibility == null || source == Source.FALLBACK -> UNKNOWN
+            productDto.introductoryOfferEligibility == true -> ELIGIBLE
             else -> INELIGIBLE
         }
 
-    private fun mapSubscriptionPeriod(period: String) : AdaptyProductSubscriptionPeriod {
+    private fun mapSubscriptionPeriod(period: String): AdaptyProductSubscriptionPeriod {
         val unit = getPeriodUnit(period)
         val numberOfUnits = getPeriodNumberOfUnits(period)
 

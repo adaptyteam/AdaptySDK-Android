@@ -4,6 +4,7 @@ import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.PaywallDto
+import com.adapty.internal.domain.models.Product
 import com.adapty.models.AdaptyPaywall
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -16,7 +17,7 @@ internal class PaywallMapper(private val gson: Gson) {
     }
 
     @JvmSynthetic
-    fun map(paywallDto: PaywallDto) = AdaptyPaywall(
+    fun map(paywallDto: PaywallDto, products: List<Product>) = AdaptyPaywall(
         id = paywallDto.developerId ?: throw AdaptyError(
             message = "id in Paywall should not be null",
             adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
@@ -28,13 +29,13 @@ internal class PaywallMapper(private val gson: Gson) {
             message = "variationId in Paywall should not be null",
             adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
         ),
-        vendorProductIds = paywallDto.products.mapNotNull { it.vendorProductId }
-            .immutableWithInterop(),
         remoteConfigString = paywallDto.customPayload,
         remoteConfig = (try {
             paywallDto.customPayload?.let { gson.fromJson<Map<String, Any>>(it, type) }
         } catch (e: Exception) {
             null
         })?.immutableWithInterop(),
+        products = products,
+        updatedAt = paywallDto.updatedAt ?: 0L,
     )
 }

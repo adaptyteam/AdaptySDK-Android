@@ -1,18 +1,24 @@
 package com.adapty.models
 
+import com.adapty.internal.domain.models.Product
+import com.adapty.internal.utils.immutableWithInterop
 import com.adapty.utils.ImmutableList
 import com.adapty.utils.ImmutableMap
 
-public class AdaptyPaywall(
+public class AdaptyPaywall internal constructor(
     public val id: String,
     public val name: String,
     public val abTestName: String,
     public val revision: Int,
     public val variationId: String,
-    public val vendorProductIds: ImmutableList<String>,
     public val remoteConfigString: String?,
     public val remoteConfig: ImmutableMap<String, Any>?,
+    private val products: List<Product>,
+    private val updatedAt: Long,
 ) {
+
+    public val vendorProductIds: ImmutableList<String> get() =
+        products.map { it.vendorProductId }.immutableWithInterop()
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -45,6 +51,6 @@ public class AdaptyPaywall(
     }
 
     override fun toString(): String {
-        return "AdaptyPaywall(id=$id, name=$name, abTestName=$abTestName, revision=$revision, variationId=$variationId, vendorProductIds=$vendorProductIds, remoteConfigString=$remoteConfigString, remoteConfig=$remoteConfig)"
+        return "AdaptyPaywall(id=$id, name=$name, abTestName=$abTestName, revision=$revision, variationId=$variationId, vendorProductIds=$vendorProductIds, remoteConfig=$remoteConfig)"
     }
 }

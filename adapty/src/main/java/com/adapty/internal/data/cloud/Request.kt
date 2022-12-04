@@ -165,7 +165,7 @@ internal class RequestFactory(
     fun validatePurchaseRequest(
         purchaseType: String,
         purchase: Purchase,
-        product: ValidateProductInfo?
+        product: ValidateProductInfo,
     ) = cacheRepository.getProfileId().let { profileId ->
         buildRequest {
             method = POST

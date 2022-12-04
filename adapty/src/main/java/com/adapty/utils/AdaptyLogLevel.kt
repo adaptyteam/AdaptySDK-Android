@@ -1,6 +1,9 @@
 package com.adapty.utils
 
-public class AdaptyLogLevel private constructor(@JvmField @JvmSynthetic internal val value: Int) {
+public class AdaptyLogLevel private constructor(
+    private val name: String,
+    @JvmField @JvmSynthetic internal val value: Int
+) {
 
     public companion object {
 
@@ -8,74 +11,35 @@ public class AdaptyLogLevel private constructor(@JvmField @JvmSynthetic internal
          * No logs
          */
         @JvmField
-        public val NONE: AdaptyLogLevel = AdaptyLogLevel(0)
+        public val NONE: AdaptyLogLevel = AdaptyLogLevel("NONE", 0b0)
 
         /**
-         * Logging errors
+         * Only errors will be logged
          */
         @JvmField
-        public val ERROR: AdaptyLogLevel = AdaptyLogLevel(1)
+        public val ERROR: AdaptyLogLevel = AdaptyLogLevel("ERROR", 0b1)
 
         /**
-         * Logging network requests
+         * [ERROR] + messages from the SDK that do not cause critical errors,
+         * but are worth paying attention to
          */
         @JvmField
-        public val REQUESTS: AdaptyLogLevel = AdaptyLogLevel(2)
+        public val WARN: AdaptyLogLevel = AdaptyLogLevel("WARN", 0b11)
 
         /**
-         * Logging successful network responses
+         * [WARN] + information messages, such as those that log the lifecycle of various modules
          */
         @JvmField
-        public val RESPONSES: AdaptyLogLevel = AdaptyLogLevel(4)
+        public val INFO: AdaptyLogLevel = AdaptyLogLevel("INFO", 0b111)
 
         /**
-         * Logging public method calls
+         * [INFO] + any additional information such as function calls, API queries, etc.
          */
         @JvmField
-        public val PUBLIC_METHOD_CALLS: AdaptyLogLevel = AdaptyLogLevel(8)
-
-        /**
-         * Debug log level
-         *
-         * Including requests, successful responses and public method calls
-         *
-         * Excluding errors and analytics
-         */
-        @JvmField
-        public val DEBUG: AdaptyLogLevel = REQUESTS + RESPONSES + PUBLIC_METHOD_CALLS
-
-        /**
-         * Verbose log level
-         *
-         * Including [DEBUG] and [ERROR] log levels
-         *
-         * Excluding analytics
-         */
-        @JvmField
-        public val VERBOSE: AdaptyLogLevel = DEBUG + ERROR
-
-        /**
-         * Logging analytics
-         */
-        @JvmField
-        public val ANALYTICS: AdaptyLogLevel = AdaptyLogLevel(16)
-
-        /**
-         * All logs
-         */
-        @JvmField
-        public val ALL: AdaptyLogLevel = VERBOSE + ANALYTICS
+        public val VERBOSE: AdaptyLogLevel = AdaptyLogLevel("VERBOSE", 0b1111)
     }
 
-    /**
-     * Adds [other] log level to this
-     */
-    @JvmName("with")
-    public operator fun plus(other: AdaptyLogLevel): AdaptyLogLevel = AdaptyLogLevel(value or other.value)
-
-    /**
-     * Excludes [other] log level from this
-     */
-    @JvmName("without")
-    public operator fun minus(other: AdaptyLogLevel): AdaptyLogLevel = AdaptyLogLevel(value and other.value.inv())
+    override fun toString(): String {
+        return name
+    }
 }

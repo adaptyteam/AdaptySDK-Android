@@ -5,10 +5,10 @@ import android.content.Context
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.data.models.ProductStoreData
 import com.adapty.internal.data.models.PurchaseHistoryRecordModel
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptySubscriptionUpdateParameters
+import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.android.billingclient.api.*
 import com.android.billingclient.api.BillingClient.BillingResponseCode.*
 import com.android.billingclient.api.BillingClient.SkuType.INAPP
@@ -24,7 +24,6 @@ import kotlin.coroutines.resumeWithException
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class StoreManager(
     context: Context,
-    private val productMapper: ProductMapper,
     private val prorationModeMapper: ProrationModeMapper,
 ) : PurchasesUpdatedListener {
 
@@ -37,21 +36,6 @@ internal class StoreManager(
     private val storeHelper = StoreHelper(billingClient)
 
     private var makePurchaseCallback: MakePurchaseCallback? = null
-
-    @JvmSynthetic
-    fun getProductStoreData(
-        productIds: List<String>,
-        maxAttemptCount: Long,
-    ): Flow<Map<String, ProductStoreData>> =
-        querySkuDetails(
-            productIds,
-            maxAttemptCount
-        )
-            .map { fullSkuList ->
-                fullSkuList.associate { skuDetails ->
-                    skuDetails.sku to productMapper.mapBillingInfoToProductStoreData(skuDetails)
-                }
-            }
 
     @JvmSynthetic
     fun getPurchaseHistoryDataToRestore(maxAttemptCount: Long): Flow<List<PurchaseHistoryRecordModel>> =
@@ -112,14 +96,13 @@ internal class StoreManager(
         ArrayList(list1).apply { addAll(list2) }
 
     private fun onError(
-        purchase: Purchase?,
         billingResult: BillingResult,
         callback: MakePurchaseCallback?
     ) {
-        val message = "Play Market request failed: ${billingResult.debugMessage}"
-        Logger.logError { message }
+        val message = storeHelper.errorMessageFromBillingResult(billingResult, "on purchases updated")
+        Logger.log(ERROR) { message }
         callback?.invoke(
-            purchase, AdaptyError(
+            null, AdaptyError(
                 message = message,
                 adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)
             )
@@ -127,14 +110,13 @@ internal class StoreManager(
     }
 
     private fun onError(
-        purchase: Purchase?,
         error: Throwable,
         callback: MakePurchaseCallback?
     ) {
-        val message = error.message ?: "Play Market request failed"
-        Logger.logError { message }
+        val message = error.message ?: error.localizedMessage ?: "Unknown billing error occured"
+        Logger.log(ERROR) { message }
         callback?.invoke(
-            purchase,
+            null,
             (error as? AdaptyError) ?: AdaptyError(
                 originalError = error,
                 message = message,
@@ -176,7 +158,7 @@ internal class StoreManager(
                 )
             }
             else -> {
-                onError(null, billingResult, makePurchaseCallback)
+                onError(billingResult, makePurchaseCallback)
             }
         }
     }
@@ -185,18 +167,9 @@ internal class StoreManager(
     fun postProcess(purchase: Purchase) =
         when {
             purchase.isAcknowledged -> flowOf(Unit)
-            else -> (when(productsToPurchaseSkuType[purchase.skus.firstOrNull().orEmpty()]) {
+            else -> when (productsToPurchaseSkuType[purchase.skus.firstOrNull().orEmpty()]) {
                 INAPP -> consumePurchase(purchase, maxAttemptCount = DEFAULT_RETRY_COUNT)
                 else -> acknowledgePurchase(purchase, maxAttemptCount = DEFAULT_RETRY_COUNT)
-            }).map { billingResult ->
-                if (billingResult.responseCode != OK) {
-                    val message = "Play Market request failed: ${billingResult.debugMessage}"
-                    Logger.logError { message }
-                    throw AdaptyError(
-                        message = message,
-                        adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)
-                    )
-                }
             }
         }
 
@@ -230,7 +203,7 @@ internal class StoreManager(
                 }
             }
                 .flowOnIO()
-                .catch { error -> onError(null, error, callback) }
+                .catch { error -> onError(error, callback) }
                 .onEach { (skuDetailsList, billingFlowSubUpdateParams) ->
                     skuDetailsList.firstOrNull { it.sku == productId }?.let { skuDetails ->
                         productsToPurchaseSkuType[productId] = purchaseType
@@ -275,7 +248,7 @@ internal class StoreManager(
                     .build()
             }
             ?: "Can't launch flow to change subscription. Either subscription to change is inactive, or it was purchased from different Google account or from iOS".let { errorMessage ->
-                Logger.logError { errorMessage }
+                Logger.log(ERROR) { errorMessage }
                 throw AdaptyError(
                     message = errorMessage,
                     adaptyErrorCode = AdaptyErrorCode.CURRENT_SUBSCRIPTION_TO_UPDATE_NOT_FOUND_IN_HISTORY
@@ -378,20 +351,30 @@ internal class StoreManager(
 
     private fun <T> Flow<T>.retryOnConnectionError(maxAttemptCount: Long = INFINITE_RETRY): Flow<T> =
         this.retryWhen { error, attempt ->
-            if (error.isRetryable() && (maxAttemptCount !in 0..attempt)) {
+            if (canRetry(error, attempt, maxAttemptCount)) {
                 delay(2000)
                 return@retryWhen true
             } else {
+                Logger.log(ERROR) {
+                    error.message ?: error.localizedMessage ?: "Unknown billing error occured"
+                }
                 return@retryWhen false
             }
         }
 
-    private fun Throwable.isRetryable() =
-        this !is AdaptyError || this.originalError is IOException || this.adaptyErrorCode in arrayOf(
-            AdaptyErrorCode.BILLING_SERVICE_DISCONNECTED,
-            AdaptyErrorCode.BILLING_SERVICE_UNAVAILABLE,
-            AdaptyErrorCode.BILLING_SERVICE_TIMEOUT
-        )
+    private fun canRetry(error: Throwable, attempt: Long, maxAttemptCount: Long): Boolean {
+        return when {
+            maxAttemptCount in 0..attempt -> false
+            error !is AdaptyError || error.originalError is IOException || error.adaptyErrorCode in arrayOf(
+                AdaptyErrorCode.BILLING_SERVICE_DISCONNECTED,
+                AdaptyErrorCode.BILLING_SERVICE_UNAVAILABLE,
+                AdaptyErrorCode.BILLING_SERVICE_TIMEOUT
+            ) -> true
+            error.adaptyErrorCode == AdaptyErrorCode.BILLING_ERROR
+                    && ((maxAttemptCount.takeIf { it in 0..DEFAULT_RETRY_COUNT } ?: DEFAULT_RETRY_COUNT) > attempt) -> true
+            else -> false
+        }
+    }
 }
 
 private class StoreHelper(private val billingClient: BillingClient) {
@@ -405,7 +388,7 @@ private class StoreHelper(private val billingClient: BillingClient) {
                     skuDetailsResult.skuDetailsList.orEmpty()
                 )
             } else {
-                throwException(skuDetailsResult.billingResult)
+                throwException(skuDetailsResult.billingResult, "on query product details")
             }
         }
 
@@ -416,7 +399,7 @@ private class StoreHelper(private val billingClient: BillingClient) {
             if (purchaseHistoryResult.billingResult.responseCode == OK) {
                 emit(purchaseHistoryResult.purchaseHistoryRecordList.orEmpty())
             } else {
-                throwException(purchaseHistoryResult.billingResult)
+                throwException(purchaseHistoryResult.billingResult, "on query history")
             }
         }
 
@@ -433,9 +416,9 @@ private class StoreHelper(private val billingClient: BillingClient) {
         flow {
             val result = billingClient.acknowledgePurchase(params)
             if (result.responseCode == OK) {
-                emit(result)
+                emit(Unit)
             } else {
-                throwException(result)
+                throwException(result, "on acknowledge")
             }
         }
 
@@ -444,15 +427,22 @@ private class StoreHelper(private val billingClient: BillingClient) {
         flow {
             val result = billingClient.consumePurchase(params).billingResult
             if (result.responseCode == OK) {
-                emit(result)
+                emit(Unit)
             } else {
-                throwException(result)
+                throwException(result, "on consume")
             }
         }
 
-    private fun throwException(billingResult: BillingResult) {
+    @JvmSynthetic
+    fun errorMessageFromBillingResult(billingResult: BillingResult, where: String) =
+        "Play Market request failed $where: responseCode=${billingResult.responseCode}${
+            billingResult.debugMessage.takeIf(String::isNotEmpty)?.let { msg -> ", debugMessage=$msg" }.orEmpty()
+        }"
+
+    private fun throwException(billingResult: BillingResult, where: String) {
+        val message = errorMessageFromBillingResult(billingResult, where)
         throw AdaptyError(
-            message = "Play Market request failed: ${billingResult.debugMessage}",
+            message = message,
             adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)
         )
     }

@@ -14,10 +14,9 @@ import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.Logger
 import com.adapty.listeners.OnProfileUpdatedListener
 import com.adapty.models.*
-import com.adapty.utils.AdaptyLogLevel
-import com.adapty.utils.AdaptyResult
-import com.adapty.utils.ErrorCallback
-import com.adapty.utils.ResultCallback
+import com.adapty.utils.*
+import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
+import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 public object Adapty {
@@ -30,14 +29,14 @@ public object Adapty {
         observerMode: Boolean = false,
         customerUserId: String? = null,
     ) {
-        Logger.logMethodCall { "activate($appKey, ${customerUserId.orEmpty()})" }
+        Logger.log(VERBOSE) { "activate(customerUserId = $customerUserId)" }
 
         require(appKey.isNotBlank()) { "Public SDK key must not be empty." }
         require(context.applicationContext is Application) { "Application context must be provided." }
         require(context.checkCallingOrSelfPermission(Manifest.permission.INTERNET) == PackageManager.PERMISSION_GRANTED) { "INTERNET permission must be granted." }
 
         if (isActivated) {
-            Logger.logError { "Adapty was already activated. If you want to provide new customerUserId, please call 'identify' function instead." }
+            Logger.log(ERROR) { "Adapty was already activated. If you want to provide new customerUserId, please call 'identify' function instead." }
             return
         }
 
@@ -47,21 +46,21 @@ public object Adapty {
 
     @JvmStatic
     public fun identify(customerUserId: String, callback: ErrorCallback) {
-        Logger.logMethodCall { "identify($customerUserId)" }
+        Logger.log(VERBOSE) { "identify($customerUserId)" }
         if (!checkActivated(callback)) return
         adaptyInternal.identify(customerUserId, callback)
     }
 
     @JvmStatic
     public fun updateProfile(params: AdaptyProfileParameters, callback: ErrorCallback) {
-        Logger.logMethodCall { "updateProfile()" }
+        Logger.log(VERBOSE) { "updateProfile()" }
         if (!checkActivated(callback)) return
         adaptyInternal.updateProfile(params, callback)
     }
 
     @JvmStatic
     public fun getProfile(callback: ResultCallback<AdaptyProfile>) {
-        Logger.logMethodCall { "getProfile()" }
+        Logger.log(VERBOSE) { "getProfile()" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
@@ -72,7 +71,7 @@ public object Adapty {
 
     @JvmStatic
     public fun getPaywall(id: String, callback: ResultCallback<AdaptyPaywall>) {
-        Logger.logMethodCall { "getPaywall(id = $id)" }
+        Logger.log(VERBOSE) { "getPaywall(id = $id)" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
@@ -86,7 +85,7 @@ public object Adapty {
         paywall: AdaptyPaywall,
         callback: ResultCallback<List<AdaptyPaywallProduct>>,
     ) {
-        Logger.logMethodCall { "getPaywallProducts(id = ${paywall.id})" }
+        Logger.log(VERBOSE) { "getPaywallProducts(id = ${paywall.id})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
@@ -103,7 +102,7 @@ public object Adapty {
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters? = null,
         callback: ResultCallback<AdaptyProfile?>,
     ) {
-        Logger.logMethodCall { "makePurchase(vendorProductId = ${product.vendorProductId}${subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; prorationMode = ${it.prorationMode}" }.orEmpty()})" }
+        Logger.log(VERBOSE) { "makePurchase(vendorProductId = ${product.vendorProductId}${subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; prorationMode = ${it.prorationMode}" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
@@ -114,7 +113,7 @@ public object Adapty {
 
     @JvmStatic
     public fun restorePurchases(callback: ResultCallback<AdaptyProfile>) {
-        Logger.logMethodCall { "restorePurchases()" }
+        Logger.log(VERBOSE) { "restorePurchases()" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
@@ -131,7 +130,7 @@ public object Adapty {
         networkUserId: String? = null,
         callback: ErrorCallback,
     ) {
-        Logger.logMethodCall { "updateAttribution(source = $source)" }
+        Logger.log(VERBOSE) { "updateAttribution(source = $source)" }
         if (BuildConfig.DEBUG && source == AdaptyAttributionSource.APPSFLYER) {
             require(networkUserId != null) { "networkUserId is required for AppsFlyer attribution, otherwise we won't be able to send specific events." }
         }
@@ -145,14 +144,14 @@ public object Adapty {
         variationId: String,
         callback: ErrorCallback,
     ) {
-        Logger.logMethodCall { "setVariationId(variationId = $variationId for transactionId = $forTransactionId)" }
+        Logger.log(VERBOSE) { "setVariationId(variationId = $variationId for transactionId = $forTransactionId)" }
         if (!checkActivated(callback)) return
         adaptyInternal.setVariationId(forTransactionId, variationId, callback)
     }
 
     @JvmStatic
     public fun logout(callback: ErrorCallback) {
-        Logger.logMethodCall { "logout()" }
+        Logger.log(VERBOSE) { "logout()" }
         if (!checkActivated(callback)) return
         adaptyInternal.logout(callback)
     }
@@ -164,14 +163,21 @@ public object Adapty {
     }
 
     @JvmStatic
-    public fun setLogLevel(logLevel: AdaptyLogLevel) {
-        Logger.logLevel = logLevel.value
+    public var logLevel: AdaptyLogLevel
+        get() = Logger.logLevel
+        set(value) {
+            Logger.logLevel = value
+        }
+
+    @JvmStatic
+    public fun setLogHandler(logHandler: AdaptyLogHandler) {
+        Logger.logHandler = logHandler
     }
 
     @JvmStatic
     @JvmOverloads
     public fun setFallbackPaywalls(paywalls: String, callback: ErrorCallback? = null) {
-        Logger.logMethodCall { "setFallbackPaywalls()" }
+        Logger.log(VERBOSE) { "setFallbackPaywalls()" }
         if (!checkActivated(callback)) return
         adaptyInternal.setFallbackPaywalls(paywalls, callback)
     }
@@ -179,7 +185,7 @@ public object Adapty {
     @JvmStatic
     @JvmOverloads
     public fun logShowPaywall(paywall: AdaptyPaywall, callback: ErrorCallback? = null) {
-        Logger.logMethodCall { "logShowPaywall()" }
+        Logger.log(VERBOSE) { "logShowPaywall()" }
         if (!checkActivated(callback)) return
         adaptyInternal.logShowPaywall(paywall, callback)
     }
@@ -192,7 +198,7 @@ public object Adapty {
         @IntRange(from = 1) screenOrder: Int,
         callback: ErrorCallback? = null,
     ) {
-        Logger.logMethodCall { "logShowOnboarding()" }
+        Logger.log(VERBOSE) { "logShowOnboarding()" }
         if (!checkActivated(callback)) return
         adaptyInternal.logShowOnboarding(name, screenName, screenOrder, callback)
     }
@@ -216,7 +222,7 @@ public object Adapty {
     private fun init(context: Context, appKey: String, observerMode: Boolean) {
         try {
             lock.writeLock().lock()
-            Dependencies.init(context.applicationContext)
+            Dependencies.init(context.applicationContext, appKey)
             adaptyInternal.init(appKey, observerMode)
             isActivated = true
         } finally {
@@ -234,6 +240,6 @@ public object Adapty {
     }
 
     private fun logNotInitializedError() {
-        Logger.logError { "${notInitializedError.message}" }
+        Logger.log(ERROR) { "${notInitializedError.message}" }
     }
 }

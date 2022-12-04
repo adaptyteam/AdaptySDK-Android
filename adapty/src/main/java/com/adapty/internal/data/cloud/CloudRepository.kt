@@ -86,7 +86,7 @@ internal class CloudRepository(
     fun validatePurchase(
         purchaseType: String,
         purchase: Purchase,
-        product: ValidateProductInfo?,
+        product: ValidateProductInfo,
     ): Pair<ProfileResponse, Request.CurrentDataWhenSent?> {
         val request = requestFactory.validatePurchaseRequest(purchaseType, purchase, product)
         val response = httpClient.newCall(

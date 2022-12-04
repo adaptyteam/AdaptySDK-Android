@@ -3,7 +3,7 @@ package com.adapty.models
 import com.android.billingclient.api.SkuDetails
 import java.math.BigDecimal
 
-public class AdaptyPaywallProduct(
+public class AdaptyPaywallProduct internal constructor(
     public val vendorProductId: String,
     public val localizedTitle: String,
     public val localizedDescription: String,
@@ -21,6 +21,8 @@ public class AdaptyPaywallProduct(
     public val freeTrialPeriod: AdaptyProductSubscriptionPeriod?,
     public val localizedFreeTrialPeriod: String?,
     public val skuDetails: SkuDetails,
+    private val timestamp: Long,
+    @get:JvmSynthetic internal val payloadData: Payload,
 ) {
 
     override fun equals(other: Any?): Boolean {
@@ -70,4 +72,6 @@ public class AdaptyPaywallProduct(
     override fun toString(): String {
         return "AdaptyPaywallProduct(vendorProductId=$vendorProductId, localizedTitle=$localizedTitle, localizedDescription=$localizedDescription, paywallName=$paywallName, paywallABTestName=$paywallABTestName, variationId=$variationId, price=$price, localizedPrice=$localizedPrice, currencyCode=$currencyCode, currencySymbol=$currencySymbol, subscriptionPeriod=$subscriptionPeriod, localizedSubscriptionPeriod=$localizedSubscriptionPeriod, introductoryOfferEligibility=$introductoryOfferEligibility, introductoryDiscount=$introductoryDiscount, freeTrialPeriod=$freeTrialPeriod, localizedFreeTrialPeriod=$localizedFreeTrialPeriod, skuDetails=$skuDetails)"
     }
+
+    internal class Payload internal constructor(@get:JvmSynthetic val priceAmountMicros: Long, @get:JvmSynthetic val type: String)
 }

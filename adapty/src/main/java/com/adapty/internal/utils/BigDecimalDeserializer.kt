@@ -7,7 +7,6 @@ import java.math.BigDecimal
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class BigDecimalDeserializer : JsonDeserializer<BigDecimal> {
-    @Throws(JsonParseException::class)
     override fun deserialize(
         jsonElement: JsonElement,
         type: Type?,

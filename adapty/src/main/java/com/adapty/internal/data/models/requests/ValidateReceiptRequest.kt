@@ -32,7 +32,7 @@ internal class ValidateReceiptRequest(
             @SerializedName("transaction_id")
             private val transactionId: String?,
             @SerializedName("variation_id")
-            private val variationId: String?,
+            private val variationId: String,
             @SerializedName("price_locale")
             private val priceLocale: String?,
             @SerializedName("original_price")
@@ -44,7 +44,7 @@ internal class ValidateReceiptRequest(
         fun create(
             id: String,
             purchase: Purchase,
-            product: ValidateProductInfo?,
+            product: ValidateProductInfo,
             purchaseType: String
         ) =
             ValidateReceiptRequest(
@@ -56,9 +56,9 @@ internal class ValidateReceiptRequest(
                         purchaseToken = purchase.purchaseToken,
                         isSubscription = purchaseType == BillingClient.SkuType.SUBS,
                         transactionId = purchase.orderId,
-                        variationId = product?.variationId,
-                        priceLocale = product?.priceLocale,
-                        originalPrice = product?.originalPrice,
+                        variationId = product.variationId,
+                        priceLocale = product.priceLocale,
+                        originalPrice = product.originalPrice,
                     )
                 )
             )

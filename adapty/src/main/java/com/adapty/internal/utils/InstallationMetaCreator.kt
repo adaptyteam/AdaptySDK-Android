@@ -33,7 +33,9 @@ internal class InstallationMetaCreator(
             appBuild = appBuild,
             appVersion = appVersion,
             device = cacheRepository.deviceName,
-            locale = getCurrentLocale(appContext)?.let { "${it.language}_${it.country}" },
+            locale = getCurrentLocale(appContext)?.let { locale ->
+                if (locale.country.isNullOrEmpty()) locale.language else "${locale.language}-${locale.country}"
+            },
             os = Build.VERSION.RELEASE,
             platform = "Android",
             timezone = TimeZone.getDefault().id,

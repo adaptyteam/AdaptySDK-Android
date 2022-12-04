@@ -5,6 +5,7 @@ import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyProfileParameters
+import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Semaphore
 
@@ -14,6 +15,7 @@ internal class AuthInteractor(
     private val cacheRepository: CacheRepository,
     private val installationMetaCreator: InstallationMetaCreator,
     private val adIdRetriever: AdIdRetriever,
+    private val hashingHelper: HashingHelper,
 ) {
 
     @JvmSynthetic
@@ -59,8 +61,14 @@ internal class AuthInteractor(
     }
 
     @JvmSynthetic
-    fun saveAppKey(appKey: String) =
-        cacheRepository.saveAppKey(appKey)
+    fun handleAppKey(appKey: String) {
+        val keyHash = hashingHelper.sha256(appKey)
+        if (keyHash != cacheRepository.getAppKey()) {
+            Logger.log(VERBOSE) { "changing apiKeyHash = $keyHash" }
+            cacheRepository.clearOnAppKeyChanged()
+            cacheRepository.saveAppKey(keyHash)
+        }
+    }
 
     @JvmSynthetic
     fun getCustomerUserId() =

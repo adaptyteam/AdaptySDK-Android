@@ -8,6 +8,7 @@ import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.models.AwsRecordModel
 import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.utils.*
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.adapty.utils.ErrorCallback
 import com.google.android.gms.common.util.Base64Utils
 import com.google.gson.Gson
@@ -45,11 +46,11 @@ internal class KinesisManager(
                             }
                             .catch { error ->
                                 if (error is ExternalAnalyticsDisabledException) {
-                                    val errorMessage = "We can't handle analytics events, since you've opted it out."
-                                    Logger.logAnalytics { errorMessage }
+                                    val message = "We can't handle analytics events, since you've opted it out."
+                                    Logger.log(WARN) { message }
                                     callback.onResult(
                                         AdaptyError(
-                                            message = errorMessage,
+                                            message = message,
                                             adaptyErrorCode = ANALYTICS_DISABLED
                                         )
                                     )

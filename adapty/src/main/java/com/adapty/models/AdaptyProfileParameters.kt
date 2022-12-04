@@ -131,7 +131,7 @@ public class AdaptyProfileParameters private constructor(
         }
 
         public fun withRemovedCustomAttribute(key: String): Builder {
-            customAttributes.remove(key)
+            customAttributes[key] = null
             return this
         }
 

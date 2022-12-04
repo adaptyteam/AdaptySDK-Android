@@ -12,6 +12,7 @@ import com.adapty.internal.data.models.responses.PaywallsResponse
 import com.adapty.internal.data.models.responses.ProductsResponse
 import com.adapty.internal.utils.Logger
 import com.adapty.internal.utils.generateUuid
+import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -81,11 +82,10 @@ internal class CacheRepository(
             .distinctUntilChanged()
 
     @JvmSynthetic
-    fun getAppKey() = getString(APP_KEY)
+    fun getAppKey() = preferenceManager.getString(APP_KEY)
 
     @JvmSynthetic
     fun saveAppKey(appKey: String) {
-        cache[APP_KEY] = appKey
         preferenceManager.saveString(APP_KEY, appKey)
     }
 
@@ -186,27 +186,24 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
-    fun getIamSessionToken() = getString(IAM_SESSION_TOKEN)
+    fun getIamSessionToken() = cache[IAM_SESSION_TOKEN] as? String
 
     private fun saveIamSessionToken(iamSessionToken: String) {
         cache[IAM_SESSION_TOKEN] = iamSessionToken
-        preferenceManager.saveString(IAM_SESSION_TOKEN, iamSessionToken)
     }
 
     @JvmSynthetic
-    fun getIamSecretKey() = getString(IAM_SECRET_KEY)
+    fun getIamSecretKey() = cache[IAM_SECRET_KEY] as? String
 
     private fun saveIamSecretKey(iamSecretKey: String) {
         cache[IAM_SECRET_KEY] = iamSecretKey
-        preferenceManager.saveString(IAM_SECRET_KEY, iamSecretKey)
     }
 
     @JvmSynthetic
-    fun getIamAccessKeyId() = getString(IAM_ACCESS_KEY_ID)
+    fun getIamAccessKeyId() = cache[IAM_ACCESS_KEY_ID] as? String
 
     private fun saveIamAccessKeyId(iamAccessKeyId: String) {
         cache[IAM_ACCESS_KEY_ID] = iamAccessKeyId
-        preferenceManager.saveString(IAM_ACCESS_KEY_ID, iamAccessKeyId)
     }
 
     @JvmSynthetic
@@ -317,7 +314,7 @@ internal class CacheRepository(
             cache[FALLBACK_PAYWALLS] = gson.fromJson(paywalls, PaywallsResponse::class.java)
             null
         } catch (e: Exception) {
-            Logger.logError { "Couldn't set fallback paywalls. $e" }
+            Logger.log(ERROR) { "Couldn't set fallback paywalls. $e" }
             AdaptyError(
                 originalError = e,
                 message = "Couldn't set fallback paywalls. Invalid JSON",
@@ -339,6 +336,30 @@ internal class CacheRepository(
                 PRODUCT_RESPONSE_HASH,
                 PROFILE_RESPONSE,
                 PROFILE_RESPONSE_HASH,
+            ),
+            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART),
+        )
+    }
+
+    @JvmSynthetic
+    fun clearOnAppKeyChanged() {
+        clearData(
+            containsKeys = setOf(
+                CUSTOMER_USER_ID,
+                PROFILE_ID,
+                PROFILE,
+                SYNCED_PURCHASES,
+                PURCHASES_HAVE_BEEN_SYNCED,
+                APP_OPENED_TIME,
+                PRODUCT_RESPONSE,
+                PRODUCT_RESPONSE_HASH,
+                PRODUCT_IDS_RESPONSE,
+                PRODUCT_IDS_RESPONSE_HASH,
+                PROFILE_RESPONSE,
+                PROFILE_RESPONSE_HASH,
+                KINESIS_RECORDS,
+                YET_UNPROCESSED_VALIDATE_PRODUCT_INFO,
+                EXTERNAL_ANALYTICS_ENABLED,
             ),
             startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART),
         )

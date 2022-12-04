@@ -12,6 +12,7 @@ import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
 import com.adapty.models.AdaptySubscriptionUpdateParameters
+import com.adapty.utils.AdaptyLogLevel.Companion.INFO
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import kotlinx.coroutines.flow.*
@@ -35,7 +36,8 @@ internal class PurchasesInteractor(
         product: AdaptyPaywallProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
     ) : Flow<AdaptyProfile?> {
-        val validateProductInfo = productMapper.mapToValidate(product)
+        val purchaseProductInfo = productMapper.mapToMakePurchase(product)
+        val validateProductInfo = productMapper.mapToValidate(purchaseProductInfo)
 
         return flow {
             emit(saveValidateProductInfo(validateProductInfo))
@@ -43,8 +45,8 @@ internal class PurchasesInteractor(
             .map {
                 makePurchase(
                     activity,
-                    product.vendorProductId,
-                    product.skuDetails.type,
+                    purchaseProductInfo.vendorProductId,
+                    purchaseProductInfo.type,
                     subscriptionUpdateParams,
                 )
             }
@@ -60,7 +62,7 @@ internal class PurchasesInteractor(
                 if (purchase != null) {
                     storeManager.postProcess(purchase)
                         .flatMapConcat {
-                            validatePurchase(product, purchase, validateProductInfo)
+                            validatePurchase(purchase, purchaseProductInfo.type, validateProductInfo)
                         }
                 } else {
                     flowOf(null)
@@ -69,18 +71,18 @@ internal class PurchasesInteractor(
             .catch { error ->
                 if (error is AdaptyError && error.adaptyErrorCode == ITEM_ALREADY_OWNED) {
                     val purchase = storeManager.findActivePurchaseForProduct(
-                        product.vendorProductId,
-                        product.skuDetails.type,
+                        purchaseProductInfo.vendorProductId,
+                        purchaseProductInfo.type,
                     )
                     if (purchase != null) {
                         emitAll(
                             if (!purchase.isAcknowledged) {
                                 storeManager.acknowledgePurchase(purchase, DEFAULT_RETRY_COUNT)
                                     .flatMapConcat {
-                                        validatePurchase(product, purchase, validateProductInfo)
+                                        validatePurchase(purchase, purchaseProductInfo.type, validateProductInfo)
                                     }
                             } else {
-                                validatePurchase(product, purchase, validateProductInfo)
+                                validatePurchase(purchase, purchaseProductInfo.type, validateProductInfo)
                             }
                         )
                     } else {
@@ -94,13 +96,13 @@ internal class PurchasesInteractor(
     }
 
     private fun validatePurchase(
-        product: AdaptyPaywallProduct,
         purchase: Purchase,
+        type: String,
         validateProductInfo: ValidateProductInfo,
     ): Flow<AdaptyProfile> =
         authInteractor.runWhenAuthDataSynced {
             cloudRepository.validatePurchase(
-                product.skuDetails.type,
+                type,
                 purchase,
                 validateProductInfo
             )
@@ -226,10 +228,10 @@ internal class PurchasesInteractor(
                     }
                 } else {
                     cacheRepository.setPurchasesHaveBeenSynced(true)
-                    "No purchases to restore".let { errorMessage ->
-                        Logger.logError { errorMessage }
+                    "No purchases to restore".let { message ->
+                        Logger.log(INFO) { message }
                         throw AdaptyError(
-                            message = errorMessage,
+                            message = message,
                             adaptyErrorCode = NO_PURCHASES_TO_RESTORE
                         )
                     }

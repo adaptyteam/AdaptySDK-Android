@@ -17,7 +17,7 @@ class App : MultiDexApplication() {
         super.onCreate()
         MultiDex.install(this)
 
-        Adapty.setLogLevel(if (BuildConfig.DEBUG) AdaptyLogLevel.VERBOSE else AdaptyLogLevel.NONE)
+        Adapty.logLevel = if (BuildConfig.DEBUG) AdaptyLogLevel.VERBOSE else AdaptyLogLevel.NONE
         Adapty.activate(
             this,
             "YOUR_ADAPTY_KEY"

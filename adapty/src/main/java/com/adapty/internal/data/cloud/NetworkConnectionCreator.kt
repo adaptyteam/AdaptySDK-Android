@@ -4,22 +4,18 @@ import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.Request.Method.GET
 import com.adapty.internal.data.cloud.Request.Method.POST
+import com.adapty.internal.utils.HashingHelper
 import java.io.BufferedWriter
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
-import java.nio.charset.Charset
-import java.security.MessageDigest
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal interface NetworkConnectionCreator {
 
-    @Throws(NoKeysForKinesisException::class)
     fun createUrlConnection(request: Request): HttpURLConnection
 
     fun getTimeOut() = 30 * 1000
@@ -28,6 +24,7 @@ internal interface NetworkConnectionCreator {
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class DefaultConnectionCreator(
     private val cacheRepository: CacheRepository,
+    private val apiKey: String,
 ) : NetworkConnectionCreator {
 
     companion object {
@@ -47,7 +44,7 @@ internal class DefaultConnectionCreator(
             setRequestProperty("ADAPTY-SDK-PROFILE-ID", cacheRepository.getProfileId())
             setRequestProperty("ADAPTY-SDK-PLATFORM", "Android")
             setRequestProperty("ADAPTY-SDK-VERSION", com.adapty.BuildConfig.VERSION_NAME)
-            setRequestProperty(AUTHORIZATION_KEY, "$API_KEY_PREFIX${cacheRepository.getAppKey()}")
+            setRequestProperty(AUTHORIZATION_KEY, "$API_KEY_PREFIX${apiKey}")
             request.responseCacheKeys?.responseHashKey?.let(cacheRepository::getString)
                 ?.let { latestResponseHash ->
                     setRequestProperty("ADAPTY-SDK-PREVIOUS-RESPONSE-HASH", latestResponseHash)
@@ -69,12 +66,12 @@ internal class DefaultConnectionCreator(
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class KinesisConnectionCreator(
     private val cacheRepository: CacheRepository,
+    private val hashingHelper: HashingHelper,
 ) : NetworkConnectionCreator {
 
     private val serviceType = "kinesis"
     private val region = "us-east-1"
     private val SIGNING_ALGORITHM = "AWS4-HMAC-SHA256"
-    private val MAC_ALGORITHM = "HmacSHA256"
 
     override fun createUrlConnection(request: Request): HttpURLConnection {
         val iamAccessKeyId = cacheRepository.getIamAccessKeyId()
@@ -113,7 +110,7 @@ internal class KinesisConnectionCreator(
             canonicalHeaders,
             "",
             signedHeaders,
-            request.body.sha256()
+            hashingHelper.sha256(request.body)
         ).joinToString("\n")
 
         val credential = listOf(
@@ -126,16 +123,16 @@ internal class KinesisConnectionCreator(
             "AWS4-HMAC-SHA256",
             date,
             credential,
-            canonicalRequest.sha256()
+            hashingHelper.sha256(canonicalRequest)
         ).joinToString("\n")
 
         val k1 = "AWS4$iamSecretKey"
-        val sk1 = hmacSha256(k1, date.substring(0..7))
-        val sk2 = hmacSha256(sk1, region)
-        val sk3 = hmacSha256(sk2, serviceType)
-        val sk4 = hmacSha256(sk3, "aws4_request")
-        val signature = hmacSha256(sk4, stringToSign)
-        val s = signature.toHexString()
+        val sk1 = hashingHelper.hmacSha256(k1, date.substring(0..7))
+        val sk2 = hashingHelper.hmacSha256(sk1, region)
+        val sk3 = hashingHelper.hmacSha256(sk2, serviceType)
+        val sk4 = hashingHelper.hmacSha256(sk3, "aws4_request")
+        val signature = hashingHelper.hmacSha256(sk4, stringToSign)
+        val s = hashingHelper.toHexString(signature)
 
         val authorization =
             "$SIGNING_ALGORITHM Credential=$iamAccessKeyId/$credential, SignedHeaders=$signedHeaders, Signature=$s"
@@ -172,33 +169,6 @@ internal class KinesisConnectionCreator(
         df.timeZone = tz
         return df.format(c)
     }
-
-    private fun String.sha256(): String {
-        return hashString(this, "SHA-256")
-    }
-
-    private fun hashString(input: String, algorithm: String): String {
-        return MessageDigest
-            .getInstance(algorithm)
-            .digest(input.toByteArray())
-            .fold("", { str, it -> str + "%02x".format(it) })
-    }
-
-    @Throws(Exception::class)
-    private fun hmacSha256(key: ByteArray, data: String): ByteArray {
-        val sha256Hmac = Mac.getInstance(MAC_ALGORITHM)
-        val secretKey = SecretKeySpec(key, MAC_ALGORITHM)
-        sha256Hmac.init(secretKey)
-
-        return sha256Hmac.doFinal(data.toByteArray(charset("UTF-8")))
-    }
-
-    @Throws(Exception::class)
-    private fun hmacSha256(key: String, data: String) =
-        hmacSha256(key.toByteArray(Charset.forName("utf-8")), data)
-
-    private fun ByteArray.toHexString() =
-        fold("") { str, it -> str + "%02x".format(it) }
 }
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)

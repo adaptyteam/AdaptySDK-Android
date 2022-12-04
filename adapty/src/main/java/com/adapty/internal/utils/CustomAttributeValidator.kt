@@ -3,6 +3,7 @@ package com.adapty.internal.utils
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
+import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class CustomAttributeValidator {
@@ -25,7 +26,7 @@ internal class CustomAttributeValidator {
     }
 
     private fun throwWrongParamError(message: String): Nothing {
-        Logger.logError { message }
+        Logger.log(ERROR) { message }
         throw AdaptyError(
             message = message,
             adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER
