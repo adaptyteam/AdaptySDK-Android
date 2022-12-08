@@ -4,8 +4,9 @@ import java.math.BigDecimal
 
 public class AdaptyProductDiscount(
     public val price: BigDecimal,
-    public val numberOfPeriods: Int,
     public val localizedPrice: String,
+    public val numberOfPeriods: Int,
+    public val localizedNumberOfPeriods: String,
     public val subscriptionPeriod: AdaptyProductSubscriptionPeriod,
     public val localizedSubscriptionPeriod: String,
 ) {
@@ -33,6 +34,6 @@ public class AdaptyProductDiscount(
     }
 
     override fun toString(): String {
-        return "AdaptyProductDiscount(price=$price, numberOfPeriods=$numberOfPeriods, localizedPrice='$localizedPrice', subscriptionPeriod=$subscriptionPeriod, localizedSubscriptionPeriod='$localizedSubscriptionPeriod')"
+        return "AdaptyProductDiscount(price=$price, localizedPrice='$localizedPrice', numberOfPeriods=$numberOfPeriods, localizedNumberOfPeriods='$localizedNumberOfPeriods, subscriptionPeriod=$subscriptionPeriod, localizedSubscriptionPeriod='$localizedSubscriptionPeriod')"
     }
 }

@@ -120,11 +120,12 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun identify(customerUserId: String, callback: ErrorCallback) {
         if (customerUserId.isBlank()) {
-            Logger.log(ERROR) { "customerUserId should not be empty" }
+            val errorMessage = "customerUserId should not be empty"
+            Logger.log(ERROR) { errorMessage }
             callback.onResult(
                 AdaptyError(
-                    message = "customerUserId should not be empty",
-                    adaptyErrorCode = MISSING_PARAMETER
+                    message = errorMessage,
+                    adaptyErrorCode = WRONG_PARAMETER
                 )
             )
             return

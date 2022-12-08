@@ -52,11 +52,11 @@ internal class ProductMapper(
             currencyCode = productStoreData.currencyCode,
             currencySymbol = productStoreData.currencySymbol,
             subscriptionPeriod = productStoreData.subscriptionPeriod,
-            localizedSubscriptionPeriod = productStoreData.subscriptionPeriod?.let(::getLocalizedSubscriptionPeriod),
+            localizedSubscriptionPeriod = productStoreData.subscriptionPeriod?.let(::localize),
             introductoryOfferEligibility = product.introductoryOfferEligibility,
             introductoryDiscount = productStoreData.introductoryDiscount?.let(::mapProductDiscount),
             freeTrialPeriod = productStoreData.freeTrialPeriod,
-            localizedFreeTrialPeriod = productStoreData.freeTrialPeriod?.let(::getLocalizedSubscriptionPeriod),
+            localizedFreeTrialPeriod = productStoreData.freeTrialPeriod?.let(::localize),
             skuDetails = productStoreData.skuDetails,
             timestamp = product.timestamp,
             payloadData = AdaptyPaywallProduct.Payload(
@@ -74,7 +74,7 @@ internal class ProductMapper(
         Product(
             vendorProductId = productDto.vendorProductId ?: throw AdaptyError(
                 message = "vendorProductId in Product should not be null",
-                adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+                adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
             ),
             introductoryOfferEligibility = mapIntroductoryOfferEligibility(productDto, source),
             timestamp = productDto.timestamp ?: 0L,
@@ -171,10 +171,14 @@ internal class ProductMapper(
 
     private fun mapProductDiscount(productDiscount: ProductDiscountData) = AdaptyProductDiscount(
         price = productDiscount.price,
-        numberOfPeriods = productDiscount.numberOfPeriods,
         localizedPrice = productDiscount.localizedPrice,
+        numberOfPeriods = productDiscount.numberOfPeriods,
+        localizedNumberOfPeriods = localize(
+            productDiscount.subscriptionPeriod.unit,
+            productDiscount.numberOfPeriods * productDiscount.subscriptionPeriod.numberOfUnits
+        ),
         subscriptionPeriod = productDiscount.subscriptionPeriod,
-        localizedSubscriptionPeriod = getLocalizedSubscriptionPeriod(productDiscount.subscriptionPeriod)
+        localizedSubscriptionPeriod = localize(productDiscount.subscriptionPeriod)
     )
 
     private fun formatPrice(priceAmountMicros: Long): String {
@@ -218,15 +222,12 @@ internal class ProductMapper(
         "D" to 1
     )
 
-    private fun getLocalizedSubscriptionPeriod(period: AdaptyProductSubscriptionPeriod): String {
-        val period = when {
-            period.unit == AdaptyPeriodUnit.DAY && period.numberOfUnits == 7 -> {
-                AdaptyProductSubscriptionPeriod(AdaptyPeriodUnit.WEEK, 1)
-            }
-            else -> period
-        }
+    private fun localize(period: AdaptyProductSubscriptionPeriod): String {
+        return localize(period.unit, period.numberOfUnits)
+    }
 
-        val pluralsRes = when (period.unit) {
+    private fun localize(unit: AdaptyPeriodUnit, numberOfUnits: Int): String {
+        val pluralsRes = when (unit) {
             AdaptyPeriodUnit.DAY -> R.plurals.adapty_day
             AdaptyPeriodUnit.WEEK -> R.plurals.adapty_week
             AdaptyPeriodUnit.MONTH -> R.plurals.adapty_month
@@ -234,10 +235,6 @@ internal class ProductMapper(
             else -> return ""
         }
 
-        return context.resources.getQuantityString(
-            pluralsRes,
-            period.numberOfUnits,
-            period.numberOfUnits
-        )
+        return context.resources.getQuantityString(pluralsRes, numberOfUnits, numberOfUnits)
     }
 }

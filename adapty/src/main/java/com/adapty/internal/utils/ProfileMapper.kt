@@ -19,17 +19,17 @@ internal class ProfileMapper {
                     AdaptyProfile.NonSubscription(
                         purchaseId = nonSub.purchaseId ?: throw AdaptyError(
                             message = "purchaseId in NonSubscription should not be null",
-                            adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+                            adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                         ),
                         vendorProductId = nonSub.vendorProductId ?: throw AdaptyError(
                             message = "vendorProductId in NonSubscription should not be null",
-                            adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+                            adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                         ),
                         vendorTransactionId = nonSub.vendorTransactionId,
                         store = nonSub.store.orEmpty(),
                         purchasedAt = nonSub.purchasedAt ?: throw AdaptyError(
                             message = "purchasedAt in NonSubscription should not be null",
-                            adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+                            adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                         ),
                         isOneTime = nonSub.isOneTime ?: false,
                         isSandbox = nonSub.isSandbox ?: false,
@@ -42,13 +42,13 @@ internal class ProfileMapper {
                     id = key,
                     isActive = value.isActive ?: throw AdaptyError(
                         message = "isActive in AccessLevel should not be null",
-                        adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+                        adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                     ),
                     vendorProductId = value.vendorProductId.orEmpty(),
                     store = value.store.orEmpty(),
                     activatedAt = value.activatedAt ?: throw AdaptyError(
                         message = "activatedAt in AccessLevel should not be null",
-                        adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+                        adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                     ),
                     startsAt = value.startsAt,
                     renewedAt = value.renewedAt,
@@ -69,18 +69,18 @@ internal class ProfileMapper {
                 AdaptyProfile.Subscription(
                     isActive = sub.isActive ?: throw AdaptyError(
                         message = "isActive in Subscription should not be null",
-                        adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+                        adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                     ),
                     vendorProductId = sub.vendorProductId ?: throw AdaptyError(
                         message = "vendorProductId in Subscription should not be null",
-                        adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+                        adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                     ),
                     vendorTransactionId = sub.vendorTransactionId,
                     vendorOriginalTransactionId = sub.vendorOriginalTransactionId,
                     store = sub.store.orEmpty(),
                     activatedAt = sub.activatedAt ?: throw AdaptyError(
                         message = "activatedAt in Subscription should not be null",
-                        adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+                        adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                     ),
                     renewedAt = sub.renewedAt,
                     expiresAt = sub.expiresAt,

@@ -7,7 +7,6 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
     USER_CANCELED(2),
     ITEM_UNAVAILABLE(5),
     ADAPTY_NOT_INITIALIZED(20),
-    PAYWALL_NOT_FOUND(21),
     PRODUCT_NOT_FOUND(22),
     INVALID_JSON(23),
     CURRENT_SUBSCRIPTION_TO_UPDATE_NOT_FOUND_IN_HISTORY(24),
@@ -26,7 +25,7 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
     BAD_REQUEST(2003),
     SERVER_ERROR(2004),
     REQUEST_FAILED(2005),
-    MISSING_PARAMETER(2007),
+    DECODING_FAILED(2006),
     ANALYTICS_DISABLED(3000),
     WRONG_PARAMETER(3001);
 

@@ -32,11 +32,12 @@ internal class BaseHttpClient(
             return responseManager.handleResponse(connection, request.responseCacheKeys, classOfT)
 
         } catch (e: Exception) {
-            Logger.log(WARN) { e.localizedMessage ?: e.message.orEmpty() }
+            val message = "Request Error: ${e.localizedMessage ?: e.message}"
+            Logger.log(WARN) { message }
             return Response.Error(
                 AdaptyError(
                     originalError = e,
-                    message = "Request Error: ${e.localizedMessage ?: e.message}",
+                    message = message,
                     adaptyErrorCode = AdaptyErrorCode.REQUEST_FAILED
                 )
             )

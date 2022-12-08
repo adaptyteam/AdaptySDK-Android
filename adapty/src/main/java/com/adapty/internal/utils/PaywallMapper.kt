@@ -20,14 +20,14 @@ internal class PaywallMapper(private val gson: Gson) {
     fun map(paywallDto: PaywallDto, products: List<Product>) = AdaptyPaywall(
         id = paywallDto.developerId ?: throw AdaptyError(
             message = "id in Paywall should not be null",
-            adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+            adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         ),
         name = paywallDto.name.orEmpty(),
         abTestName = paywallDto.abTestName.orEmpty(),
         revision = paywallDto.revision ?: 0,
         variationId = paywallDto.variationId ?: throw AdaptyError(
             message = "variationId in Paywall should not be null",
-            adaptyErrorCode = AdaptyErrorCode.MISSING_PARAMETER
+            adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         ),
         remoteConfigString = paywallDto.customPayload,
         remoteConfig = (try {
