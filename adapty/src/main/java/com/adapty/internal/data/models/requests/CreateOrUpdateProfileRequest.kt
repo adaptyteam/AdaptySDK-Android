@@ -52,6 +52,8 @@ internal class CreateOrUpdateProfileRequest(
             private val oneSignalPlayerId: String?,
             @SerializedName("pushwoosh_hwid")
             private val pushwooshHwid: String?,
+            @SerializedName("firebase_app_instance_id")
+            private val firebaseAppInstanceId: String?,
             @SerializedName("analytics_disabled")
             private val analyticsDisabled: Boolean?,
             @SerializedName("custom_attributes")
@@ -76,6 +78,7 @@ internal class CreateOrUpdateProfileRequest(
                     appmetricaDeviceId = updateProfileParams?.appmetricaDeviceId,
                     oneSignalPlayerId = updateProfileParams?.oneSignalPlayerId,
                     pushwooshHwid = updateProfileParams?.pushwooshHwid,
+                    firebaseAppInstanceId = updateProfileParams?.firebaseAppInstanceId,
                     firstName = updateProfileParams?.firstName,
                     lastName = updateProfileParams?.lastName,
                     gender = updateProfileParams?.gender,

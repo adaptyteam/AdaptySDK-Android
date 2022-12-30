@@ -74,7 +74,7 @@ internal class ProductsInteractor(
                     productMapper.map(cloudRepository.getProducts(), Source.CLOUD)
                 }
         }.flattenConcat().map { allProducts ->
-            allProducts.filter { product -> product.vendorProductId in paywall.vendorProductIds }
+            findProductsFromPaywallOrdered(paywall, allProducts)
         }.flatMapConcat { products ->
             getProductStoreData(products, maxAttemptCount = DEFAULT_RETRY_COUNT)
                 .map { storeData ->
@@ -126,5 +126,26 @@ internal class ProductsInteractor(
                     skuDetails.sku to productMapper.mapBillingInfoToProductStoreData(skuDetails)
                 }
             }
+    }
+
+    private fun findProductsFromPaywallOrdered(
+        paywall: AdaptyPaywall,
+        allProducts: Collection<Product>,
+    ): List<Product> {
+        val productIdIndices =
+            paywall.vendorProductIds.mapIndexed { i: Int, id: String -> id to i }.toMap()
+
+        val foundProducts = arrayOfNulls<Product?>(productIdIndices.size)
+        var productsFound = 0
+        for (product in allProducts) {
+            productIdIndices[product.vendorProductId]?.let { index ->
+                foundProducts[index] = product
+                productsFound++
+            }
+            if (productsFound == productIdIndices.size)
+                break
+        }
+
+        return foundProducts.filterNotNull()
     }
 }

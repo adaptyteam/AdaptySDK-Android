@@ -14,6 +14,7 @@ public class AdaptyProfileParameters private constructor(
     public val appmetricaDeviceId: String?,
     public val oneSignalPlayerId: String?,
     public val pushwooshHwid: String?,
+    public val firebaseAppInstanceId: String?,
     public val firstName: String?,
     public val lastName: String?,
     public val gender: String?,
@@ -35,6 +36,7 @@ public class AdaptyProfileParameters private constructor(
         private var appmetricaDeviceId: String? = null,
         private var oneSignalPlayerId: String? = null,
         private var pushwooshHwid: String? = null,
+        private var firebaseAppInstanceId: String? = null,
         private var firstName: String? = null,
         private var lastName: String? = null,
         private var gender: String? = null,
@@ -95,6 +97,11 @@ public class AdaptyProfileParameters private constructor(
             return this
         }
 
+        public fun withFirebaseAppInstanceId(firebaseAppInstanceId: String?): Builder {
+            this.firebaseAppInstanceId = firebaseAppInstanceId
+            return this
+        }
+
         public fun withFirstName(firstName: String?): Builder {
             this.firstName = firstName
             return this
@@ -147,6 +154,7 @@ public class AdaptyProfileParameters private constructor(
                 this.appmetricaDeviceId,
                 this.oneSignalPlayerId,
                 this.pushwooshHwid,
+                this.firebaseAppInstanceId,
                 this.firstName,
                 this.lastName,
                 this.gender,
@@ -169,6 +177,7 @@ public class AdaptyProfileParameters private constructor(
                 params.appmetricaDeviceId,
                 params.oneSignalPlayerId,
                 params.pushwooshHwid,
+                params.firebaseAppInstanceId,
                 params.firstName,
                 params.lastName,
                 params.gender,
