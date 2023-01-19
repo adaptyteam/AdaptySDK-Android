@@ -5,15 +5,11 @@ import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.*
-import com.adapty.internal.data.models.ProfileResponseData.Attributes
-import com.adapty.internal.data.models.responses.AnalyticsCredsResponse
-import com.adapty.internal.data.models.responses.PaywallResponse
-import com.adapty.internal.data.models.responses.PaywallsResponse
-import com.adapty.internal.data.models.responses.ProductsResponse
 import com.adapty.internal.utils.Logger
 import com.adapty.internal.utils.generateUuid
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.*
@@ -24,33 +20,34 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class CacheRepository(
     private val preferenceManager: PreferenceManager,
+    private val responseCacheKeyProvider: ResponseCacheKeyProvider,
     private val gson: Gson,
 ) {
 
-    private val currentProfile = MutableSharedFlow<Attributes>()
+    private val currentProfile = MutableSharedFlow<ProfileDto>()
 
     private val cache = ConcurrentHashMap<String, Any>(32)
 
     @JvmSynthetic
-    fun updateAnalyticsCreds(data: AnalyticsCredsResponse.Data?) {
-        data?.iamAccessKeyId?.let(::saveIamAccessKeyId)
-        data?.iamSecretKey?.let(::saveIamSecretKey)
-        data?.iamSessionToken?.let(::saveIamSessionToken)
+    fun updateAnalyticsCreds(creds: AnalyticsCreds) {
+        creds.iamAccessKeyId?.let(::saveIamAccessKeyId)
+        creds.iamSecretKey?.let(::saveIamSecretKey)
+        creds.iamSessionToken?.let(::saveIamSessionToken)
     }
 
     @JvmSynthetic
     suspend fun updateDataOnCreateProfile(
-        attrs: Attributes,
+        profile: ProfileDto,
         installationMeta: InstallationMeta,
     ): Boolean {
         var profileIdHasChanged = false
-        (attrs.profileId ?: (cache[UNSYNCED_PROFILE_ID] as? String))?.let { profileId ->
+        (profile.profileId ?: (cache[UNSYNCED_PROFILE_ID] as? String))?.let { profileId ->
             profileIdHasChanged = profileId != preferenceManager.getString(PROFILE_ID)
 
             if (profileIdHasChanged) onNewProfileIdReceived(profileId)
         }
-        attrs.customerUserId?.let(::saveCustomerUserId)
-        saveProfile(attrs)
+        profile.customerUserId?.let(::saveCustomerUserId)
+        saveProfile(profile)
 
         cache.remove(UNSYNCED_PROFILE_ID)
         cache.remove(UNSYNCED_CUSTOMER_USER_ID)
@@ -60,17 +57,17 @@ internal class CacheRepository(
 
     @JvmSynthetic
     suspend fun updateOnProfileReceived(
-        attrs: Attributes,
+        profile: ProfileDto,
         profileIdWhenRequestSent: String?,
-    ): Attributes {
+    ): ProfileDto {
         if (profileIdWhenRequestSent != null && getProfileId() != profileIdWhenRequestSent) {
-            return attrs
+            return profile
         }
 
-        return saveProfile(attrs)
+        return saveProfile(profile)
     }
 
-    private suspend fun saveProfile(profile: Attributes) =
+    private suspend fun saveProfile(profile: ProfileDto) =
         profile.also {
             currentProfile.emit(profile)
             saveData(PROFILE, profile)
@@ -245,18 +242,16 @@ internal class CacheRepository(
 
     @JvmSynthetic
     fun getProfile() =
-        getData(PROFILE, Attributes::class.java)
+        getData(PROFILE, ProfileDto::class.java)
 
     @JvmSynthetic
-    fun getFallbackPaywalls() = (cache[FALLBACK_PAYWALLS] as? PaywallsResponse)?.let { fallback ->
-        fallback.data.orEmpty() to fallback.meta?.products.orEmpty()
-    }
+    fun getFallbackPaywalls() = cache[FALLBACK_PAYWALLS] as? FallbackPaywalls
 
     @JvmSynthetic
     fun getProducts() =
         try {
-            getString(ResponseCacheKeys.forGetProducts().responseKey)
-                ?.let { gson.fromJson(it, ProductsResponse::class.java).data }
+            getString(responseCacheKeyProvider.forGetProducts().responseKey)
+                ?.let { gson.fromJson(it, object : TypeToken<ArrayList<ProductDto>>() {}) }
         } catch (e: Exception) {
             null
         }
@@ -301,8 +296,8 @@ internal class CacheRepository(
 
     fun getPaywall(id: String): PaywallDto? {
         return try {
-            getString(ResponseCacheKeys.forGetPaywall(id).responseKey)
-                ?.let { gson.fromJson(it, PaywallResponse::class.java).data.attributes }
+            getString(responseCacheKeyProvider.forGetPaywall(id).responseKey)
+                ?.let { gson.fromJson(it, PaywallDto::class.java) }
         } catch (e: Exception) {
             null
         }
@@ -311,7 +306,14 @@ internal class CacheRepository(
     @JvmSynthetic
     fun saveFallbackPaywalls(paywalls: String): AdaptyError? =
         try {
-            cache[FALLBACK_PAYWALLS] = gson.fromJson(paywalls, PaywallsResponse::class.java)
+            cache[FALLBACK_PAYWALLS] = gson.fromJson(paywalls, FallbackPaywalls::class.java).also { fallbackPaywalls ->
+                val version = fallbackPaywalls.version
+                if (version < CURRENT_FALLBACK_PAYWALL_VERSION) {
+                    Logger.log(ERROR) { "The fallback paywalls version is not correct. Download a new one from the Adapty Dashboard." }
+                } else if (version > CURRENT_FALLBACK_PAYWALL_VERSION) {
+                    Logger.log(ERROR) { "The fallback paywalls version is not correct. Please update the AdaptySDK." }
+                }
+            }
             null
         } catch (e: Exception) {
             Logger.log(ERROR) { "Couldn't set fallback paywalls. $e" }
@@ -400,5 +402,9 @@ internal class CacheRepository(
 
     private inline fun <K, V> ConcurrentMap<K, V>.safeGetOrPut(key: K, defaultValue: () -> V): V? {
         return get(key) ?: defaultValue()?.let { default -> putIfAbsent(key, default) ?: default }
+    }
+
+    private companion object {
+        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 1
     }
 }

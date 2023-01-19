@@ -107,11 +107,11 @@ internal class PurchasesInteractor(
                 validateProductInfo
             )
         }
-            .map { (response, currentDataWhenRequestSent) ->
+            .map { (profile, currentDataWhenRequestSent) ->
                 deleteValidateProductInfo(validateProductInfo)
 
                 cacheRepository.updateOnProfileReceived(
-                    response.data.attributes,
+                    profile,
                     currentDataWhenRequestSent?.profileId,
                 ).let(profileMapper::map)
             }
@@ -212,7 +212,7 @@ internal class PurchasesInteractor(
                                     )
                                 }
                             )
-                        }.map { (response, currentDataWhenRequestSent) ->
+                        }.map { (profile, currentDataWhenRequestSent) ->
                             cacheRepository.saveSyncedPurchases(
                                 dataToSync.map(productMapper::mapToSyncedPurchase)
                                     .union(syncedPurchases.filter { it.purchaseToken != null && it.purchaseTime != null })
@@ -221,7 +221,7 @@ internal class PurchasesInteractor(
                                 cacheRepository.setPurchasesHaveBeenSynced(true)
                             }
                             cacheRepository.updateOnProfileReceived(
-                                response.data.attributes,
+                                profile,
                                 currentDataWhenRequestSent?.profileId,
                             ).let(profileMapper::map)
                         }
@@ -271,9 +271,9 @@ internal class PurchasesInteractor(
                                 )
                             }
                         }
-                        .map { (response, currentDataWhenRequestSent) ->
+                        .map { (profile, currentDataWhenRequestSent) ->
                             cacheRepository.updateOnProfileReceived(
-                                response.data.attributes,
+                                profile,
                                 currentDataWhenRequestSent?.profileId,
                             )
                         }
@@ -298,9 +298,9 @@ internal class PurchasesInteractor(
                             )
                         }
                     }
-                        .map { (response, currentDataWhenRequestSent) ->
+                        .map { (profile, currentDataWhenRequestSent) ->
                             cacheRepository.updateOnProfileReceived(
-                                response.data.attributes,
+                                profile,
                                 currentDataWhenRequestSent?.profileId,
                             )
                         }

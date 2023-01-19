@@ -11,6 +11,7 @@ import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
+import java.lang.reflect.Type
 import java.net.HttpURLConnection
 import java.util.zip.GZIPInputStream
 
@@ -20,7 +21,7 @@ internal interface HttpResponseManager {
     fun <T> handleResponse(
         connection: HttpURLConnection,
         responseCacheKeys: ResponseCacheKeys?,
-        classOfT: Class<T>
+        typeOfT: Type,
     ): Response<T>
 }
 
@@ -33,20 +34,37 @@ internal class DefaultHttpResponseManager(
     override fun <T> handleResponse(
         connection: HttpURLConnection,
         responseCacheKeys: ResponseCacheKeys?,
-        classOfT: Class<T>
+        typeOfT: Type,
     ): Response<T> {
         val isInGzip =
             connection.getHeaderField("Content-Encoding")?.contains("gzip", true) ?: false
 
         if (connection.isSuccessful()) {
-            val response = connection.evaluateSuccessfulResponse(isInGzip, responseCacheKeys)
-            Logger.log(VERBOSE) { "Request is successful. ${connection.url} Response: $response" }
-            return bodyConverter.convertSuccess(response, classOfT)
+            val previousResponseHash = connection.getRequestProperty("ADAPTY-SDK-PREVIOUS-RESPONSE-HASH")
+            val currentResponseHash = connection.getHeaderField("X-Response-Hash")
+
+            val responseStr: String
+            if (!previousResponseHash.isNullOrEmpty() && previousResponseHash == currentResponseHash) {
+                responseStr = responseCacheKeys?.responseKey?.let(cacheRepository::getString)
+                    ?: toStringUtf8(connection.inputStream, isInGzip)
+            } else {
+                responseStr = toStringUtf8(connection.inputStream, isInGzip)
+                if (responseCacheKeys != null && currentResponseHash != null) {
+                    cacheRepository.saveRequestOrResponseLatestData(
+                        mapOf(
+                            responseCacheKeys.responseKey to responseStr,
+                            responseCacheKeys.responseHashKey to currentResponseHash
+                        )
+                    )
+                }
+            }
+            Logger.log(VERBOSE) { "Request is successful. ${connection.url} Response: $responseStr" }
+            return Response.Success(bodyConverter.convertSuccess(responseStr, typeOfT))
 
         } else {
-            val response = toStringUtf8(connection.errorStream, isInGzip)
+            val responseStr = toStringUtf8(connection.errorStream, isInGzip)
             val errorMessage =
-                "Request is unsuccessful. ${connection.url} Code: ${connection.responseCode}, Response: $response"
+                "Request is unsuccessful. ${connection.url} Code: ${connection.responseCode}, Response: $responseStr"
             Logger.log(ERROR) { errorMessage }
             return Response.Error(
                 AdaptyError(
@@ -72,28 +90,4 @@ internal class DefaultHttpResponseManager(
     }
 
     private fun HttpURLConnection.isSuccessful() = responseCode in 200..299
-
-    private fun HttpURLConnection.evaluateSuccessfulResponse(
-        isInGzip: Boolean,
-        responseCacheKeys: ResponseCacheKeys?,
-    ): String {
-        val previousResponseHash = getRequestProperty("ADAPTY-SDK-PREVIOUS-RESPONSE-HASH")
-        val currentResponseHash = getHeaderField("X-Response-Hash")
-
-        return if (!previousResponseHash.isNullOrEmpty() && previousResponseHash == currentResponseHash) {
-            responseCacheKeys?.responseKey?.let(cacheRepository::getString)
-                ?: toStringUtf8(inputStream, isInGzip)
-        } else {
-            toStringUtf8(inputStream, isInGzip).also { response ->
-                if (responseCacheKeys != null && currentResponseHash != null) {
-                    cacheRepository.saveRequestOrResponseLatestData(
-                        mapOf(
-                            responseCacheKeys.responseKey to response,
-                            responseCacheKeys.responseHashKey to currentResponseHash
-                        )
-                    )
-                }
-            }
-        }
-    }
 }

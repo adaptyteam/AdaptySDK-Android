@@ -5,14 +5,16 @@ import androidx.annotation.RestrictTo
 import com.adapty.internal.AdaptyInternal
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cache.PreferenceManager
+import com.adapty.internal.data.cache.ResponseCacheKeyProvider
 import com.adapty.internal.data.cloud.*
+import com.adapty.internal.data.models.*
 import com.adapty.internal.domain.AuthInteractor
 import com.adapty.internal.domain.ProductsInteractor
 import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.domain.PurchasesInteractor
 import com.adapty.internal.utils.*
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
+import com.google.gson.*
+import com.google.gson.reflect.TypeToken
 import java.math.BigDecimal
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
@@ -45,11 +47,87 @@ internal object Dependencies {
         map.putAll(
             listOf(
                 Gson::class.java to singleVariantDiObject({
+                    val dataKey = "data"
+                    val attributesKey = "attributes"
+                    val metaKey = "meta"
+                    val paywallsKey = "paywalls"
+                    val productsKey = "products"
+                    val versionKey = "version"
+
+                    val attributesObjectExtractor = ResponseDataExtractor { jsonElement ->
+                        ((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)
+                            ?.get(attributesKey) as? JsonObject
+                    }
+                    val dataArrayExtractor = ResponseDataExtractor { jsonElement ->
+                        (jsonElement as? JsonObject)?.get(dataKey) as? JsonArray
+                    }
+                    val dataObjectExtractor = ResponseDataExtractor { jsonElement ->
+                        (jsonElement as? JsonObject)?.get(dataKey) as? JsonObject
+                    }
+                    val fallbackPaywallsExtractor = ResponseDataExtractor { jsonElement ->
+                        val paywalls = JsonArray()
+
+                        ((jsonElement as? JsonObject)?.get(dataKey) as? JsonArray)
+                            ?.forEach { element ->
+                                ((element as? JsonObject)?.get(attributesKey) as? JsonObject)
+                                    ?.let(paywalls::add)
+                            }
+
+                        val meta = (jsonElement as? JsonObject)?.get(metaKey) as? JsonObject
+
+                        val products = (meta?.get(productsKey) as? JsonArray) ?: JsonArray()
+
+                        val version = (meta?.get(versionKey) as? JsonPrimitive) ?: JsonPrimitive(0)
+
+                        JsonObject().apply {
+                            add(paywallsKey, paywalls)
+                            add(productsKey, products)
+                            add(versionKey, version)
+                        }
+                    }
+
                     GsonBuilder()
+                        .registerTypeAdapterFactory(
+                            AdaptyResponseTypeAdapterFactory(
+                                TypeToken.get(PaywallDto::class.java),
+                                attributesObjectExtractor,
+                            )
+                        )
+                        .registerTypeAdapterFactory(
+                            AdaptyResponseTypeAdapterFactory(
+                                TypeToken.get(ProfileDto::class.java),
+                                attributesObjectExtractor,
+                            )
+                        )
+                        .registerTypeAdapterFactory(
+                            AdaptyResponseTypeAdapterFactory(
+                                object : TypeToken<ArrayList<ProductDto>>() {},
+                                dataArrayExtractor,
+                            )
+                        )
+                        .registerTypeAdapterFactory(
+                            AdaptyResponseTypeAdapterFactory(
+                                object : TypeToken<ArrayList<String>>() {},
+                                dataArrayExtractor,
+                            )
+                        )
+                        .registerTypeAdapterFactory(
+                            AdaptyResponseTypeAdapterFactory(
+                                TypeToken.get(AnalyticsCreds::class.java),
+                                dataObjectExtractor,
+                            )
+                        )
+                        .registerTypeAdapterFactory(
+                            AdaptyResponseTypeAdapterFactory(
+                                TypeToken.get(FallbackPaywalls::class.java),
+                                fallbackPaywallsExtractor,
+                            )
+                        )
                         .registerTypeAdapter(
                             BigDecimal::class.java,
                             BigDecimalDeserializer()
-                        ).create()
+                        )
+                        .create()
                 }),
 
                 Format::class.java to singleVariantDiObject({
@@ -69,6 +147,7 @@ internal object Dependencies {
 
                 CacheRepository::class.java to singleVariantDiObject({
                     CacheRepository(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                     )
@@ -132,8 +211,13 @@ internal object Dependencies {
                     }),
                 ),
 
+                ResponseCacheKeyProvider::class.java to singleVariantDiObject({
+                    ResponseCacheKeyProvider()
+                }),
+
                 RequestFactory::class.java to singleVariantDiObject({
                     RequestFactory(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                     )

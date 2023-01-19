@@ -19,6 +19,6 @@ internal class PaywallDto(
     val variationId: String?,
     @SerializedName("products")
     val products: ArrayList<ProductDto>,
-    @SerializedName("custom_payload")
-    val customPayload: String?,
+    @SerializedName("remote_config")
+    val remoteConfig: RemoteConfigDto?,
 )

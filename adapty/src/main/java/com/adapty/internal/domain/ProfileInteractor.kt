@@ -26,9 +26,9 @@ internal class ProfileInteractor(
         authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
             cloudRepository.getProfile()
         }
-            .map { (attrs, currentDataWhenRequestSent) ->
+            .map { (profile, currentDataWhenRequestSent) ->
                 cacheRepository.updateOnProfileReceived(
-                    attrs,
+                    profile,
                     currentDataWhenRequestSent?.profileId,
                 ).let(profileMapper::map)
             }
@@ -58,9 +58,9 @@ internal class ProfileInteractor(
                     authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
                         cloudRepository.updateProfile(params, metaToBeSent)
                     }
-                        .map { (attrs, currentDataWhenRequestSent) ->
+                        .map { (profile, currentDataWhenRequestSent) ->
                             cacheRepository.updateOnProfileReceived(
-                                attrs,
+                                profile,
                                 currentDataWhenRequestSent?.profileId,
                             )
                             metaToBeSent?.let(cacheRepository::saveLastSentInstallationMeta)

@@ -20,18 +20,14 @@ internal class SetVariationIdRequest(
             val transactionId: String,
             @SerializedName("variation_id")
             val variationId: String,
-            @SerializedName("profile_id")
-            val profileId: String
         )
     }
 
     internal companion object {
-        fun create(transactionId: String, variationId: String, profileId: String) =
+        fun create(transactionId: String, variationId: String) =
             SetVariationIdRequest(
                 Data(
-                    attributes = Data.Attributes(
-                        transactionId, variationId, profileId
-                    )
+                    attributes = Data.Attributes(transactionId, variationId)
                 )
             )
     }

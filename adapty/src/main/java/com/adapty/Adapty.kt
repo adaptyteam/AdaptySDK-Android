@@ -70,14 +70,19 @@ public object Adapty {
     }
 
     @JvmStatic
-    public fun getPaywall(id: String, callback: ResultCallback<AdaptyPaywall>) {
+    @JvmOverloads
+    public fun getPaywall(
+        id: String,
+        locale: String? = null,
+        callback: ResultCallback<AdaptyPaywall>,
+    ) {
         Logger.log(VERBOSE) { "getPaywall(id = $id)" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getPaywall(id, callback)
+        adaptyInternal.getPaywall(id, locale, callback)
     }
 
     @JvmStatic

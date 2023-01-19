@@ -3,14 +3,14 @@ package com.adapty.internal.utils
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.data.models.ProfileResponseData
+import com.adapty.internal.data.models.ProfileDto
 import com.adapty.models.AdaptyProfile
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class ProfileMapper {
 
     @JvmSynthetic
-    fun map(dto: ProfileResponseData.Attributes) =
+    fun map(dto: ProfileDto) =
         AdaptyProfile(
             profileId = dto.profileId.orEmpty(),
             customerUserId = dto.customerUserId,

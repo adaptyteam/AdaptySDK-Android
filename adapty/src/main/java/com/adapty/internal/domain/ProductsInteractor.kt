@@ -3,6 +3,7 @@ package com.adapty.internal.domain
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
+import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.StoreManager
@@ -29,11 +30,10 @@ internal class ProductsInteractor(
 ) {
 
     @JvmSynthetic
-    fun getPaywall(id: String) =
+    fun getPaywall(id: String, locale: String?) =
         authInteractor.runWhenAuthDataSynced {
-            purchasesInteractor
-                .syncPurchasesIfNeeded()
-                .map { cloudRepository.getPaywall(id) }
+            syncPurchasesIfNeeded()
+                .map { cloudRepository.getPaywall(id, locale) }
         }
             .flattenConcat()
             .map { paywall ->
@@ -43,10 +43,10 @@ internal class ProductsInteractor(
             .catch { error ->
                 if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
                     val cachedPaywall = cacheRepository.getPaywall(id)
-                    val fallbackPaywall = cacheRepository.getFallbackPaywalls()?.first
-                            ?.firstOrNull { it.attributes?.developerId == id }?.attributes
+                    val fallbackPaywall = cacheRepository.getFallbackPaywalls()?.paywalls
+                            ?.firstOrNull { it.developerId == id }
                     val chosenPaywall =
-                        paywallPicker.pick(cachedPaywall, fallbackPaywall) ?: throw error
+                        paywallPicker.pick(cachedPaywall, fallbackPaywall, locale) ?: throw error
 
                     val productsFromCachedPaywall =
                         productMapper.map(cachedPaywall?.products.orEmpty(), Source.CACHE)
@@ -68,8 +68,7 @@ internal class ProductsInteractor(
     @JvmSynthetic
     fun getPaywallProducts(paywall: AdaptyPaywall) : Flow<List<AdaptyPaywallProduct>> =
         authInteractor.runWhenAuthDataSynced {
-            purchasesInteractor
-                .syncPurchasesIfNeeded()
+            syncPurchasesIfNeeded()
                 .map {
                     productMapper.map(cloudRepository.getProducts(), Source.CLOUD)
                 }
@@ -84,7 +83,7 @@ internal class ProductsInteractor(
             if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
                 val products = productPicker.pick(
                     productMapper.map(cacheRepository.getProducts().orEmpty(), Source.CACHE),
-                    productMapper.map(cacheRepository.getFallbackPaywalls()?.second.orEmpty(), Source.FALLBACK),
+                    productMapper.map(cacheRepository.getFallbackPaywalls()?.products.orEmpty(), Source.FALLBACK),
                     paywall.vendorProductIds.toSet(),
                 )
 
@@ -148,4 +147,15 @@ internal class ProductsInteractor(
 
         return foundProducts.filterNotNull()
     }
+
+    private suspend fun syncPurchasesIfNeeded() =
+        purchasesInteractor
+            .syncPurchasesIfNeeded()
+            .catch { error ->
+                if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
+                    emit(Unit)
+                } else {
+                    throw error
+                }
+            }
 }

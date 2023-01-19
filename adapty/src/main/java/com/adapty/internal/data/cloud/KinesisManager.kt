@@ -123,7 +123,7 @@ internal class KinesisManager(
 
     private fun sendEvents(records: List<AwsRecordModel>) =
         flow {
-            val response = httpClient.newCall(
+            val response = httpClient.newCall<Unit>(
                 requestFactory.kinesisRequest(
                     mapOf("Records" to records, "StreamName" to kinesisStream)
                 ),

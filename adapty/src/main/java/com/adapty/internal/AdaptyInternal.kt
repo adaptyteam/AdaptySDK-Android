@@ -187,11 +187,12 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun getPaywall(
         id: String,
+        locale: String?,
         callback: ResultCallback<AdaptyPaywall>
     ) {
         execute {
             productsInteractor
-                .getPaywall(id)
+                .getPaywall(id, locale)
                 .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
                 .onEach { paywall -> callback.onResult(AdaptyResult.Success(paywall)) }
                 .flowOnMain()

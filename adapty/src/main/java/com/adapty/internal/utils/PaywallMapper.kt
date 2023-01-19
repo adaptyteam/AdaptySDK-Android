@@ -29,9 +29,10 @@ internal class PaywallMapper(private val gson: Gson) {
             message = "variationId in Paywall should not be null",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         ),
-        remoteConfigString = paywallDto.customPayload,
+        locale = paywallDto.remoteConfig?.lang ?: DEFAULT_PAYWALL_LOCALE,
+        remoteConfigString = paywallDto.remoteConfig?.data,
         remoteConfig = (try {
-            paywallDto.customPayload?.let { gson.fromJson<Map<String, Any>>(it, type) }
+            paywallDto.remoteConfig?.data?.let { gson.fromJson<Map<String, Any>>(it, type) }
         } catch (e: Exception) {
             null
         })?.immutableWithInterop(),

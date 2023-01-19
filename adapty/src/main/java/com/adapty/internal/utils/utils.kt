@@ -70,6 +70,9 @@ internal const val INFINITE_RETRY = -1L
 internal const val DEFAULT_RETRY_COUNT = 3L
 
 @JvmSynthetic
+internal const val DEFAULT_PAYWALL_LOCALE = "en"
+
+@JvmSynthetic
 internal fun getServerErrorDelay(attempt: Long) =
     min((2f.pow(attempt.coerceAtMost(7).toInt()) + 1), 90f).toLong() * 1000L
 

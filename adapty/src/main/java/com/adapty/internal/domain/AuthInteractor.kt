@@ -46,8 +46,8 @@ internal class AuthInteractor(
                         AdaptyProfileParameters.Builder().withExternalAnalyticsDisabled(!enabled).build()
                     }
                     cloudRepository.createProfile(newCustomerUserId, installationMeta, params)
-                        .map { attrs ->
-                            cacheRepository.updateDataOnCreateProfile(attrs, installationMeta)
+                        .map { profile ->
+                            cacheRepository.updateDataOnCreateProfile(profile, installationMeta)
                         }
                         .onEach { authSemaphore.release() }
                         .catch { error -> authSemaphore.release(); throw error }

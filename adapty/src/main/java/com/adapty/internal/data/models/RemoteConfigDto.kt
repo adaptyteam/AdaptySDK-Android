@@ -1,10 +1,12 @@
-package com.adapty.internal.data.models.responses
+package com.adapty.internal.data.models
 
 import androidx.annotation.RestrictTo
 import com.google.gson.annotations.SerializedName
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class ProductIdsResponse(
+internal class RemoteConfigDto(
+    @SerializedName("lang")
+    val lang: String,
     @SerializedName("data")
-    val data: ArrayList<String>?,
+    val data: String?,
 )

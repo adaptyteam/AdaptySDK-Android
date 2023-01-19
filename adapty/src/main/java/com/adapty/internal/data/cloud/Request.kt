@@ -2,6 +2,7 @@ package com.adapty.internal.data.cloud
 
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
+import com.adapty.internal.data.cache.ResponseCacheKeyProvider
 import com.adapty.internal.data.cache.ResponseCacheKeys
 import com.adapty.internal.data.cloud.Request.Method.*
 import com.adapty.internal.data.models.AttributionData
@@ -95,6 +96,7 @@ internal class Request internal constructor(val baseUrl: String) {
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class RequestFactory(
     private val cacheRepository: CacheRepository,
+    private val responseCacheKeyProvider: ResponseCacheKeyProvider,
     private val gson: Gson
 ) {
 
@@ -111,7 +113,7 @@ internal class RequestFactory(
             buildRequest {
                 method = GET
                 endPoint = getEndpointForProfileRequests(profileId)
-                responseCacheKeys = ResponseCacheKeys.forGetProfile()
+                responseCacheKeys = responseCacheKeyProvider.forGetProfile()
                 currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
             }
         }
@@ -129,7 +131,7 @@ internal class RequestFactory(
                     )
                 )
                 endPoint = getEndpointForProfileRequests(profileId)
-                responseCacheKeys = ResponseCacheKeys.forGetProfile()
+                responseCacheKeys = responseCacheKeyProvider.forGetProfile()
                 currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
             }
         }
@@ -195,22 +197,25 @@ internal class RequestFactory(
         method = GET
         endPoint = "$inappsEndpointPrefix/products/"
         addQueryParam(Pair("profile_id", cacheRepository.getProfileId()))
-        responseCacheKeys = ResponseCacheKeys.forGetProducts()
+        responseCacheKeys = responseCacheKeyProvider.forGetProducts()
     }
 
     @JvmSynthetic
     fun getProductIdsRequest() = buildRequest {
         method = GET
         endPoint = "$inappsEndpointPrefix/products-ids/"
-        responseCacheKeys = ResponseCacheKeys.forGetProductIds()
+        responseCacheKeys = responseCacheKeyProvider.forGetProductIds()
     }
 
     @JvmSynthetic
-    fun getPaywallRequest(id: String) = buildRequest {
+    fun getPaywallRequest(id: String, locale: String?) = buildRequest {
         method = GET
         endPoint = "$inappsEndpointPrefix/purchase-containers/$id/"
         addQueryParam(Pair("profile_id", cacheRepository.getProfileId()))
-        responseCacheKeys = ResponseCacheKeys.forGetPaywall(id)
+        if (locale != null) {
+            addQueryParam("locale" to locale)
+        }
+        responseCacheKeys = responseCacheKeyProvider.forGetPaywall(id)
     }
 
     @JvmSynthetic
@@ -233,7 +238,6 @@ internal class RequestFactory(
                 SetVariationIdRequest.create(
                     transactionId,
                     variationId,
-                    cacheRepository.getProfileId()
                 )
             )
         }
