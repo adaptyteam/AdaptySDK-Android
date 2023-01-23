@@ -50,7 +50,9 @@ internal class CacheRepository(
         saveProfile(profile)
 
         cache.remove(UNSYNCED_PROFILE_ID)
-        cache.remove(UNSYNCED_CUSTOMER_USER_ID)
+        val currentUnsyncedCUIdDiffers = profile.customerUserId != cache[UNSYNCED_CUSTOMER_USER_ID]
+        if (!currentUnsyncedCUIdDiffers)
+            cache.remove(UNSYNCED_CUSTOMER_USER_ID)
         saveLastSentInstallationMeta(installationMeta)
         return profileIdHasChanged
     }
