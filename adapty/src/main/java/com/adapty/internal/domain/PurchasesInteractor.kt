@@ -192,14 +192,14 @@ internal class PurchasesInteractor(
                     else -> {
                         historyData.filter { historyRecord ->
                             syncedPurchases.firstOrNull { purchase ->
-                                purchase.purchaseToken == historyRecord.purchase.purchaseToken && purchase.purchaseTime == historyRecord.purchase.purchaseTime
+                                purchase.purchaseToken == historyRecord.purchaseToken && purchase.purchaseTime == historyRecord.purchaseTime
                             } == null
                         }
                     }
                 }
                 if (dataToSync.isNotEmpty()) {
                     storeManager.querySkuDetails(
-                        dataToSync.mapNotNull { it.purchase.skus.firstOrNull() },
+                        dataToSync.mapNotNull { it.skus.firstOrNull() },
                         maxAttemptCount,
                     ).flatMapConcat { skuDetailsList ->
                         authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
@@ -208,7 +208,7 @@ internal class PurchasesInteractor(
                                     productMapper.mapToRestore(
                                         historyRecord,
                                         skuDetailsList
-                                            .firstOrNull { it.sku == historyRecord.purchase.skus.firstOrNull() }
+                                            .firstOrNull { it.sku == historyRecord.skus.firstOrNull() }
                                     )
                                 }
                             )

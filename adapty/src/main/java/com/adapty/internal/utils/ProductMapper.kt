@@ -129,14 +129,14 @@ internal class ProductMapper(
 
     @JvmSynthetic
     fun mapToRestore(
-        historyRecord: PurchaseHistoryRecordModel,
+        purchaseRecord: PurchaseRecordModel,
         skuDetails: SkuDetails?,
     ) =
         RestoreProductInfo(
-            isSubscription = historyRecord.type == BillingClient.SkuType.SUBS,
-            productId = historyRecord.purchase.skus.firstOrNull(),
-            purchaseToken = historyRecord.purchase.purchaseToken,
-            transactionId = historyRecord.transactionId,
+            isSubscription = purchaseRecord.type == BillingClient.SkuType.SUBS,
+            productId = purchaseRecord.skus.firstOrNull(),
+            purchaseToken = purchaseRecord.purchaseToken,
+            transactionId = purchaseRecord.transactionId,
             localizedTitle = skuDetails?.title,
             localizedDescription = skuDetails?.description,
             price = skuDetails?.priceAmountMicros?.let(::formatPrice),
@@ -146,10 +146,10 @@ internal class ProductMapper(
         )
 
     @JvmSynthetic
-    fun mapToSyncedPurchase(historyRecord: PurchaseHistoryRecordModel) =
+    fun mapToSyncedPurchase(purchaseRecord: PurchaseRecordModel) =
         SyncedPurchase(
-            purchaseToken = historyRecord.purchase.purchaseToken,
-            purchaseTime = historyRecord.purchase.purchaseTime,
+            purchaseToken = purchaseRecord.purchaseToken,
+            purchaseTime = purchaseRecord.purchaseTime,
         )
 
     private fun mapIntroductoryOfferEligibility(productDto: ProductDto, source: Source) =

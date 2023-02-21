@@ -5,7 +5,7 @@ import android.content.Context
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.data.models.PurchaseHistoryRecordModel
+import com.adapty.internal.data.models.PurchaseRecordModel
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
@@ -38,7 +38,7 @@ internal class StoreManager(
     private var makePurchaseCallback: MakePurchaseCallback? = null
 
     @JvmSynthetic
-    fun getPurchaseHistoryDataToRestore(maxAttemptCount: Long): Flow<List<PurchaseHistoryRecordModel>> =
+    fun getPurchaseHistoryDataToRestore(maxAttemptCount: Long): Flow<List<PurchaseRecordModel>> =
         getPurchaseHistoryDataToRestoreForType(SUBS, maxAttemptCount)
             .flatMapConcat { subsHistoryList ->
                 getPurchaseHistoryDataToRestoreForType(INAPP, maxAttemptCount)
@@ -48,21 +48,37 @@ internal class StoreManager(
     private fun getPurchaseHistoryDataToRestoreForType(
         @BillingClient.SkuType type: String,
         maxAttemptCount: Long,
-    ): Flow<List<PurchaseHistoryRecordModel>> {
+    ): Flow<List<PurchaseRecordModel>> {
         return onConnected {
-            storeHelper.queryPurchaseHistoryForType(type)
-                .map { purchaseHistoryRecordList ->
-                    purchaseHistoryRecordList.map { purchase ->
-                        PurchaseHistoryRecordModel(
-                            purchase,
-                            type,
-                            type.takeIf { it == SUBS }?.let {
-                                billingClient.queryPurchases(SUBS).purchasesList
-                                    ?.firstOrNull { it.purchaseToken == purchase.purchaseToken }
-                                    ?.orderId
-                            }
+            storeHelper.queryAllPurchasesForType(type)
+                .map { (historyRecords, activePurchases) ->
+                    val purchases = mutableSetOf<PurchaseRecordModel>()
+
+                    activePurchases.forEach { purchase ->
+                        purchases.add(
+                            PurchaseRecordModel(
+                                purchase.purchaseToken,
+                                purchase.purchaseTime,
+                                purchase.skus,
+                                type,
+                                purchase.orderId,
+                            )
                         )
                     }
+
+                    historyRecords.forEach { historyRecord ->
+                        purchases.add(
+                            PurchaseRecordModel(
+                                historyRecord.purchaseToken,
+                                historyRecord.purchaseTime,
+                                historyRecord.skus,
+                                type,
+                                null,
+                            )
+                        )
+                    }
+
+                    purchases.toList()
                 }
         }.retryOnConnectionError(maxAttemptCount)
     }
@@ -404,12 +420,18 @@ private class StoreHelper(private val billingClient: BillingClient) {
         }
 
     @JvmSynthetic
-    fun queryActivePurchasesForType(@BillingClient.SkuType type: String) =
+    fun queryAllPurchasesForType(@BillingClient.SkuType type: String) =
         queryPurchaseHistoryForType(type)
-            .map {
-                billingClient.queryPurchases(type).purchasesList
+            .map { historyRecords ->
+                val activePurchases = billingClient.queryPurchases(type).purchasesList
                     ?.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }.orEmpty()
+                historyRecords to activePurchases
             }
+
+    @JvmSynthetic
+    fun queryActivePurchasesForType(@BillingClient.SkuType type: String) =
+        queryAllPurchasesForType(type)
+            .map { (_, activePurchases) -> activePurchases }
 
     @JvmSynthetic
     fun acknowledgePurchase(params: AcknowledgePurchaseParams) =
