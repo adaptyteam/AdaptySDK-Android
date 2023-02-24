@@ -33,15 +33,16 @@ internal class ProductsInteractor(
     fun getPaywall(id: String, locale: String?) =
         authInteractor.runWhenAuthDataSynced {
             syncPurchasesIfNeeded()
-                .map { cloudRepository.getPaywall(id, locale) }
+                .map { synced -> cloudRepository.getPaywall(id, locale) to synced }
         }
             .flattenConcat()
-            .map { paywall ->
-                val products = productMapper.map(paywall.products, Source.CLOUD)
+            .map { (paywall, synced) ->
+                val products = productMapper.map(paywall.products, Source.CLOUD, synced)
                 paywallMapper.map(paywall, products)
             }
             .catch { error ->
                 if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
+                    val purchasesHaveBeenSynced = cacheRepository.getPurchasesHaveBeenSynced()
                     val cachedPaywall = cacheRepository.getPaywall(id)
                     val fallbackPaywall = cacheRepository.getFallbackPaywalls()?.paywalls
                             ?.firstOrNull { it.developerId == id }
@@ -49,9 +50,17 @@ internal class ProductsInteractor(
                         paywallPicker.pick(cachedPaywall, fallbackPaywall, locale) ?: throw error
 
                     val productsFromCachedPaywall =
-                        productMapper.map(cachedPaywall?.products.orEmpty(), Source.CACHE)
+                        productMapper.map(
+                            cachedPaywall?.products.orEmpty(),
+                            Source.CACHE,
+                            purchasesHaveBeenSynced,
+                        )
                     val productsFromFallbackPaywall =
-                        productMapper.map(fallbackPaywall?.products.orEmpty(), Source.FALLBACK)
+                        productMapper.map(
+                            fallbackPaywall?.products.orEmpty(),
+                            Source.FALLBACK,
+                            purchasesHaveBeenSynced,
+                        )
 
                     val chosenProducts = productPicker.pick(
                         productsFromCachedPaywall,
@@ -69,8 +78,8 @@ internal class ProductsInteractor(
     fun getPaywallProducts(paywall: AdaptyPaywall) : Flow<List<AdaptyPaywallProduct>> =
         authInteractor.runWhenAuthDataSynced {
             syncPurchasesIfNeeded()
-                .map {
-                    productMapper.map(cloudRepository.getProducts(), Source.CLOUD)
+                .map { synced ->
+                    productMapper.map(cloudRepository.getProducts(), Source.CLOUD, synced)
                 }
         }.flattenConcat().map { allProducts ->
             findProductsFromPaywallOrdered(paywall, allProducts)
@@ -81,9 +90,18 @@ internal class ProductsInteractor(
                 }
         }.catch { error ->
             if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
+                val purchasesHaveBeenSynced = cacheRepository.getPurchasesHaveBeenSynced()
                 val products = productPicker.pick(
-                    productMapper.map(cacheRepository.getProducts().orEmpty(), Source.CACHE),
-                    productMapper.map(cacheRepository.getFallbackPaywalls()?.products.orEmpty(), Source.FALLBACK),
+                    productMapper.map(
+                        cacheRepository.getProducts().orEmpty(),
+                        Source.CACHE,
+                        purchasesHaveBeenSynced,
+                    ),
+                    productMapper.map(
+                        cacheRepository.getFallbackPaywalls()?.products.orEmpty(),
+                        Source.FALLBACK,
+                        purchasesHaveBeenSynced,
+                    ),
                     paywall.vendorProductIds.toSet(),
                 )
 
@@ -151,11 +169,6 @@ internal class ProductsInteractor(
     private suspend fun syncPurchasesIfNeeded() =
         purchasesInteractor
             .syncPurchasesIfNeeded()
-            .catch { error ->
-                if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
-                    emit(Unit)
-                } else {
-                    throw error
-                }
-            }
+            .map { true }
+            .catch { emit(false) }
 }

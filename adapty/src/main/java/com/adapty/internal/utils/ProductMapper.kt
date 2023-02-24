@@ -66,17 +66,21 @@ internal class ProductMapper(
         )
 
     @JvmSynthetic
-    fun map(productDtos: List<ProductDto>, source: Source) =
-        productDtos.map { productDto -> map(productDto, source) }
+    fun map(productDtos: List<ProductDto>, source: Source, purchasesHaveBeenSynced: Boolean) =
+        productDtos.map { productDto -> map(productDto, source, purchasesHaveBeenSynced) }
 
     @JvmSynthetic
-    fun map(productDto: ProductDto, source: Source) =
+    fun map(productDto: ProductDto, source: Source, purchasesHaveBeenSynced: Boolean) =
         Product(
             vendorProductId = productDto.vendorProductId ?: throw AdaptyError(
                 message = "vendorProductId in Product should not be null",
                 adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
             ),
-            introductoryOfferEligibility = mapIntroductoryOfferEligibility(productDto, source),
+            introductoryOfferEligibility = mapIntroductoryOfferEligibility(
+                productDto,
+                source,
+                purchasesHaveBeenSynced,
+            ),
             timestamp = productDto.timestamp ?: 0L,
         )
 
@@ -152,9 +156,13 @@ internal class ProductMapper(
             purchaseTime = purchaseRecord.purchaseTime,
         )
 
-    private fun mapIntroductoryOfferEligibility(productDto: ProductDto, source: Source) =
+    private fun mapIntroductoryOfferEligibility(
+        productDto: ProductDto,
+        source: Source,
+        purchasesHaveBeenSynced: Boolean,
+    ) =
         when {
-            productDto.introductoryOfferEligibility == null || source == Source.FALLBACK -> UNKNOWN
+            productDto.introductoryOfferEligibility == null || source == Source.FALLBACK || !purchasesHaveBeenSynced -> UNKNOWN
             productDto.introductoryOfferEligibility == true -> ELIGIBLE
             else -> INELIGIBLE
         }
