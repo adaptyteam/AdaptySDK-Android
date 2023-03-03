@@ -213,11 +213,11 @@ internal class PurchasesInteractor(
                                 }
                             )
                         }.map { (profile, currentDataWhenRequestSent) ->
-                            cacheRepository.saveSyncedPurchases(
-                                dataToSync.map(productMapper::mapToSyncedPurchase)
-                                    .union(syncedPurchases.filter { it.purchaseToken != null && it.purchaseTime != null })
-                            )
                             if (cacheRepository.getProfileId() == currentDataWhenRequestSent?.profileId) {
+                                cacheRepository.saveSyncedPurchases(
+                                    dataToSync.map(productMapper::mapToSyncedPurchase)
+                                        .union(syncedPurchases.filter { it.purchaseToken != null && it.purchaseTime != null })
+                                )
                                 cacheRepository.setPurchasesHaveBeenSynced(true)
                             }
                             cacheRepository.updateOnProfileReceived(
@@ -247,7 +247,7 @@ internal class PurchasesInteractor(
         }
 
     @JvmSynthetic
-    suspend fun consumeAndAcknowledgeTheUnprocessed() {
+    fun consumeAndAcknowledgeTheUnprocessed() =
         storeManager.queryActiveSubsAndInApps(INFINITE_RETRY)
             .map { (subs, inapps) ->
                 if (inapps.isEmpty() && subs.isEmpty()) {
@@ -312,6 +312,4 @@ internal class PurchasesInteractor(
             .flatMapConcat { it.asFlow() }
             .flattenConcat()
             .catch { }
-            .collect()
-    }
 }

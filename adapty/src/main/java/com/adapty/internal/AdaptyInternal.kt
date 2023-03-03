@@ -3,7 +3,8 @@ package com.adapty.internal
 import android.app.Activity
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
-import com.adapty.errors.AdaptyErrorCode.*
+import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
+import com.adapty.errors.AdaptyErrorCode.WRONG_PARAMETER
 import com.adapty.internal.data.cloud.KinesisManager
 import com.adapty.internal.domain.AuthInteractor
 import com.adapty.internal.domain.ProductsInteractor
@@ -16,9 +17,7 @@ import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyResult
 import com.adapty.utils.ErrorCallback
 import com.adapty.utils.ResultCallback
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class AdaptyInternal(
@@ -87,15 +86,22 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun activate(
         customerUserId: String?,
-        callback: ErrorCallback?
+        callback: ErrorCallback? = null,
+        isInitialActivation: Boolean = true,
     ) {
         execute {
             authInteractor.prepareAuthDataToSync(customerUserId)
 
             authInteractor
                 .activateOrIdentify()
-                .catch { error -> callback?.onResult(error.asAdaptyError()); executeStartRequests() }
-                .onEach { callback?.onResult(null); executeStartRequests() }
+                .catch { error ->
+                    callback?.onResult(error.asAdaptyError())
+                    if (isInitialActivation) setupStartRequests()
+                }
+                .onEach {
+                    callback?.onResult(null)
+                    if (isInitialActivation) setupStartRequests()
+                }
                 .flowOnMain()
                 .collect()
         }
@@ -139,11 +145,8 @@ internal class AdaptyInternal(
 
             authInteractor
                 .activateOrIdentify()
-                .catch { error -> callback.onResult(error.asAdaptyError()); executeStartRequests() }
-                .onEach { profileIdHasChanged ->
-                    callback.onResult(null)
-                    executeStartRequests(profileIdHasChanged)
-                }
+                .catch { error -> callback.onResult(error.asAdaptyError()) }
+                .onEach { callback.onResult(null) }
                 .flowOnMain()
                 .collect()
         }
@@ -152,7 +155,7 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun logout(callback: ErrorCallback) {
         authInteractor.clearDataOnLogout()
-        activate(null, callback)
+        activate(null, callback, false)
     }
 
     @JvmSynthetic
@@ -213,26 +216,6 @@ internal class AdaptyInternal(
                 .flowOnMain()
                 .collect()
         }
-    }
-
-    private fun executeStartRequests(newProfileIdDuringThisSession: Boolean = true) {
-        execute { profileInteractor.syncMetaOnStart().catch { }.collect() }
-
-        if (newProfileIdDuringThisSession) {
-            lifecycleAwareRequestRunner.restart()
-
-            execute {
-                purchasesInteractor.syncPurchasesIfNeeded()
-                    .catch { error ->
-                        if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
-                            profileInteractor.getProfileOnStart().catch { }.collect()
-                        }
-                    }
-                    .collect()
-            }
-        }
-
-        if (!isObserverMode) execute { purchasesInteractor.consumeAndAcknowledgeTheUnprocessed() }
     }
 
     @JvmSynthetic
@@ -310,6 +293,40 @@ internal class AdaptyInternal(
                 .catch { error -> callback.onResult(error.asAdaptyError()) }
                 .onEach { callback.onResult(null) }
                 .flowOnMain()
+                .collect()
+        }
+    }
+
+    private fun setupStartRequests() {
+        execute {
+            profileInteractor
+                .subscribeOnEventsForStartRequests()
+                .onEach { (newProfileIdDuringThisSession, _) ->
+                    if (newProfileIdDuringThisSession)
+                        lifecycleAwareRequestRunner.restart()
+                }
+                .flowOnMain()
+                .flatMapConcat { (newProfileIdDuringThisSession, _) ->
+                    mutableListOf<Flow<*>>(
+                        profileInteractor.syncMetaOnStart().catch { }
+                    ).apply {
+                        if (newProfileIdDuringThisSession) {
+                            add(
+                                purchasesInteractor.syncPurchasesIfNeeded()
+                                    .catch { error ->
+                                        if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
+                                            emitAll(profileInteractor.getProfileOnStart().catch { })
+                                        }
+                                    }
+                            )
+                        }
+
+                        if (!isObserverMode)
+                            add(purchasesInteractor.consumeAndAcknowledgeTheUnprocessed())
+                    }.merge()
+                }
+                .flowOnIO()
+                .catch { }
                 .collect()
         }
     }

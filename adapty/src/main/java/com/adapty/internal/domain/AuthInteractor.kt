@@ -3,6 +3,8 @@ package com.adapty.internal.domain
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
+import com.adapty.internal.domain.models.ProfileRequestResult
+import com.adapty.internal.domain.models.ProfileRequestResult.*
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyProfileParameters
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
@@ -27,10 +29,10 @@ internal class AuthInteractor(
 
     private val authSemaphore = Semaphore(1)
 
-    private suspend fun createProfileIfNeeded(): Flow<Boolean> {
+    private suspend fun createProfileIfNeeded(): Flow<ProfileRequestResult> {
         cacheRepository.getUnsyncedAuthData().let { (newProfileId, newCustomerUserId) ->
             if (newProfileId.isNullOrEmpty() && newCustomerUserId.isNullOrEmpty()) {
-                return flowOf(false)
+                return flowOf(ProfileIdSame)
             }
         }
 
@@ -38,7 +40,7 @@ internal class AuthInteractor(
         val (newProfileId, newCustomerUserId) = cacheRepository.getUnsyncedAuthData()
         return if (newProfileId.isNullOrEmpty() && newCustomerUserId.isNullOrEmpty()) {
             authSemaphore.release()
-            flowOf(false)
+            flowOf(ProfileIdSame)
         } else {
             createInstallationMeta()
                 .flatMapConcat { installationMeta ->
@@ -47,7 +49,9 @@ internal class AuthInteractor(
                     }
                     cloudRepository.createProfile(newCustomerUserId, installationMeta, params)
                         .map { profile ->
-                            cacheRepository.updateDataOnCreateProfile(profile, installationMeta)
+                            val profileIdHasChanged =
+                                cacheRepository.updateDataOnCreateProfile(profile, installationMeta)
+                            if (profileIdHasChanged) ProfileIdChanged else ProfileIdSame
                         }
                         .onEach { authSemaphore.release() }
                         .catch { error -> authSemaphore.release(); throw error }
@@ -87,11 +91,24 @@ internal class AuthInteractor(
     @JvmSynthetic
     fun <T> runWhenAuthDataSynced(
         maxAttemptCount: Long = DEFAULT_RETRY_COUNT,
-        call: suspend () -> T
+        switchIfProfileCreationFailed: (() -> T?)? = null,
+        call: suspend () -> T,
     ): Flow<T> {
         return cloudRepository.onActivateAllowed()
             .flatMapConcat { createProfileIfNeeded() }
-            .mapLatest { call() }
+            .catch { error ->
+                if (switchIfProfileCreationFailed == null) {
+                    throw error
+                } else {
+                    emit(ProfileNotCreated(error))
+                }
+            }
+            .mapLatest { result ->
+                when (result) {
+                    is ProfileNotCreated -> switchIfProfileCreationFailed?.invoke() ?: throw result.error
+                    else -> call()
+                }
+            }
             .retryIfNecessary(maxAttemptCount)
             .flowOnIO()
     }

@@ -3,7 +3,7 @@ package com.adapty.internal.domain
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
-import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
+import com.adapty.errors.AdaptyErrorCode.NO_PRODUCT_IDS_FOUND
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.StoreManager
@@ -13,6 +13,7 @@ import com.adapty.internal.domain.models.Product
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import kotlinx.coroutines.flow.*
 import java.io.IOException
 
@@ -31,15 +32,26 @@ internal class ProductsInteractor(
 
     @JvmSynthetic
     fun getPaywall(id: String, locale: String?) =
-        authInteractor.runWhenAuthDataSynced {
-            syncPurchasesIfNeeded()
-                .map { synced -> cloudRepository.getPaywall(id, locale) to synced }
-        }
-            .flattenConcat()
-            .map { (paywall, synced) ->
-                val products = productMapper.map(paywall.products, Source.CLOUD, synced)
-                paywallMapper.map(paywall, products)
+        authInteractor.runWhenAuthDataSynced(
+            call = {
+                syncPurchasesIfNeeded()
+                    .map { synced ->
+                        val paywall = cloudRepository.getPaywall(id, locale)
+                        val products = productMapper.map(paywall.products, Source.CLOUD, synced)
+                        paywall to products
+                    }
+            },
+            switchIfProfileCreationFailed = {
+                cacheRepository.getFallbackPaywalls()?.paywalls
+                    ?.firstOrNull { it.developerId == id }?.let { fallbackPaywall ->
+                        val products =
+                            productMapper.map(fallbackPaywall.products, Source.FALLBACK, false)
+                        flowOf(fallbackPaywall to products)
+                    }
             }
+        )
+            .flattenConcat()
+            .map { (paywall, products) -> paywallMapper.map(paywall, products) }
             .catch { error ->
                 if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
                     val purchasesHaveBeenSynced = cacheRepository.getPurchasesHaveBeenSynced()
@@ -76,12 +88,20 @@ internal class ProductsInteractor(
 
     @JvmSynthetic
     fun getPaywallProducts(paywall: AdaptyPaywall) : Flow<List<AdaptyPaywallProduct>> =
-        authInteractor.runWhenAuthDataSynced {
-            syncPurchasesIfNeeded()
-                .map { synced ->
-                    productMapper.map(cloudRepository.getProducts(), Source.CLOUD, synced)
-                }
-        }.flattenConcat().map { allProducts ->
+        authInteractor.runWhenAuthDataSynced(
+            call = {
+                syncPurchasesIfNeeded()
+                    .map { synced ->
+                        productMapper.map(cloudRepository.getProducts(), Source.CLOUD, synced)
+                    }
+            },
+            switchIfProfileCreationFailed = {
+                cacheRepository.getFallbackPaywalls()?.products?.takeIf { it.isNotEmpty() }
+                    ?.let { fallbackProducts ->
+                        flowOf(productMapper.map(fallbackProducts, Source.FALLBACK, false))
+                    }
+            }
+        ).flattenConcat().map { allProducts ->
             findProductsFromPaywallOrdered(paywall, allProducts)
         }.flatMapConcat { products ->
             getProductStoreData(products, maxAttemptCount = DEFAULT_RETRY_COUNT)
@@ -136,9 +156,13 @@ internal class ProductsInteractor(
         products: List<Product>,
         maxAttemptCount: Long,
     ) : Flow<Map<String, ProductStoreData>> {
+        if (products.isEmpty())
+            throwNoProductIdsFoundError()
         val productIds = products.map { it.vendorProductId }.distinct()
         return storeManager.querySkuDetails(productIds, maxAttemptCount)
             .map { skuDetailsList ->
+                if (skuDetailsList.isEmpty())
+                    throwNoProductIdsFoundError()
                 skuDetailsList.associate { skuDetails ->
                     skuDetails.sku to productMapper.mapBillingInfoToProductStoreData(skuDetails)
                 }
@@ -171,4 +195,13 @@ internal class ProductsInteractor(
             .syncPurchasesIfNeeded()
             .map { true }
             .catch { emit(false) }
+
+    private fun throwNoProductIdsFoundError(): Nothing {
+        val message = "No In-App Purchase product identifiers were found."
+        Logger.log(ERROR) { message }
+        throw AdaptyError(
+            message = message,
+            adaptyErrorCode = NO_PRODUCT_IDS_FOUND
+        )
+    }
 }

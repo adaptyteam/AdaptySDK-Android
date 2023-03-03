@@ -20,6 +20,7 @@ package com.adapty.internal.data.cache
 @JvmSynthetic internal const val ATTRIBUTION_DATA = "ATTRIBUTION_DATA"
 @JvmSynthetic internal const val EXTERNAL_ANALYTICS_ENABLED = "EXTERNAL_ANALYTICS_ENABLED"
 @JvmSynthetic internal const val PURCHASES_HAVE_BEEN_SYNCED = "PURCHASES_HAVE_BEEN_SYNCED"
+@JvmSynthetic internal const val SESSION_ID = "SESSION_ID"
 @JvmSynthetic internal const val APP_OPENED_TIME = "APP_OPENED_TIME"
 @JvmSynthetic internal const val APP_KEY = "APP_KEY"
 @JvmSynthetic internal const val PAYWALL_RESPONSE_START_PART = "get_paywall_"

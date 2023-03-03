@@ -41,13 +41,14 @@ internal class DefaultConnectionCreator(
 
             setRequestProperty("Content-type", "application/vnd.api+json")
             setRequestProperty("Accept-Encoding", "gzip")
-            setRequestProperty("ADAPTY-SDK-PROFILE-ID", cacheRepository.getProfileId())
-            setRequestProperty("ADAPTY-SDK-PLATFORM", "Android")
-            setRequestProperty("ADAPTY-SDK-VERSION", com.adapty.BuildConfig.VERSION_NAME)
+            setRequestProperty("adapty-sdk-profile-id", cacheRepository.getProfileId())
+            setRequestProperty("adapty-sdk-platform", "Android")
+            setRequestProperty("adapty-sdk-version", com.adapty.BuildConfig.VERSION_NAME)
+            setRequestProperty("adapty-sdk-session", cacheRepository.getSessionId())
             setRequestProperty(AUTHORIZATION_KEY, "$API_KEY_PREFIX${apiKey}")
             request.responseCacheKeys?.responseHashKey?.let(cacheRepository::getString)
                 ?.let { latestResponseHash ->
-                    setRequestProperty("ADAPTY-SDK-PREVIOUS-RESPONSE-HASH", latestResponseHash)
+                    setRequestProperty("adapty-sdk-previous-response-hash", latestResponseHash)
                 }
 
             if (request.method != GET) {

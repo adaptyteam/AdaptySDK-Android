@@ -41,7 +41,7 @@ public object Adapty {
         }
 
         init(context, appKey, observerMode)
-        adaptyInternal.activate(customerUserId, null)
+        adaptyInternal.activate(customerUserId)
     }
 
     @JvmStatic

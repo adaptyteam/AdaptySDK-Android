@@ -5,6 +5,7 @@ import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
+import com.adapty.internal.data.models.ProfileDto
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyAttributionSource
 import com.adapty.models.AdaptyProfileParameters
@@ -113,4 +114,23 @@ internal class ProfileInteractor(
     fun subscribeOnProfileChanges() =
         cacheRepository.subscribeOnProfileChanges()
             .map(profileMapper::map)
+
+    @JvmSynthetic
+    fun subscribeOnEventsForStartRequests() =
+        cacheRepository.subscribeOnProfileChanges()
+            .onStart {
+                cacheRepository.getProfile()?.let { cachedProfile -> emit(cachedProfile) }
+            }
+            .scan(Pair<ProfileDto?, ProfileDto?>(null, null)) { (_, prevProfile), currentProfile ->
+                prevProfile to currentProfile
+            }
+            .map { (prevProfile, currentProfile) ->
+                val profileIdHasChanged = prevProfile?.profileId.orEmpty() != currentProfile?.profileId.orEmpty()
+                val customerUserIdHasChanged = prevProfile?.customerUserId.orEmpty() != currentProfile?.customerUserId.orEmpty()
+                profileIdHasChanged to customerUserIdHasChanged
+            }
+            .filter { (profileIdHasChanged, customerUserIdHasChanged) ->
+                profileIdHasChanged || customerUserIdHasChanged
+            }
+            .flowOnIO()
 }

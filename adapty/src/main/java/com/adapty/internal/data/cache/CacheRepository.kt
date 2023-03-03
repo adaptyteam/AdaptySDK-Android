@@ -394,6 +394,9 @@ internal class CacheRepository(
         preferenceManager.saveStrings(map)
     }
 
+    @JvmSynthetic
+    fun getSessionId() = cache.safeGetOrPut(SESSION_ID) { generateUuid() } as? String
+
     private inline fun <reified T> getData(key: String, classOfT: Class<T>? = null): T? =
         cache.safeGetOrPut(key, { preferenceManager.getData<T>(key, classOfT) }) as? T
 
