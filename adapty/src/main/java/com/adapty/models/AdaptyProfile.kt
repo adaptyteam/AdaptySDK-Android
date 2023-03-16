@@ -3,6 +3,16 @@ package com.adapty.models
 import com.adapty.utils.ImmutableList
 import com.adapty.utils.ImmutableMap
 
+/**
+ * @property[accessLevels] The keys are access level identifiers configured by you in Adapty Dashboard.
+ * The values are Can be null if the customer has no access levels.
+ * @property[customAttributes] Previously set user custom attributes with [.updateProfile][com.adapty.Adapty.updateProfile] method.
+ * @property[customerUserId] An identifier of a user in your system.
+ * @property[nonSubscriptions] The keys are product ids from the store. The values are lists of
+ * information about consumables.
+ * @property[profileId] An identifier of a user in Adapty.
+ * @property[subscriptions] The keys are product ids from a store. The values are information about subscriptions.
+ */
 public class AdaptyProfile(
     public val profileId: String,
     public val customerUserId: String?,
@@ -41,6 +51,32 @@ public class AdaptyProfile(
         return "AdaptyProfile(profileId=$profileId, customerUserId=$customerUserId, accessLevels=$accessLevels, subscriptions=$subscriptions, nonSubscriptions=$nonSubscriptions, customAttributes=$customAttributes)"
     }
 
+    /**
+     * @property[activatedAt] ISO 8601 datetime when this access level was activated.
+     * @property[activeIntroductoryOfferType] A type of an active introductory offer.
+     * If the value is not null, it means that the offer was applied during the current
+     * subscription period.
+     * @property[activePromotionalOfferId] An id of active promotional offer.
+     * @property[activePromotionalOfferType] A type of an active promotional offer. If the value is
+     * not null, it means that the offer was applied during the current subscription period.
+     * @property[cancellationReason] A reason why a subscription was cancelled.
+     * @property[expiresAt] ISO 8601 datetime when the access level will expire (could be in the past and could be null for lifetime access).
+     * @property[id] Unique identifier of the access level configured by you in Adapty Dashboard.
+     * @property[isActive] `true` if this access level is active. Generally, you can check this property
+     * to determine whether a user has an access to premium features.
+     * @property[isInGracePeriod] `true` if this auto-renewable subscription is in the grace period.
+     * @property[isLifetime] `true` if this access level is active for a lifetime (no expiration date).
+     * @property[isRefund] `true` if this purchase was refunded.
+     * @property[renewedAt] ISO 8601 datetime when the access level was renewed. It can be null if the purchase was
+     * first in chain or it is non-renewing subscription / non-consumable (e.g. lifetime).
+     * @property[startsAt] ISO 8601 datetime when this access level has started (could be in the future).
+     * @property[store] A store of the purchase that unlocked this access level.
+     * @property[unsubscribedAt] ISO 8601 datetime when the auto-renewable subscription was cancelled.
+     * Subscription can still be active, it just means that auto-renewal turned off.
+     * Will be set to null if the user reactivates the subscription.
+     * @property[vendorProductId] An identifier of a product in a store that unlocked this access level.
+     * @property[willRenew] `true` if this auto-renewable subscription is set to renew.
+     */
     public class AccessLevel(
         public val id: String,
         public val isActive: Boolean,
@@ -117,6 +153,35 @@ public class AdaptyProfile(
         }
     }
 
+    /**
+     * @property[activatedAt] ISO 8601 datetime when the subscription was activated.
+     * @property[activeIntroductoryOfferType] A type of an active introductory offer. If the value is
+     * not null, it means that the offer was applied during the current subscription period.
+     * @property[activePromotionalOfferId] An id of active promotional offer.
+     * @property[activePromotionalOfferType] A type of an active promotional offer. If the value is
+     * not null, it means that the offer was applied during the current subscription period.
+     * @property[billingIssueDetectedAt] ISO 8601 datetime when a billing issue was detected. Subscription can still be active.
+     * @property[cancellationReason] A reason why a subscription was cancelled.
+     * @property[expiresAt] ISO 8601 datetime when the access level will expire (could be in the past and could be null for lifetime access).
+     * @property[isActive] `true` if the subscription is active.
+     * @property[isInGracePeriod] Whether the auto-renewable subscription is in a grace period.
+     * @property[isLifetime] `true` if the subscription is active for a lifetime (no expiration date).
+     * @property[isRefund] `true` if the purchase was refunded.
+     * @property[isSandbox] `true` if the product was purchased in a sandbox environment.
+     * @property[renewedAt] ISO 8601 datetime when the subscription was renewed. It can be null if the purchase
+     * was first in chain or it is non-renewing subscription.
+     * @property[startsAt] ISO 8601 datetime when the subscription has started (could be in the future).
+     * @property[store] A store of the purchase.
+     * @property[unsubscribedAt] ISO 8601 datetime when the auto-renewable subscription was cancelled.
+     * Subscription can still be active, it means that auto-renewal is turned off. Would be null
+     * if a user reactivates the subscription.
+     * @property[vendorOriginalTransactionId] An original transaction id of the purchase in a store
+     * that unlocked this subscription. For auto-renewable subscription, this will be an id of the
+     * first transaction in this subscription.
+     * @property[vendorProductId] An identifier of a product in a store that unlocked this subscription.
+     * @property[vendorTransactionId] A transaction id of a purchase in a store that unlocked this subscription.
+     * @property[willRenew] `true` if the auto-renewable subscription is set to renew.
+     */
     public class Subscription(
         public val isActive: Boolean,
         public val vendorProductId: String,
@@ -199,6 +264,17 @@ public class AdaptyProfile(
         }
     }
 
+    /**
+     * @property[isOneTime] `true` if the product should only be processed once (e.g. consumable purchase).
+     * @property[isRefund] `true` if the purchase was refunded.
+     * @property[isSandbox] `true` if the product was purchased in a sandbox environment.
+     * @property[purchaseId] An identifier of the purchase in Adapty. You can use it to ensure that
+     * you’ve already processed this purchase (for example tracking one time products).
+     * @property[purchasedAt] ISO 8601 datetime when the product was purchased.
+     * @property[store] A store of the purchase.
+     * @property[vendorProductId] An identifier of a product in a store that unlocked this subscription.
+     * @property[vendorTransactionId] A transaction id of a purchase in a store that unlocked this subscription.
+     */
     public class NonSubscription(
         public val purchaseId: String,
         public val vendorProductId: String,
@@ -254,11 +330,12 @@ public class AdaptyProfile(
     }
 
     /**
-     * @param year,
-     * @param month,
-     * @param date correspond to their ordinal numbers in a regular calendar,
-     * month and date numbers start with 1.
-     * For example, Date(year = 1970, month = 1, date = 3) represents January 3, 1970.
+     * The numbers are as in real life.
+     * For example, `Date(year = 1970, month = 1, date = 3)` represents January 3, 1970.
+     *
+     * @param[year] Corresponds to its ordinal number in a regular calendar.
+     * @param month Corresponds to its ordinal number in a regular calendar, i.e. starts with 1.
+     * @param date Corresponds to its ordinal number in a regular calendar, i.e. starts with 1.
      */
     public class Date(
         private val year: Int,

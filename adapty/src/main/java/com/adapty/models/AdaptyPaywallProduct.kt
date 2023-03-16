@@ -3,6 +3,25 @@ package com.adapty.models
 import com.android.billingclient.api.SkuDetails
 import java.math.BigDecimal
 
+/**
+ * @property[currencyCode] The currency code of the locale used to format the price of the product.
+ * @property[currencySymbol] The currency symbol of the locale used to format the price of the product.
+ * @property[freeTrialPeriod] The object containing free trial information for the product.
+ * @property[introductoryDiscount] The object containing introductory price information for the product.
+ * @property[introductoryOfferEligibility] User’s eligibility for your introductory offer. Check this property before displaying info about introductory offers.
+ * @property[localizedDescription] A description of the product.
+ * @property[localizedFreeTrialPeriod] The period’s language is determined by the preferred language set on the device.
+ * @property[localizedPrice] The formatted price from Google Play as is.
+ * @property[localizedSubscriptionPeriod] The period’s language is determined by the preferred language set on the device.
+ * @property[localizedTitle] The name of the product.
+ * @property[paywallABTestName] Same as [abTestName][AdaptyPaywall.abTestName] property of the parent [AdaptyPaywall].
+ * @property[paywallName] Same as [name][AdaptyPaywall.name] property of the parent [AdaptyPaywall].
+ * @property[price] The cost of the product in the local currency.
+ * @property[skuDetails] Underlying system representation of the product.
+ * @property[subscriptionPeriod] The period details for products that are subscriptions.
+ * @property[variationId] Same as [variationId][AdaptyPaywall.variationId] property of the parent [AdaptyPaywall].
+ * @property[vendorProductId] Unique identifier of a product from App Store Connect or Google Play Console.
+ */
 public class AdaptyPaywallProduct internal constructor(
     public val vendorProductId: String,
     public val localizedTitle: String,

@@ -5,6 +5,17 @@ import com.adapty.internal.utils.immutableWithInterop
 import com.adapty.utils.ImmutableList
 import com.adapty.utils.ImmutableMap
 
+/**
+ * @property[abTestName] Parent A/B test name.
+ * @property[id] An identifier of a paywall, configured in Adapty Dashboard.
+ * @property[locale] An identifier of a paywall locale.
+ * @property[name] A paywall name.
+ * @property[remoteConfig] A custom map configured in Adapty Dashboard for this paywall (same as [remoteConfigString])
+ * @property[remoteConfigString] A custom JSON string configured in Adapty Dashboard for this paywall.
+ * @property[revision] Current revision (version) of a paywall. Every change within a paywall creates a new revision.
+ * @property[variationId] An identifier of a variation, used to attribute purchases to this paywall.
+ * @property[vendorProductIds] Array of related products ids.
+ */
 public class AdaptyPaywall internal constructor(
     public val id: String,
     public val name: String,

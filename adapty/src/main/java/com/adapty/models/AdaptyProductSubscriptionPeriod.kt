@@ -1,5 +1,9 @@
 package com.adapty.models
 
+/**
+ * @property[numberOfUnits] A number of period units.
+ * @property[unit] A unit of time that a subscription period is specified in.
+ */
 public class AdaptyProductSubscriptionPeriod(
     public val unit: AdaptyPeriodUnit,
     public val numberOfUnits: Int
