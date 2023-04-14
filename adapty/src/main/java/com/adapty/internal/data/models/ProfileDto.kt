@@ -240,8 +240,8 @@ internal class ProfileDto(
         val store: String?,
         @SerializedName("purchased_at")
         val purchasedAt: String?,
-        @SerializedName("is_one_time")
-        val isOneTime: Boolean?,
+        @SerializedName("is_consumable")
+        val isConsumable: Boolean?,
         @SerializedName("is_sandbox")
         val isSandbox: Boolean?,
         @SerializedName("is_refund")
@@ -259,7 +259,7 @@ internal class ProfileDto(
             if (vendorTransactionId != other.vendorTransactionId) return false
             if (store != other.store) return false
             if (purchasedAt != other.purchasedAt) return false
-            if (isOneTime != other.isOneTime) return false
+            if (isConsumable != other.isConsumable) return false
             if (isSandbox != other.isSandbox) return false
             if (isRefund != other.isRefund) return false
 
@@ -272,7 +272,7 @@ internal class ProfileDto(
             result = 31 * result + (vendorTransactionId?.hashCode() ?: 0)
             result = 31 * result + (store?.hashCode() ?: 0)
             result = 31 * result + (purchasedAt?.hashCode() ?: 0)
-            result = 31 * result + (isOneTime?.hashCode() ?: 0)
+            result = 31 * result + (isConsumable?.hashCode() ?: 0)
             result = 31 * result + (isSandbox?.hashCode() ?: 0)
             result = 31 * result + (isRefund?.hashCode() ?: 0)
             return result

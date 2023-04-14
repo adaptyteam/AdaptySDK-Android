@@ -2,6 +2,7 @@ package com.adapty.internal.data.cloud
 
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.*
+import com.adapty.models.AdaptyPaywallProduct.Type
 import com.adapty.models.AdaptyProfileParameters
 import com.android.billingclient.api.Purchase
 import com.google.gson.reflect.TypeToken
@@ -84,7 +85,7 @@ internal class CloudRepository(
 
     @JvmSynthetic
     fun validatePurchase(
-        purchaseType: String,
+        purchaseType: Type,
         purchase: Purchase,
         product: ValidateProductInfo,
     ): Pair<ProfileDto, Request.CurrentDataWhenSent?> {

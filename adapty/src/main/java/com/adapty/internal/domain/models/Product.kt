@@ -7,5 +7,6 @@ import com.adapty.models.AdaptyEligibility
 internal class Product(
     val vendorProductId: String,
     val introductoryOfferEligibility: AdaptyEligibility,
+    val isConsumable: Boolean,
     val timestamp: Long,
 )

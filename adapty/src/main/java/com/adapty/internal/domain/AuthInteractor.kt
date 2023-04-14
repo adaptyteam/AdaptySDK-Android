@@ -67,9 +67,11 @@ internal class AuthInteractor(
     @JvmSynthetic
     fun handleAppKey(appKey: String) {
         val keyHash = hashingHelper.sha256(appKey)
-        if (keyHash != cacheRepository.getAppKey()) {
+        val cachedHash = cacheRepository.getAppKey()
+        if (keyHash != cachedHash) {
+            if (!cachedHash.isNullOrEmpty() && keyHash != hashingHelper.sha256(cachedHash))
+                cacheRepository.clearOnAppKeyChanged()
             Logger.log(VERBOSE) { "changing apiKeyHash = $keyHash" }
-            cacheRepository.clearOnAppKeyChanged()
             cacheRepository.saveAppKey(keyHash)
         }
     }

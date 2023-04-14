@@ -43,7 +43,7 @@ internal object Dependencies {
     ): Map<String?, DIObject<T>> = mapOf(null to DIObject(initializer, initType))
 
     @JvmSynthetic
-    internal fun init(appContext: Context, apiKey: String) {
+    internal fun init(appContext: Context, apiKey: String, observerMode: Boolean) {
         map.putAll(
             listOf(
                 Gson::class.java to singleVariantDiObject({
@@ -180,7 +180,12 @@ internal object Dependencies {
 
                 NetworkConnectionCreator::class.java to mapOf(
                     null to DIObject({
-                        DefaultConnectionCreator(injectInternal(), apiKey)
+                        DefaultConnectionCreator(
+                            injectInternal(),
+                            injectInternal(),
+                            apiKey,
+                            observerMode,
+                        )
                     }),
                     KINESIS to DIObject({
                         KinesisConnectionCreator(injectInternal(), injectInternal())
@@ -224,7 +229,15 @@ internal object Dependencies {
                 }),
 
                 InstallationMetaCreator::class.java to singleVariantDiObject({
-                    InstallationMetaCreator(appContext, injectInternal())
+                    InstallationMetaCreator(injectInternal())
+                }),
+
+                MetaInfoRetriever::class.java to singleVariantDiObject({
+                    MetaInfoRetriever(appContext, injectInternal(), injectInternal())
+                }),
+
+                CrossplatformMetaRetriever::class.java to singleVariantDiObject({
+                    CrossplatformMetaRetriever()
                 }),
 
                 AdIdRetriever::class.java to singleVariantDiObject({
@@ -264,6 +277,7 @@ internal object Dependencies {
                 StoreManager::class.java to singleVariantDiObject({
                     StoreManager(
                         appContext,
+                        injectInternal(),
                         injectInternal(),
                     )
                 }),
@@ -335,7 +349,8 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
-                        injectInternal()
+                        injectInternal(),
+                        observerMode,
                     )
                 }),
             )

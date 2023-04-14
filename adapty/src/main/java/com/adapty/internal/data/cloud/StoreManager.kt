@@ -7,6 +7,7 @@ import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.PurchaseRecordModel
 import com.adapty.internal.utils.*
+import com.adapty.models.AdaptyPaywallProduct.Type
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.android.billingclient.api.*
@@ -25,6 +26,7 @@ import kotlin.coroutines.resumeWithException
 internal class StoreManager(
     context: Context,
     private val prorationModeMapper: ProrationModeMapper,
+    private val productMapper: ProductMapper,
 ) : PurchasesUpdatedListener {
 
     private val billingClient = BillingClient
@@ -141,8 +143,6 @@ internal class StoreManager(
         )
     }
 
-    private val productsToPurchaseSkuType = hashMapOf<String, String>()
-
     override fun onPurchasesUpdated(
         billingResult: BillingResult,
         purchases: MutableList<Purchase>?
@@ -180,20 +180,19 @@ internal class StoreManager(
     }
 
     @JvmSynthetic
-    fun postProcess(purchase: Purchase) =
-        when {
-            purchase.isAcknowledged -> flowOf(Unit)
-            else -> when (productsToPurchaseSkuType[purchase.skus.firstOrNull().orEmpty()]) {
-                INAPP -> consumePurchase(purchase, maxAttemptCount = DEFAULT_RETRY_COUNT)
-                else -> acknowledgePurchase(purchase, maxAttemptCount = DEFAULT_RETRY_COUNT)
-            }
+    fun postProcess(purchase: Purchase, productType: Type, maxAttemptCount: Long) : Flow<Unit> {
+        return when {
+            productType == Type.CONSUMABLE -> consumePurchase(purchase, maxAttemptCount)
+            !purchase.isAcknowledged -> acknowledgePurchase(purchase, maxAttemptCount)
+            else -> flowOf(Unit)
         }
+    }
 
     @JvmSynthetic
     fun makePurchase(
         activity: Activity,
         productId: String,
-        purchaseType: String,
+        purchaseType: Type,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
         callback: MakePurchaseCallback
     ) {
@@ -201,7 +200,7 @@ internal class StoreManager(
             onConnected {
                 storeHelper.querySkuDetailsForType(
                     params = SkuDetailsParams.newBuilder().setSkusList(listOf(productId))
-                        .setType(purchaseType).build(),
+                        .setType(productMapper.mapProductTypeToGoogle(purchaseType)).build(),
                 ).flatMapConcat { skuDetailsForNewProduct ->
                     if (subscriptionUpdateParams != null) {
                         onConnected {
@@ -222,7 +221,6 @@ internal class StoreManager(
                 .catch { error -> onError(error, callback) }
                 .onEach { (skuDetailsList, billingFlowSubUpdateParams) ->
                     skuDetailsList.firstOrNull { it.sku == productId }?.let { skuDetails ->
-                        productsToPurchaseSkuType[productId] = purchaseType
                         makePurchaseCallback = MakePurchaseCallbackWrapper(
                             productId,
                             subscriptionUpdateParams?.oldSubVendorProductId,
@@ -271,8 +269,7 @@ internal class StoreManager(
                 )
             }
 
-    @JvmSynthetic
-    fun acknowledgePurchase(purchase: Purchase, maxAttemptCount: Long = INFINITE_RETRY) =
+    private fun acknowledgePurchase(purchase: Purchase, maxAttemptCount: Long) =
         onConnected {
             storeHelper.acknowledgePurchase(
                 AcknowledgePurchaseParams.newBuilder()
@@ -303,8 +300,7 @@ internal class StoreManager(
         billingClient.queryPurchases(productType).purchasesList
             ?.firstOrNull { it.purchaseState == Purchase.PurchaseState.PURCHASED && it.skus.firstOrNull() == productId }
 
-    @JvmSynthetic
-    fun consumePurchase(purchase: Purchase, maxAttemptCount: Long = INFINITE_RETRY) =
+    private fun consumePurchase(purchase: Purchase, maxAttemptCount: Long) =
         onConnected {
             storeHelper.consumePurchase(
                 ConsumeParams.newBuilder()

@@ -454,8 +454,8 @@ public object Adapty {
     private fun init(context: Context, appKey: String, observerMode: Boolean) {
         try {
             lock.writeLock().lock()
-            Dependencies.init(context.applicationContext, appKey)
-            adaptyInternal.init(appKey, observerMode)
+            Dependencies.init(context.applicationContext, appKey, observerMode)
+            adaptyInternal.init(appKey)
             isActivated = true
         } finally {
             lock.writeLock().unlock()

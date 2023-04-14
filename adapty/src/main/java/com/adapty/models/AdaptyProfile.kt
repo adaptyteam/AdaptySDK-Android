@@ -265,7 +265,7 @@ public class AdaptyProfile(
     }
 
     /**
-     * @property[isOneTime] `true` if the product should only be processed once (e.g. consumable purchase).
+     * @property[isConsumable] `true` if the product is consumable.
      * @property[isRefund] `true` if the purchase was refunded.
      * @property[isSandbox] `true` if the product was purchased in a sandbox environment.
      * @property[purchaseId] An identifier of the purchase in Adapty. You can use it to ensure that
@@ -281,10 +281,17 @@ public class AdaptyProfile(
         public val vendorTransactionId: String?,
         public val store: String,
         public val purchasedAt: String,
-        public val isOneTime: Boolean,
+        public val isConsumable: Boolean,
         public val isSandbox: Boolean,
         public val isRefund: Boolean
     ) {
+
+        @Deprecated(
+            message = "This property is deprecated and will be removed in future releases",
+            replaceWith = ReplaceWith("isConsumable"),
+            level = DeprecationLevel.WARNING,
+        )
+        public val isOneTime: Boolean get() = isConsumable
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -297,7 +304,7 @@ public class AdaptyProfile(
             if (vendorTransactionId != other.vendorTransactionId) return false
             if (store != other.store) return false
             if (purchasedAt != other.purchasedAt) return false
-            if (isOneTime != other.isOneTime) return false
+            if (isConsumable != other.isConsumable) return false
             if (isSandbox != other.isSandbox) return false
             if (isRefund != other.isRefund) return false
 
@@ -310,14 +317,14 @@ public class AdaptyProfile(
             result = 31 * result + (vendorTransactionId?.hashCode() ?: 0)
             result = 31 * result + store.hashCode()
             result = 31 * result + purchasedAt.hashCode()
-            result = 31 * result + isOneTime.hashCode()
+            result = 31 * result + isConsumable.hashCode()
             result = 31 * result + isSandbox.hashCode()
             result = 31 * result + isRefund.hashCode()
             return result
         }
 
         override fun toString(): String {
-            return "NonSubscription(purchaseId='$purchaseId', vendorProductId='$vendorProductId', vendorTransactionId=$vendorTransactionId, store='$store', purchasedAt=$purchasedAt, isOneTime=$isOneTime, isSandbox=$isSandbox, isRefund=$isRefund)"
+            return "NonSubscription(purchaseId='$purchaseId', vendorProductId='$vendorProductId', vendorTransactionId=$vendorTransactionId, store='$store', purchasedAt=$purchasedAt, isConsumable=$isConsumable, isSandbox=$isSandbox, isRefund=$isRefund)"
         }
     }
 

@@ -155,7 +155,7 @@ internal class KinesisManager(
         Calendar.getInstance().time.let(dateFormatter::format)
 
     private val dateFormatter: DateFormat by lazy {
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US).apply {
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("GMT")
         }
     }

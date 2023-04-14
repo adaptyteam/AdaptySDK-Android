@@ -36,11 +36,7 @@ internal class AttributionHelper {
     }
 
     private val adjustAttributionClass: Class<*>? by lazy {
-        try {
-            Class.forName("com.adjust.sdk.AdjustAttribution")
-        } catch (e: ClassNotFoundException) {
-            null
-        }
+        getClassForNameOrNull("com.adjust.sdk.AdjustAttribution")
     }
 
     private fun convertAdjustAttributionToMap(adjustAttribution: Any) = mapOf(

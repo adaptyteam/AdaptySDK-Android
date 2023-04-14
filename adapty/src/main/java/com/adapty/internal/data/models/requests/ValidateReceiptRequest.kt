@@ -2,7 +2,7 @@ package com.adapty.internal.data.models.requests
 
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.ValidateProductInfo
-import com.android.billingclient.api.BillingClient
+import com.adapty.models.AdaptyPaywallProduct.Type
 import com.android.billingclient.api.Purchase
 import com.google.gson.annotations.SerializedName
 
@@ -45,7 +45,7 @@ internal class ValidateReceiptRequest(
             id: String,
             purchase: Purchase,
             product: ValidateProductInfo,
-            purchaseType: String
+            purchaseType: Type
         ) =
             ValidateReceiptRequest(
                 Data(
@@ -54,7 +54,7 @@ internal class ValidateReceiptRequest(
                         profileId = id,
                         productId = purchase.skus.firstOrNull().orEmpty(),
                         purchaseToken = purchase.purchaseToken,
-                        isSubscription = purchaseType == BillingClient.SkuType.SUBS,
+                        isSubscription = purchaseType == Type.SUBS,
                         transactionId = purchase.orderId,
                         variationId = product.variationId,
                         priceLocale = product.priceLocale,

@@ -31,7 +31,7 @@ internal class ProfileMapper {
                             message = "purchasedAt in NonSubscription should not be null",
                             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                         ),
-                        isOneTime = nonSub.isOneTime ?: false,
+                        isConsumable = nonSub.isConsumable ?: false,
                         isSandbox = nonSub.isSandbox ?: false,
                         isRefund = nonSub.isRefund ?: false
                     )

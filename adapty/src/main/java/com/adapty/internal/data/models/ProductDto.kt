@@ -9,6 +9,8 @@ internal class ProductDto(
     val vendorProductId: String?,
     @SerializedName("introductory_offer_eligibility")
     val introductoryOfferEligibility: Boolean?,
+    @SerializedName("is_consumable")
+    val isConsumable: Boolean?,
     @SerializedName("timestamp")
     val timestamp: Long?,
 )

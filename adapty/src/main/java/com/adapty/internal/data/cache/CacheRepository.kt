@@ -1,6 +1,5 @@
 package com.adapty.internal.data.cache
 
-import android.os.Build
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
@@ -12,7 +11,6 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.locks.ReentrantReadWriteLock
@@ -374,12 +372,6 @@ internal class CacheRepository(
 
         cache.apply { keysToRemove.forEach(::remove) }
         preferenceManager.clearData(keysToRemove)
-    }
-
-    @get:JvmSynthetic
-    val deviceName: String by lazy {
-        (if (Build.MODEL.startsWith(Build.MANUFACTURER)) Build.MODEL else "${Build.MANUFACTURER} ${Build.MODEL}")
-            .capitalize(Locale.ENGLISH)
     }
 
     @JvmSynthetic

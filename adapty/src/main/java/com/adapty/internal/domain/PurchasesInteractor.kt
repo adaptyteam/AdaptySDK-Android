@@ -13,7 +13,6 @@ import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.utils.AdaptyLogLevel.Companion.INFO
-import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -60,7 +59,7 @@ internal class PurchasesInteractor(
             }
             .flatMapConcat { purchase ->
                 if (purchase != null) {
-                    storeManager.postProcess(purchase)
+                    storeManager.postProcess(purchase, purchaseProductInfo.type, DEFAULT_RETRY_COUNT)
                         .flatMapConcat {
                             validatePurchase(purchase, purchaseProductInfo.type, validateProductInfo)
                         }
@@ -72,18 +71,14 @@ internal class PurchasesInteractor(
                 if (error is AdaptyError && error.adaptyErrorCode == ITEM_ALREADY_OWNED) {
                     val purchase = storeManager.findActivePurchaseForProduct(
                         purchaseProductInfo.vendorProductId,
-                        purchaseProductInfo.type,
+                        productMapper.mapProductTypeToGoogle(purchaseProductInfo.type),
                     )
                     if (purchase != null) {
                         emitAll(
-                            if (!purchase.isAcknowledged) {
-                                storeManager.acknowledgePurchase(purchase, DEFAULT_RETRY_COUNT)
-                                    .flatMapConcat {
-                                        validatePurchase(purchase, purchaseProductInfo.type, validateProductInfo)
-                                    }
-                            } else {
-                                validatePurchase(purchase, purchaseProductInfo.type, validateProductInfo)
-                            }
+                            storeManager.postProcess(purchase, purchaseProductInfo.type, DEFAULT_RETRY_COUNT)
+                                .flatMapConcat {
+                                    validatePurchase(purchase, purchaseProductInfo.type, validateProductInfo)
+                                }
                         )
                     } else {
                         throw error
@@ -97,7 +92,7 @@ internal class PurchasesInteractor(
 
     private fun validatePurchase(
         purchase: Purchase,
-        type: String,
+        type: AdaptyPaywallProduct.Type,
         validateProductInfo: ValidateProductInfo,
     ): Flow<AdaptyProfile> =
         authInteractor.runWhenAuthDataSynced {
@@ -119,7 +114,7 @@ internal class PurchasesInteractor(
     private suspend fun makePurchase(
         activity: Activity,
         productId: String,
-        purchaseType: String,
+        purchaseType: AdaptyPaywallProduct.Type,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
     ) = suspendCancellableCoroutine<Purchase?> { continuation ->
         storeManager.makePurchase(
@@ -254,60 +249,52 @@ internal class PurchasesInteractor(
                     return@map emptyList<Flow<*>>()
                 }
 
+                val cachedProducts = cacheRepository.getProducts()
+                    ?.associateBy { product -> product.vendorProductId }.orEmpty()
+
                 val validateProductInfos = cacheRepository.getValidateProductInfos()
 
-                val inappsFlows = inapps.mapNotNull { purchase ->
-                    val validateProductInfo =
-                        validateProductInfos.firstOrNull { it.vendorProductId == purchase.skus.firstOrNull() }
-                            ?: return@mapNotNull null
+                val inappsData = inapps.mapNotNullTo(mutableListOf()) { purchase ->
+                    val productId = purchase.skus.firstOrNull()
+                    val isConsumable = cachedProducts[productId]?.isConsumable ?: return@mapNotNullTo null
 
-                    storeManager.consumePurchase(purchase)
-                        .flatMapConcat {
-                            authInteractor.runWhenAuthDataSynced(INFINITE_RETRY) {
-                                cloudRepository.validatePurchase(
-                                    BillingClient.SkuType.INAPP,
-                                    purchase,
-                                    validateProductInfo,
+                    val productType = if (isConsumable) {
+                        AdaptyPaywallProduct.Type.CONSUMABLE
+                    } else {
+                        AdaptyPaywallProduct.Type.NON_CONSUMABLE
+                    }
+
+                    purchase to productType
+                }
+
+                val subsData = subs.mapNotNull { purchase ->
+                    purchase to AdaptyPaywallProduct.Type.SUBS
+                }
+
+                inappsData.apply { addAll(subsData) }
+                    .mapNotNull { (purchase, productType) ->
+                        val validateProductInfo =
+                            validateProductInfos.firstOrNull { it.vendorProductId == purchase.skus.firstOrNull() }
+                                ?: return@mapNotNull null
+
+                        storeManager.postProcess(purchase, productType, INFINITE_RETRY)
+                            .flatMapConcat {
+                                authInteractor.runWhenAuthDataSynced(INFINITE_RETRY) {
+                                    cloudRepository.validatePurchase(
+                                        productType,
+                                        purchase,
+                                        validateProductInfo,
+                                    )
+                                }
+                            }
+                            .map { (profile, currentDataWhenRequestSent) ->
+                                cacheRepository.updateOnProfileReceived(
+                                    profile,
+                                    currentDataWhenRequestSent?.profileId,
                                 )
                             }
-                        }
-                        .map { (profile, currentDataWhenRequestSent) ->
-                            cacheRepository.updateOnProfileReceived(
-                                profile,
-                                currentDataWhenRequestSent?.profileId,
-                            )
-                        }
-                        .catch { }
-                }
-
-                val subsFlows = subs.mapNotNull { purchase ->
-                    val validateProductInfo =
-                        validateProductInfos.firstOrNull { it.vendorProductId == purchase.skus.firstOrNull() }
-                            ?: return@mapNotNull null
-
-                    (if (!purchase.isAcknowledged) {
-                        storeManager.acknowledgePurchase(purchase)
-                    } else {
-                        flowOf(Unit)
-                    }).flatMapConcat {
-                        authInteractor.runWhenAuthDataSynced(INFINITE_RETRY) {
-                            cloudRepository.validatePurchase(
-                                BillingClient.SkuType.SUBS,
-                                purchase,
-                                validateProductInfo
-                            )
-                        }
+                            .catch { }
                     }
-                        .map { (profile, currentDataWhenRequestSent) ->
-                            cacheRepository.updateOnProfileReceived(
-                                profile,
-                                currentDataWhenRequestSent?.profileId,
-                            )
-                        }
-                        .catch { }
-                }
-
-                inappsFlows.toMutableList().apply { addAll(subsFlows) }
             }
             .flatMapConcat { it.asFlow() }
             .flattenConcat()

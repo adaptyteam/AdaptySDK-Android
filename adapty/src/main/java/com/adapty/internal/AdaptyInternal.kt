@@ -28,6 +28,7 @@ internal class AdaptyInternal(
     private val kinesisManager: KinesisManager,
     private val lifecycleAwareRequestRunner: LifecycleAwareRequestRunner,
     private val lifecycleManager: LifecycleManager,
+    private val isObserverMode: Boolean,
 ) {
 
     @get:JvmSynthetic
@@ -45,10 +46,7 @@ internal class AdaptyInternal(
             field = value
         }
 
-    private var isObserverMode = false
-
-    fun init(appKey: String, observerMode: Boolean) {
-        isObserverMode = observerMode
+    fun init(appKey: String) {
         authInteractor.handleAppKey(appKey)
         lifecycleManager.init()
     }

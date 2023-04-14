@@ -92,5 +92,7 @@ public class AdaptyPaywallProduct internal constructor(
         return "AdaptyPaywallProduct(vendorProductId=$vendorProductId, localizedTitle=$localizedTitle, localizedDescription=$localizedDescription, paywallName=$paywallName, paywallABTestName=$paywallABTestName, variationId=$variationId, price=$price, localizedPrice=$localizedPrice, currencyCode=$currencyCode, currencySymbol=$currencySymbol, subscriptionPeriod=$subscriptionPeriod, localizedSubscriptionPeriod=$localizedSubscriptionPeriod, introductoryOfferEligibility=$introductoryOfferEligibility, introductoryDiscount=$introductoryDiscount, freeTrialPeriod=$freeTrialPeriod, localizedFreeTrialPeriod=$localizedFreeTrialPeriod, skuDetails=$skuDetails)"
     }
 
-    internal class Payload internal constructor(@get:JvmSynthetic val priceAmountMicros: Long, @get:JvmSynthetic val type: String)
+    internal class Payload internal constructor(@get:JvmSynthetic val priceAmountMicros: Long, @get:JvmSynthetic val type: Type)
+
+    internal enum class Type { SUBS, CONSUMABLE, NON_CONSUMABLE }
 }

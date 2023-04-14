@@ -1,44 +1,27 @@
 package com.adapty.internal.utils
 
-import android.content.Context
-import android.os.Build
 import androidx.annotation.RestrictTo
-import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.models.InstallationMeta
-import java.util.*
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class InstallationMetaCreator(
-    private val appContext: Context,
-    private val cacheRepository: CacheRepository,
+    private val metaInfoRetriever: MetaInfoRetriever,
 ) {
 
     fun create(adId: String?): InstallationMeta {
-        val appBuild: String
-        val appVersion: String
-        appContext.packageManager.getPackageInfo(appContext.packageName, 0)
-            .let { packageInfo ->
-                appBuild = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    "${packageInfo.longVersionCode}"
-                } else {
-                    "${packageInfo.versionCode}"
-                }
-                appVersion = packageInfo.versionName
-            }
+        val (appBuild, appVersion) = metaInfoRetriever.appBuildAndVersion
 
         return InstallationMeta(
-            deviceId = cacheRepository.getInstallationMetaId(),
-            adaptySdkVersion = com.adapty.BuildConfig.VERSION_NAME,
+            deviceId = metaInfoRetriever.installationMetaId,
+            adaptySdkVersion = metaInfoRetriever.adaptySdkVersion,
             advertisingId = adId,
             appBuild = appBuild,
             appVersion = appVersion,
-            device = cacheRepository.deviceName,
-            locale = getCurrentLocale(appContext)?.let { locale ->
-                if (locale.country.isNullOrEmpty()) locale.language else "${locale.language}-${locale.country}"
-            },
-            os = Build.VERSION.RELEASE,
-            platform = "Android",
-            timezone = TimeZone.getDefault().id,
+            device = metaInfoRetriever.deviceName,
+            locale = metaInfoRetriever.currentLocaleFormatted,
+            os = metaInfoRetriever.os,
+            platform = metaInfoRetriever.platform,
+            timezone = metaInfoRetriever.timezone,
         )
     }
 }

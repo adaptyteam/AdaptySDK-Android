@@ -10,6 +10,7 @@ import com.adapty.internal.domain.models.Product
 import com.adapty.internal.domain.models.Source
 import com.adapty.models.*
 import com.adapty.models.AdaptyEligibility.*
+import com.adapty.models.AdaptyPaywallProduct.Type
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.SkuDetails
 import java.math.BigDecimal
@@ -61,7 +62,7 @@ internal class ProductMapper(
             timestamp = product.timestamp,
             payloadData = AdaptyPaywallProduct.Payload(
                 productStoreData.skuDetails.priceAmountMicros,
-                productStoreData.skuDetails.type,
+                mapProductTypeFromGoogle(productStoreData.skuDetails.type, product.isConsumable),
             )
         )
 
@@ -81,6 +82,7 @@ internal class ProductMapper(
                 source,
                 purchasesHaveBeenSynced,
             ),
+            isConsumable = productDto.isConsumable ?: false,
             timestamp = productDto.timestamp ?: 0L,
         )
 
@@ -155,6 +157,23 @@ internal class ProductMapper(
             purchaseToken = purchaseRecord.purchaseToken,
             purchaseTime = purchaseRecord.purchaseTime,
         )
+
+    @JvmSynthetic
+    @BillingClient.SkuType
+    fun mapProductTypeToGoogle(productType: Type): String {
+        return when(productType) {
+            Type.SUBS -> BillingClient.SkuType.SUBS
+            else -> BillingClient.SkuType.INAPP
+        }
+    }
+
+    private fun mapProductTypeFromGoogle(googleProductType: String, isConsumable: Boolean): Type {
+        return when {
+            googleProductType == BillingClient.SkuType.SUBS -> Type.SUBS
+            isConsumable -> Type.CONSUMABLE
+            else -> Type.NON_CONSUMABLE
+        }
+    }
 
     private fun mapIntroductoryOfferEligibility(
         productDto: ProductDto,

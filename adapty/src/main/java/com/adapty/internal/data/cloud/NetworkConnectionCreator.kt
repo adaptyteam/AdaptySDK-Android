@@ -5,6 +5,7 @@ import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.Request.Method.GET
 import com.adapty.internal.data.cloud.Request.Method.POST
 import com.adapty.internal.utils.HashingHelper
+import com.adapty.internal.utils.MetaInfoRetriever
 import java.io.BufferedWriter
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -24,7 +25,9 @@ internal interface NetworkConnectionCreator {
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class DefaultConnectionCreator(
     private val cacheRepository: CacheRepository,
+    private val metaInfoRetriever: MetaInfoRetriever,
     private val apiKey: String,
+    private val isObserverMode: Boolean,
 ) : NetworkConnectionCreator {
 
     companion object {
@@ -45,11 +48,20 @@ internal class DefaultConnectionCreator(
             setRequestProperty("adapty-sdk-platform", "Android")
             setRequestProperty("adapty-sdk-version", com.adapty.BuildConfig.VERSION_NAME)
             setRequestProperty("adapty-sdk-session", cacheRepository.getSessionId())
+            setRequestProperty("adapty-sdk-device-id", metaInfoRetriever.installationMetaId)
+            setRequestProperty("adapty-sdk-observer-mode-enabled", "$isObserverMode")
             setRequestProperty(AUTHORIZATION_KEY, "$API_KEY_PREFIX${apiKey}")
             request.responseCacheKeys?.responseHashKey?.let(cacheRepository::getString)
                 ?.let { latestResponseHash ->
                     setRequestProperty("adapty-sdk-previous-response-hash", latestResponseHash)
                 }
+            metaInfoRetriever.appBuildAndVersion.let { (_, appVersion) ->
+                setRequestProperty("adapty-app-version", appVersion)
+            }
+            metaInfoRetriever.crossplatformNameAndVersion?.let { (name, version) ->
+                setRequestProperty("adapty-sdk-crossplatform-name", name)
+                setRequestProperty("adapty-sdk-crossplatform-version", version)
+            }
 
             if (request.method != GET) {
                 doOutput = true

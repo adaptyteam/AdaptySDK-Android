@@ -10,6 +10,7 @@ import com.adapty.internal.data.models.InstallationMeta
 import com.adapty.internal.data.models.RestoreProductInfo
 import com.adapty.internal.data.models.ValidateProductInfo
 import com.adapty.internal.data.models.requests.*
+import com.adapty.models.AdaptyPaywallProduct.Type
 import com.adapty.models.AdaptyProfileParameters
 import com.android.billingclient.api.Purchase
 import com.google.gson.Gson
@@ -165,7 +166,7 @@ internal class RequestFactory(
 
     @JvmSynthetic
     fun validatePurchaseRequest(
-        purchaseType: String,
+        purchaseType: Type,
         purchase: Purchase,
         product: ValidateProductInfo,
     ) = cacheRepository.getProfileId().let { profileId ->

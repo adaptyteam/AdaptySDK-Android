@@ -1,7 +1,5 @@
 package com.adapty.internal.utils
 
-import android.content.Context
-import android.os.Build
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyError.RetryType
 import com.adapty.errors.AdaptyErrorCode
@@ -19,11 +17,11 @@ import kotlin.math.pow
 internal fun generateUuid() = UUID.randomUUID().toString()
 
 @JvmSynthetic
-internal fun getCurrentLocale(context: Context) =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        context.resources.configuration.locales.get(0)
-    } else {
-        context.resources.configuration.locale
+internal fun getClassForNameOrNull(className: String): Class<*>? =
+    try {
+        Class.forName(className)
+    } catch (e: ClassNotFoundException) {
+        null
     }
 
 @JvmSynthetic
