@@ -202,6 +202,21 @@ internal class AdaptyInternal(
     }
 
     @JvmSynthetic
+    fun getViewConfiguration(
+        paywall: AdaptyPaywall,
+        callback: ResultCallback<AdaptyViewConfiguration>
+    ) {
+        execute {
+            productsInteractor
+                .getViewConfiguration(paywall)
+                .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
+                .onEach { viewConfig -> callback.onResult(AdaptyResult.Success(viewConfig)) }
+                .flowOnMain()
+                .collect()
+        }
+    }
+
+    @JvmSynthetic
     fun getPaywallProducts(
         paywall: AdaptyPaywall,
         callback: ResultCallback<List<AdaptyPaywallProduct>>
@@ -222,12 +237,14 @@ internal class AdaptyInternal(
     }
 
     @JvmSynthetic
-    fun logShowPaywall(paywall: AdaptyPaywall, callback: ErrorCallback?) {
+    fun logShowPaywall(paywall: AdaptyPaywall, viewConfiguration: AdaptyViewConfiguration?, callback: ErrorCallback?) {
         kinesisManager.trackEvent(
             "paywall_showed",
-            mapOf(
+            mutableMapOf(
                 "variation_id" to paywall.variationId
-            ),
+            ).apply {
+                viewConfiguration?.id?.let { id -> put("paywall_builder_id", id) }
+            },
             callback,
         )
     }

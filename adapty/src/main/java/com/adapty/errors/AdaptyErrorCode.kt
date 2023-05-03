@@ -28,7 +28,8 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
     REQUEST_FAILED(2005),
     DECODING_FAILED(2006),
     ANALYTICS_DISABLED(3000),
-    WRONG_PARAMETER(3001);
+    WRONG_PARAMETER(3001),
+    UNSUPPORTED_DATA(3007);
 
     internal companion object {
         @JvmSynthetic

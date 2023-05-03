@@ -76,6 +76,12 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                                     )
                                 }
                                 is AdaptyResult.Error -> {
+                                    /**
+                                     * If the error code is `AdaptyErrorCode.NO_PRODUCT_IDS_FOUND`, please make sure you have changed your applicationId.
+                                     *
+                                     * In order to receive products and make purchases,
+                                     * please change sample's applicationId in app/build.gradle to yours
+                                     */
                                     last_response_result.text =
                                         "error:\n${productResult.error.message}"
                                 }

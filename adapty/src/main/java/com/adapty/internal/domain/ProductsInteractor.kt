@@ -8,8 +8,8 @@ import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.StoreManager
 import com.adapty.internal.data.models.ProductStoreData
-import com.adapty.internal.domain.models.Source
 import com.adapty.internal.domain.models.Product
+import com.adapty.internal.domain.models.Source
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
@@ -25,6 +25,7 @@ internal class ProductsInteractor(
     private val cacheRepository: CacheRepository,
     private val storeManager: StoreManager,
     private val paywallMapper: PaywallMapper,
+    private val viewConfigurationMapper: ViewConfigurationMapper,
     private val productMapper: ProductMapper,
     private val paywallPicker: PaywallPicker,
     private val productPicker: ProductPicker,
@@ -84,6 +85,14 @@ internal class ProductsInteractor(
                     throw error
                 }
             }
+            .flowOnIO()
+
+    @JvmSynthetic
+    fun getViewConfiguration(paywall: AdaptyPaywall) =
+        authInteractor.runWhenAuthDataSynced {
+            cloudRepository.getViewConfiguration(paywall.variationId)
+        }
+            .map { viewConfig -> viewConfigurationMapper.map(viewConfig) }
             .flowOnIO()
 
     @JvmSynthetic

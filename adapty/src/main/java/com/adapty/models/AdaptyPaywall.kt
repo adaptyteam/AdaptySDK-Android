@@ -7,6 +7,7 @@ import com.adapty.utils.ImmutableMap
 
 /**
  * @property[abTestName] Parent A/B test name.
+ * @property[hasViewConfiguration] If `true`, it is possible to fetch the [AdaptyViewConfiguration] object and use it with [AdaptyUI](https://search.maven.org/artifact/io.adapty/android-ui) library.
  * @property[id] An identifier of a paywall, configured in Adapty Dashboard.
  * @property[locale] An identifier of a paywall locale.
  * @property[name] A paywall name.
@@ -25,6 +26,8 @@ public class AdaptyPaywall internal constructor(
     public val locale: String,
     public val remoteConfigString: String?,
     public val remoteConfig: ImmutableMap<String, Any>?,
+    @get:JvmName("hasViewConfiguration")
+    public val hasViewConfiguration: Boolean,
     private val products: List<Product>,
     private val updatedAt: Long,
 ) {

@@ -15,12 +15,6 @@ class ProductListFragment : Fragment(R.layout.fragment_list) {
 
     companion object {
         fun newInstance(products: List<AdaptyPaywallProduct>) = ProductListFragment().apply {
-            /**
-             * If `products` is empty, please make sure you have changed your applicationId.
-             *
-             * In order to receive full info about the products and make purchases,
-             * please change sample's applicationId in app/build.gradle to yours
-             */
             productList = products
         }
     }

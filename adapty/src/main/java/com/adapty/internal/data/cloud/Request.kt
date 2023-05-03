@@ -220,6 +220,12 @@ internal class RequestFactory(
     }
 
     @JvmSynthetic
+    fun getViewConfigurationRequest(variationId: String) = buildRequest {
+        method = GET
+        endPoint = "$inappsEndpointPrefix/paywall-builder/$variationId/"
+    }
+
+    @JvmSynthetic
     fun updateAttributionRequest(
         attributionData: AttributionData,
     ) = buildRequest {

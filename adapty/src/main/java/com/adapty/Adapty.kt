@@ -11,6 +11,7 @@ import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.AdaptyInternal
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.di.Dependencies.inject
+import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.Logger
 import com.adapty.listeners.OnProfileUpdatedListener
 import com.adapty.models.*
@@ -185,6 +186,31 @@ public object Adapty {
             return
         }
         adaptyInternal.getPaywallProducts(paywall, callback)
+    }
+
+    /**
+     * If you are using the [Paywall Builder](https://docs.adapty.io/docs/paywall-builder-getting-started),
+     * you can use this method to get a configuration object for your paywall.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[paywall] The [AdaptyPaywall] for which you want to get a configuration.
+     *
+     * @param[callback] A result containing the [AdaptyViewConfiguration] object.
+     * Use it with [AdaptyUI](https://search.maven.org/artifact/io.adapty/android-ui) library.
+     */
+    @JvmStatic
+    public fun getViewConfiguration(
+        paywall: AdaptyPaywall,
+        callback: ResultCallback<AdaptyViewConfiguration>
+    ) {
+        Logger.log(VERBOSE) { "getViewConfiguration(id = ${paywall.id})" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.getViewConfiguration(paywall, callback)
     }
 
     /**
@@ -390,12 +416,22 @@ public object Adapty {
      *
      * @see <a href="https://docs.adapty.io/docs/android-displaying-products#paywall-analytics">Android - Paywall analytics</a>
      */
+    @OptIn(InternalAdaptyApi::class)
     @JvmStatic
     @JvmOverloads
     public fun logShowPaywall(paywall: AdaptyPaywall, callback: ErrorCallback? = null) {
+        logShowPaywall(paywall, null, callback)
+    }
+
+    @InternalAdaptyApi
+    public fun logShowPaywall(
+        paywall: AdaptyPaywall,
+        viewConfiguration: AdaptyViewConfiguration?,
+        callback: ErrorCallback? = null,
+    ) {
         Logger.log(VERBOSE) { "logShowPaywall()" }
         if (!checkActivated(callback)) return
-        adaptyInternal.logShowPaywall(paywall, callback)
+        adaptyInternal.logShowPaywall(paywall, viewConfiguration, callback)
     }
 
     /**

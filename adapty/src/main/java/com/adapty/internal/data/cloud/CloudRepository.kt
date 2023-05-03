@@ -67,6 +67,18 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
+    fun getViewConfiguration(variationId: String): ViewConfigurationDto {
+        val response = httpClient.newCall<ViewConfigurationDto>(
+            requestFactory.getViewConfigurationRequest(variationId),
+            ViewConfigurationDto::class.java
+        )
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> throw response.error
+        }
+    }
+
+    @JvmSynthetic
     fun createProfile(
         customerUserId: String?,
         installationMeta: InstallationMeta,

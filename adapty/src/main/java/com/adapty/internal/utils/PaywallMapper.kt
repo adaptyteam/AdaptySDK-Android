@@ -38,5 +38,6 @@ internal class PaywallMapper(private val gson: Gson) {
         })?.immutableWithInterop(),
         products = products,
         updatedAt = paywallDto.updatedAt ?: 0L,
+        hasViewConfiguration = paywallDto.hasViewConfiguration ?: false,
     )
 }

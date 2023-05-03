@@ -21,4 +21,6 @@ internal class PaywallDto(
     val products: ArrayList<ProductDto>,
     @SerializedName("remote_config")
     val remoteConfig: RemoteConfigDto?,
+    @SerializedName("use_paywall_builder")
+    val hasViewConfiguration: Boolean?,
 )

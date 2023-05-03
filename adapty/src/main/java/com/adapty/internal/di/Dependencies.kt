@@ -95,6 +95,12 @@ internal object Dependencies {
                         )
                         .registerTypeAdapterFactory(
                             AdaptyResponseTypeAdapterFactory(
+                                TypeToken.get(ViewConfigurationDto::class.java),
+                                attributesObjectExtractor,
+                            )
+                        )
+                        .registerTypeAdapterFactory(
+                            AdaptyResponseTypeAdapterFactory(
                                 TypeToken.get(ProfileDto::class.java),
                                 attributesObjectExtractor,
                             )
@@ -274,6 +280,10 @@ internal object Dependencies {
 
                 ProfileMapper::class.java to singleVariantDiObject({ ProfileMapper() }),
 
+                ViewConfigurationMapper::class.java to singleVariantDiObject({
+                    ViewConfigurationMapper()
+                }),
+
                 StoreManager::class.java to singleVariantDiObject({
                     StoreManager(
                         appContext,
@@ -297,6 +307,7 @@ internal object Dependencies {
 
                 ProductsInteractor::class.java to singleVariantDiObject({
                     ProductsInteractor(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
