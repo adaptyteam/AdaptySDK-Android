@@ -204,10 +204,10 @@ internal class StoreManager(
                 ).flatMapConcat { skuDetailsForNewProduct ->
                     if (subscriptionUpdateParams != null) {
                         onConnected {
-                            storeHelper.queryPurchaseHistoryForType(SUBS)
-                                .map {
+                            storeHelper.queryActivePurchasesForTypeWithSync(SUBS)
+                                .map { activeSubscriptions ->
                                     buildSubscriptionUpdateParams(
-                                        billingClient.queryPurchases(SUBS).purchasesList,
+                                        activeSubscriptions,
                                         subscriptionUpdateParams,
                                     ).let { updateParams -> skuDetailsForNewProduct to updateParams }
                                 }
@@ -283,9 +283,9 @@ internal class StoreManager(
     @JvmSynthetic
     fun queryActiveSubsAndInApps(maxAttemptCount: Long) =
         onConnected {
-            storeHelper.queryActivePurchasesForType(SUBS)
+            storeHelper.queryActivePurchasesForTypeWithSync(SUBS)
                 .flatMapConcat { activeSubs ->
-                    storeHelper.queryActivePurchasesForType(INAPP)
+                    storeHelper.queryActivePurchasesForTypeWithSync(INAPP)
                         .map { inapps -> activeSubs to inapps }
                 }
         }
@@ -297,8 +297,23 @@ internal class StoreManager(
         productId: String,
         @BillingClient.SkuType productType: String
     ) =
-        billingClient.queryPurchases(productType).purchasesList
-            ?.firstOrNull { it.purchaseState == Purchase.PurchaseState.PURCHASED && it.skus.firstOrNull() == productId }
+        queryActivePurchasesForType(productType, DEFAULT_RETRY_COUNT)
+            .map { purchases ->
+                purchases.firstOrNull {
+                    it.purchaseState == Purchase.PurchaseState.PURCHASED && it.skus.firstOrNull() == productId
+                }
+            }
+
+    private fun queryActivePurchasesForType(
+        @BillingClient.SkuType type: String,
+        maxAttemptCount: Long,
+    ): Flow<List<Purchase>> {
+        return onConnected {
+            storeHelper.queryActivePurchasesForType(type)
+        }
+            .retryOnConnectionError(maxAttemptCount)
+            .flowOnIO()
+    }
 
     private fun consumePurchase(purchase: Purchase, maxAttemptCount: Long) =
         onConnected {
@@ -405,6 +420,17 @@ private class StoreHelper(private val billingClient: BillingClient) {
         }
 
     @JvmSynthetic
+    fun queryActivePurchasesForType(@BillingClient.SkuType type: String) =
+        flow {
+            val purchasesResult = billingClient.queryPurchasesAsync(type)
+            if (purchasesResult.billingResult.responseCode == OK) {
+                emit(purchasesResult.purchasesList)
+            } else {
+                throwException(purchasesResult.billingResult, "on query active purchases")
+            }
+        }
+
+    @JvmSynthetic
     fun queryPurchaseHistoryForType(@BillingClient.SkuType type: String) =
         flow {
             val purchaseHistoryResult = billingClient.queryPurchaseHistory(type)
@@ -418,14 +444,15 @@ private class StoreHelper(private val billingClient: BillingClient) {
     @JvmSynthetic
     fun queryAllPurchasesForType(@BillingClient.SkuType type: String) =
         queryPurchaseHistoryForType(type)
-            .map { historyRecords ->
-                val activePurchases = billingClient.queryPurchases(type).purchasesList
-                    ?.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }.orEmpty()
-                historyRecords to activePurchases
+            .flatMapConcat { historyRecords ->
+                queryActivePurchasesForType(type)
+                    .map { activePurchases ->
+                        historyRecords to activePurchases.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+                    }
             }
 
     @JvmSynthetic
-    fun queryActivePurchasesForType(@BillingClient.SkuType type: String) =
+    fun queryActivePurchasesForTypeWithSync(@BillingClient.SkuType type: String) =
         queryAllPurchasesForType(type)
             .map { (_, activePurchases) -> activePurchases }
 

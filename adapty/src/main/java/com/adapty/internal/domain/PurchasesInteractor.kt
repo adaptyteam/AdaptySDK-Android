@@ -69,20 +69,19 @@ internal class PurchasesInteractor(
             }
             .catch { error ->
                 if (error is AdaptyError && error.adaptyErrorCode == ITEM_ALREADY_OWNED) {
-                    val purchase = storeManager.findActivePurchaseForProduct(
-                        purchaseProductInfo.vendorProductId,
-                        productMapper.mapProductTypeToGoogle(purchaseProductInfo.type),
-                    )
-                    if (purchase != null) {
-                        emitAll(
+                    emitAll(
+                        storeManager.findActivePurchaseForProduct(
+                            purchaseProductInfo.vendorProductId,
+                            productMapper.mapProductTypeToGoogle(purchaseProductInfo.type),
+                        ).flatMapConcat { purchase ->
+                            if (purchase == null) throw error
+
                             storeManager.postProcess(purchase, purchaseProductInfo.type, DEFAULT_RETRY_COUNT)
                                 .flatMapConcat {
                                     validatePurchase(purchase, purchaseProductInfo.type, validateProductInfo)
                                 }
-                        )
-                    } else {
-                        throw error
-                    }
+                        }
+                    )
                 } else {
                     throw error
                 }

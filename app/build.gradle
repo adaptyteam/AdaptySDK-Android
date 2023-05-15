@@ -6,7 +6,6 @@ apply plugin: 'kotlin-android-extensions'
 
 android {
     compileSdkVersion 29
-    buildToolsVersion "29.0.3"
     defaultConfig {
         applicationId "com.adapty.example"
         minSdkVersion 16
@@ -40,6 +39,6 @@ dependencies {
     implementation 'androidx.recyclerview:recyclerview:1.2.0'
     implementation 'com.appsflyer:af-android-sdk:5.0.0'
     implementation 'com.adjust.sdk:adjust-android:4.24.1'
-    implementation 'com.android.billingclient:billing:4.0.0'
+    implementation 'com.android.billingclient:billing:5.2.0'
     testImplementation 'junit:junit:4.12'
 }
