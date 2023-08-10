@@ -1,5 +1,5 @@
 package com.adapty.models
 
 public enum class AdaptyEligibility {
-    ELIGIBLE, INELIGIBLE, UNKNOWN
+    ELIGIBLE, INELIGIBLE, NOT_APPLICABLE
 }

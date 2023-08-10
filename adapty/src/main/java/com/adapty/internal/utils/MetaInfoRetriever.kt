@@ -34,7 +34,7 @@ internal class MetaInfoRetriever(
     @JvmSynthetic
     val deviceName =
         (if (Build.MODEL.startsWith(Build.MANUFACTURER)) Build.MODEL else "${Build.MANUFACTURER} ${Build.MODEL}")
-            .capitalize(Locale.ENGLISH)
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ENGLISH) else it.toString() }
 
     @JvmSynthetic
     val adaptySdkVersion = com.adapty.BuildConfig.VERSION_NAME

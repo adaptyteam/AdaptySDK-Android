@@ -7,8 +7,6 @@ import com.google.gson.annotations.SerializedName
 internal class FallbackPaywalls(
     @SerializedName("paywalls")
     val paywalls: ArrayList<PaywallDto>,
-    @SerializedName("products")
-    val products: ArrayList<ProductDto>,
     @SerializedName("version")
     val version: Int,
 )

@@ -1,19 +1,21 @@
 package com.adapty.models
 
 public class AdaptySubscriptionUpdateParameters(
-    public val oldSubVendorProductId: String,
-    public val prorationMode: ProrationMode,
+    oldSubVendorProductId: String,
+    public val replacementMode: ReplacementMode,
 ) {
 
-    public enum class ProrationMode {
-        IMMEDIATE_WITH_TIME_PRORATION,
-        IMMEDIATE_AND_CHARGE_PRORATED_PRICE,
-        IMMEDIATE_WITHOUT_PRORATION,
+    public val oldSubVendorProductId: String = oldSubVendorProductId.split(":")[0]
+
+    public enum class ReplacementMode {
+        WITH_TIME_PRORATION,
+        CHARGE_PRORATED_PRICE,
+        WITHOUT_PRORATION,
         DEFERRED,
-        IMMEDIATE_AND_CHARGE_FULL_PRICE,
+        CHARGE_FULL_PRICE,
     }
 
     override fun toString(): String {
-        return "SubscriptionUpdateParameters(oldSubVendorProductId='$oldSubVendorProductId', prorationMode=$prorationMode)"
+        return "SubscriptionUpdateParameters(oldSubVendorProductId='$oldSubVendorProductId', replacementMode=$replacementMode)"
     }
 }

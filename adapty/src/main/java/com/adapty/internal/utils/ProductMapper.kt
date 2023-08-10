@@ -6,149 +6,205 @@ import com.adapty.R
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.*
-import com.adapty.internal.domain.models.Product
-import com.adapty.internal.domain.models.Source
+import com.adapty.internal.data.models.requests.PurchasedProductDetails
+import com.adapty.internal.domain.models.BackendProduct
+import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.models.*
 import com.adapty.models.AdaptyEligibility.*
-import com.adapty.models.AdaptyPaywallProduct.Type
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.SkuDetails
+import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
+import com.android.billingclient.api.BillingClient.ProductType
+import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.ProductDetails.RecurrenceMode
 import java.math.BigDecimal
-import java.text.Format
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class ProductMapper(
     private val context: Context,
-    private val priceFormatter: Format,
     private val currencyHelper: CurrencyHelper,
 ) {
 
     @JvmSynthetic
     fun map(
-        products: List<Product>,
-        storeData: Map<String, ProductStoreData>,
+        products: List<BackendProduct>,
+        billingInfo: Map<String, ProductDetails>,
         paywall: AdaptyPaywall,
     ) =
         products.mapNotNull { product ->
-            storeData[product.vendorProductId]?.let { productStoreData ->
-                map(product, productStoreData, paywall)
+            billingInfo[product.vendorProductId]?.let { productDetails ->
+                map(product, productDetails, paywall)
             }
         }
 
     @JvmSynthetic
     fun map(
-        product: Product,
-        productStoreData: ProductStoreData,
+        product: BackendProduct,
+        productDetails: ProductDetails,
         paywall: AdaptyPaywall,
-    ) =
-        AdaptyPaywallProduct(
+    ) : AdaptyPaywallProduct? {
+
+        val priceAmountMicros: Long
+        val localizedPrice: String
+        val currencyCode: String
+        val subscriptionOfferToken: String?
+        val subscriptionDetails: AdaptyProductSubscriptionDetails?
+
+        when {
+            product.subscriptionData != null -> {
+                val subOfferDetails = productDetails.subscriptionOfferDetails ?: kotlin.run {
+                    Logger.log(ERROR) { "Subscription data was not found for the product ${product.vendorProductId}" }
+                    return null
+                }
+
+                val basePlanId = product.subscriptionData.basePlanId
+                val offerId = product.subscriptionData.offerId
+
+                val offer =
+                    subOfferDetails.firstOrNull { it.basePlanId == basePlanId && it.offerId == offerId }
+                        ?: subOfferDetails.firstOrNull { it.basePlanId == basePlanId }
+
+                if (offer == null) {
+                    Logger.log(ERROR) { "Base plan $basePlanId was not found for the product ${product.vendorProductId}" }
+                    return null
+                }
+
+                if (offer.offerId == null && offerId != null) {
+                    Logger.log(WARN) { "Offer $offerId was not found for the base plan $basePlanId for the product ${product.vendorProductId}" }
+                }
+
+                val basePriceInfo = offer.pricingPhases.pricingPhaseList.lastOrNull() ?: kotlin.run {
+                    Logger.log(ERROR) { "Subscription price was not found for the ${if (offerId == null) "base plan $basePlanId" else "offer $basePlanId:$offerId"} for the product ${product.vendorProductId}" }
+                    return null
+                }
+
+                priceAmountMicros = basePriceInfo.priceAmountMicros
+                localizedPrice = basePriceInfo.formattedPrice
+                currencyCode = basePriceInfo.priceCurrencyCode
+                subscriptionOfferToken = offer.offerToken
+
+                val subscriptionPeriod = mapSubscriptionPeriod(basePriceInfo.billingPeriod)
+
+                subscriptionDetails = AdaptyProductSubscriptionDetails(
+                    basePlanId = basePlanId,
+                    offerId = offerId,
+                    offerTags = offer.offerTags.immutableWithInterop(),
+                    renewalType = when (basePriceInfo.recurrenceMode) {
+                        RecurrenceMode.NON_RECURRING -> AdaptyProductSubscriptionDetails.RenewalType.PREPAID
+                        else -> AdaptyProductSubscriptionDetails.RenewalType.AUTORENEWABLE
+                    },
+                    subscriptionPeriod = subscriptionPeriod,
+                    localizedSubscriptionPeriod = localize(subscriptionPeriod),
+                    introductoryOfferPhases = offer.pricingPhases.pricingPhaseList.dropLast(1)
+                        .map { phase ->
+                            val phaseSubscriptionPeriod = mapSubscriptionPeriod(phase.billingPeriod)
+                            val numberOfPeriods = phase.billingCycleCount
+
+                            AdaptyProductDiscountPhase(
+                                price = AdaptyPaywallProduct.Price(
+                                    amount = priceFromMicros(phase.priceAmountMicros),
+                                    localizedString = phase.formattedPrice,
+                                    currencyCode = phase.priceCurrencyCode,
+                                    currencySymbol = currencyHelper.getCurrencySymbol(phase.priceCurrencyCode),
+                                ),
+                                numberOfPeriods = numberOfPeriods,
+                                subscriptionPeriod = phaseSubscriptionPeriod,
+                                paymentMode = when {
+                                    phase.priceAmountMicros == 0L -> AdaptyProductDiscountPhase.PaymentMode.FREE_TRIAL
+                                    phase.billingCycleCount > 1 -> AdaptyProductDiscountPhase.PaymentMode.PAY_AS_YOU_GO
+                                    else -> AdaptyProductDiscountPhase.PaymentMode.PAY_UPFRONT
+                                },
+                                localizedNumberOfPeriods = localize(
+                                    phaseSubscriptionPeriod.unit,
+                                    numberOfPeriods * phaseSubscriptionPeriod.numberOfUnits
+                                ),
+                                localizedSubscriptionPeriod = localize(phaseSubscriptionPeriod),
+                            )
+                        }.immutableWithInterop()
+                )
+            }
+            else -> {
+                val inappDetails = productDetails.oneTimePurchaseOfferDetails ?: kotlin.run {
+                    Logger.log(ERROR) { "In-app data was not found for the product ${product.vendorProductId}" }
+                    return null
+                }
+
+                subscriptionDetails = null
+                subscriptionOfferToken = null
+                priceAmountMicros = inappDetails.priceAmountMicros
+                localizedPrice = inappDetails.formattedPrice
+                currencyCode = inappDetails.priceCurrencyCode
+            }
+        }
+
+        return AdaptyPaywallProduct(
             vendorProductId = product.vendorProductId,
-            localizedTitle = productStoreData.localizedTitle,
-            localizedDescription = productStoreData.localizedDescription,
+            localizedTitle = productDetails.title,
+            localizedDescription = productDetails.description,
             paywallName = paywall.name,
             paywallABTestName = paywall.abTestName,
             variationId = paywall.variationId,
-            price = productStoreData.price,
-            localizedPrice = productStoreData.localizedPrice,
-            currencyCode = productStoreData.currencyCode,
-            currencySymbol = productStoreData.currencySymbol,
-            subscriptionPeriod = productStoreData.subscriptionPeriod,
-            localizedSubscriptionPeriod = productStoreData.subscriptionPeriod?.let(::localize),
-            introductoryOfferEligibility = product.introductoryOfferEligibility,
-            introductoryDiscount = productStoreData.introductoryDiscount?.let(::mapProductDiscount),
-            freeTrialPeriod = productStoreData.freeTrialPeriod,
-            localizedFreeTrialPeriod = productStoreData.freeTrialPeriod?.let(::localize),
-            skuDetails = productStoreData.skuDetails,
-            timestamp = product.timestamp,
+            price = AdaptyPaywallProduct.Price(
+                amount = priceFromMicros(priceAmountMicros),
+                localizedString = localizedPrice,
+                currencyCode = currencyCode,
+                currencySymbol = currencyHelper.getCurrencySymbol(currencyCode),
+            ),
+            subscriptionDetails = subscriptionDetails,
+            productDetails = productDetails,
             payloadData = AdaptyPaywallProduct.Payload(
-                productStoreData.skuDetails.priceAmountMicros,
-                mapProductTypeFromGoogle(productStoreData.skuDetails.type, product.isConsumable),
-            )
+                priceAmountMicros,
+                currencyCode,
+                when {
+                    product.subscriptionData != null -> ProductType.SUBS
+                    else -> ProductType.INAPP
+                },
+                subscriptionOfferToken,
+            ),
         )
+    }
 
     @JvmSynthetic
-    fun map(productDtos: List<ProductDto>, source: Source, purchasesHaveBeenSynced: Boolean) =
-        productDtos.map { productDto -> map(productDto, source, purchasesHaveBeenSynced) }
+    fun map(productDtos: List<ProductDto>) =
+        productDtos.map { productDto -> map(productDto) }
 
     @JvmSynthetic
-    fun map(productDto: ProductDto, source: Source, purchasesHaveBeenSynced: Boolean) =
-        Product(
+    fun map(productDto: ProductDto) =
+        BackendProduct(
             vendorProductId = productDto.vendorProductId ?: throw AdaptyError(
                 message = "vendorProductId in Product should not be null",
                 adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
             ),
-            introductoryOfferEligibility = mapIntroductoryOfferEligibility(
-                productDto,
-                source,
-                purchasesHaveBeenSynced,
-            ),
-            isConsumable = productDto.isConsumable ?: false,
+            subscriptionData = productDto.basePlanId?.let { basePlanId ->
+                BackendProduct.SubscriptionData(
+                    basePlanId,
+                    productDto.offerId,
+                )
+            },
             timestamp = productDto.timestamp ?: 0L,
         )
 
     @JvmSynthetic
-    fun mapBillingInfoToProductStoreData(billingInfo: SkuDetails) =
-        ProductStoreData(
-            localizedTitle = billingInfo.title,
-            localizedDescription = billingInfo.description,
-            price = BigDecimal.valueOf(billingInfo.priceAmountMicros)
-                .divide(BigDecimal.valueOf(1_000_000L)),
-            localizedPrice = billingInfo.price,
-            currencyCode = billingInfo.priceCurrencyCode,
-            currencySymbol = currencyHelper.getCurrencySymbol(billingInfo.priceCurrencyCode),
-            subscriptionPeriod = billingInfo.subscriptionPeriod.takeIf(String::isNotEmpty)
-                ?.let(::mapSubscriptionPeriod),
-            introductoryDiscount =
-            billingInfo.introductoryPrice.takeIf(String::isNotEmpty)?.let { introductoryPrice ->
-                ProductDiscountData(
-                    price = BigDecimal.valueOf(billingInfo.introductoryPriceAmountMicros)
-                        .divide(BigDecimal.valueOf(1_000_000L)),
-                    numberOfPeriods = billingInfo.introductoryPriceCycles,
-                    localizedPrice = introductoryPrice,
-                    subscriptionPeriod = mapSubscriptionPeriod(billingInfo.introductoryPricePeriod)
-                )
-            },
-            freeTrialPeriod =
-            billingInfo.freeTrialPeriod.takeIf(String::isNotEmpty)
-                ?.let(::mapSubscriptionPeriod),
-            skuDetails = billingInfo,
-        )
-
-    @JvmSynthetic
-    fun mapToMakePurchase(product: AdaptyPaywallProduct) =
-        MakePurchaseProductInfo(
+    fun mapToPurchaseableProduct(product: AdaptyPaywallProduct, productDetails: ProductDetails, isOfferPersonalized: Boolean) =
+        PurchaseableProduct(
             vendorProductId = product.vendorProductId,
-            type = product.payloadData.type,
             priceAmountMicros = product.payloadData.priceAmountMicros,
-            currencyCode = product.currencyCode,
+            currencyCode = product.payloadData.currencyCode,
             variationId = product.variationId,
-        )
-
-    @JvmSynthetic
-    fun mapToValidate(product: MakePurchaseProductInfo) =
-        ValidateProductInfo(
-            vendorProductId = product.vendorProductId,
-            originalPrice = formatPrice(product.priceAmountMicros),
-            priceLocale = product.currencyCode,
-            variationId = product.variationId,
+            offerToken = product.payloadData.subscriptionOfferToken,
+            isOfferPersonalized = isOfferPersonalized,
+            productDetails = productDetails,
         )
 
     @JvmSynthetic
     fun mapToRestore(
         purchaseRecord: PurchaseRecordModel,
-        skuDetails: SkuDetails?,
+        productDetails: ProductDetails?,
     ) =
         RestoreProductInfo(
-            isSubscription = purchaseRecord.type == BillingClient.SkuType.SUBS,
-            productId = purchaseRecord.skus.firstOrNull(),
+            isSubscription = purchaseRecord.type == ProductType.SUBS,
+            productId = purchaseRecord.products.firstOrNull(),
             purchaseToken = purchaseRecord.purchaseToken,
-            transactionId = purchaseRecord.transactionId,
-            localizedTitle = skuDetails?.title,
-            localizedDescription = skuDetails?.description,
-            price = skuDetails?.priceAmountMicros?.let(::formatPrice),
-            currencyCode = skuDetails?.priceCurrencyCode,
-            subscriptionPeriod = skuDetails?.subscriptionPeriod
-                ?.takeIf(String::isNotEmpty)?.let(::mapSubscriptionPeriod),
+            productDetails = productDetails?.let(PurchasedProductDetails.Companion::create)
         )
 
     @JvmSynthetic
@@ -157,34 +213,6 @@ internal class ProductMapper(
             purchaseToken = purchaseRecord.purchaseToken,
             purchaseTime = purchaseRecord.purchaseTime,
         )
-
-    @JvmSynthetic
-    @BillingClient.SkuType
-    fun mapProductTypeToGoogle(productType: Type): String {
-        return when(productType) {
-            Type.SUBS -> BillingClient.SkuType.SUBS
-            else -> BillingClient.SkuType.INAPP
-        }
-    }
-
-    private fun mapProductTypeFromGoogle(googleProductType: String, isConsumable: Boolean): Type {
-        return when {
-            googleProductType == BillingClient.SkuType.SUBS -> Type.SUBS
-            isConsumable -> Type.CONSUMABLE
-            else -> Type.NON_CONSUMABLE
-        }
-    }
-
-    private fun mapIntroductoryOfferEligibility(
-        productDto: ProductDto,
-        source: Source,
-        purchasesHaveBeenSynced: Boolean,
-    ) =
-        when {
-            productDto.introductoryOfferEligibility == null || source == Source.FALLBACK || !purchasesHaveBeenSynced -> UNKNOWN
-            productDto.introductoryOfferEligibility == true -> ELIGIBLE
-            else -> INELIGIBLE
-        }
 
     private fun mapSubscriptionPeriod(period: String): AdaptyProductSubscriptionPeriod {
         val unit = getPeriodUnit(period)
@@ -196,24 +224,9 @@ internal class ProductMapper(
         )
     }
 
-    private fun mapProductDiscount(productDiscount: ProductDiscountData) = AdaptyProductDiscount(
-        price = productDiscount.price,
-        localizedPrice = productDiscount.localizedPrice,
-        numberOfPeriods = productDiscount.numberOfPeriods,
-        localizedNumberOfPeriods = localize(
-            productDiscount.subscriptionPeriod.unit,
-            productDiscount.numberOfPeriods * productDiscount.subscriptionPeriod.numberOfUnits
-        ),
-        subscriptionPeriod = productDiscount.subscriptionPeriod,
-        localizedSubscriptionPeriod = localize(productDiscount.subscriptionPeriod)
-    )
-
-    private fun formatPrice(priceAmountMicros: Long): String {
-        return priceFormatter.format(
-            BigDecimal.valueOf(priceAmountMicros)
-                .divide(BigDecimal.valueOf(1_000_000L))
-        )
-    }
+    private fun priceFromMicros(priceAmountMicros: Long) =
+        priceAmountMicros.takeIf { it > 0L }?.toBigDecimal()?.divide(BigDecimal.valueOf(1_000_000L))
+            ?: BigDecimal.ZERO
 
     private fun getPeriodUnit(period: String) =
         when (period.lastOrNull()) {

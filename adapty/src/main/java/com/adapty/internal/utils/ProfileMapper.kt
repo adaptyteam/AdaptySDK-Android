@@ -45,6 +45,7 @@ internal class ProfileMapper {
                         adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                     ),
                     vendorProductId = value.vendorProductId.orEmpty(),
+                    offerId = value.offerId,
                     store = value.store.orEmpty(),
                     activatedAt = value.activatedAt ?: throw AdaptyError(
                         message = "activatedAt in AccessLevel should not be null",
@@ -77,6 +78,7 @@ internal class ProfileMapper {
                     ),
                     vendorTransactionId = sub.vendorTransactionId,
                     vendorOriginalTransactionId = sub.vendorOriginalTransactionId,
+                    offerId = sub.offerId,
                     store = sub.store.orEmpty(),
                     activatedAt = sub.activatedAt ?: throw AdaptyError(
                         message = "activatedAt in Subscription should not be null",

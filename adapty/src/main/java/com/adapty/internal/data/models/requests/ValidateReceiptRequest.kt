@@ -1,8 +1,7 @@
 package com.adapty.internal.data.models.requests
 
 import androidx.annotation.RestrictTo
-import com.adapty.internal.data.models.ValidateProductInfo
-import com.adapty.models.AdaptyPaywallProduct.Type
+import com.adapty.internal.domain.models.PurchaseableProduct
 import com.android.billingclient.api.Purchase
 import com.google.gson.annotations.SerializedName
 
@@ -29,14 +28,10 @@ internal class ValidateReceiptRequest(
             private val purchaseToken: String,
             @SerializedName("is_subscription")
             private val isSubscription: Boolean,
-            @SerializedName("transaction_id")
-            private val transactionId: String?,
             @SerializedName("variation_id")
             private val variationId: String,
-            @SerializedName("price_locale")
-            private val priceLocale: String?,
-            @SerializedName("original_price")
-            private val originalPrice: String?
+            @SerializedName("product_details")
+            private val productDetails: PurchasedProductDetails,
         )
     }
 
@@ -44,23 +39,52 @@ internal class ValidateReceiptRequest(
         fun create(
             id: String,
             purchase: Purchase,
-            product: ValidateProductInfo,
-            purchaseType: Type
-        ) =
-            ValidateReceiptRequest(
+            product: PurchaseableProduct,
+        ): ValidateReceiptRequest {
+            val offerDetails = product.offerToken?.let { offerToken ->
+                product.productDetails.subscriptionOfferDetails?.firstOrNull { it.offerToken == offerToken }
+            }
+            return ValidateReceiptRequest(
                 Data(
                     id = id,
                     attributes = Data.Attributes(
                         profileId = id,
-                        productId = purchase.skus.firstOrNull().orEmpty(),
+                        productId = purchase.products.firstOrNull().orEmpty(),
                         purchaseToken = purchase.purchaseToken,
-                        isSubscription = purchaseType == Type.SUBS,
-                        transactionId = purchase.orderId,
+                        isSubscription = product.isSubscription,
                         variationId = product.variationId,
-                        priceLocale = product.priceLocale,
-                        originalPrice = product.originalPrice,
+                        productDetails = when {
+                            offerDetails == null -> PurchasedProductDetails(
+                                productId = purchase.products.firstOrNull().orEmpty(),
+                                oneTimePurchaseOfferDetails = PurchasedProductDetails.OneTime(
+                                    product.priceAmountMicros,
+                                    product.currencyCode,
+                                ),
+                                subscriptionOfferDetails = null,
+                            )
+                            else -> PurchasedProductDetails(
+                                productId = purchase.products.firstOrNull().orEmpty(),
+                                oneTimePurchaseOfferDetails = null,
+                                subscriptionOfferDetails = listOf(
+                                    PurchasedProductDetails.Sub(
+                                        offerDetails.basePlanId,
+                                        offerDetails.offerId,
+                                        offerDetails.pricingPhases.pricingPhaseList.map { pricingPhase ->
+                                            PurchasedProductDetails.Sub.PricingPhase(
+                                                pricingPhase.priceAmountMicros,
+                                                pricingPhase.priceCurrencyCode,
+                                                pricingPhase.billingPeriod,
+                                                pricingPhase.recurrenceMode,
+                                                pricingPhase.billingCycleCount,
+                                            )
+                                        }
+                                    )
+                                ),
+                            )
+                        }
                     )
                 )
             )
+        }
     }
 }

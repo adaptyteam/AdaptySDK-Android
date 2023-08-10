@@ -225,9 +225,11 @@ public object Adapty {
      * @param[subscriptionUpdateParams] An [AdaptySubscriptionUpdateParameters] object, used when
      * you need a subscription to be replaced with another one, [read more](https://docs.adapty.io/docs/android-making-purchases#change-subscription).
      *
+     * @param[isOfferPersonalized] Indicates whether the price is personalized, [read more](https://developer.android.com/google/play/billing/integrate#personalized-price).
+     *
      * @param[callback] A result containing the [AdaptyProfile] object (is null if and only if it was
-     * a subscription change with the [DEFERRED][AdaptySubscriptionUpdateParameters.ProrationMode.DEFERRED]
-     * proration mode). This model contains info about access levels, subscriptions, and non-subscription
+     * a subscription change with the [DEFERRED][AdaptySubscriptionUpdateParameters.ReplacementMode.DEFERRED]
+     * replacement mode). This model contains info about access levels, subscriptions, and non-subscription
      * purchases. Generally, you have to check only access level status to determine whether the user
      * has premium access to the app.
      *
@@ -239,15 +241,16 @@ public object Adapty {
         activity: Activity,
         product: AdaptyPaywallProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters? = null,
+        isOfferPersonalized: Boolean = false,
         callback: ResultCallback<AdaptyProfile?>,
     ) {
-        Logger.log(VERBOSE) { "makePurchase(vendorProductId = ${product.vendorProductId}${subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; prorationMode = ${it.prorationMode}" }.orEmpty()})" }
+        Logger.log(VERBOSE) { "makePurchase(vendorProductId = ${product.vendorProductId}${product.subscriptionDetails?.let { "; basePlanId = ${it.basePlanId}${it.offerId?.let { offerId -> "; offerId = $offerId" }.orEmpty()}" }.orEmpty()}${subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; replacementMode = ${it.replacementMode}" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.makePurchase(activity, product, subscriptionUpdateParams, callback)
+        adaptyInternal.makePurchase(activity, product, subscriptionUpdateParams, isOfferPersonalized, callback)
     }
 
     /**

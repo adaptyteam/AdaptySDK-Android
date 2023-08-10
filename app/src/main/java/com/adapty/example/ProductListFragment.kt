@@ -42,7 +42,7 @@ class ProductListFragment : Fragment(R.layout.fragment_list) {
                     )
                 }
             }
-        }, onSubscriptionChangeClick = { product, prorationMode ->
+        }, onSubscriptionChangeClick = { product, replacementMode ->
             activity?.let { activity ->
                 Adapty.getProfile { result ->
                     when (result) {
@@ -50,7 +50,14 @@ class ProductListFragment : Fragment(R.layout.fragment_list) {
                             val profile = result.value
                             profile.accessLevels.values.find { it.isActive && !it.isLifetime }
                                 ?.let { currentSubscription ->
-                                    if (currentSubscription.vendorProductId == product.vendorProductId) {
+                                    val vendorProductId: String
+                                    val basePlanId: String?
+                                    currentSubscription.vendorProductId.split(":").let { parts ->
+                                        vendorProductId = parts[0]
+                                        basePlanId = parts.getOrNull(1)
+                                    }
+
+                                    if (vendorProductId == product.vendorProductId && basePlanId == product.subscriptionDetails?.basePlanId) {
                                         showToast("Can't change to same product")
                                         return@let
                                     }
@@ -65,8 +72,8 @@ class ProductListFragment : Fragment(R.layout.fragment_list) {
                                         activity,
                                         product,
                                         AdaptySubscriptionUpdateParameters(
-                                            currentSubscription.vendorProductId,
-                                            prorationMode
+                                            vendorProductId,
+                                            replacementMode
                                         )
                                     ) { result ->
                                         progressDialog.cancel()

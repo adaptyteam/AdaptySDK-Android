@@ -1,17 +1,17 @@
 package com.adapty.internal.utils
 
 import androidx.annotation.RestrictTo
-import com.adapty.internal.domain.models.Product
+import com.adapty.internal.domain.models.BackendProduct
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class ProductPicker {
 
     @JvmSynthetic
     fun pick(
-        source1: List<Product>,
-        source2: List<Product>,
+        source1: List<BackendProduct>,
+        source2: List<BackendProduct>,
         requiredIds: Set<String>,
-    ): List<Product> {
+    ): List<BackendProduct> {
         val source1Map = source1.associateBy { product -> product.vendorProductId }
         val source2Map = source2.associateBy { product -> product.vendorProductId }
         return requiredIds.mapNotNull { productId ->

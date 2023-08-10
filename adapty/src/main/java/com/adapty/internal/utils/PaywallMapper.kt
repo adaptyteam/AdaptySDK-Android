@@ -4,7 +4,7 @@ import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.PaywallDto
-import com.adapty.internal.domain.models.Product
+import com.adapty.internal.domain.models.BackendProduct
 import com.adapty.models.AdaptyPaywall
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -17,7 +17,7 @@ internal class PaywallMapper(private val gson: Gson) {
     }
 
     @JvmSynthetic
-    fun map(paywallDto: PaywallDto, products: List<Product>) = AdaptyPaywall(
+    fun map(paywallDto: PaywallDto, products: List<BackendProduct>) = AdaptyPaywall(
         id = paywallDto.developerId ?: throw AdaptyError(
             message = "id in Paywall should not be null",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED

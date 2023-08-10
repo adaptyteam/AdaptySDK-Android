@@ -1,7 +1,7 @@
 package com.adapty.internal.data.models
 
 import androidx.annotation.RestrictTo
-import com.adapty.models.AdaptyProductSubscriptionPeriod
+import com.adapty.internal.data.models.requests.PurchasedProductDetails
 import com.google.gson.annotations.SerializedName
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -12,18 +12,8 @@ internal class RestoreProductInfo(
     val productId: String?,
     @SerializedName("purchase_token")
     val purchaseToken: String?,
-    @SerializedName("title")
-    var localizedTitle: String?,
-    @SerializedName("localizedDescription")
-    var localizedDescription: String?,
-    @SerializedName("price")
-    var price: String?,
-    @SerializedName("currencyCode")
-    var currencyCode: String?,
-    @SerializedName("subscriptionPeriod")
-    var subscriptionPeriod: AdaptyProductSubscriptionPeriod?,
-    @SerializedName("transaction_id")
-    val transactionId: String?
+    @SerializedName("product_details")
+    private val productDetails: PurchasedProductDetails?,
 ) {
 
     override fun equals(other: Any?): Boolean {

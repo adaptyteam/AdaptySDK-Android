@@ -2,7 +2,7 @@ package com.adapty.internal.data.cloud
 
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.*
-import com.adapty.models.AdaptyPaywallProduct.Type
+import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.models.AdaptyProfileParameters
 import com.android.billingclient.api.Purchase
 import com.google.gson.reflect.TypeToken
@@ -26,18 +26,6 @@ internal class CloudRepository(
             )
         when (response) {
             is Response.Success -> return response.body to request.currentDataWhenSent
-            is Response.Error -> throw response.error
-        }
-    }
-
-    @JvmSynthetic
-    fun getProducts(): List<ProductDto> {
-        val response = httpClient.newCall<ArrayList<ProductDto>>(
-            requestFactory.getProductsRequest(),
-            object : TypeToken<ArrayList<ProductDto>>() {}.type,
-        )
-        when (response) {
-            is Response.Success -> return response.body
             is Response.Error -> throw response.error
         }
     }
@@ -97,11 +85,10 @@ internal class CloudRepository(
 
     @JvmSynthetic
     fun validatePurchase(
-        purchaseType: Type,
         purchase: Purchase,
-        product: ValidateProductInfo,
+        product: PurchaseableProduct,
     ): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
-        val request = requestFactory.validatePurchaseRequest(purchaseType, purchase, product)
+        val request = requestFactory.validatePurchaseRequest(purchase, product)
         val response = httpClient.newCall<ProfileDto>(
             request,
             ProfileDto::class.java

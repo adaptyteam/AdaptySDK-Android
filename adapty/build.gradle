@@ -2,12 +2,12 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 apply plugin: "org.jetbrains.dokka"
 android {
-    compileSdkVersion 29
+    compileSdk 30
 
     defaultConfig {
-        minSdkVersion 16
-        targetSdkVersion 29
-        buildConfigField 'String', 'VERSION_NAME', "\"2.5.0-billing5-beta1\""
+        minSdk 16
+        targetSdk 30
+        buildConfigField 'String', 'VERSION_NAME', "\"2.6.0\""
 
         consumerProguardFiles 'consumer-rules.pro'
     }
@@ -28,7 +28,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${kotlin_version}"
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.3'
     implementation 'com.google.code.gson:gson:2.10'
-    implementation('com.android.billingclient:billing-ktx:5.2.0') { exclude group: 'org.jetbrains.kotlinx', module: 'kotlinx-coroutines-core'; exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib' }
+    implementation('com.android.billingclient:billing-ktx:6.0.1') { exclude group: 'org.jetbrains.kotlinx', module: 'kotlinx-coroutines-core'; exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib' }
     implementation 'com.google.android.gms:play-services-ads-identifier:18.0.1'
     implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
 }

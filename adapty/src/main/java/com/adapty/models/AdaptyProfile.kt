@@ -67,6 +67,7 @@ public class AdaptyProfile(
      * @property[isInGracePeriod] `true` if this auto-renewable subscription is in the grace period.
      * @property[isLifetime] `true` if this access level is active for a lifetime (no expiration date).
      * @property[isRefund] `true` if this purchase was refunded.
+     * @property[offerId] An [identifier][AdaptyProductSubscriptionDetails.offerId] of a discount offer in Google Play that unlocked this access level.
      * @property[renewedAt] ISO 8601 datetime when the access level was renewed. It can be null if the purchase was
      * first in chain or it is non-renewing subscription / non-consumable (e.g. lifetime).
      * @property[startsAt] ISO 8601 datetime when this access level has started (could be in the future).
@@ -75,12 +76,14 @@ public class AdaptyProfile(
      * Subscription can still be active, it just means that auto-renewal turned off.
      * Will be set to null if the user reactivates the subscription.
      * @property[vendorProductId] An identifier of a product in a store that unlocked this access level.
+     * It may contain either [product_id][AdaptyPaywallProduct.vendorProductId] only or "[product_id][AdaptyPaywallProduct.vendorProductId]:[base_plan_id][AdaptyProductSubscriptionDetails.basePlanId]".
      * @property[willRenew] `true` if this auto-renewable subscription is set to renew.
      */
     public class AccessLevel(
         public val id: String,
         public val isActive: Boolean,
         public val vendorProductId: String,
+        public val offerId: String?,
         public val store: String,
         public val activatedAt: String,
         public val startsAt: String?,
@@ -107,6 +110,7 @@ public class AdaptyProfile(
             if (id != other.id) return false
             if (isActive != other.isActive) return false
             if (vendorProductId != other.vendorProductId) return false
+            if (offerId != other.offerId) return false
             if (store != other.store) return false
             if (activatedAt != other.activatedAt) return false
             if (startsAt != other.startsAt) return false
@@ -130,6 +134,7 @@ public class AdaptyProfile(
             var result = id.hashCode()
             result = 31 * result + isActive.hashCode()
             result = 31 * result + vendorProductId.hashCode()
+            result = 31 * result + (offerId?.hashCode() ?: 0)
             result = 31 * result + store.hashCode()
             result = 31 * result + activatedAt.hashCode()
             result = 31 * result + (startsAt?.hashCode() ?: 0)
@@ -149,7 +154,7 @@ public class AdaptyProfile(
         }
 
         override fun toString(): String {
-            return "AccessLevel(id=$id, isActive=$isActive, vendorProductId=$vendorProductId, store=$store, activatedAt=$activatedAt, startsAt=$startsAt, renewedAt=$renewedAt, expiresAt=$expiresAt, isLifetime=$isLifetime, cancellationReason=$cancellationReason, isRefund=$isRefund, activeIntroductoryOfferType=$activeIntroductoryOfferType, activePromotionalOfferType=$activePromotionalOfferType, activePromotionalOfferId=$activePromotionalOfferId, willRenew=$willRenew, isInGracePeriod=$isInGracePeriod, unsubscribedAt=$unsubscribedAt, billingIssueDetectedAt=$billingIssueDetectedAt)"
+            return "AccessLevel(id=$id, isActive=$isActive, vendorProductId=$vendorProductId, offerId=$offerId, store=$store, activatedAt=$activatedAt, startsAt=$startsAt, renewedAt=$renewedAt, expiresAt=$expiresAt, isLifetime=$isLifetime, cancellationReason=$cancellationReason, isRefund=$isRefund, activeIntroductoryOfferType=$activeIntroductoryOfferType, activePromotionalOfferType=$activePromotionalOfferType, activePromotionalOfferId=$activePromotionalOfferId, willRenew=$willRenew, isInGracePeriod=$isInGracePeriod, unsubscribedAt=$unsubscribedAt, billingIssueDetectedAt=$billingIssueDetectedAt)"
         }
     }
 
@@ -168,6 +173,7 @@ public class AdaptyProfile(
      * @property[isLifetime] `true` if the subscription is active for a lifetime (no expiration date).
      * @property[isRefund] `true` if the purchase was refunded.
      * @property[isSandbox] `true` if the product was purchased in a sandbox environment.
+     * @property[offerId] An [identifier][AdaptyProductSubscriptionDetails.offerId] of a discount offer in Google Play that unlocked this subscription.
      * @property[renewedAt] ISO 8601 datetime when the subscription was renewed. It can be null if the purchase
      * was first in chain or it is non-renewing subscription.
      * @property[startsAt] ISO 8601 datetime when the subscription has started (could be in the future).
@@ -179,6 +185,7 @@ public class AdaptyProfile(
      * that unlocked this subscription. For auto-renewable subscription, this will be an id of the
      * first transaction in this subscription.
      * @property[vendorProductId] An identifier of a product in a store that unlocked this subscription.
+     * It may contain either [product_id][AdaptyPaywallProduct.vendorProductId] only or "[product_id][AdaptyPaywallProduct.vendorProductId]:[base_plan_id][AdaptyProductSubscriptionDetails.basePlanId]".
      * @property[vendorTransactionId] A transaction id of a purchase in a store that unlocked this subscription.
      * @property[willRenew] `true` if the auto-renewable subscription is set to renew.
      */
@@ -187,6 +194,7 @@ public class AdaptyProfile(
         public val vendorProductId: String,
         public val vendorTransactionId: String?,
         public val vendorOriginalTransactionId: String?,
+        public val offerId: String?,
         public val store: String,
         public val activatedAt: String,
         public val renewedAt: String?,
@@ -215,6 +223,7 @@ public class AdaptyProfile(
             if (vendorProductId != other.vendorProductId) return false
             if (vendorTransactionId != other.vendorTransactionId) return false
             if (vendorOriginalTransactionId != other.vendorOriginalTransactionId) return false
+            if (offerId != other.offerId) return false
             if (store != other.store) return false
             if (activatedAt != other.activatedAt) return false
             if (renewedAt != other.renewedAt) return false
@@ -240,6 +249,7 @@ public class AdaptyProfile(
             result = 31 * result + vendorProductId.hashCode()
             result = 31 * result + (vendorTransactionId?.hashCode() ?: 0)
             result = 31 * result + (vendorOriginalTransactionId?.hashCode() ?: 0)
+            result = 31 * result + (offerId?.hashCode() ?: 0)
             result = 31 * result + store.hashCode()
             result = 31 * result + activatedAt.hashCode()
             result = 31 * result + (renewedAt?.hashCode() ?: 0)
@@ -260,7 +270,7 @@ public class AdaptyProfile(
         }
 
         override fun toString(): String {
-            return "Subscription(isActive=$isActive, vendorProductId='$vendorProductId', vendorTransactionId=$vendorTransactionId, vendorOriginalTransactionId=$vendorOriginalTransactionId, store='$store', activatedAt=$activatedAt, renewedAt=$renewedAt, expiresAt=$expiresAt, startsAt=$startsAt, isLifetime=$isLifetime, activeIntroductoryOfferType=$activeIntroductoryOfferType, activePromotionalOfferType=$activePromotionalOfferType, activePromotionalOfferId=$activePromotionalOfferId, willRenew=$willRenew, isInGracePeriod=$isInGracePeriod, unsubscribedAt=$unsubscribedAt, billingIssueDetectedAt=$billingIssueDetectedAt, isSandbox=$isSandbox, isRefund=$isRefund, cancellationReason=$cancellationReason)"
+            return "Subscription(isActive=$isActive, vendorProductId='$vendorProductId', vendorTransactionId=$vendorTransactionId, vendorOriginalTransactionId=$vendorOriginalTransactionId, offerId=$offerId, store='$store', activatedAt=$activatedAt, renewedAt=$renewedAt, expiresAt=$expiresAt, startsAt=$startsAt, isLifetime=$isLifetime, activeIntroductoryOfferType=$activeIntroductoryOfferType, activePromotionalOfferType=$activePromotionalOfferType, activePromotionalOfferId=$activePromotionalOfferId, willRenew=$willRenew, isInGracePeriod=$isInGracePeriod, unsubscribedAt=$unsubscribedAt, billingIssueDetectedAt=$billingIssueDetectedAt, isSandbox=$isSandbox, isRefund=$isRefund, cancellationReason=$cancellationReason)"
         }
     }
 
@@ -332,7 +342,7 @@ public class AdaptyProfile(
         MALE, FEMALE, OTHER;
 
         override fun toString(): String {
-            return this.name[0].toLowerCase().toString()
+            return this.name[0].lowercaseChar().toString()
         }
     }
 

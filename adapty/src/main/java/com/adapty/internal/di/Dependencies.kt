@@ -272,11 +272,10 @@ internal object Dependencies {
                     ProductMapper(
                         appContext,
                         injectInternal(),
-                        injectInternal(),
                     )
                 }),
 
-                ProrationModeMapper::class.java to singleVariantDiObject({ ProrationModeMapper() }),
+                ReplacementModeMapper::class.java to singleVariantDiObject({ ReplacementModeMapper() }),
 
                 ProfileMapper::class.java to singleVariantDiObject({ ProfileMapper() }),
 
@@ -287,7 +286,6 @@ internal object Dependencies {
                 StoreManager::class.java to singleVariantDiObject({
                     StoreManager(
                         appContext,
-                        injectInternal(),
                         injectInternal(),
                     )
                 }),
@@ -361,7 +359,6 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
-                        observerMode,
                     )
                 }),
             )

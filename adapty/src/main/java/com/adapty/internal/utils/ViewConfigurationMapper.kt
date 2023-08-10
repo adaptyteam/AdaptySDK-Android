@@ -112,7 +112,7 @@ internal class ViewConfigurationMapper {
                     textColorId = (rowMap["color"] as? String) ?: (value["color"] as? String),
                 )
             }
-        }?.takeIf { !it.isNullOrEmpty() } ?: throw AdaptyError(
+        }?.takeIf { it.isNotEmpty() } ?: throw AdaptyError(
             message = "rows in TextCollection should not be null",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         )

@@ -7,9 +7,8 @@ import com.android.billingclient.api.BillingClient
 internal class PurchaseRecordModel(
     val purchaseToken: String,
     val purchaseTime: Long,
-    val skus: List<String>,
-    @BillingClient.SkuType val type: String,
-    val transactionId: String?,
+    val products: List<String>,
+    @BillingClient.ProductType val type: String,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -17,7 +16,7 @@ internal class PurchaseRecordModel(
 
         if (purchaseToken != other.purchaseToken) return false
         if (purchaseTime != other.purchaseTime) return false
-        if (skus != other.skus) return false
+        if (products != other.products) return false
         if (type != other.type) return false
 
         return true
@@ -26,7 +25,7 @@ internal class PurchaseRecordModel(
     override fun hashCode(): Int {
         var result = purchaseToken.hashCode()
         result = 31 * result + purchaseTime.hashCode()
-        result = 31 * result + skus.hashCode()
+        result = 31 * result + products.hashCode()
         result = 31 * result + type.hashCode()
         return result
     }

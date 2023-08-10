@@ -1,6 +1,6 @@
 package com.adapty.models
 
-import com.adapty.internal.domain.models.Product
+import com.adapty.internal.domain.models.BackendProduct
 import com.adapty.internal.utils.immutableWithInterop
 import com.adapty.utils.ImmutableList
 import com.adapty.utils.ImmutableMap
@@ -28,7 +28,7 @@ public class AdaptyPaywall internal constructor(
     public val remoteConfig: ImmutableMap<String, Any>?,
     @get:JvmName("hasViewConfiguration")
     public val hasViewConfiguration: Boolean,
-    private val products: List<Product>,
+    @get:JvmSynthetic internal val products: List<BackendProduct>,
     private val updatedAt: Long,
 ) {
 

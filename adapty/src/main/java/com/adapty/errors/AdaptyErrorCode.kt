@@ -20,6 +20,7 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
     BILLING_ERROR(106),
     ITEM_ALREADY_OWNED(107),
     ITEM_NOT_OWNED(108),
+    BILLING_NETWORK_ERROR(112),
     NO_PRODUCT_IDS_FOUND(1000),
     NO_PURCHASES_TO_RESTORE(1004),
     AUTHENTICATION_ERROR(2002),
@@ -51,7 +52,8 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
             DEVELOPER_ERROR,
             BILLING_ERROR,
             ITEM_ALREADY_OWNED,
-            ITEM_NOT_OWNED
+            ITEM_NOT_OWNED,
+            BILLING_NETWORK_ERROR,
         )
 
         @JvmSynthetic

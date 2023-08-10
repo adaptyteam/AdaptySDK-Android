@@ -50,6 +50,8 @@ internal class ProfileDto(
         val isActive: Boolean?,
         @SerializedName("vendor_product_id")
         val vendorProductId: String?,
+        @SerializedName("offer_id")
+        val offerId: String?,
         @SerializedName("store")
         val store: String?,
         @SerializedName("activated_at")
@@ -90,6 +92,7 @@ internal class ProfileDto(
 
             if (isActive != other.isActive) return false
             if (vendorProductId != other.vendorProductId) return false
+            if (offerId != other.offerId) return false
             if (store != other.store) return false
             if (activatedAt != other.activatedAt) return false
             if (startsAt != other.startsAt) return false
@@ -112,6 +115,7 @@ internal class ProfileDto(
         override fun hashCode(): Int {
             var result = isActive?.hashCode() ?: 0
             result = 31 * result + (vendorProductId?.hashCode() ?: 0)
+            result = 31 * result + (offerId?.hashCode() ?: 0)
             result = 31 * result + (store?.hashCode() ?: 0)
             result = 31 * result + (activatedAt?.hashCode() ?: 0)
             result = 31 * result + (startsAt?.hashCode() ?: 0)
@@ -140,6 +144,8 @@ internal class ProfileDto(
         val vendorTransactionId: String?,
         @SerializedName("vendor_original_transaction_id")
         val vendorOriginalTransactionId: String?,
+        @SerializedName("offer_id")
+        val offerId: String?,
         @SerializedName("store")
         val store: String?,
         @SerializedName("activated_at")
@@ -184,6 +190,7 @@ internal class ProfileDto(
             if (vendorProductId != other.vendorProductId) return false
             if (vendorTransactionId != other.vendorTransactionId) return false
             if (vendorOriginalTransactionId != other.vendorOriginalTransactionId) return false
+            if (offerId != other.offerId) return false
             if (store != other.store) return false
             if (activatedAt != other.activatedAt) return false
             if (renewedAt != other.renewedAt) return false
@@ -209,6 +216,7 @@ internal class ProfileDto(
             result = 31 * result + (vendorProductId?.hashCode() ?: 0)
             result = 31 * result + (vendorTransactionId?.hashCode() ?: 0)
             result = 31 * result + (vendorOriginalTransactionId?.hashCode() ?: 0)
+            result = 31 * result + (offerId?.hashCode() ?: 0)
             result = 31 * result + (store?.hashCode() ?: 0)
             result = 31 * result + (activatedAt?.hashCode() ?: 0)
             result = 31 * result + (renewedAt?.hashCode() ?: 0)

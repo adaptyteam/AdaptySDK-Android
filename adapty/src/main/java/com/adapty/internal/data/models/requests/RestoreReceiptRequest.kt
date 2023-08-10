@@ -19,7 +19,7 @@ internal class RestoreReceiptRequest(
         internal class Attributes(
             @SerializedName("profile_id")
             private val profileId: String,
-            @SerializedName("restore_items")
+            @SerializedName("items")
             private val restoreItems: List<RestoreProductInfo>
         )
     }

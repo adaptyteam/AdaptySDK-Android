@@ -28,7 +28,6 @@ internal class AdaptyInternal(
     private val kinesisManager: KinesisManager,
     private val lifecycleAwareRequestRunner: LifecycleAwareRequestRunner,
     private val lifecycleManager: LifecycleManager,
-    private val isObserverMode: Boolean,
 ) {
 
     @get:JvmSynthetic
@@ -161,11 +160,12 @@ internal class AdaptyInternal(
         activity: Activity,
         product: AdaptyPaywallProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
+        isOfferPersonalized: Boolean,
         callback: ResultCallback<AdaptyProfile?>
     ) {
 
         execute {
-            purchasesInteractor.makePurchase(activity, product, subscriptionUpdateParams)
+            purchasesInteractor.makePurchase(activity, product, subscriptionUpdateParams, isOfferPersonalized)
                 .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
                 .onEach { profile -> callback.onResult(AdaptyResult.Success(profile)) }
                 .flowOnMain()
@@ -335,9 +335,6 @@ internal class AdaptyInternal(
                                     }
                             )
                         }
-
-                        if (!isObserverMode)
-                            add(purchasesInteractor.consumeAndAcknowledgeTheUnprocessed())
                     }.merge()
                 }
                 .flowOnIO()

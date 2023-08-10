@@ -7,10 +7,12 @@ import com.google.gson.annotations.SerializedName
 internal class ProductDto(
     @SerializedName("vendor_product_id")
     val vendorProductId: String?,
-    @SerializedName("introductory_offer_eligibility")
-    val introductoryOfferEligibility: Boolean?,
     @SerializedName("is_consumable")
     val isConsumable: Boolean?,
+    @SerializedName("base_plan_id")
+    val basePlanId: String?,
+    @SerializedName("offer_id")
+    val offerId: String?,
     @SerializedName("timestamp")
     val timestamp: Long?,
 )

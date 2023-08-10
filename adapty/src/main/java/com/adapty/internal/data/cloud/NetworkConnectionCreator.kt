@@ -50,6 +50,7 @@ internal class DefaultConnectionCreator(
             setRequestProperty("adapty-sdk-session", cacheRepository.getSessionId())
             setRequestProperty("adapty-sdk-device-id", metaInfoRetriever.installationMetaId)
             setRequestProperty("adapty-sdk-observer-mode-enabled", "$isObserverMode")
+            setRequestProperty("adapty-sdk-android-billing-new", "true")
             setRequestProperty(AUTHORIZATION_KEY, "$API_KEY_PREFIX${apiKey}")
             request.responseCacheKeys?.responseHashKey?.let(cacheRepository::getString)
                 ?.let { latestResponseHash ->
@@ -109,12 +110,12 @@ internal class KinesisConnectionCreator(
         )
 
         val signedHeaders =
-            headersMap.map { it.key.trim().toLowerCase(Locale.ENGLISH) }.sorted()
+            headersMap.map { it.key.trim().lowercase(Locale.ENGLISH) }.sorted()
                 .joinToString(";")
         val canonicalPath = if (url.path.isEmpty()) "/" else url.path
         val canonicalQuery = url.query.orEmpty()
         val canonicalHeaders = headersMap.map {
-            it.key.trim().toLowerCase(Locale.ENGLISH) + ":" + it.value
+            it.key.trim().lowercase(Locale.ENGLISH) + ":" + it.value
         }.sorted().joinToString("\n")
         val canonicalRequest = listOf(
             POST.name,

@@ -1,24 +1,17 @@
 package com.adapty.models
 
-import com.android.billingclient.api.SkuDetails
+import com.adapty.models.AdaptyPaywallProduct.Price
+import com.android.billingclient.api.ProductDetails
 import java.math.BigDecimal
 
 /**
- * @property[currencyCode] The currency code of the locale used to format the price of the product.
- * @property[currencySymbol] The currency symbol of the locale used to format the price of the product.
- * @property[freeTrialPeriod] The object containing free trial information for the product.
- * @property[introductoryDiscount] The object containing introductory price information for the product.
- * @property[introductoryOfferEligibility] User’s eligibility for your introductory offer. Check this property before displaying info about introductory offers.
  * @property[localizedDescription] A description of the product.
- * @property[localizedFreeTrialPeriod] The period’s language is determined by the preferred language set on the device.
- * @property[localizedPrice] The formatted price from Google Play as is.
- * @property[localizedSubscriptionPeriod] The period’s language is determined by the preferred language set on the device.
  * @property[localizedTitle] The name of the product.
  * @property[paywallABTestName] Same as [abTestName][AdaptyPaywall.abTestName] property of the parent [AdaptyPaywall].
  * @property[paywallName] Same as [name][AdaptyPaywall.name] property of the parent [AdaptyPaywall].
- * @property[price] The cost of the product in the local currency.
- * @property[skuDetails] Underlying system representation of the product.
- * @property[subscriptionPeriod] The period details for products that are subscriptions.
+ * @property[price] The [price][Price] of the product in the local currency.
+ * @property[productDetails] Underlying system representation of the product.
+ * @property[subscriptionDetails] Consolidates all subscription-related properties if the product is a subscription, otherwise `null`.
  * @property[variationId] Same as [variationId][AdaptyPaywall.variationId] property of the parent [AdaptyPaywall].
  * @property[vendorProductId] Unique identifier of a product from App Store Connect or Google Play Console.
  */
@@ -29,18 +22,9 @@ public class AdaptyPaywallProduct internal constructor(
     public val paywallName: String,
     public val paywallABTestName: String,
     public val variationId: String,
-    public val price: BigDecimal,
-    public val localizedPrice: String,
-    public val currencyCode: String,
-    public val currencySymbol: String,
-    public val subscriptionPeriod: AdaptyProductSubscriptionPeriod?,
-    public val localizedSubscriptionPeriod: String?,
-    public val introductoryOfferEligibility: AdaptyEligibility,
-    public val introductoryDiscount: AdaptyProductDiscount?,
-    public val freeTrialPeriod: AdaptyProductSubscriptionPeriod?,
-    public val localizedFreeTrialPeriod: String?,
-    public val skuDetails: SkuDetails,
-    private val timestamp: Long,
+    public val price: Price,
+    public val subscriptionDetails: AdaptyProductSubscriptionDetails?,
+    public val productDetails: ProductDetails,
     @get:JvmSynthetic internal val payloadData: Payload,
 ) {
 
@@ -57,14 +41,8 @@ public class AdaptyPaywallProduct internal constructor(
         if (paywallABTestName != other.paywallABTestName) return false
         if (variationId != other.variationId) return false
         if (price != other.price) return false
-        if (localizedPrice != other.localizedPrice) return false
-        if (currencyCode != other.currencyCode) return false
-        if (currencySymbol != other.currencySymbol) return false
-        if (subscriptionPeriod != other.subscriptionPeriod) return false
-        if (introductoryOfferEligibility != other.introductoryOfferEligibility) return false
-        if (introductoryDiscount != other.introductoryDiscount) return false
-        if (freeTrialPeriod != other.freeTrialPeriod) return false
-        if (skuDetails != other.skuDetails) return false
+        if (subscriptionDetails != other.subscriptionDetails) return false
+        if (productDetails != other.productDetails) return false
 
         return true
     }
@@ -77,22 +55,53 @@ public class AdaptyPaywallProduct internal constructor(
         result = 31 * result + paywallABTestName.hashCode()
         result = 31 * result + variationId.hashCode()
         result = 31 * result + price.hashCode()
-        result = 31 * result + localizedPrice.hashCode()
-        result = 31 * result + currencyCode.hashCode()
-        result = 31 * result + currencySymbol.hashCode()
-        result = 31 * result + (subscriptionPeriod?.hashCode() ?: 0)
-        result = 31 * result + introductoryOfferEligibility.hashCode()
-        result = 31 * result + (introductoryDiscount?.hashCode() ?: 0)
-        result = 31 * result + (freeTrialPeriod?.hashCode() ?: 0)
-        result = 31 * result + skuDetails.hashCode()
+        result = 31 * result + (subscriptionDetails?.hashCode() ?: 0)
+        result = 31 * result + productDetails.hashCode()
         return result
     }
 
     override fun toString(): String {
-        return "AdaptyPaywallProduct(vendorProductId=$vendorProductId, localizedTitle=$localizedTitle, localizedDescription=$localizedDescription, paywallName=$paywallName, paywallABTestName=$paywallABTestName, variationId=$variationId, price=$price, localizedPrice=$localizedPrice, currencyCode=$currencyCode, currencySymbol=$currencySymbol, subscriptionPeriod=$subscriptionPeriod, localizedSubscriptionPeriod=$localizedSubscriptionPeriod, introductoryOfferEligibility=$introductoryOfferEligibility, introductoryDiscount=$introductoryDiscount, freeTrialPeriod=$freeTrialPeriod, localizedFreeTrialPeriod=$localizedFreeTrialPeriod, skuDetails=$skuDetails)"
+        return "AdaptyPaywallProduct(vendorProductId=$vendorProductId, localizedTitle=$localizedTitle, localizedDescription=$localizedDescription, paywallName=$paywallName, paywallABTestName=$paywallABTestName, variationId=$variationId, price=$price, subscriptionDetails=$subscriptionDetails, productDetails=$productDetails)"
     }
 
-    internal class Payload internal constructor(@get:JvmSynthetic val priceAmountMicros: Long, @get:JvmSynthetic val type: Type)
+    /**
+     * @property[amount] The cost of the product in the local currency.
+     * @property[currencyCode] The currency code of the locale used to format the price of the product.
+     * @property[currencySymbol] The currency symbol of the locale used to format the price of the product.
+     * @property[localizedString] The formatted price from Google Play as is.
+     */
+    public class Price(
+        public val amount: BigDecimal,
+        public val localizedString: String,
+        public val currencyCode: String,
+        public val currencySymbol: String,
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
 
-    internal enum class Type { SUBS, CONSUMABLE, NON_CONSUMABLE }
+            other as Price
+
+            if (amount != other.amount) return false
+            if (localizedString != other.localizedString) return false
+            if (currencyCode != other.currencyCode) return false
+            if (currencySymbol != other.currencySymbol) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = amount.hashCode()
+            result = 31 * result + localizedString.hashCode()
+            result = 31 * result + currencyCode.hashCode()
+            result = 31 * result + currencySymbol.hashCode()
+            return result
+        }
+
+        override fun toString(): String {
+            return "Price(amount=$amount, localizedString=$localizedString, currencyCode=$currencyCode, currencySymbol=$currencySymbol)"
+        }
+    }
+
+    internal class Payload internal constructor(@get:JvmSynthetic val priceAmountMicros: Long, @get:JvmSynthetic val currencyCode: String, @get:JvmSynthetic val type: String, @get:JvmSynthetic val subscriptionOfferToken: String?)
 }

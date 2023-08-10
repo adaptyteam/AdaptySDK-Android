@@ -30,7 +30,7 @@ internal class PaywallPicker {
 
     private fun PaywallDto.getLocaleOrNull() =
         this.remoteConfig?.lang?.split("-")?.getOrNull(0)
-            ?.toLowerCase(Locale.ENGLISH)
+            ?.lowercase(Locale.ENGLISH)
 
     private fun PaywallDto.takeIfContainsLocale(locales: Collection<String?>) =
         this.takeIf { paywall -> paywall.getLocaleOrNull() in locales }

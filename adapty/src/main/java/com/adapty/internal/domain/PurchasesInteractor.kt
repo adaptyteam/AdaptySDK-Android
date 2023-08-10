@@ -7,7 +7,7 @@ import com.adapty.errors.AdaptyErrorCode.*
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.StoreManager
-import com.adapty.internal.data.models.ValidateProductInfo
+import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
@@ -34,76 +34,59 @@ internal class PurchasesInteractor(
         activity: Activity,
         product: AdaptyPaywallProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
+        isOfferPersonalized: Boolean,
     ) : Flow<AdaptyProfile?> {
-        val purchaseProductInfo = productMapper.mapToMakePurchase(product)
-        val validateProductInfo = productMapper.mapToValidate(purchaseProductInfo)
-
-        return flow {
-            emit(saveValidateProductInfo(validateProductInfo))
-        }
-            .map {
-                makePurchase(
-                    activity,
-                    purchaseProductInfo.vendorProductId,
-                    purchaseProductInfo.type,
-                    subscriptionUpdateParams,
+        return storeManager.queryInfoForProduct(product.vendorProductId, product.payloadData.type)
+            .flatMapConcat { productDetails ->
+                val purchaseableProduct = productMapper.mapToPurchaseableProduct(
+                    product,
+                    productDetails,
+                    isOfferPersonalized,
                 )
-            }
-            .catch { error ->
-                when {
-                    error !is AdaptyError || error.adaptyErrorCode !in listOf(ITEM_ALREADY_OWNED, PENDING_PURCHASE) -> {
-                        deleteValidateProductInfo(validateProductInfo)
-                    }
-                }
-                throw error
-            }
-            .flatMapConcat { purchase ->
-                if (purchase != null) {
-                    storeManager.postProcess(purchase, purchaseProductInfo.type, DEFAULT_RETRY_COUNT)
-                        .flatMapConcat {
-                            validatePurchase(purchase, purchaseProductInfo.type, validateProductInfo)
-                        }
-                } else {
-                    flowOf(null)
-                }
-            }
-            .catch { error ->
-                if (error is AdaptyError && error.adaptyErrorCode == ITEM_ALREADY_OWNED) {
-                    emitAll(
-                        storeManager.findActivePurchaseForProduct(
-                            purchaseProductInfo.vendorProductId,
-                            productMapper.mapProductTypeToGoogle(purchaseProductInfo.type),
-                        ).flatMapConcat { purchase ->
-                            if (purchase == null) throw error
-
-                            storeManager.postProcess(purchase, purchaseProductInfo.type, DEFAULT_RETRY_COUNT)
-                                .flatMapConcat {
-                                    validatePurchase(purchase, purchaseProductInfo.type, validateProductInfo)
-                                }
-                        }
+                flow {
+                    emit(
+                        makePurchase(
+                            activity,
+                            purchaseableProduct,
+                            subscriptionUpdateParams,
+                        )
                     )
-                } else {
-                    throw error
                 }
+                    .flatMapConcat { purchase ->
+                        if (purchase != null) {
+                            validatePurchase(purchase, purchaseableProduct)
+                        } else {
+                            flowOf(null)
+                        }
+                    }
+                    .catch { error ->
+                        if (error is AdaptyError && error.adaptyErrorCode == ITEM_ALREADY_OWNED) {
+                            emitAll(
+                                storeManager.findActivePurchaseForProduct(
+                                    product.vendorProductId,
+                                    product.payloadData.type,
+                                ).flatMapConcat { purchase ->
+                                    if (purchase == null) throw error
+
+                                    validatePurchase(purchase, purchaseableProduct)
+                                }
+                            )
+                        } else {
+                            throw error
+                        }
+                    }
             }
             .flowOnIO()
     }
 
     private fun validatePurchase(
         purchase: Purchase,
-        type: AdaptyPaywallProduct.Type,
-        validateProductInfo: ValidateProductInfo,
+        product: PurchaseableProduct,
     ): Flow<AdaptyProfile> =
         authInteractor.runWhenAuthDataSynced {
-            cloudRepository.validatePurchase(
-                type,
-                purchase,
-                validateProductInfo
-            )
+            cloudRepository.validatePurchase(purchase, product)
         }
             .map { (profile, currentDataWhenRequestSent) ->
-                deleteValidateProductInfo(validateProductInfo)
-
                 cacheRepository.updateOnProfileReceived(
                     profile,
                     currentDataWhenRequestSent?.profileId,
@@ -112,14 +95,12 @@ internal class PurchasesInteractor(
 
     private suspend fun makePurchase(
         activity: Activity,
-        productId: String,
-        purchaseType: AdaptyPaywallProduct.Type,
+        purchaseableProduct: PurchaseableProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
     ) = suspendCancellableCoroutine<Purchase?> { continuation ->
         storeManager.makePurchase(
             activity,
-            productId,
-            purchaseType,
+            purchaseableProduct,
             subscriptionUpdateParams,
         ) { purchase, error ->
             if (error == null) {
@@ -128,14 +109,6 @@ internal class PurchasesInteractor(
                 continuation.resumeWithException(error)
             }
         }
-    }
-
-    private fun saveValidateProductInfo(validateProductInfo: ValidateProductInfo) {
-        cacheRepository.saveValidateProductInfo(validateProductInfo)
-    }
-
-    private fun deleteValidateProductInfo(validateProductInfo: ValidateProductInfo) {
-        cacheRepository.deleteValidateProductInfo(validateProductInfo)
     }
 
     @JvmSynthetic
@@ -192,17 +165,17 @@ internal class PurchasesInteractor(
                     }
                 }
                 if (dataToSync.isNotEmpty()) {
-                    storeManager.querySkuDetails(
-                        dataToSync.mapNotNull { it.skus.firstOrNull() },
+                    storeManager.queryProductDetails(
+                        dataToSync.mapNotNull { it.products.firstOrNull() },
                         maxAttemptCount,
-                    ).flatMapConcat { skuDetailsList ->
+                    ).flatMapConcat { productDetailsList ->
                         authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
                             cloudRepository.restorePurchases(
                                 dataToSync.map { historyRecord ->
                                     productMapper.mapToRestore(
                                         historyRecord,
-                                        skuDetailsList
-                                            .firstOrNull { it.sku == historyRecord.skus.firstOrNull() }
+                                        productDetailsList
+                                            .firstOrNull { it.productId == historyRecord.products.firstOrNull() }
                                     )
                                 }
                             )
@@ -239,63 +212,4 @@ internal class PurchasesInteractor(
         authInteractor.runWhenAuthDataSynced {
             cloudRepository.setVariationId(transactionId, variationId)
         }
-
-    @JvmSynthetic
-    fun consumeAndAcknowledgeTheUnprocessed() =
-        storeManager.queryActiveSubsAndInApps(INFINITE_RETRY)
-            .map { (subs, inapps) ->
-                if (inapps.isEmpty() && subs.isEmpty()) {
-                    return@map emptyList<Flow<*>>()
-                }
-
-                val cachedProducts = cacheRepository.getProducts()
-                    ?.associateBy { product -> product.vendorProductId }.orEmpty()
-
-                val validateProductInfos = cacheRepository.getValidateProductInfos()
-
-                val inappsData = inapps.mapNotNullTo(mutableListOf()) { purchase ->
-                    val productId = purchase.skus.firstOrNull()
-                    val isConsumable = cachedProducts[productId]?.isConsumable ?: return@mapNotNullTo null
-
-                    val productType = if (isConsumable) {
-                        AdaptyPaywallProduct.Type.CONSUMABLE
-                    } else {
-                        AdaptyPaywallProduct.Type.NON_CONSUMABLE
-                    }
-
-                    purchase to productType
-                }
-
-                val subsData = subs.mapNotNull { purchase ->
-                    purchase to AdaptyPaywallProduct.Type.SUBS
-                }
-
-                inappsData.apply { addAll(subsData) }
-                    .mapNotNull { (purchase, productType) ->
-                        val validateProductInfo =
-                            validateProductInfos.firstOrNull { it.vendorProductId == purchase.skus.firstOrNull() }
-                                ?: return@mapNotNull null
-
-                        storeManager.postProcess(purchase, productType, INFINITE_RETRY)
-                            .flatMapConcat {
-                                authInteractor.runWhenAuthDataSynced(INFINITE_RETRY) {
-                                    cloudRepository.validatePurchase(
-                                        productType,
-                                        purchase,
-                                        validateProductInfo,
-                                    )
-                                }
-                            }
-                            .map { (profile, currentDataWhenRequestSent) ->
-                                cacheRepository.updateOnProfileReceived(
-                                    profile,
-                                    currentDataWhenRequestSent?.profileId,
-                                )
-                            }
-                            .catch { }
-                    }
-            }
-            .flatMapConcat { it.asFlow() }
-            .flattenConcat()
-            .catch { }
 }

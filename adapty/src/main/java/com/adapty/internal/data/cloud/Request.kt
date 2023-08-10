@@ -8,9 +8,8 @@ import com.adapty.internal.data.cloud.Request.Method.*
 import com.adapty.internal.data.models.AttributionData
 import com.adapty.internal.data.models.InstallationMeta
 import com.adapty.internal.data.models.RestoreProductInfo
-import com.adapty.internal.data.models.ValidateProductInfo
 import com.adapty.internal.data.models.requests.*
-import com.adapty.models.AdaptyPaywallProduct.Type
+import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.models.AdaptyProfileParameters
 import com.android.billingclient.api.Purchase
 import com.google.gson.Gson
@@ -166,15 +165,14 @@ internal class RequestFactory(
 
     @JvmSynthetic
     fun validatePurchaseRequest(
-        purchaseType: Type,
         purchase: Purchase,
-        product: ValidateProductInfo,
+        product: PurchaseableProduct,
     ) = cacheRepository.getProfileId().let { profileId ->
         buildRequest {
             method = POST
-            endPoint = "$inappsEndpointPrefix/google/token/validate/"
+            endPoint = "purchase/play-store/token/v2/validate/"
             body = gson.toJson(
-                ValidateReceiptRequest.create(profileId, purchase, product, purchaseType)
+                ValidateReceiptRequest.create(profileId, purchase, product)
             )
             currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
         }
@@ -188,18 +186,10 @@ internal class RequestFactory(
                 body = gson.toJson(
                     RestoreReceiptRequest.create(profileId, purchases)
                 )
-                endPoint = "$inappsEndpointPrefix/google/token/restore/"
+                endPoint = "purchase/play-store/token/v2/restore/"
                 currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
             }
         }
-
-    @JvmSynthetic
-    fun getProductsRequest() = buildRequest {
-        method = GET
-        endPoint = "$inappsEndpointPrefix/products/"
-        addQueryParam(Pair("profile_id", cacheRepository.getProfileId()))
-        responseCacheKeys = responseCacheKeyProvider.forGetProducts()
-    }
 
     @JvmSynthetic
     fun getProductIdsRequest() = buildRequest {

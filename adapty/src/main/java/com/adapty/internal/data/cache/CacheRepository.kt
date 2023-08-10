@@ -8,7 +8,6 @@ import com.adapty.internal.utils.Logger
 import com.adapty.internal.utils.generateUuid
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.concurrent.ConcurrentHashMap
@@ -248,42 +247,12 @@ internal class CacheRepository(
     fun getFallbackPaywalls() = cache[FALLBACK_PAYWALLS] as? FallbackPaywalls
 
     @JvmSynthetic
-    fun getProducts() =
-        try {
-            getString(responseCacheKeyProvider.forGetProducts().responseKey)
-                ?.let { gson.fromJson(it, object : TypeToken<ArrayList<ProductDto>>() {}) }
-        } catch (e: Exception) {
-            null
-        }
-
-    @JvmSynthetic
     fun getSyncedPurchases() =
         getData<HashSet<SyncedPurchase>>(SYNCED_PURCHASES).orEmpty()
 
     @JvmSynthetic
     fun saveSyncedPurchases(data: Set<SyncedPurchase>) {
         saveData(SYNCED_PURCHASES, data)
-    }
-
-    @JvmSynthetic
-    fun getValidateProductInfos() =
-        getData<HashSet<ValidateProductInfo>>(YET_UNPROCESSED_VALIDATE_PRODUCT_INFO)
-            ?: hashSetOf()
-
-    @JvmSynthetic
-    fun saveValidateProductInfo(validateProductInfo: ValidateProductInfo) {
-        saveData(
-            YET_UNPROCESSED_VALIDATE_PRODUCT_INFO,
-            setOf(validateProductInfo).union(getValidateProductInfos()),
-        )
-    }
-
-    @JvmSynthetic
-    fun deleteValidateProductInfo(validateProductInfo: ValidateProductInfo) {
-        getValidateProductInfos().let {
-            it.remove(validateProductInfo)
-            saveData(YET_UNPROCESSED_VALIDATE_PRODUCT_INFO, it)
-        }
     }
 
     @JvmSynthetic
@@ -402,6 +371,6 @@ internal class CacheRepository(
     }
 
     private companion object {
-        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 1
+        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 2
     }
 }

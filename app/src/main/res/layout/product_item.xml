@@ -32,13 +32,59 @@
         app:layout_constraintStart_toEndOf="@id/product_id_label" />
 
     <TextView
+        android:id="@+id/base_plan_id_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="base_plan_id: "
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/product_id_label" />
+
+    <TextView
+        android:id="@+id/base_plan_id"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="@id/base_plan_id_label"
+        app:layout_constraintStart_toEndOf="@id/base_plan_id_label" />
+
+    <TextView
+        android:id="@+id/offer_id_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="offer_id: "
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/base_plan_id_label" />
+
+    <TextView
+        android:id="@+id/offer_id"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="@id/offer_id_label"
+        app:layout_constraintStart_toEndOf="@id/offer_id_label" />
+
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/group_sub_base_plan"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:constraint_referenced_ids="base_plan_id_label, base_plan_id" />
+
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/group_sub_offer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:constraint_referenced_ids="offer_id_label, offer_id" />
+
+    <TextView
         android:id="@+id/original_price_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="original_price: "
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/product_id_label" />
+        app:layout_constraintTop_toBottomOf="@id/offer_id_label" />
 
     <TextView
         android:id="@+id/original_price"
@@ -89,7 +135,7 @@
         app:layout_constraintTop_toBottomOf="@id/product_type_label" />
 
     <Spinner
-        android:id="@+id/proration_mode_selector"
+        android:id="@+id/replacement_mode_selector"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
@@ -104,11 +150,11 @@
         android:text="Change current subscription to this"
         android:textAllCaps="false"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/proration_mode_selector" />
+        app:layout_constraintTop_toBottomOf="@id/replacement_mode_selector" />
 
     <androidx.constraintlayout.widget.Group
         android:id="@+id/group_change_subscription"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:constraint_referenced_ids="change_subscription, proration_mode_selector" />
+        app:constraint_referenced_ids="change_subscription, replacement_mode_selector" />
 </androidx.constraintlayout.widget.ConstraintLayout>
