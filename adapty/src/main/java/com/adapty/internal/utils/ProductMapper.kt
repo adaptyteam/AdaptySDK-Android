@@ -16,6 +16,7 @@ import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.ProductDetails.RecurrenceMode
+import com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails
 import java.math.BigDecimal
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -46,7 +47,7 @@ internal class ProductMapper(
         val priceAmountMicros: Long
         val localizedPrice: String
         val currencyCode: String
-        val subscriptionOfferToken: String?
+        val subscriptionData: BackendProduct.SubscriptionData?
         val subscriptionDetails: AdaptyProductSubscriptionDetails?
 
         when {
@@ -59,9 +60,7 @@ internal class ProductMapper(
                 val basePlanId = product.subscriptionData.basePlanId
                 val offerId = product.subscriptionData.offerId
 
-                val offer =
-                    subOfferDetails.firstOrNull { it.basePlanId == basePlanId && it.offerId == offerId }
-                        ?: subOfferDetails.firstOrNull { it.basePlanId == basePlanId }
+                val offer = findCurrentOffer(subOfferDetails, product.subscriptionData)
 
                 if (offer == null) {
                     Logger.log(ERROR) { "Base plan $basePlanId was not found for the product ${product.vendorProductId}" }
@@ -80,7 +79,7 @@ internal class ProductMapper(
                 priceAmountMicros = basePriceInfo.priceAmountMicros
                 localizedPrice = basePriceInfo.formattedPrice
                 currencyCode = basePriceInfo.priceCurrencyCode
-                subscriptionOfferToken = offer.offerToken
+                subscriptionData = BackendProduct.SubscriptionData(offer.basePlanId, offer.offerId)
 
                 val subscriptionPeriod = mapSubscriptionPeriod(basePriceInfo.billingPeriod)
 
@@ -129,7 +128,7 @@ internal class ProductMapper(
                 }
 
                 subscriptionDetails = null
-                subscriptionOfferToken = null
+                subscriptionData = null
                 priceAmountMicros = inappDetails.priceAmountMicros
                 localizedPrice = inappDetails.formattedPrice
                 currencyCode = inappDetails.priceCurrencyCode
@@ -158,7 +157,7 @@ internal class ProductMapper(
                     product.subscriptionData != null -> ProductType.SUBS
                     else -> ProductType.INAPP
                 },
-                subscriptionOfferToken,
+                subscriptionData,
             ),
         )
     }
@@ -184,16 +183,28 @@ internal class ProductMapper(
         )
 
     @JvmSynthetic
-    fun mapToPurchaseableProduct(product: AdaptyPaywallProduct, productDetails: ProductDetails, isOfferPersonalized: Boolean) =
-        PurchaseableProduct(
+    fun mapToPurchaseableProduct(
+        product: AdaptyPaywallProduct,
+        productDetails: ProductDetails,
+        isOfferPersonalized: Boolean,
+    ): PurchaseableProduct {
+        val subData = product.payloadData.subscriptionData
+        val subOfferDetails = productDetails.subscriptionOfferDetails
+        val currentOfferDetails = if (subOfferDetails != null && subData != null) {
+            findCurrentOffer(subOfferDetails, subData)
+        } else {
+            null
+        }
+        return PurchaseableProduct(
             vendorProductId = product.vendorProductId,
             priceAmountMicros = product.payloadData.priceAmountMicros,
             currencyCode = product.payloadData.currencyCode,
             variationId = product.variationId,
-            offerToken = product.payloadData.subscriptionOfferToken,
+            currentOfferDetails = currentOfferDetails,
             isOfferPersonalized = isOfferPersonalized,
             productDetails = productDetails,
         )
+    }
 
     @JvmSynthetic
     fun mapToRestore(
@@ -227,6 +238,26 @@ internal class ProductMapper(
     private fun priceFromMicros(priceAmountMicros: Long) =
         priceAmountMicros.takeIf { it > 0L }?.toBigDecimal()?.divide(BigDecimal.valueOf(1_000_000L))
             ?: BigDecimal.ZERO
+
+    private fun findCurrentOffer(
+        subOfferDetails: List<SubscriptionOfferDetails>,
+        subData: BackendProduct.SubscriptionData,
+    ): SubscriptionOfferDetails? {
+        val basePlanId = subData.basePlanId
+        val offerId = subData.offerId
+        var baseOffer: SubscriptionOfferDetails? = null
+        for (offer in subOfferDetails) {
+            if (offer.basePlanId == basePlanId) {
+                if (offer.offerId == offerId) {
+                    return offer
+                } else if (offer.offerId == null) {
+                    baseOffer = offer
+                }
+            }
+        }
+
+        return baseOffer
+    }
 
     private fun getPeriodUnit(period: String) =
         when (period.lastOrNull()) {

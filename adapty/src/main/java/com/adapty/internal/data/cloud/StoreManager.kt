@@ -224,7 +224,7 @@ internal class StoreManager(
 
                     val params = ProductDetailsParams.newBuilder()
                         .setProductDetails(productDetails)
-                        .apply { purchaseableProduct.offerToken?.let(::setOfferToken) }
+                        .apply { purchaseableProduct.currentOfferDetails?.offerToken?.let(::setOfferToken) }
                         .build()
 
                     billingClient.launchBillingFlow(

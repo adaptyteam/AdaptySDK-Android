@@ -41,9 +41,7 @@ internal class ValidateReceiptRequest(
             purchase: Purchase,
             product: PurchaseableProduct,
         ): ValidateReceiptRequest {
-            val offerDetails = product.offerToken?.let { offerToken ->
-                product.productDetails.subscriptionOfferDetails?.firstOrNull { it.offerToken == offerToken }
-            }
+            val offerDetails = product.currentOfferDetails
             return ValidateReceiptRequest(
                 Data(
                     id = id,

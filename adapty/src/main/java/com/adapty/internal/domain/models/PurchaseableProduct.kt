@@ -8,9 +8,9 @@ internal class PurchaseableProduct(
     val priceAmountMicros: Long,
     val currencyCode: String,
     val variationId: String,
-    val offerToken: String?,
+    val currentOfferDetails: ProductDetails.SubscriptionOfferDetails?,
     val isOfferPersonalized: Boolean,
     val productDetails: ProductDetails,
 ) {
-    val isSubscription = offerToken != null
+    val isSubscription = currentOfferDetails != null
 }

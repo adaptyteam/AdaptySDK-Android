@@ -1,5 +1,6 @@
 package com.adapty.models
 
+import com.adapty.internal.domain.models.BackendProduct.SubscriptionData
 import com.adapty.models.AdaptyPaywallProduct.Price
 import com.android.billingclient.api.ProductDetails
 import java.math.BigDecimal
@@ -103,5 +104,5 @@ public class AdaptyPaywallProduct internal constructor(
         }
     }
 
-    internal class Payload internal constructor(@get:JvmSynthetic val priceAmountMicros: Long, @get:JvmSynthetic val currencyCode: String, @get:JvmSynthetic val type: String, @get:JvmSynthetic val subscriptionOfferToken: String?)
+    internal class Payload internal constructor(@get:JvmSynthetic val priceAmountMicros: Long, @get:JvmSynthetic val currencyCode: String, @get:JvmSynthetic val type: String, @get:JvmSynthetic val subscriptionData: SubscriptionData?)
 }
