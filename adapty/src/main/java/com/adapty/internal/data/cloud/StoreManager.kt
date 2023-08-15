@@ -357,7 +357,7 @@ internal class StoreManager(
             error !is AdaptyError || error.originalError is IOException || error.adaptyErrorCode in arrayOf(
                 AdaptyErrorCode.BILLING_SERVICE_DISCONNECTED,
                 AdaptyErrorCode.BILLING_SERVICE_UNAVAILABLE,
-                AdaptyErrorCode.BILLING_SERVICE_TIMEOUT
+                AdaptyErrorCode.BILLING_NETWORK_ERROR,
             ) -> true
             error.adaptyErrorCode == AdaptyErrorCode.BILLING_ERROR
                     && ((maxAttemptCount.takeIf { it in 0..DEFAULT_RETRY_COUNT } ?: DEFAULT_RETRY_COUNT) > attempt) -> true
