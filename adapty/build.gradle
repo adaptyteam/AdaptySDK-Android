@@ -33,3 +33,13 @@ dependencies {
     implementation 'com.google.android.gms:play-services-appset:16.0.2'
     implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
 }
+
+task beforeBuildToJitpack {
+    group = 'custom'
+    description = 'Fail the build'
+    doLast {
+        throw new GradleException('Stopping Jitpack updates. Please move to Maven Central (https://search.maven.org/artifact/io.adapty/android-sdk)')
+    }
+}
+
+clean.dependsOn beforeBuildToJitpack
