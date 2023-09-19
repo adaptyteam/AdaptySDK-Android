@@ -78,9 +78,9 @@ internal class ProductsInteractor(
             .flowOnIO()
 
     @JvmSynthetic
-    fun getViewConfiguration(paywall: AdaptyPaywall) =
+    fun getViewConfiguration(paywall: AdaptyPaywall, locale: String) =
         authInteractor.runWhenAuthDataSynced {
-            cloudRepository.getViewConfiguration(paywall.variationId)
+            cloudRepository.getViewConfiguration(paywall.variationId, locale)
         }
             .map { viewConfig -> viewConfigurationMapper.map(viewConfig) }
             .flowOnIO()

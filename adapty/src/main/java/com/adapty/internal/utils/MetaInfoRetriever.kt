@@ -66,4 +66,7 @@ internal class MetaInfoRetriever(
 
     @get:JvmSynthetic
     val timezone get() = TimeZone.getDefault().id
+
+    @JvmSynthetic
+    val builderVersion = "2.0.0"
 }

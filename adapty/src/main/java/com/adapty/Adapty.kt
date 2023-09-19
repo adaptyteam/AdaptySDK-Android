@@ -154,7 +154,7 @@ public object Adapty {
         locale: String? = null,
         callback: ResultCallback<AdaptyPaywall>,
     ) {
-        Logger.log(VERBOSE) { "getPaywall(id = $id)" }
+        Logger.log(VERBOSE) { "getPaywall(id = $id${locale?.let { ", locale = $locale" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
@@ -196,21 +196,25 @@ public object Adapty {
      *
      * @param[paywall] The [AdaptyPaywall] for which you want to get a configuration.
      *
+     * @param[locale] This parameter is expected to be a language code composed of one or more subtags separated by the "-" character. The first subtag is for the language, the second one is for the region (The support for regions will be added later).
+     * Example: `"en"` means English, `"en-US"` represents US English.
+     *
      * @param[callback] A result containing the [AdaptyViewConfiguration] object.
      * Use it with [AdaptyUI](https://search.maven.org/artifact/io.adapty/android-ui) library.
      */
     @JvmStatic
     public fun getViewConfiguration(
         paywall: AdaptyPaywall,
+        locale: String,
         callback: ResultCallback<AdaptyViewConfiguration>
     ) {
-        Logger.log(VERBOSE) { "getViewConfiguration(id = ${paywall.id})" }
+        Logger.log(VERBOSE) { "getViewConfiguration(id = ${paywall.id}, locale = $locale)" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getViewConfiguration(paywall, callback)
+        adaptyInternal.getViewConfiguration(paywall, locale, callback)
     }
 
     /**

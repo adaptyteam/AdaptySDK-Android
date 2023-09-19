@@ -96,7 +96,7 @@ internal object Dependencies {
                         .registerTypeAdapterFactory(
                             AdaptyResponseTypeAdapterFactory(
                                 TypeToken.get(ViewConfigurationDto::class.java),
-                                attributesObjectExtractor,
+                                dataObjectExtractor,
                             )
                         )
                         .registerTypeAdapterFactory(
@@ -228,6 +228,7 @@ internal object Dependencies {
 
                 RequestFactory::class.java to singleVariantDiObject({
                     RequestFactory(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),

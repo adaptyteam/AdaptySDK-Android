@@ -10,6 +10,7 @@ import com.adapty.internal.data.models.InstallationMeta
 import com.adapty.internal.data.models.RestoreProductInfo
 import com.adapty.internal.data.models.requests.*
 import com.adapty.internal.domain.models.PurchaseableProduct
+import com.adapty.internal.utils.MetaInfoRetriever
 import com.adapty.models.AdaptyProfileParameters
 import com.android.billingclient.api.Purchase
 import com.google.gson.Gson
@@ -97,6 +98,7 @@ internal class Request internal constructor(val baseUrl: String) {
 internal class RequestFactory(
     private val cacheRepository: CacheRepository,
     private val responseCacheKeyProvider: ResponseCacheKeyProvider,
+    private val metaInfoRetriever: MetaInfoRetriever,
     private val gson: Gson
 ) {
 
@@ -202,7 +204,7 @@ internal class RequestFactory(
     fun getPaywallRequest(id: String, locale: String?) = buildRequest {
         method = GET
         endPoint = "$inappsEndpointPrefix/purchase-containers/$id/"
-        addQueryParam(Pair("profile_id", cacheRepository.getProfileId()))
+        addQueryParam("profile_id" to cacheRepository.getProfileId())
         if (locale != null) {
             addQueryParam("locale" to locale)
         }
@@ -210,9 +212,11 @@ internal class RequestFactory(
     }
 
     @JvmSynthetic
-    fun getViewConfigurationRequest(variationId: String) = buildRequest {
+    fun getViewConfigurationRequest(variationId: String, locale: String) = buildRequest {
         method = GET
-        endPoint = "$inappsEndpointPrefix/paywall-builder/$variationId/"
+        endPoint = "$inappsEndpointPrefix/paywall-builder/v2/$variationId/"
+        addQueryParam("builder_version" to metaInfoRetriever.builderVersion)
+        addQueryParam("locale" to locale)
     }
 
     @JvmSynthetic

@@ -204,11 +204,12 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun getViewConfiguration(
         paywall: AdaptyPaywall,
+        locale: String,
         callback: ResultCallback<AdaptyViewConfiguration>
     ) {
         execute {
             productsInteractor
-                .getViewConfiguration(paywall)
+                .getViewConfiguration(paywall, locale)
                 .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
                 .onEach { viewConfig -> callback.onResult(AdaptyResult.Success(viewConfig)) }
                 .flowOnMain()

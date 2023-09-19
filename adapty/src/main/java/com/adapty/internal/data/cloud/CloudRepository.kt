@@ -55,9 +55,9 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun getViewConfiguration(variationId: String): ViewConfigurationDto {
+    fun getViewConfiguration(variationId: String, locale: String): ViewConfigurationDto {
         val response = httpClient.newCall<ViewConfigurationDto>(
-            requestFactory.getViewConfigurationRequest(variationId),
+            requestFactory.getViewConfigurationRequest(variationId, locale),
             ViewConfigurationDto::class.java
         )
         when (response) {

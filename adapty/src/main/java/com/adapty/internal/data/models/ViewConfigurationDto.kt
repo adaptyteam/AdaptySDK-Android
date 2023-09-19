@@ -21,14 +21,12 @@ internal class ViewConfigurationConfig(
     val isHard: Boolean?,
     @SerializedName("localizations")
     val localizations: List<Localization>,
-    @SerializedName("privacy")
-    val privacy: Agreement?,
     @SerializedName("styles")
     val styles: HashMap<String, Any?>,
     @SerializedName("template_id")
     val templateId: String?,
-    @SerializedName("terms")
-    val terms: Agreement?,
+    @SerializedName("main_image_relative_height")
+    val mainImageRelativeHeight: Float?,
 ) {
     class Asset(
         @SerializedName("id")
@@ -43,6 +41,12 @@ internal class ViewConfigurationConfig(
         val color: String?,
         @SerializedName("value")
         val value: Any?,
+        @SerializedName("points")
+        val points: HashMap<String, Float?>?,
+        @SerializedName("horizontal_align")
+        val horizontalAlign: String?,
+        @SerializedName("values")
+        val values: List<HashMap<String, Any?>?>?,
     )
 
     class Localization(
@@ -60,9 +64,4 @@ internal class ViewConfigurationConfig(
             val value: String?,
         )
     }
-
-    class Agreement(
-        @SerializedName("url")
-        val url: String?,
-    )
 }
