@@ -8,13 +8,15 @@ internal class InstallationMetaCreator(
     private val metaInfoRetriever: MetaInfoRetriever,
 ) {
 
-    fun create(adId: String?): InstallationMeta {
+    fun create(adId: String, appSetId: String): InstallationMeta {
         val (appBuild, appVersion) = metaInfoRetriever.appBuildAndVersion
 
         return InstallationMeta(
             deviceId = metaInfoRetriever.installationMetaId,
             adaptySdkVersion = metaInfoRetriever.adaptySdkVersion,
             advertisingId = adId,
+            appSetId = appSetId,
+            androidId = metaInfoRetriever.androidId,
             appBuild = appBuild,
             appVersion = appVersion,
             device = metaInfoRetriever.deviceName,

@@ -13,6 +13,7 @@ public class AdaptyProfileParameters private constructor(
     public val appmetricaProfileId: String?,
     public val appmetricaDeviceId: String?,
     public val oneSignalPlayerId: String?,
+    public val oneSignalSubscriptionId: String?,
     public val pushwooshHwid: String?,
     public val firebaseAppInstanceId: String?,
     public val airbridgeDeviceId: String?,
@@ -36,6 +37,7 @@ public class AdaptyProfileParameters private constructor(
         private var appmetricaProfileId: String? = null,
         private var appmetricaDeviceId: String? = null,
         private var oneSignalPlayerId: String? = null,
+        private var oneSignalSubscriptionId: String? = null,
         private var pushwooshHwid: String? = null,
         private var firebaseAppInstanceId: String? = null,
         private var airbridgeDeviceId: String? = null,
@@ -91,6 +93,11 @@ public class AdaptyProfileParameters private constructor(
 
         public fun withOneSignalPlayerId(oneSignalPlayerId: String?): Builder {
             this.oneSignalPlayerId = oneSignalPlayerId
+            return this
+        }
+
+        public fun withOneSignalSubscriptionId(oneSignalSubscriptionId: String?): Builder {
+            this.oneSignalSubscriptionId = oneSignalSubscriptionId
             return this
         }
 
@@ -160,6 +167,7 @@ public class AdaptyProfileParameters private constructor(
                 this.appmetricaProfileId,
                 this.appmetricaDeviceId,
                 this.oneSignalPlayerId,
+                this.oneSignalSubscriptionId,
                 this.pushwooshHwid,
                 this.firebaseAppInstanceId,
                 this.airbridgeDeviceId,
@@ -184,6 +192,7 @@ public class AdaptyProfileParameters private constructor(
                 params.appmetricaProfileId,
                 params.appmetricaDeviceId,
                 params.oneSignalPlayerId,
+                params.oneSignalSubscriptionId,
                 params.pushwooshHwid,
                 params.firebaseAppInstanceId,
                 params.airbridgeDeviceId,

@@ -24,33 +24,12 @@ internal class InstallationMeta(
     @SerializedName("timezone")
     private val timezone: String,
     @SerializedName("advertising_id")
-    private val advertisingId: String?,
+    private val advertisingId: String,
+    @SerializedName("android_app_set_id")
+    private val appSetId: String,
+    @SerializedName("android_id")
+    private val androidId: String,
 ) {
-    internal companion object {
-        fun create(
-            deviceId: String,
-            adaptySdkVersion: String,
-            appBuild: String,
-            appVersion: String,
-            device: String,
-            locale: String?,
-            os: String,
-            platform: String,
-            timezone: String,
-            advertisingId: String?,
-        ) = InstallationMeta(
-            deviceId,
-            adaptySdkVersion,
-            appBuild,
-            appVersion,
-            device,
-            locale,
-            os,
-            platform,
-            timezone,
-            advertisingId,
-        )
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -68,6 +47,8 @@ internal class InstallationMeta(
         if (platform != other.platform) return false
         if (timezone != other.timezone) return false
         if (advertisingId != other.advertisingId) return false
+        if (appSetId != other.appSetId) return false
+        if (androidId != other.androidId) return false
 
         return true
     }
@@ -82,7 +63,9 @@ internal class InstallationMeta(
         result = 31 * result + os.hashCode()
         result = 31 * result + platform.hashCode()
         result = 31 * result + timezone.hashCode()
-        result = 31 * result + (advertisingId?.hashCode() ?: 0)
+        result = 31 * result + advertisingId.hashCode()
+        result = 31 * result + appSetId.hashCode()
+        result = 31 * result + androidId.hashCode()
         return result
     }
 }

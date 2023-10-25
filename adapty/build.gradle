@@ -7,7 +7,7 @@ android {
     defaultConfig {
         minSdk 16
         targetSdk 30
-        buildConfigField 'String', 'VERSION_NAME', "\"2.7.0\""
+        buildConfigField 'String', 'VERSION_NAME', "\"2.8.0\""
 
         consumerProguardFiles 'consumer-rules.pro'
     }
@@ -30,5 +30,6 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10'
     implementation('com.android.billingclient:billing-ktx:6.0.1') { exclude group: 'org.jetbrains.kotlinx', module: 'kotlinx-coroutines-core'; exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib' }
     implementation 'com.google.android.gms:play-services-ads-identifier:18.0.1'
+    implementation 'com.google.android.gms:play-services-appset:16.0.2'
     implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
 }

@@ -17,6 +17,7 @@ internal class AuthInteractor(
     private val cacheRepository: CacheRepository,
     private val installationMetaCreator: InstallationMetaCreator,
     private val adIdRetriever: AdIdRetriever,
+    private val appSetIdRetriever: AppSetIdRetriever,
     private val hashingHelper: HashingHelper,
 ) {
 
@@ -82,7 +83,10 @@ internal class AuthInteractor(
 
     @JvmSynthetic
     fun createInstallationMeta() =
-        adIdRetriever.getAdIdIfAvailable().map { adId -> installationMetaCreator.create(adId) }
+        adIdRetriever.getAdIdIfAvailable()
+            .zip(appSetIdRetriever.getAppSetIdIfAvailable()) { adId, appSetId ->
+                installationMetaCreator.create(adId, appSetId)
+            }
 
     @JvmSynthetic
     fun prepareAuthDataToSync(newCustomerUserId: String?) {

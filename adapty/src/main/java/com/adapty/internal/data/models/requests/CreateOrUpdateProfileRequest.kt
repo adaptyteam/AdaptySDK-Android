@@ -50,6 +50,8 @@ internal class CreateOrUpdateProfileRequest(
             private val mixpanelUserId: String?,
             @SerializedName("one_signal_player_id")
             private val oneSignalPlayerId: String?,
+            @SerializedName("one_signal_subscription_id")
+            private val oneSignalSubscriptionId: String?,
             @SerializedName("pushwoosh_hwid")
             private val pushwooshHwid: String?,
             @SerializedName("firebase_app_instance_id")
@@ -79,6 +81,7 @@ internal class CreateOrUpdateProfileRequest(
                     appmetricaProfileId = updateProfileParams?.appmetricaProfileId,
                     appmetricaDeviceId = updateProfileParams?.appmetricaDeviceId,
                     oneSignalPlayerId = updateProfileParams?.oneSignalPlayerId,
+                    oneSignalSubscriptionId = updateProfileParams?.oneSignalSubscriptionId,
                     pushwooshHwid = updateProfileParams?.pushwooshHwid,
                     firebaseAppInstanceId = updateProfileParams?.firebaseAppInstanceId,
                     airbridgeDeviceId = updateProfileParams?.airbridgeDeviceId,

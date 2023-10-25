@@ -251,6 +251,10 @@ internal object Dependencies {
                     AdIdRetriever(appContext, injectInternal())
                 }),
 
+                AppSetIdRetriever::class.java to singleVariantDiObject({
+                    AppSetIdRetriever(appContext)
+                }),
+
                 CustomAttributeValidator::class.java to singleVariantDiObject({
                     CustomAttributeValidator()
                 }),
@@ -343,6 +347,7 @@ internal object Dependencies {
 
                 AuthInteractor::class.java to singleVariantDiObject({
                     AuthInteractor(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),

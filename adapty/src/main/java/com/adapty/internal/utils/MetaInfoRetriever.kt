@@ -2,6 +2,7 @@ package com.adapty.internal.utils
 
 import android.content.Context
 import android.os.Build
+import android.provider.Settings.Secure
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
 import java.util.*
@@ -63,6 +64,9 @@ internal class MetaInfoRetriever(
 
     @JvmSynthetic
     val platform = "Android"
+
+    @get:JvmSynthetic
+    val androidId get() = Secure.getString(appContext.contentResolver, Secure.ANDROID_ID)
 
     @get:JvmSynthetic
     val timezone get() = TimeZone.getDefault().id
