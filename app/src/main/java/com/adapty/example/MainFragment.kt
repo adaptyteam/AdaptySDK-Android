@@ -3,6 +3,8 @@ package com.adapty.example
 import android.app.ProgressDialog
 import android.os.Bundle
 import android.view.View
+import android.widget.EditText
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.adapty.Adapty
 import com.adapty.listeners.OnProfileUpdatedListener
@@ -10,7 +12,6 @@ import com.adapty.models.AdaptyAttributionSource
 import com.adapty.models.AdaptyProfile
 import com.adapty.models.AdaptyProfileParameters
 import com.adapty.utils.AdaptyResult
-import kotlinx.android.synthetic.main.fragment_main.*
 
 /**
  * In order to receive full info about the products and make purchases,
@@ -30,18 +31,29 @@ class MainFragment : Fragment(R.layout.fragment_main) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        restore_purchases.setOnClickListener {
+        val lastResponseResult = view.findViewById<TextView>(R.id.last_response_result)
+        val restorePurchases = view.findViewById<View>(R.id.restore_purchases)
+        val getProfile = view.findViewById<View>(R.id.get_profile)
+        val getPaywallById = view.findViewById<View>(R.id.get_paywall_by_id)
+        val paywallId = view.findViewById<EditText>(R.id.paywall_id)
+        val updateProfile = view.findViewById<View>(R.id.update_profile)
+        val updateCustomAttribution = view.findViewById<View>(R.id.update_custom_attribution)
+        val identify = view.findViewById<View>(R.id.identify)
+        val customerUserId = view.findViewById<EditText>(R.id.customer_user_id)
+        val logout = view.findViewById<View>(R.id.logout)
+
+        restorePurchases.setOnClickListener {
             Adapty.restorePurchases { result ->
-                last_response_result.text = when (result) {
+                lastResponseResult.text = when (result) {
                     is AdaptyResult.Success -> "Profile:\n${result.value}"
                     is AdaptyResult.Error -> "error:\n${result.error.message}"
                 }
             }
         }
 
-        get_profile.setOnClickListener {
+        getProfile.setOnClickListener {
             Adapty.getProfile { result ->
-                last_response_result.text =
+                lastResponseResult.text =
                     when (result) {
                         is AdaptyResult.Success -> {
                             "profile: ${result.value}"
@@ -53,10 +65,10 @@ class MainFragment : Fragment(R.layout.fragment_main) {
             }
         }
 
-        get_paywall_by_id.setOnClickListener {
+        getPaywallById.setOnClickListener {
             progressDialog.show()
 
-            Adapty.getPaywall(paywall_id.text.toString()) { result ->
+            Adapty.getPaywall(paywallId.text.toString()) { result ->
                 when (result) {
                     is AdaptyResult.Success -> {
                         val paywall = result.value
@@ -65,7 +77,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
 
                             when (productResult) {
                                 is AdaptyResult.Success -> {
-                                    last_response_result.text =
+                                    lastResponseResult.text =
                                         "Paywall: $paywall\n\nProducts: ${productResult.value}"
 
                                     Adapty.logShowPaywall(paywall)
@@ -82,21 +94,21 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                                      * In order to receive products and make purchases,
                                      * please change sample's applicationId in app/build.gradle to yours
                                      */
-                                    last_response_result.text =
+                                    lastResponseResult.text =
                                         "error:\n${productResult.error.message}"
                                 }
                             }
                         }
                     }
                     is AdaptyResult.Error -> {
-                        last_response_result.text = "error:\n${result.error.message}"
+                        lastResponseResult.text = "error:\n${result.error.message}"
                         progressDialog.cancel()
                     }
                 }
             }
         }
 
-        update_profile.setOnClickListener {
+        updateProfile.setOnClickListener {
             val params = AdaptyProfileParameters.Builder()
                 .withEmail("email@example.com")
                 .withBirthday(AdaptyProfile.Date(1970, 1, 3))
@@ -106,11 +118,11 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 .build()
 
             Adapty.updateProfile(params) { error ->
-                last_response_result.text = error?.let { "error:\n${error.message}" } ?: "Profile updated"
+                lastResponseResult.text = error?.let { "error:\n${error.message}" } ?: "Profile updated"
             }
         }
 
-        update_custom_attribution.setOnClickListener {
+        updateCustomAttribution.setOnClickListener {
             //you can only use the keys below, but all of them are optional
             val attribution = mapOf(
                 "status" to "non_organic", //the only possible values for this key: non_organic|organic|unknown
@@ -121,19 +133,19 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 "creative" to "12312312312312"
             )
             Adapty.updateAttribution(attribution, AdaptyAttributionSource.CUSTOM) { error ->
-                last_response_result.text = error?.message ?: "success"
+                lastResponseResult.text = error?.message ?: "success"
             }
         }
 
         identify.setOnClickListener {
-            Adapty.identify(customer_user_id.text.toString()) { error ->
-                last_response_result.text = error?.let { "error:\n${error.message}" } ?: "User identified"
+            Adapty.identify(customerUserId.text.toString()) { error ->
+                lastResponseResult.text = error?.let { "error:\n${error.message}" } ?: "User identified"
             }
         }
 
         logout.setOnClickListener {
             Adapty.logout { error ->
-                last_response_result.text = error?.let { "error:\n${error.message}" } ?: "User logged out"
+                lastResponseResult.text = error?.let { "error:\n${error.message}" } ?: "User logged out"
             }
         }
 

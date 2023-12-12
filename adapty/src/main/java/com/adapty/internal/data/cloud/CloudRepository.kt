@@ -1,8 +1,11 @@
 package com.adapty.internal.data.cloud
 
 import androidx.annotation.RestrictTo
+import com.adapty.errors.AdaptyError
+import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.*
 import com.adapty.internal.domain.models.PurchaseableProduct
+import com.adapty.internal.utils.DEFAULT_PAYWALL_LOCALE
 import com.adapty.models.AdaptyProfileParameters
 import com.android.billingclient.api.Purchase
 import com.google.gson.reflect.TypeToken
@@ -43,14 +46,35 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun getPaywall(id: String, locale: String?): PaywallDto {
+    fun getPaywall(id: String, locale: String, segmentId: String): PaywallDto {
         val response = httpClient.newCall<PaywallDto>(
-            requestFactory.getPaywallRequest(id, locale),
+            requestFactory.getPaywallRequest(id, locale, segmentId),
             PaywallDto::class.java
         )
         when (response) {
-            is Response.Success -> return response.body
+            is Response.Success -> return response.body.takeIf { it.remoteConfig != null }
+                ?: response.body.copy(remoteConfig = RemoteConfigDto(locale, null))
             is Response.Error -> throw response.error
+        }
+    }
+
+    @JvmSynthetic
+    fun getPaywallFallback(id: String, locale: String): PaywallDto {
+        val response = httpClient.newCall<PaywallDto>(
+            requestFactory.getPaywallFallbackRequest(id, locale),
+            PaywallDto::class.java
+        )
+        when (response) {
+            is Response.Success -> return response.body.takeIf { it.remoteConfig != null }
+                ?: response.body.copy(remoteConfig = RemoteConfigDto(locale, null))
+            is Response.Error -> {
+                val error = response.error
+                when {
+                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PAYWALL_LOCALE ->
+                        return getPaywallFallback(id, DEFAULT_PAYWALL_LOCALE)
+                    else -> throw response.error
+                }
+            }
         }
     }
 
@@ -63,6 +87,25 @@ internal class CloudRepository(
         when (response) {
             is Response.Success -> return response.body
             is Response.Error -> throw response.error
+        }
+    }
+
+    @JvmSynthetic
+    fun getViewConfigurationFallback(paywallId: String, locale: String): ViewConfigurationDto {
+        val response = httpClient.newCall<ViewConfigurationDto>(
+            requestFactory.getViewConfigurationFallbackRequest(paywallId, locale),
+            ViewConfigurationDto::class.java
+        )
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> {
+                val error = response.error
+                when {
+                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PAYWALL_LOCALE ->
+                        return getViewConfigurationFallback(paywallId, DEFAULT_PAYWALL_LOCALE)
+                    else -> throw response.error
+                }
+            }
         }
     }
 
@@ -89,12 +132,22 @@ internal class CloudRepository(
         product: PurchaseableProduct,
     ): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
         val request = requestFactory.validatePurchaseRequest(purchase, product)
-        val response = httpClient.newCall<ProfileDto>(
+        val response = httpClient.newCall<ValidationResult>(
             request,
-            ProfileDto::class.java
+            ValidationResult::class.java
         )
         when (response) {
-            is Response.Success -> return response.body to request.currentDataWhenSent
+            is Response.Success -> {
+                val result = response.body
+                val error = result.errors.firstOrNull()
+                if (error != null) {
+                    throw AdaptyError(
+                        message = error.message.orEmpty(),
+                        adaptyErrorCode = AdaptyErrorCode.BAD_REQUEST,
+                    )
+                }
+                return result.profile to request.currentDataWhenSent
+            }
             is Response.Error -> throw response.error
         }
     }

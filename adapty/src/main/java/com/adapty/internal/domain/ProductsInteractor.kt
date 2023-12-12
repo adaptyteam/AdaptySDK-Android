@@ -11,6 +11,7 @@ import com.adapty.internal.domain.models.BackendProduct
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.models.AdaptyViewConfiguration
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.android.billingclient.api.ProductDetails
 import kotlinx.coroutines.flow.*
@@ -31,12 +32,35 @@ internal class ProductsInteractor(
 ) {
 
     @JvmSynthetic
-    fun getPaywall(id: String, locale: String?) =
-        authInteractor.runWhenAuthDataSynced(
+    fun getPaywall(id: String, locale: String?, fetchPolicy: AdaptyPaywall.FetchPolicy, loadTimeout: Int): Flow<AdaptyPaywall> {
+        return when (fetchPolicy) {
+            is AdaptyPaywall.FetchPolicy.ReloadRevalidatingCacheData -> getPaywallFromCloud(id, locale, loadTimeout)
+            is AdaptyPaywall.FetchPolicy.ReturnCacheDataElseLoad -> {
+                getPaywallFromCache(id, locale)
+                    .flatMapConcat { paywall ->
+                        if (paywall != null) {
+                            flowOf(paywall)
+                        } else {
+                            getPaywallFromCloud(id, locale, loadTimeout)
+                        }
+                    }
+            }
+        }
+    }
+
+    private fun getPaywallFromCloud(id: String, locale: String?, loadTimeout: Int): Flow<AdaptyPaywall> {
+        val baseFlow = authInteractor.runWhenAuthDataSynced(
             call = {
                 syncPurchasesIfNeeded()
                     .map { synced ->
-                        val paywall = cloudRepository.getPaywall(id, locale)
+                        val segmentId = cacheRepository.getProfile()?.segmentId
+                            ?: cloudRepository.getProfile().first.segmentId
+                            ?: throw AdaptyError(
+                                message = "segmentId in Profile should not be null",
+                                adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
+                            )
+                        val paywall = cloudRepository.getPaywall(id, locale ?: DEFAULT_PAYWALL_LOCALE, segmentId)
+                        cacheRepository.savePaywall(id, paywall)
                         val products = productMapper.map(paywall.products)
                         paywall to products
                     }
@@ -49,8 +73,23 @@ internal class ProductsInteractor(
                         flowOf(fallbackPaywall to products)
                     }
             }
-        )
-            .flattenConcat()
+        ).flattenConcat()
+
+        return if (loadTimeout == INF_PAYWALL_TIMEOUT_MILLIS) {
+            baseFlow
+        } else {
+            timeout(baseFlow, loadTimeout - PAYWALL_TIMEOUT_MILLIS_SHIFT)
+                .map { result ->
+                    if (result == null) {
+                        val paywall = cloudRepository.getPaywallFallback(id, locale ?: DEFAULT_PAYWALL_LOCALE)
+                        cacheRepository.savePaywall(id, paywall)
+                        val products = productMapper.map(paywall.products)
+                        paywall to products
+                    } else {
+                        result
+                    }
+                }
+        }
             .map { (paywall, products) -> paywallMapper.map(paywall, products) }
             .catch { error ->
                 if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
@@ -58,7 +97,7 @@ internal class ProductsInteractor(
                     val fallbackPaywall = cacheRepository.getFallbackPaywalls()?.paywalls
                             ?.firstOrNull { it.developerId == id }
                     val chosenPaywall =
-                        paywallPicker.pick(cachedPaywall, fallbackPaywall, locale) ?: throw error
+                        paywallPicker.pick(cachedPaywall, fallbackPaywall, setOf(locale, DEFAULT_PAYWALL_LOCALE)) ?: throw error
 
                     val productsFromCachedPaywall =
                         productMapper.map(cachedPaywall?.products.orEmpty())
@@ -76,14 +115,40 @@ internal class ProductsInteractor(
                 }
             }
             .flowOnIO()
+    }
+
+    private fun getPaywallFromCache(id: String, locale: String?) =
+        flow {
+            val cachedPaywall = cacheRepository.getPaywall(id)
+            emit(
+                paywallPicker.pick(cachedPaywall, null, setOf(locale))?.let { paywall ->
+                    val products = productMapper.map(paywall.products)
+                    paywallMapper.map(paywall, products)
+                }
+            )
+        }
 
     @JvmSynthetic
-    fun getViewConfiguration(paywall: AdaptyPaywall, locale: String) =
-        authInteractor.runWhenAuthDataSynced {
+    fun getViewConfiguration(paywall: AdaptyPaywall, locale: String, loadTimeout: Int) : Flow<AdaptyViewConfiguration> {
+        val baseFlow = authInteractor.runWhenAuthDataSynced {
             cloudRepository.getViewConfiguration(paywall.variationId, locale)
         }
-            .map { viewConfig -> viewConfigurationMapper.map(viewConfig) }
+
+        return if (loadTimeout == INF_PAYWALL_TIMEOUT_MILLIS) {
+            baseFlow
+        } else {
+            timeout(baseFlow, loadTimeout - PAYWALL_TIMEOUT_MILLIS_SHIFT)
+        }
+            .map { viewConfig ->
+                if (viewConfig == null) {
+                    val fallback = cloudRepository.getViewConfigurationFallback(paywall.paywallId, locale)
+                    viewConfigurationMapper.map(fallback)
+                } else {
+                    viewConfigurationMapper.map(viewConfig)
+                }
+            }
             .flowOnIO()
+    }
 
     @JvmSynthetic
     fun getPaywallProducts(paywall: AdaptyPaywall) : Flow<List<AdaptyPaywallProduct>> =

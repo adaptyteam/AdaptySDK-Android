@@ -4,7 +4,7 @@ import androidx.annotation.RestrictTo
 import com.google.gson.annotations.SerializedName
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class PaywallDto(
+internal data class PaywallDto(
     @SerializedName("developer_id")
     val developerId: String?,
     @SerializedName("paywall_name")
@@ -17,6 +17,8 @@ internal class PaywallDto(
     val revision: Int?,
     @SerializedName("variation_id")
     val variationId: String?,
+    @SerializedName("paywall_id")
+    val paywallId: String?,
     @SerializedName("products")
     val products: ArrayList<ProductDto>,
     @SerializedName("remote_config")

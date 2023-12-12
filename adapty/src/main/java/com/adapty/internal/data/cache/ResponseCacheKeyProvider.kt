@@ -14,9 +14,4 @@ internal class ResponseCacheKeyProvider {
         responseKey = PRODUCT_IDS_RESPONSE,
         responseHashKey = PRODUCT_IDS_RESPONSE_HASH
     )
-
-    fun forGetPaywall(id: String) = ResponseCacheKeys(
-        responseKey = "$PAYWALL_RESPONSE_START_PART${id}$PAYWALL_RESPONSE_END_PART",
-        responseHashKey = "$PAYWALL_RESPONSE_START_PART${id}$PAYWALL_RESPONSE_HASH_END_PART"
-    )
 }

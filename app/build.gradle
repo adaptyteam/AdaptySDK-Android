@@ -2,13 +2,11 @@ apply plugin: 'com.android.application'
 
 apply plugin: 'kotlin-android'
 
-apply plugin: 'kotlin-android-extensions'
-
 android {
     compileSdk 30
     defaultConfig {
         applicationId "com.adapty.example"
-        minSdk 16
+        minSdk 19
         targetSdk 30
         versionCode 1
         versionName "1.0"
@@ -39,6 +37,6 @@ dependencies {
     implementation 'androidx.recyclerview:recyclerview:1.2.0'
     implementation 'com.appsflyer:af-android-sdk:5.0.0'
     implementation 'com.adjust.sdk:adjust-android:4.24.1'
-    implementation 'com.android.billingclient:billing:6.0.1'
+    implementation 'com.android.billingclient:billing:6.1.0'
     testImplementation 'junit:junit:4.12'
 }

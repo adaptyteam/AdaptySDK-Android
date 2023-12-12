@@ -8,6 +8,9 @@ import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.*
 import com.adapty.internal.data.models.requests.PurchasedProductDetails
 import com.adapty.internal.domain.models.BackendProduct
+import com.adapty.internal.domain.models.ProductType.Consumable
+import com.adapty.internal.domain.models.ProductType.NonConsumable
+import com.adapty.internal.domain.models.ProductType.Subscription
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.models.*
 import com.adapty.models.AdaptyEligibility.*
@@ -51,16 +54,18 @@ internal class ProductMapper(
         val subscriptionDetails: AdaptyProductSubscriptionDetails?
 
         when {
-            product.subscriptionData != null -> {
+            product.type is Subscription -> {
                 val subOfferDetails = productDetails.subscriptionOfferDetails ?: kotlin.run {
                     Logger.log(ERROR) { "Subscription data was not found for the product ${product.vendorProductId}" }
                     return null
                 }
 
-                val basePlanId = product.subscriptionData.basePlanId
-                val offerId = product.subscriptionData.offerId
+                val subsData = product.type.subscriptionData
 
-                val offer = findCurrentOffer(subOfferDetails, product.subscriptionData)
+                val basePlanId = subsData.basePlanId
+                val offerId = subsData.offerId
+
+                val offer = findCurrentOffer(subOfferDetails, subsData)
 
                 if (offer == null) {
                     Logger.log(ERROR) { "Base plan $basePlanId was not found for the product ${product.vendorProductId}" }
@@ -153,10 +158,7 @@ internal class ProductMapper(
             payloadData = AdaptyPaywallProduct.Payload(
                 priceAmountMicros,
                 currencyCode,
-                when {
-                    product.subscriptionData != null -> ProductType.SUBS
-                    else -> ProductType.INAPP
-                },
+                product.type.toString(),
                 subscriptionData,
             ),
         )
@@ -173,11 +175,15 @@ internal class ProductMapper(
                 message = "vendorProductId in Product should not be null",
                 adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
             ),
-            subscriptionData = productDto.basePlanId?.let { basePlanId ->
-                BackendProduct.SubscriptionData(
-                    basePlanId,
-                    productDto.offerId,
+            type = when {
+                productDto.basePlanId != null -> Subscription(
+                    BackendProduct.SubscriptionData(
+                        productDto.basePlanId,
+                        productDto.offerId,
+                    )
                 )
+                productDto.isConsumable == true -> Consumable
+                else -> NonConsumable
             },
             timestamp = productDto.timestamp ?: 0L,
         )
@@ -197,6 +203,7 @@ internal class ProductMapper(
         }
         return PurchaseableProduct(
             vendorProductId = product.vendorProductId,
+            type = product.payloadData.type,
             priceAmountMicros = product.payloadData.priceAmountMicros,
             currencyCode = product.payloadData.currencyCode,
             variationId = product.variationId,

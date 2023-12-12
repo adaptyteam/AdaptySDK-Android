@@ -8,7 +8,7 @@ internal class InstallationMetaCreator(
     private val metaInfoRetriever: MetaInfoRetriever,
 ) {
 
-    fun create(adId: String, appSetId: String): InstallationMeta {
+    fun create(adId: String, appSetId: String, storeCountry: String): InstallationMeta {
         val (appBuild, appVersion) = metaInfoRetriever.appBuildAndVersion
 
         return InstallationMeta(
@@ -23,6 +23,7 @@ internal class InstallationMetaCreator(
             locale = metaInfoRetriever.currentLocaleFormatted,
             os = metaInfoRetriever.os,
             platform = metaInfoRetriever.platform,
+            storeCountry = storeCountry.takeIf(String::isNotEmpty),
             timezone = metaInfoRetriever.timezone,
         )
     }

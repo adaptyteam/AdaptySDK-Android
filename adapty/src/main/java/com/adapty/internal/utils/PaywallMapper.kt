@@ -18,8 +18,8 @@ internal class PaywallMapper(private val gson: Gson) {
 
     @JvmSynthetic
     fun map(paywallDto: PaywallDto, products: List<BackendProduct>) = AdaptyPaywall(
-        id = paywallDto.developerId ?: throw AdaptyError(
-            message = "id in Paywall should not be null",
+        placementId = paywallDto.developerId ?: throw AdaptyError(
+            message = "placementId in Paywall should not be null",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         ),
         name = paywallDto.name.orEmpty(),
@@ -37,6 +37,10 @@ internal class PaywallMapper(private val gson: Gson) {
             null
         })?.immutableWithInterop(),
         products = products,
+        paywallId = paywallDto.paywallId ?: throw AdaptyError(
+            message = "paywallId in Paywall should not be null",
+            adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
+        ),
         updatedAt = paywallDto.updatedAt ?: 0L,
         hasViewConfiguration = paywallDto.hasViewConfiguration ?: false,
     )

@@ -31,11 +31,15 @@ internal class HashingHelper {
         return hashString(input, "SHA-256")
     }
 
-    private fun hashString(input: String, algorithm: String): String {
+    fun md5(input: String): String {
+        return hashString(input, "MD5")
+    }
+
+    private fun hashString(input: String, algorithm: String, charset: Charset = Charsets.UTF_8): String {
         return toHexString(
             MessageDigest
                 .getInstance(algorithm)
-                .digest(input.toByteArray())
+                .digest(input.toByteArray(charset))
         )
     }
 }

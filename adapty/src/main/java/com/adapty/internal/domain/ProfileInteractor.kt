@@ -50,9 +50,9 @@ internal class ProfileInteractor(
     @JvmSynthetic
     fun updateProfile(params: AdaptyProfileParameters?, maxAttemptCount: Long = DEFAULT_RETRY_COUNT) =
         validateCustomAttributes(params?.customAttributes?.map)
-            .flatMapConcat { authInteractor.createInstallationMeta() }
+            .flatMapConcat { authInteractor.createInstallationMeta(false) }
             .flatMapConcat { installationMeta ->
-                val metaHasChanged = installationMeta != cacheRepository.getInstallationMeta()
+                val metaHasChanged = installationMeta.hasChanged(cacheRepository.getInstallationMeta())
                 val metaToBeSent = installationMeta.takeIf { metaHasChanged }
 
                 if (params != null || metaToBeSent != null) {

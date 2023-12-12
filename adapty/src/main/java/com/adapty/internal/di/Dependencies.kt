@@ -53,6 +53,8 @@ internal object Dependencies {
                     val paywallsKey = "paywalls"
                     val productsKey = "products"
                     val versionKey = "version"
+                    val profileKey = "profile"
+                    val errorsKey = "errors"
 
                     val attributesObjectExtractor = ResponseDataExtractor { jsonElement ->
                         ((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)
@@ -83,6 +85,18 @@ internal object Dependencies {
                             add(paywallsKey, paywalls)
                             add(productsKey, products)
                             add(versionKey, version)
+                        }
+                    }
+                    val validationResultExtractor = ResponseDataExtractor { jsonElement ->
+                        (((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)
+                            ?.get(attributesKey) as? JsonObject)?.let { result ->
+
+                            val errors = (result.remove(errorsKey) as? JsonArray) ?: JsonArray()
+
+                            JsonObject().apply {
+                                add(profileKey, result)
+                                add(errorsKey, errors)
+                            }
                         }
                     }
 
@@ -128,6 +142,15 @@ internal object Dependencies {
                                 TypeToken.get(FallbackPaywalls::class.java),
                                 fallbackPaywallsExtractor,
                             )
+                        )
+                        .registerTypeAdapterFactory(
+                            AdaptyResponseTypeAdapterFactory(
+                                TypeToken.get(ValidationResult::class.java),
+                                validationResultExtractor,
+                            )
+                        )
+                        .registerTypeAdapterFactory(
+                            CreateOrUpdateProfileRequestTypeAdapterFactory()
                         )
                         .registerTypeAdapter(
                             BigDecimal::class.java,
@@ -226,12 +249,18 @@ internal object Dependencies {
                     ResponseCacheKeyProvider()
                 }),
 
+                PayloadProvider::class.java to singleVariantDiObject({
+                    PayloadProvider(injectInternal(), injectInternal())
+                }),
+
                 RequestFactory::class.java to singleVariantDiObject({
                     RequestFactory(
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
+                        apiKey.split(".").getOrNull(0).orEmpty(),
                     )
                 }),
 
@@ -240,11 +269,15 @@ internal object Dependencies {
                 }),
 
                 MetaInfoRetriever::class.java to singleVariantDiObject({
-                    MetaInfoRetriever(appContext, injectInternal(), injectInternal())
+                    MetaInfoRetriever(appContext, injectInternal(), injectInternal(), injectInternal())
                 }),
 
                 CrossplatformMetaRetriever::class.java to singleVariantDiObject({
                     CrossplatformMetaRetriever()
+                }),
+
+                AdaptyUiMetaRetriever::class.java to singleVariantDiObject({
+                    AdaptyUiMetaRetriever()
                 }),
 
                 AdIdRetriever::class.java to singleVariantDiObject({
@@ -253,6 +286,10 @@ internal object Dependencies {
 
                 AppSetIdRetriever::class.java to singleVariantDiObject({
                     AppSetIdRetriever(appContext)
+                }),
+
+                StoreCountryRetriever::class.java to singleVariantDiObject({
+                    StoreCountryRetriever(injectInternal())
                 }),
 
                 CustomAttributeValidator::class.java to singleVariantDiObject({
@@ -347,6 +384,7 @@ internal object Dependencies {
 
                 AuthInteractor::class.java to singleVariantDiObject({
                     AuthInteractor(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),

@@ -45,6 +45,7 @@ internal class AttributionHelper {
         "campaign" to getAdjustProperty(adjustAttribution, "campaign"),
         "click_label" to getAdjustProperty(adjustAttribution, "clickLabel"),
         "creative" to getAdjustProperty(adjustAttribution, "creative"),
+        "fbInstallReferrer" to getAdjustProperty(adjustAttribution, "fbInstallReferrer"),
         "network" to getAdjustProperty(adjustAttribution, "network"),
         "tracker_name" to getAdjustProperty(adjustAttribution, "trackerName"),
         "tracker_token" to getAdjustProperty(adjustAttribution, "trackerToken")

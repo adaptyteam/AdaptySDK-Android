@@ -29,6 +29,8 @@ internal class InstallationMeta(
     private val appSetId: String,
     @SerializedName("android_id")
     private val androidId: String,
+    @SerializedName("store_country")
+    private val storeCountry: String?,
 ) {
 
     override fun equals(other: Any?): Boolean {
@@ -68,4 +70,7 @@ internal class InstallationMeta(
         result = 31 * result + androidId.hashCode()
         return result
     }
+
+    fun hasChanged(previousMeta: InstallationMeta?) =
+        (this != previousMeta) || (storeCountry != null && storeCountry != previousMeta.storeCountry)
 }

@@ -22,7 +22,7 @@ internal class AdIdRetriever(
     private var cachedAdvertisingId: String? = null
 
     init {
-        execute { getAdIdIfAvailable().catch { }.collect() }
+        execute { getAdIdIfAvailable().catch { emit("") }.collect() }
     }
 
     fun getAdIdIfAvailable(): Flow<String> =

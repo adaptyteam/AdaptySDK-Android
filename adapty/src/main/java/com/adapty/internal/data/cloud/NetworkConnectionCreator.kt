@@ -51,6 +51,7 @@ internal class DefaultConnectionCreator(
             setRequestProperty("adapty-sdk-device-id", metaInfoRetriever.installationMetaId)
             setRequestProperty("adapty-sdk-observer-mode-enabled", "$isObserverMode")
             setRequestProperty("adapty-sdk-android-billing-new", "true")
+            setRequestProperty("adapty-sdk-store", metaInfoRetriever.store)
             setRequestProperty(AUTHORIZATION_KEY, "$API_KEY_PREFIX${apiKey}")
             request.responseCacheKeys?.responseHashKey?.let(cacheRepository::getString)
                 ?.let { latestResponseHash ->
@@ -62,6 +63,9 @@ internal class DefaultConnectionCreator(
             metaInfoRetriever.crossplatformNameAndVersion?.let { (name, version) ->
                 setRequestProperty("adapty-sdk-crossplatform-name", name)
                 setRequestProperty("adapty-sdk-crossplatform-version", version)
+            }
+            request.additionalHeaders?.forEach { header ->
+                setRequestProperty(header.key, header.value)
             }
 
             if (request.method != GET) {

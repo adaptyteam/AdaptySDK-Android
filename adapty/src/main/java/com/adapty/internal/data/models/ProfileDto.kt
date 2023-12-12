@@ -9,6 +9,8 @@ internal class ProfileDto(
     val profileId: String?,
     @SerializedName("customer_user_id")
     val customerUserId: String?,
+    @SerializedName("segment_hash")
+    val segmentId: String?,
     @SerializedName("paid_access_levels")
     val accessLevels: HashMap<String, AccessLevelDto>?,
     @SerializedName("subscriptions")
@@ -27,6 +29,7 @@ internal class ProfileDto(
 
         if (profileId != other.profileId) return false
         if (customerUserId != other.customerUserId) return false
+        if (segmentId != other.segmentId) return false
         if (accessLevels != other.accessLevels) return false
         if (subscriptions != other.subscriptions) return false
         if (nonSubscriptions != other.nonSubscriptions) return false
@@ -38,6 +41,7 @@ internal class ProfileDto(
     override fun hashCode(): Int {
         var result = profileId?.hashCode() ?: 0
         result = 31 * result + (customerUserId?.hashCode() ?: 0)
+        result = 31 * result + (segmentId?.hashCode() ?: 0)
         result = 31 * result + (accessLevels?.hashCode() ?: 0)
         result = 31 * result + (subscriptions?.hashCode() ?: 0)
         result = 31 * result + (nonSubscriptions?.hashCode() ?: 0)

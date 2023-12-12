@@ -6,10 +6,13 @@ import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.PurchaseRecordModel
+import com.adapty.internal.domain.models.ProductType.Consumable
+import com.adapty.internal.domain.models.ProductType.Subscription
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.android.billingclient.api.*
 import com.android.billingclient.api.BillingClient.BillingResponseCode.*
 import com.android.billingclient.api.BillingClient.ProductType.INAPP
@@ -183,7 +186,7 @@ internal class StoreManager(
     @JvmSynthetic
     fun queryInfoForProduct(productId: String, type: String) =
         onConnected {
-            storeHelper.queryProductDetailsForType(listOf(productId), type)
+            storeHelper.queryProductDetailsForType(listOf(productId), extractGoogleType(type))
         }.map { productDetailsList ->
             productDetailsList.firstOrNull { it.productId == productId }
                 ?: throw AdaptyError(
@@ -266,11 +269,44 @@ internal class StoreManager(
             }
 
     @JvmSynthetic
+    fun acknowledgeOrConsume(purchase: Purchase, product: PurchaseableProduct) =
+        onConnected {
+            if (product.type == Consumable.NAME) {
+                storeHelper.consumePurchase(
+                    ConsumeParams.newBuilder()
+                        .setPurchaseToken(purchase.purchaseToken)
+                        .build()
+                )
+            } else {
+                storeHelper.acknowledgePurchase(
+                    AcknowledgePurchaseParams.newBuilder()
+                        .setPurchaseToken(purchase.purchaseToken)
+                        .build()
+                )
+            }
+        }
+            .retryOnConnectionError(DEFAULT_RETRY_COUNT)
+            .flowOnIO()
+
+    @JvmSynthetic
+    fun getStoreCountry() =
+        onConnected {
+            val params = GetBillingConfigParams.newBuilder().build()
+            storeHelper.getBillingConfig(params)
+        }
+            .catch { e ->
+                Logger.log(WARN) { e.message ?: e.localizedMessage ?: "Unknown error occured on get billing config" }
+                throw e
+            }
+            .map { config -> config?.countryCode }
+            .flowOnIO()
+
+    @JvmSynthetic
     fun findActivePurchaseForProduct(
         productId: String,
-        @BillingClient.ProductType productType: String
+        type: String,
     ) =
-        queryActivePurchasesForType(productType, DEFAULT_RETRY_COUNT)
+        queryActivePurchasesForType(extractGoogleType(type), DEFAULT_RETRY_COUNT)
             .map { purchases ->
                 purchases.firstOrNull {
                     it.purchaseState == Purchase.PurchaseState.PURCHASED && it.products.firstOrNull() == productId
@@ -287,6 +323,12 @@ internal class StoreManager(
             .retryOnConnectionError(maxAttemptCount)
             .flowOnIO()
     }
+
+    private fun extractGoogleType(type: String) =
+        when (type) {
+            Subscription.NAME -> SUBS
+            else -> INAPP
+        }
 
     private fun <T> onConnected(call: () -> Flow<T>): Flow<T> =
         restoreConnection()
@@ -424,6 +466,51 @@ private class StoreHelper(private val billingClient: BillingClient) {
     fun queryActivePurchasesForTypeWithSync(@BillingClient.ProductType type: String) =
         queryAllPurchasesForType(type)
             .map { (_, activePurchases) -> activePurchases }
+
+    @JvmSynthetic
+    fun acknowledgePurchase(params: AcknowledgePurchaseParams) =
+        flow {
+            val result = billingClient.acknowledgePurchase(params)
+            if (result.responseCode == OK) {
+                emit(Unit)
+            } else {
+                throwException(result, "on acknowledge")
+            }
+        }
+
+    @JvmSynthetic
+    fun consumePurchase(params: ConsumeParams) =
+        flow {
+            val result = billingClient.consumePurchase(params).billingResult
+            if (result.responseCode == OK) {
+                emit(Unit)
+            } else {
+                throwException(result, "on consume")
+            }
+        }
+
+    @JvmSynthetic
+    fun getBillingConfig(params: GetBillingConfigParams) =
+        flow {
+            val (result, config) = getBillingConfigSync(params)
+            if (result.responseCode == OK) {
+                emit(config)
+            } else {
+                throwException(result, "on get billing config")
+            }
+        }
+
+    private suspend fun getBillingConfigSync(params: GetBillingConfigParams): Pair<BillingResult, BillingConfig?> {
+        return suspendCancellableCoroutine { continuation ->
+            var resumed = false
+            billingClient.getBillingConfigAsync(params) { billingResult, billingConfig ->
+                if (!resumed) {
+                    continuation.resume(billingResult to billingConfig) {}
+                    resumed = true
+                }
+            }
+        }
+    }
 
     @JvmSynthetic
     fun errorMessageFromBillingResult(billingResult: BillingResult, where: String) =

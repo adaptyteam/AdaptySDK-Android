@@ -264,13 +264,15 @@ internal class CacheRepository(
     }
 
     fun getPaywall(id: String): PaywallDto? {
-        return try {
-            getString(responseCacheKeyProvider.forGetPaywall(id).responseKey)
-                ?.let { gson.fromJson(it, PaywallDto::class.java) }
-        } catch (e: Exception) {
-            null
-        }
+        return getData(getPaywallCacheKey(id), PaywallDto::class.java)
     }
+
+    fun savePaywall(id: String, paywallDto: PaywallDto) {
+        saveData(getPaywallCacheKey(id), paywallDto)
+    }
+
+    private fun getPaywallCacheKey(id: String) =
+        "$PAYWALL_RESPONSE_START_PART${id}$PAYWALL_RESPONSE_END_PART"
 
     @JvmSynthetic
     fun saveFallbackPaywalls(paywalls: String): AdaptyError? =
@@ -371,6 +373,6 @@ internal class CacheRepository(
     }
 
     private companion object {
-        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 2
+        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 3
     }
 }

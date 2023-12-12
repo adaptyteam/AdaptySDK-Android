@@ -189,11 +189,13 @@ internal class AdaptyInternal(
     fun getPaywall(
         id: String,
         locale: String?,
+        fetchPolicy: AdaptyPaywall.FetchPolicy,
+        loadTimeout: Int,
         callback: ResultCallback<AdaptyPaywall>
     ) {
         execute {
             productsInteractor
-                .getPaywall(id, locale)
+                .getPaywall(id, locale, fetchPolicy, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT_MILLIS))
                 .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
                 .onEach { paywall -> callback.onResult(AdaptyResult.Success(paywall)) }
                 .flowOnMain()
@@ -205,11 +207,12 @@ internal class AdaptyInternal(
     fun getViewConfiguration(
         paywall: AdaptyPaywall,
         locale: String,
+        loadTimeout: Int,
         callback: ResultCallback<AdaptyViewConfiguration>
     ) {
         execute {
             productsInteractor
-                .getViewConfiguration(paywall, locale)
+                .getViewConfiguration(paywall, locale, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT_MILLIS))
                 .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
                 .onEach { viewConfig -> callback.onResult(AdaptyResult.Success(viewConfig)) }
                 .flowOnMain()

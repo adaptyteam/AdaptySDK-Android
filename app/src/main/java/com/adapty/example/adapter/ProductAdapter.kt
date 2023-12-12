@@ -4,6 +4,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.Spinner
+import android.widget.TextView
+import androidx.constraintlayout.widget.Group
 import androidx.recyclerview.widget.RecyclerView
 import com.adapty.example.R
 import com.adapty.models.AdaptyPaywallProduct
@@ -11,7 +14,6 @@ import com.adapty.models.AdaptyProductSubscriptionDetails
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.ProductType
-import kotlinx.android.synthetic.main.product_item.view.*
 
 typealias PurchaseClickCallback = (AdaptyPaywallProduct) -> Unit
 typealias SubscriptionChangeClickCallback = (AdaptyPaywallProduct, AdaptySubscriptionUpdateParameters.ReplacementMode) -> Unit
@@ -46,45 +48,59 @@ private val replacementModeList = listOf(
 
 class ProductViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
+    private val productTitle = itemView.findViewById<TextView>(R.id.product_title)
+    private val productId = itemView.findViewById<TextView>(R.id.product_id)
+    private val groupSubBasePlan = itemView.findViewById<Group>(R.id.group_sub_base_plan)
+    private val basePlanIdLabel = itemView.findViewById<TextView>(R.id.base_plan_id)
+    private val groupSubOffer = itemView.findViewById<Group>(R.id.group_sub_offer)
+    private val offerIdLabel = itemView.findViewById<TextView>(R.id.offer_id)
+    private val originalPrice = itemView.findViewById<TextView>(R.id.original_price)
+    private val priceCurrency = itemView.findViewById<TextView>(R.id.price_currency)
+    private val productType = itemView.findViewById<TextView>(R.id.product_type)
+    private val makePurchase = itemView.findViewById<View>(R.id.make_purchase)
+    private val groupChangeSubscription = itemView.findViewById<Group>(R.id.group_change_subscription)
+    private val replacementModeSelector = itemView.findViewById<Spinner>(R.id.replacement_mode_selector)
+    private val changeSubscription = itemView.findViewById<View>(R.id.change_subscription)
+
     fun bind(
         product: AdaptyPaywallProduct,
         onPurchaseClick: PurchaseClickCallback,
         onSubscriptionChangeClick: SubscriptionChangeClickCallback
     ) {
         with(itemView) {
-            product_title.text = product.localizedTitle
-            product_id.text = product.vendorProductId
+            productTitle.text = product.localizedTitle
+            productId.text = product.vendorProductId
             product.subscriptionDetails?.basePlanId?.let { basePlanId ->
-                group_sub_base_plan.visibility = View.VISIBLE
-                base_plan_id.text = basePlanId
-            } ?: kotlin.run { group_sub_base_plan.visibility = View.GONE }
+                groupSubBasePlan.visibility = View.VISIBLE
+                basePlanIdLabel.text = basePlanId
+            } ?: kotlin.run { groupSubBasePlan.visibility = View.GONE }
             product.subscriptionDetails?.offerId?.let { offerId ->
-                group_sub_offer.visibility = View.VISIBLE
-                offer_id.text = offerId
-            } ?: kotlin.run { group_sub_offer.visibility = View.GONE }
-            original_price.text = product.price.localizedString
-            price_currency.text = product.price.currencyCode
-            product_type.text = when {
+                groupSubOffer.visibility = View.VISIBLE
+                offerIdLabel.text = offerId
+            } ?: kotlin.run { groupSubOffer.visibility = View.GONE }
+            originalPrice.text = product.price.localizedString
+            priceCurrency.text = product.price.currencyCode
+            productType.text = when {
                 product.productDetails.productType == ProductType.SUBS && product.subscriptionDetails?.renewalType == AdaptyProductSubscriptionDetails.RenewalType.PREPAID -> "${ProductType.SUBS}:prepaid"
                 else -> product.productDetails.productType
             }
-            make_purchase.setOnClickListener {
+            makePurchase.setOnClickListener {
                 onPurchaseClick(product)
             }
 
             if (product.productDetails.productType == BillingClient.ProductType.SUBS) {
-                group_change_subscription.visibility = View.VISIBLE
+                groupChangeSubscription.visibility = View.VISIBLE
                 val replacementModeAdapter =
                     ArrayAdapter(context, android.R.layout.simple_list_item_1, replacementModeList)
-                replacement_mode_selector.adapter = replacementModeAdapter
-                change_subscription.setOnClickListener {
+                replacementModeSelector.adapter = replacementModeAdapter
+                changeSubscription.setOnClickListener {
                     onSubscriptionChangeClick(
                         product,
-                        AdaptySubscriptionUpdateParameters.ReplacementMode.valueOf(replacement_mode_selector.selectedItem.toString())
+                        AdaptySubscriptionUpdateParameters.ReplacementMode.valueOf(replacementModeSelector.selectedItem.toString())
                     )
                 }
             } else {
-                group_change_subscription.visibility = View.GONE
+                groupChangeSubscription.visibility = View.GONE
             }
         }
     }

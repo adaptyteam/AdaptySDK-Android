@@ -7,6 +7,7 @@ import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cache.ResponseCacheKeys
 import com.adapty.internal.utils.Logger
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
+import com.adapty.utils.AdaptyLogLevel.Companion.INFO
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import java.io.BufferedReader
 import java.io.InputStream
@@ -42,6 +43,10 @@ internal class DefaultHttpResponseManager(
         if (connection.isSuccessful()) {
             val previousResponseHash = connection.getRequestProperty("ADAPTY-SDK-PREVIOUS-RESPONSE-HASH")
             val currentResponseHash = connection.getHeaderField("X-Response-Hash")
+
+            connection.getHeaderField("CF-Cache-Status")?.let { header ->
+                Logger.log(INFO) { "CF-Cache-Status: $header" }
+            }
 
             val responseStr: String
             if (!previousResponseHash.isNullOrEmpty() && previousResponseHash == currentResponseHash) {

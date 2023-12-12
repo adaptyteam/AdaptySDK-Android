@@ -5,6 +5,7 @@ import com.android.billingclient.api.ProductDetails
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class PurchaseableProduct(
     val vendorProductId: String,
+    val type: String,
     val priceAmountMicros: Long,
     val currencyCode: String,
     val variationId: String,

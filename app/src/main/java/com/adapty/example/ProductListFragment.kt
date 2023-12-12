@@ -4,12 +4,12 @@ import android.app.ProgressDialog
 import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.RecyclerView
 import com.adapty.Adapty
 import com.adapty.example.adapter.ProductAdapter
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.utils.AdaptyResult
-import kotlinx.android.synthetic.main.fragment_list.*
 
 class ProductListFragment : Fragment(R.layout.fragment_list) {
 
@@ -99,6 +99,6 @@ class ProductListFragment : Fragment(R.layout.fragment_list) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        list.adapter = productAdapter
+        view.findViewById<RecyclerView>(R.id.list).adapter = productAdapter
     }
 }

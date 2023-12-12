@@ -7,9 +7,14 @@ import com.adapty.utils.ImmutableList
 import com.adapty.utils.ImmutableMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.retryWhen
+import kotlinx.coroutines.flow.take
 import java.util.*
+import java.util.regex.Pattern
 import kotlin.math.min
 import kotlin.math.pow
 
@@ -69,6 +74,41 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 
 @JvmSynthetic
 internal const val DEFAULT_PAYWALL_LOCALE = "en"
+
+@JvmSynthetic
+internal const val DEFAULT_PAYWALL_TIMEOUT_MILLIS = 5000
+
+@JvmSynthetic
+internal const val MIN_PAYWALL_TIMEOUT_MILLIS = 1000
+
+@JvmSynthetic
+internal const val PAYWALL_TIMEOUT_MILLIS_SHIFT = 500
+
+@JvmSynthetic
+internal const val INF_PAYWALL_TIMEOUT_MILLIS = Int.MAX_VALUE
+
+@get:JvmSynthetic
+internal val noLetterRegex by lazy { Pattern.compile("[^\\p{L}]") }
+
+@JvmSynthetic
+internal fun extractLanguageCode(locale: String) =
+    locale.split(noLetterRegex, 1).firstOrNull().orEmpty()
+
+@JvmSynthetic
+internal fun <T> timeout(flow: Flow<T>, timeout: Int) =
+    merge(
+        flow.catch<T?> { e ->
+            if ((e as? AdaptyError)?.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR) emit(null) else throw e
+        },
+        getTimeoutFlow<T>(timeout)
+    )
+        .take(1)
+
+private fun <T> getTimeoutFlow(timeout: Int) =
+    flow<T?> {
+        delay(timeout.toLong())
+        emit(null)
+    }
 
 @JvmSynthetic
 internal fun getServerErrorDelay(attempt: Long) =

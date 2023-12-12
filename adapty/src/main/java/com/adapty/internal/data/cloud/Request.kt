@@ -11,6 +11,8 @@ import com.adapty.internal.data.models.RestoreProductInfo
 import com.adapty.internal.data.models.requests.*
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.internal.utils.MetaInfoRetriever
+import com.adapty.internal.utils.PayloadProvider
+import com.adapty.internal.utils.extractLanguageCode
 import com.adapty.models.AdaptyProfileParameters
 import com.android.billingclient.api.Purchase
 import com.google.gson.Gson
@@ -36,6 +38,10 @@ internal class Request internal constructor(val baseUrl: String) {
 
     @JvmSynthetic
     @JvmField
+    var additionalHeaders: List<Header>? = null
+
+    @JvmSynthetic
+    @JvmField
     var currentDataWhenSent: CurrentDataWhenSent? = null
 
     internal class Builder(private val baseRequest: Request = Request(baseUrl = "https://api.adapty.io/api/v1/sdk/")) {
@@ -51,6 +57,10 @@ internal class Request internal constructor(val baseUrl: String) {
         @JvmSynthetic
         @JvmField
         var body: String? = null
+
+        @JvmSynthetic
+        @JvmField
+        var additionalHeaders: List<Header>? = null
 
         @JvmSynthetic
         @JvmField
@@ -82,6 +92,7 @@ internal class Request internal constructor(val baseUrl: String) {
                 }
             }.toString()
             body = this@Builder.body.orEmpty()
+            additionalHeaders = this@Builder.additionalHeaders
             responseCacheKeys = this@Builder.responseCacheKeys
             currentDataWhenSent = this@Builder.currentDataWhenSent
         }
@@ -91,6 +102,8 @@ internal class Request internal constructor(val baseUrl: String) {
         GET, POST, PATCH
     }
 
+    internal class Header(val key: String, val value: String)
+
     internal class CurrentDataWhenSent(val profileId: String)
 }
 
@@ -99,7 +112,9 @@ internal class RequestFactory(
     private val cacheRepository: CacheRepository,
     private val responseCacheKeyProvider: ResponseCacheKeyProvider,
     private val metaInfoRetriever: MetaInfoRetriever,
-    private val gson: Gson
+    private val payloadProvider: PayloadProvider,
+    private val gson: Gson,
+    private val apiKeyPrefix: String,
 ) {
 
     private val inappsEndpointPrefix = "in-apps"
@@ -196,28 +211,47 @@ internal class RequestFactory(
     @JvmSynthetic
     fun getProductIdsRequest() = buildRequest {
         method = GET
-        endPoint = "$inappsEndpointPrefix/products-ids/"
+        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/products-ids/${metaInfoRetriever.store}/"
         responseCacheKeys = responseCacheKeyProvider.forGetProductIds()
     }
 
     @JvmSynthetic
-    fun getPaywallRequest(id: String, locale: String?) = buildRequest {
+    fun getPaywallRequest(id: String, locale: String, segmentId: String) = buildRequest {
         method = GET
-        endPoint = "$inappsEndpointPrefix/purchase-containers/$id/"
-        addQueryParam("profile_id" to cacheRepository.getProfileId())
-        if (locale != null) {
-            addQueryParam("locale" to locale)
-        }
-        responseCacheKeys = responseCacheKeyProvider.forGetPaywall(id)
+        val payloadHash = payloadProvider.getPayloadHashForPaywallRequest(locale, segmentId)
+        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/$id/$payloadHash/"
+        additionalHeaders = listOf(Request.Header("adapty-paywall-locale", locale))
     }
+
+    @JvmSynthetic
+    fun getPaywallFallbackRequest(id: String, locale: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1/sdk/")).apply {
+        method = GET
+        val languageCode = extractLanguageCode(locale)
+        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/$id/${metaInfoRetriever.store}/$languageCode/fallback.json"
+        additionalHeaders = listOf(Request.Header("Content-type", "application/json"))
+    }.build()
 
     @JvmSynthetic
     fun getViewConfigurationRequest(variationId: String, locale: String) = buildRequest {
         method = GET
-        endPoint = "$inappsEndpointPrefix/paywall-builder/v2/$variationId/"
-        addQueryParam("builder_version" to metaInfoRetriever.builderVersion)
-        addQueryParam("locale" to locale)
+        val (adaptyUiVersion, builderVersion) = metaInfoRetriever.adaptyUiAndBuilderVersion
+        val payloadHash = payloadProvider.getPayloadHashForPaywallBuilderRequest(locale, builderVersion)
+        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$variationId/$payloadHash/"
+        additionalHeaders = listOf(
+            Request.Header("adapty-paywall-builder-locale", locale),
+            Request.Header("adapty-paywall-builder-version", builderVersion),
+            Request.Header("adapty-ui-version", adaptyUiVersion),
+        )
     }
+
+    @JvmSynthetic
+    fun getViewConfigurationFallbackRequest(paywallId: String, locale: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1/sdk/")).apply {
+        method = GET
+        val (_, builderVersion) = metaInfoRetriever.adaptyUiAndBuilderVersion
+        val languageCode = extractLanguageCode(locale)
+        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$paywallId/$builderVersion/$languageCode/fallback.json"
+        additionalHeaders = listOf(Request.Header("Content-type", "application/json"))
+    }.build()
 
     @JvmSynthetic
     fun updateAttributionRequest(

@@ -9,29 +9,29 @@ internal class PaywallPicker {
 
     @JvmSynthetic
     fun pick(
-        paywall1: PaywallDto?,
-        paywall2: PaywallDto?,
-        requestedLocale: String?
+        cachedPaywall: PaywallDto?,
+        fallbackPaywall: PaywallDto?,
+        locales: Set<String?>,
     ): PaywallDto? {
-        val locales = setOf(requestedLocale, DEFAULT_PAYWALL_LOCALE, null)
-        val paywall1 = paywall1?.takeIfContainsLocale(locales)
-        val paywall2 = paywall2?.takeIfContainsLocale(locales)
+        val languageCodes = locales.map { locale ->
+            locale?.let(::extractLanguageCode)?.lowercase(Locale.ENGLISH)
+        }
+        val cachedPaywall = cachedPaywall?.takeIf { paywall ->
+            paywall.paywallId != null && (languageCodes.contains(null) || paywall.getLanguageCode() in languageCodes)
+        }
 
         return when {
-            paywall1 == null -> paywall2
-            paywall2 == null -> paywall1
-            paywall1.isNewerThan(paywall2) -> paywall1
-            else -> paywall2
+            cachedPaywall == null -> fallbackPaywall
+            fallbackPaywall == null -> cachedPaywall
+            cachedPaywall.isNewerThan(fallbackPaywall) -> cachedPaywall
+            else -> fallbackPaywall
         }
     }
 
     private fun PaywallDto.isNewerThan(other: PaywallDto) =
         (this.updatedAt ?: 0L) >= (other.updatedAt ?: 0L)
 
-    private fun PaywallDto.getLocaleOrNull() =
+    private fun PaywallDto.getLanguageCode() =
         this.remoteConfig?.lang?.split("-")?.getOrNull(0)
             ?.lowercase(Locale.ENGLISH)
-
-    private fun PaywallDto.takeIfContainsLocale(locales: Collection<String?>) =
-        this.takeIf { paywall -> paywall.getLocaleOrNull() in locales }
 }

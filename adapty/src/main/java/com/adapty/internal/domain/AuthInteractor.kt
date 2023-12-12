@@ -18,6 +18,7 @@ internal class AuthInteractor(
     private val installationMetaCreator: InstallationMetaCreator,
     private val adIdRetriever: AdIdRetriever,
     private val appSetIdRetriever: AppSetIdRetriever,
+    private val storeCountryRetriever: StoreCountryRetriever,
     private val hashingHelper: HashingHelper,
 ) {
 
@@ -43,7 +44,7 @@ internal class AuthInteractor(
             authSemaphore.release()
             flowOf(ProfileIdSame)
         } else {
-            createInstallationMeta()
+            createInstallationMeta(true)
                 .flatMapConcat { installationMeta ->
                     val params = cacheRepository.getExternalAnalyticsEnabled()?.let { enabled ->
                         AdaptyProfileParameters.Builder().withExternalAnalyticsDisabled(!enabled).build()
@@ -82,11 +83,14 @@ internal class AuthInteractor(
         cacheRepository.getCustomerUserId()
 
     @JvmSynthetic
-    fun createInstallationMeta() =
-        adIdRetriever.getAdIdIfAvailable()
-            .zip(appSetIdRetriever.getAppSetIdIfAvailable()) { adId, appSetId ->
-                installationMetaCreator.create(adId, appSetId)
-            }
+    fun createInstallationMeta(isCreatingProfile: Boolean) =
+        combine(
+            adIdRetriever.getAdIdIfAvailable(),
+            storeCountryRetriever.getStoreCountryIfAvailable(!isCreatingProfile),
+            appSetIdRetriever.getAppSetIdIfAvailable(),
+        ) { adId, storeCountry, appSetId ->
+            installationMetaCreator.create(adId, appSetId, storeCountry)
+        }
 
     @JvmSynthetic
     fun prepareAuthDataToSync(newCustomerUserId: String?) {

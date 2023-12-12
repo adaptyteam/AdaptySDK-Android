@@ -11,6 +11,7 @@ import java.util.*
 internal class MetaInfoRetriever(
     private val appContext: Context,
     private val crossplatformMetaRetriever: CrossplatformMetaRetriever,
+    private val adaptyUiMetaRetriever: AdaptyUiMetaRetriever,
     private val cacheRepository: CacheRepository,
 ) {
 
@@ -65,12 +66,17 @@ internal class MetaInfoRetriever(
     @JvmSynthetic
     val platform = "Android"
 
+    @JvmSynthetic
+    val store = "play_store"
+
     @get:JvmSynthetic
     val androidId get() = Secure.getString(appContext.contentResolver, Secure.ANDROID_ID)
 
     @get:JvmSynthetic
     val timezone get() = TimeZone.getDefault().id
 
-    @JvmSynthetic
-    val builderVersion = "2.0.0"
+    @get:JvmSynthetic
+    val adaptyUiAndBuilderVersion by lazy {
+        adaptyUiMetaRetriever.adaptyUiAndBuilderVersion
+    }
 }

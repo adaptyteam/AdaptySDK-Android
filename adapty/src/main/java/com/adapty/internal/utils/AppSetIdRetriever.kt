@@ -21,7 +21,7 @@ internal class AppSetIdRetriever(
     private var cachedAppSetId: String? = null
 
     init {
-        execute { getAppSetIdIfAvailable().catch { }.collect() }
+        execute { getAppSetIdIfAvailable().catch { emit("") }.collect() }
     }
 
     fun getAppSetIdIfAvailable(): Flow<String> =

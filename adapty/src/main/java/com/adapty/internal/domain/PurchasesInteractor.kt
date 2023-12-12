@@ -86,6 +86,12 @@ internal class PurchasesInteractor(
         authInteractor.runWhenAuthDataSynced {
             cloudRepository.validatePurchase(purchase, product)
         }
+            .catch { e ->
+                if (e is AdaptyError && e.adaptyErrorCode in listOf(BAD_REQUEST, SERVER_ERROR)) {
+                    storeManager.acknowledgeOrConsume(purchase, product).catch { }.collect()
+                }
+                throw e
+            }
             .map { (profile, currentDataWhenRequestSent) ->
                 cacheRepository.updateOnProfileReceived(
                     profile,

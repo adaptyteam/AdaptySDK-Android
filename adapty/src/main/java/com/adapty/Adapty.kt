@@ -11,6 +11,8 @@ import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.AdaptyInternal
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.di.Dependencies.inject
+import com.adapty.internal.utils.DEFAULT_PAYWALL_TIMEOUT_MILLIS
+import com.adapty.internal.utils.INF_PAYWALL_TIMEOUT_MILLIS
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.Logger
 import com.adapty.listeners.OnProfileUpdatedListener
@@ -135,12 +137,18 @@ public object Adapty {
      *
      * Should not be called before [activate]
      *
-     * @param[id] The identifier of the desired paywall. This is the value you specified when you
-     * created the paywall in the Adapty Dashboard.
+     * @param[placementId] The identifier of the desired placement. This is the value you specified when you
+     * created the placement in the Adapty Dashboard.
      *
      * @param[locale] This parameter is expected to be a language code composed of one or more subtags separated by the "-" character. The first subtag is for the language, the second one is for the region (The support for regions will be added later).
      * Example: `"en"` means English, `"en-US"` represents US English.
      * If the parameter is omitted, the paywall will be returned in the default locale.
+     *
+     * @param[fetchPolicy] By default SDK will try to load data from server and will return cached data in case of failure. Otherwise use [AdaptyPaywall.FetchPolicy.ReturnCacheDataElseLoad] to return cached data if it exists.
+     *
+     * @param[loadTimeoutMillis] This value limits the timeout for this method. If the timeout is reached,
+     * cached data or local fallback will be returned. The minimum value is 1000 milliseconds.
+     * If a timeout is not required, you can pass [Int.MAX_VALUE] (or use [Integer.MAX_VALUE] when calling from Java).
      *
      * @param[callback] A result containing the [AdaptyPaywall] object. This model contains the list
      * of the products ids, paywall’s identifier, custom payload, and several other properties.
@@ -150,17 +158,20 @@ public object Adapty {
     @JvmStatic
     @JvmOverloads
     public fun getPaywall(
-        id: String,
+        placementId: String,
         locale: String? = null,
+        fetchPolicy: AdaptyPaywall.FetchPolicy = AdaptyPaywall.FetchPolicy.Default,
+        @IntRange(from = 1000L)
+        loadTimeoutMillis: Int = DEFAULT_PAYWALL_TIMEOUT_MILLIS,
         callback: ResultCallback<AdaptyPaywall>,
     ) {
-        Logger.log(VERBOSE) { "getPaywall(id = $id${locale?.let { ", locale = $locale" }.orEmpty()})" }
+        Logger.log(VERBOSE) { "getPaywall(placementId = $placementId${locale?.let { ", locale = $locale" }.orEmpty()}, fetchPolicy = ${fetchPolicy}${loadTimeoutMillis.takeIf { it != INF_PAYWALL_TIMEOUT_MILLIS }?.let { ", timeout = $it" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getPaywall(id, locale, callback)
+        adaptyInternal.getPaywall(placementId, locale, fetchPolicy, loadTimeoutMillis, callback)
     }
 
     /**
@@ -179,7 +190,7 @@ public object Adapty {
         paywall: AdaptyPaywall,
         callback: ResultCallback<List<AdaptyPaywallProduct>>,
     ) {
-        Logger.log(VERBOSE) { "getPaywallProducts(id = ${paywall.id})" }
+        Logger.log(VERBOSE) { "getPaywallProducts(placementId = ${paywall.placementId})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
@@ -199,6 +210,9 @@ public object Adapty {
      * @param[locale] This parameter is expected to be a language code composed of one or more subtags separated by the "-" character. The first subtag is for the language, the second one is for the region (The support for regions will be added later).
      * Example: `"en"` means English, `"en-US"` represents US English.
      *
+     * @param[loadTimeoutMillis] This value limits the timeout for this method. The minimum value is 1000 milliseconds.
+     * If a timeout is not required, you can pass [Int.MAX_VALUE] (or use [Integer.MAX_VALUE] when calling from Java).
+     *
      * @param[callback] A result containing the [AdaptyViewConfiguration] object.
      * Use it with [AdaptyUI](https://search.maven.org/artifact/io.adapty/android-ui) library.
      */
@@ -206,15 +220,17 @@ public object Adapty {
     public fun getViewConfiguration(
         paywall: AdaptyPaywall,
         locale: String,
+        @IntRange(from = 1000L)
+        loadTimeoutMillis: Int = DEFAULT_PAYWALL_TIMEOUT_MILLIS,
         callback: ResultCallback<AdaptyViewConfiguration>
     ) {
-        Logger.log(VERBOSE) { "getViewConfiguration(id = ${paywall.id}, locale = $locale)" }
+        Logger.log(VERBOSE) { "getViewConfiguration(placementId = ${paywall.placementId}, locale = $locale${loadTimeoutMillis.takeIf { it != INF_PAYWALL_TIMEOUT_MILLIS }?.let { ", timeout = $it" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getViewConfiguration(paywall, locale, callback)
+        adaptyInternal.getViewConfiguration(paywall, locale, loadTimeoutMillis, callback)
     }
 
     /**
