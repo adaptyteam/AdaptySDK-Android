@@ -35,6 +35,7 @@ internal class PurchasesInteractor(
         product: AdaptyPaywallProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
         isOfferPersonalized: Boolean,
+        obfuscatedAccountId: String? = null
     ) : Flow<AdaptyProfile?> {
         return storeManager.queryInfoForProduct(product.vendorProductId, product.payloadData.type)
             .flatMapConcat { productDetails ->
@@ -49,6 +50,7 @@ internal class PurchasesInteractor(
                             activity,
                             purchaseableProduct,
                             subscriptionUpdateParams,
+                            obfuscatedAccountId
                         )
                     )
                 }
@@ -103,11 +105,13 @@ internal class PurchasesInteractor(
         activity: Activity,
         purchaseableProduct: PurchaseableProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
+        obfuscatedAccountId: String? = null,
     ) = suspendCancellableCoroutine<Purchase?> { continuation ->
         storeManager.makePurchase(
             activity,
             purchaseableProduct,
             subscriptionUpdateParams,
+            obfuscatedAccountId
         ) { purchase, error ->
             if (error == null) {
                 continuation.resume(purchase) {}

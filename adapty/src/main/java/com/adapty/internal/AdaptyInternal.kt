@@ -165,7 +165,7 @@ internal class AdaptyInternal(
     ) {
 
         execute {
-            purchasesInteractor.makePurchase(activity, product, subscriptionUpdateParams, isOfferPersonalized)
+            purchasesInteractor.makePurchase(activity, product, subscriptionUpdateParams, isOfferPersonalized, authInteractor.getCustomerUserId())
                 .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
                 .onEach { profile -> callback.onResult(AdaptyResult.Success(profile)) }
                 .flowOnMain()

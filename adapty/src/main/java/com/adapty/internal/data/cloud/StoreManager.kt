@@ -200,7 +200,8 @@ internal class StoreManager(
         activity: Activity,
         purchaseableProduct: PurchaseableProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
-        callback: MakePurchaseCallback
+        obfuscatedAccountId: String? = null,
+        callback: MakePurchaseCallback,
     ) {
         execute {
             if (subscriptionUpdateParams != null) {
@@ -237,6 +238,9 @@ internal class StoreManager(
                             .apply {
                                 purchaseableProduct.isOfferPersonalized.takeIf { it }?.let(::setIsOfferPersonalized)
                                 billingFlowSubUpdateParams?.let(::setSubscriptionUpdateParams)
+                                obfuscatedAccountId?.let {
+                                    setObfuscatedAccountId(it)
+                                }
                             }
                             .build()
                     )
