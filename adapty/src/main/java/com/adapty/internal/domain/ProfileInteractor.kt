@@ -20,6 +20,7 @@ internal class ProfileInteractor(
     private val profileMapper: ProfileMapper,
     private val attributionHelper: AttributionHelper,
     private val customAttributeValidator: CustomAttributeValidator,
+    private val iPv4Retriever: IPv4Retriever,
 ) {
 
     @JvmSynthetic
@@ -55,21 +56,30 @@ internal class ProfileInteractor(
                 val metaHasChanged = installationMeta.hasChanged(cacheRepository.getInstallationMeta())
                 val metaToBeSent = installationMeta.takeIf { metaHasChanged }
 
-                if (params != null || metaToBeSent != null) {
-                    authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
-                        cloudRepository.updateProfile(params, metaToBeSent)
+                authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
+                    val ip = iPv4Retriever.value
+                    if (ip == null) {
+                        sendIpWhenReceived()
+
+                        if (params == null && metaToBeSent == null)
+                            throw NothingToUpdateException()
                     }
-                        .map { (profile, currentDataWhenRequestSent) ->
-                            cacheRepository.updateOnProfileReceived(
-                                profile,
-                                currentDataWhenRequestSent?.profileId,
-                            )
-                            metaToBeSent?.let(cacheRepository::saveLastSentInstallationMeta)
-                            Unit
-                        }
-                } else {
-                    flowOf(Unit)
+                    cloudRepository.updateProfile(params, metaToBeSent, ip)
                 }
+                    .map { (profile, currentDataWhenRequestSent) ->
+                        cacheRepository.updateOnProfileReceived(
+                            profile,
+                            currentDataWhenRequestSent?.profileId,
+                        )
+                        metaToBeSent?.let(cacheRepository::saveLastSentInstallationMeta)
+                        Unit
+                    }
+                    .catch { e ->
+                        if (e is NothingToUpdateException)
+                            emit(Unit)
+                        else
+                            throw e
+                    }
             }
             .flowOnIO()
             .also {
@@ -133,4 +143,17 @@ internal class ProfileInteractor(
                 profileIdHasChanged || customerUserIdHasChanged
             }
             .flowOnIO()
+
+    private fun sendIpWhenReceived() {
+        iPv4Retriever.onValueReceived = { value ->
+            execute {
+                flow {
+                    emit(cloudRepository.updateProfile(ipv4Address = value))
+                }
+                    .retryIfNecessary(INFINITE_RETRY).flowOnIO().catch { }.collect()
+            }
+        }
+    }
+
+    private class NothingToUpdateException : Exception()
 }

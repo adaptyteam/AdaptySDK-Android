@@ -35,8 +35,9 @@ internal class ProductsInteractor(
     fun getPaywall(id: String, locale: String?, fetchPolicy: AdaptyPaywall.FetchPolicy, loadTimeout: Int): Flow<AdaptyPaywall> {
         return when (fetchPolicy) {
             is AdaptyPaywall.FetchPolicy.ReloadRevalidatingCacheData -> getPaywallFromCloud(id, locale, loadTimeout)
-            is AdaptyPaywall.FetchPolicy.ReturnCacheDataElseLoad -> {
-                getPaywallFromCache(id, locale)
+            else -> {
+                val maxAgeMillis = (fetchPolicy as? AdaptyPaywall.FetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
+                getPaywallFromCache(id, locale, maxAgeMillis)
                     .flatMapConcat { paywall ->
                         if (paywall != null) {
                             flowOf(paywall)
@@ -117,9 +118,9 @@ internal class ProductsInteractor(
             .flowOnIO()
     }
 
-    private fun getPaywallFromCache(id: String, locale: String?) =
+    private fun getPaywallFromCache(id: String, locale: String?, maxAgeMillis: Long?) =
         flow {
-            val cachedPaywall = cacheRepository.getPaywall(id)
+            val cachedPaywall = cacheRepository.getPaywall(id, maxAgeMillis)
             emit(
                 paywallPicker.pick(cachedPaywall, null, setOf(locale))?.let { paywall ->
                     val products = productMapper.map(paywall.products)

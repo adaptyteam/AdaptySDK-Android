@@ -12,7 +12,6 @@ import com.adapty.example.R
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProductSubscriptionDetails
 import com.adapty.models.AdaptySubscriptionUpdateParameters
-import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.ProductType
 
 typealias PurchaseClickCallback = (AdaptyPaywallProduct) -> Unit
@@ -67,41 +66,39 @@ class ProductViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         onPurchaseClick: PurchaseClickCallback,
         onSubscriptionChangeClick: SubscriptionChangeClickCallback
     ) {
-        with(itemView) {
-            productTitle.text = product.localizedTitle
-            productId.text = product.vendorProductId
-            product.subscriptionDetails?.basePlanId?.let { basePlanId ->
-                groupSubBasePlan.visibility = View.VISIBLE
-                basePlanIdLabel.text = basePlanId
-            } ?: kotlin.run { groupSubBasePlan.visibility = View.GONE }
-            product.subscriptionDetails?.offerId?.let { offerId ->
-                groupSubOffer.visibility = View.VISIBLE
-                offerIdLabel.text = offerId
-            } ?: kotlin.run { groupSubOffer.visibility = View.GONE }
-            originalPrice.text = product.price.localizedString
-            priceCurrency.text = product.price.currencyCode
-            productType.text = when {
-                product.productDetails.productType == ProductType.SUBS && product.subscriptionDetails?.renewalType == AdaptyProductSubscriptionDetails.RenewalType.PREPAID -> "${ProductType.SUBS}:prepaid"
-                else -> product.productDetails.productType
-            }
-            makePurchase.setOnClickListener {
-                onPurchaseClick(product)
-            }
+        productTitle.text = product.localizedTitle
+        productId.text = product.vendorProductId
+        product.subscriptionDetails?.basePlanId?.let { basePlanId ->
+            groupSubBasePlan.visibility = View.VISIBLE
+            basePlanIdLabel.text = basePlanId
+        } ?: kotlin.run { groupSubBasePlan.visibility = View.GONE }
+        product.subscriptionDetails?.offerId?.let { offerId ->
+            groupSubOffer.visibility = View.VISIBLE
+            offerIdLabel.text = offerId
+        } ?: kotlin.run { groupSubOffer.visibility = View.GONE }
+        originalPrice.text = product.price.localizedString
+        priceCurrency.text = product.price.currencyCode
+        productType.text = when {
+            product.productDetails.productType == ProductType.SUBS && product.subscriptionDetails?.renewalType == AdaptyProductSubscriptionDetails.RenewalType.PREPAID -> "${ProductType.SUBS}:prepaid"
+            else -> product.productDetails.productType
+        }
+        makePurchase.setOnClickListener {
+            onPurchaseClick(product)
+        }
 
-            if (product.productDetails.productType == BillingClient.ProductType.SUBS) {
-                groupChangeSubscription.visibility = View.VISIBLE
-                val replacementModeAdapter =
-                    ArrayAdapter(context, android.R.layout.simple_list_item_1, replacementModeList)
-                replacementModeSelector.adapter = replacementModeAdapter
-                changeSubscription.setOnClickListener {
-                    onSubscriptionChangeClick(
-                        product,
-                        AdaptySubscriptionUpdateParameters.ReplacementMode.valueOf(replacementModeSelector.selectedItem.toString())
-                    )
-                }
-            } else {
-                groupChangeSubscription.visibility = View.GONE
+        if (product.productDetails.productType == ProductType.SUBS) {
+            groupChangeSubscription.visibility = View.VISIBLE
+            val replacementModeAdapter =
+                ArrayAdapter(itemView.context, android.R.layout.simple_list_item_1, replacementModeList)
+            replacementModeSelector.adapter = replacementModeAdapter
+            changeSubscription.setOnClickListener {
+                onSubscriptionChangeClick(
+                    product,
+                    AdaptySubscriptionUpdateParameters.ReplacementMode.valueOf(replacementModeSelector.selectedItem.toString())
+                )
             }
+        } else {
+            groupChangeSubscription.visibility = View.GONE
         }
     }
 }

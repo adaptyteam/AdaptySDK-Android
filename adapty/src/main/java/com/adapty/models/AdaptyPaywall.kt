@@ -103,6 +103,17 @@ public class AdaptyPaywall internal constructor(
             }
         }
 
+        public class ReturnCacheDataIfNotExpiredElseLoad private constructor(public val maxAgeMillis: Long) : FetchPolicy() {
+
+            internal companion object {
+                fun create(maxAgeMillis: Long) = ReturnCacheDataIfNotExpiredElseLoad(maxAgeMillis)
+            }
+
+            override fun toString(): String {
+                return "ReturnCacheDataIfNotExpiredElseLoad(maxAgeMillis=$maxAgeMillis)"
+            }
+        }
+
         public companion object {
 
             @JvmField
@@ -110,6 +121,9 @@ public class AdaptyPaywall internal constructor(
 
             @JvmField
             public val ReturnCacheDataElseLoad: FetchPolicy = FetchPolicy.ReturnCacheDataElseLoad.create()
+
+            @JvmStatic
+            public fun ReturnCacheDataIfNotExpiredElseLoad(maxAgeMillis: Long): FetchPolicy = ReturnCacheDataIfNotExpiredElseLoad.create(maxAgeMillis)
 
             @JvmField
             public val Default: FetchPolicy = ReloadRevalidatingCacheData

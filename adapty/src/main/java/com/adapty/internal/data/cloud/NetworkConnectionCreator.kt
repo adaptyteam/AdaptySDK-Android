@@ -5,7 +5,6 @@ import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.Request.Method.GET
 import com.adapty.internal.data.cloud.Request.Method.POST
 import com.adapty.internal.utils.HashingHelper
-import com.adapty.internal.utils.MetaInfoRetriever
 import java.io.BufferedWriter
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -23,17 +22,7 @@ internal interface NetworkConnectionCreator {
 }
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class DefaultConnectionCreator(
-    private val cacheRepository: CacheRepository,
-    private val metaInfoRetriever: MetaInfoRetriever,
-    private val apiKey: String,
-    private val isObserverMode: Boolean,
-) : NetworkConnectionCreator {
-
-    companion object {
-        private const val AUTHORIZATION_KEY = "Authorization"
-        private const val API_KEY_PREFIX = "Api-Key "
-    }
+internal class DefaultConnectionCreator : NetworkConnectionCreator {
 
     override fun createUrlConnection(request: Request) =
         (URL(request.url).openConnection() as HttpURLConnection).apply {
@@ -42,29 +31,7 @@ internal class DefaultConnectionCreator(
             requestMethod = request.method.name
             doInput = true
 
-            setRequestProperty("Content-type", "application/vnd.api+json")
-            setRequestProperty("Accept-Encoding", "gzip")
-            setRequestProperty("adapty-sdk-profile-id", cacheRepository.getProfileId())
-            setRequestProperty("adapty-sdk-platform", "Android")
-            setRequestProperty("adapty-sdk-version", com.adapty.BuildConfig.VERSION_NAME)
-            setRequestProperty("adapty-sdk-session", cacheRepository.getSessionId())
-            setRequestProperty("adapty-sdk-device-id", metaInfoRetriever.installationMetaId)
-            setRequestProperty("adapty-sdk-observer-mode-enabled", "$isObserverMode")
-            setRequestProperty("adapty-sdk-android-billing-new", "true")
-            setRequestProperty("adapty-sdk-store", metaInfoRetriever.store)
-            setRequestProperty(AUTHORIZATION_KEY, "$API_KEY_PREFIX${apiKey}")
-            request.responseCacheKeys?.responseHashKey?.let(cacheRepository::getString)
-                ?.let { latestResponseHash ->
-                    setRequestProperty("adapty-sdk-previous-response-hash", latestResponseHash)
-                }
-            metaInfoRetriever.appBuildAndVersion.let { (_, appVersion) ->
-                setRequestProperty("adapty-app-version", appVersion)
-            }
-            metaInfoRetriever.crossplatformNameAndVersion?.let { (name, version) ->
-                setRequestProperty("adapty-sdk-crossplatform-name", name)
-                setRequestProperty("adapty-sdk-crossplatform-version", version)
-            }
-            request.additionalHeaders?.forEach { header ->
+            request.headers?.forEach { header ->
                 setRequestProperty(header.key, header.value)
             }
 

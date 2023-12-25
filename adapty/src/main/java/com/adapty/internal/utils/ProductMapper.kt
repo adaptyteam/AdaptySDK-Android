@@ -142,7 +142,7 @@ internal class ProductMapper(
 
         return AdaptyPaywallProduct(
             vendorProductId = product.vendorProductId,
-            localizedTitle = productDetails.title,
+            localizedTitle = productDetails.name,
             localizedDescription = productDetails.description,
             paywallName = paywall.name,
             paywallABTestName = paywall.abTestName,

@@ -60,6 +60,8 @@ internal class CreateOrUpdateProfileRequest(
             private val airbridgeDeviceId: String?,
             @SerializedName("analytics_disabled")
             private val analyticsDisabled: Boolean?,
+            @SerializedName("ip_v4_address")
+            private val ipv4Address: String?,
             @SerializedName("custom_attributes")
             private val customAttributes: Map<String, Any>?,
         ) {
@@ -69,6 +71,7 @@ internal class CreateOrUpdateProfileRequest(
                     installationMeta: InstallationMeta?,
                     customerUserId: String?,
                     updateProfileParams: AdaptyProfileParameters?,
+                    ipv4Address: String?,
                 ) = Attributes(
                     installationMeta = installationMeta,
                     customerUserId = customerUserId,
@@ -90,6 +93,7 @@ internal class CreateOrUpdateProfileRequest(
                     gender = updateProfileParams?.gender,
                     birthday = updateProfileParams?.birthday,
                     analyticsDisabled = updateProfileParams?.analyticsDisabled,
+                    ipv4Address = ipv4Address,
                     customAttributes = updateProfileParams?.customAttributes
                         ?.map?.mapValues { entry -> entry.value ?: "" }
                 )
@@ -102,13 +106,22 @@ internal class CreateOrUpdateProfileRequest(
             profileId: String,
             installationMeta: InstallationMeta?,
             updateProfileParams: AdaptyProfileParameters?,
-        ) = create(profileId, installationMeta, null, updateProfileParams)
+            ipv4Address: String?,
+        ) = create(profileId, installationMeta, null, updateProfileParams, ipv4Address)
 
         fun create(
             profileId: String,
             installationMeta: InstallationMeta?,
             customerUserId: String?,
             updateProfileParams: AdaptyProfileParameters?,
+        ) = create(profileId, installationMeta, customerUserId, updateProfileParams, null)
+
+        private fun create(
+            profileId: String,
+            installationMeta: InstallationMeta?,
+            customerUserId: String?,
+            updateProfileParams: AdaptyProfileParameters?,
+            ipv4Address: String?,
         ) = CreateOrUpdateProfileRequest(
             Data(
                 id = profileId,
@@ -116,6 +129,7 @@ internal class CreateOrUpdateProfileRequest(
                     installationMeta,
                     customerUserId,
                     updateProfileParams,
+                    ipv4Address,
                 )
             )
         )

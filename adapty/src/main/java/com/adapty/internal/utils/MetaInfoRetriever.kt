@@ -12,6 +12,7 @@ internal class MetaInfoRetriever(
     private val appContext: Context,
     private val crossplatformMetaRetriever: CrossplatformMetaRetriever,
     private val adaptyUiMetaRetriever: AdaptyUiMetaRetriever,
+    private val userAgentRetriever: UserAgentRetriever,
     private val cacheRepository: CacheRepository,
 ) {
 
@@ -68,6 +69,9 @@ internal class MetaInfoRetriever(
 
     @JvmSynthetic
     val store = "play_store"
+
+    @get:JvmSynthetic
+    val userAgent get() = userAgentRetriever.userAgent
 
     @get:JvmSynthetic
     val androidId get() = Secure.getString(appContext.contentResolver, Secure.ANDROID_ID)

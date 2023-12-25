@@ -75,8 +75,8 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 @JvmSynthetic
 internal const val DEFAULT_PAYWALL_LOCALE = "en"
 
-@JvmSynthetic
-internal const val DEFAULT_PAYWALL_TIMEOUT_MILLIS = 5000
+@InternalAdaptyApi
+public const val DEFAULT_PAYWALL_TIMEOUT_MILLIS: Int = 5000
 
 @JvmSynthetic
 internal const val MIN_PAYWALL_TIMEOUT_MILLIS = 1000

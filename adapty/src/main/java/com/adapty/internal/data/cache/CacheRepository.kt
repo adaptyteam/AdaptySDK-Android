@@ -263,12 +263,14 @@ internal class CacheRepository(
         saveData(KINESIS_RECORDS, data)
     }
 
-    fun getPaywall(id: String): PaywallDto? {
-        return getData(getPaywallCacheKey(id), PaywallDto::class.java)
+    fun getPaywall(id: String, maxAgeMillis: Long? = null): PaywallDto? {
+        return getData<CacheEntity<PaywallDto>>(getPaywallCacheKey(id))?.let { (paywall, cachedAt) ->
+            paywall.takeIf { (maxAgeMillis == null) || (System.currentTimeMillis() - cachedAt <= maxAgeMillis) }
+        }
     }
 
     fun savePaywall(id: String, paywallDto: PaywallDto) {
-        saveData(getPaywallCacheKey(id), paywallDto)
+        saveData(getPaywallCacheKey(id), CacheEntity(paywallDto))
     }
 
     private fun getPaywallCacheKey(id: String) =

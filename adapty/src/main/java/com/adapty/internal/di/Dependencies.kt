@@ -3,6 +3,7 @@ package com.adapty.internal.di
 import android.content.Context
 import androidx.annotation.RestrictTo
 import com.adapty.internal.AdaptyInternal
+import com.adapty.internal.data.cache.CacheEntityTypeAdapterFactory
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cache.PreferenceManager
 import com.adapty.internal.data.cache.ResponseCacheKeyProvider
@@ -150,6 +151,9 @@ internal object Dependencies {
                             )
                         )
                         .registerTypeAdapterFactory(
+                            CacheEntityTypeAdapterFactory()
+                        )
+                        .registerTypeAdapterFactory(
                             CreateOrUpdateProfileRequestTypeAdapterFactory()
                         )
                         .registerTypeAdapter(
@@ -209,12 +213,7 @@ internal object Dependencies {
 
                 NetworkConnectionCreator::class.java to mapOf(
                     null to DIObject({
-                        DefaultConnectionCreator(
-                            injectInternal(),
-                            injectInternal(),
-                            apiKey,
-                            observerMode,
-                        )
+                        DefaultConnectionCreator()
                     }),
                     KINESIS to DIObject({
                         KinesisConnectionCreator(injectInternal(), injectInternal())
@@ -260,7 +259,8 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
-                        apiKey.split(".").getOrNull(0).orEmpty(),
+                        apiKey,
+                        observerMode,
                     )
                 }),
 
@@ -269,7 +269,13 @@ internal object Dependencies {
                 }),
 
                 MetaInfoRetriever::class.java to singleVariantDiObject({
-                    MetaInfoRetriever(appContext, injectInternal(), injectInternal(), injectInternal())
+                    MetaInfoRetriever(
+                        appContext,
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                    )
                 }),
 
                 CrossplatformMetaRetriever::class.java to singleVariantDiObject({
@@ -290,6 +296,14 @@ internal object Dependencies {
 
                 StoreCountryRetriever::class.java to singleVariantDiObject({
                     StoreCountryRetriever(injectInternal())
+                }),
+
+                UserAgentRetriever::class.java to singleVariantDiObject({
+                    UserAgentRetriever(appContext)
+                }),
+
+                IPv4Retriever::class.java to singleVariantDiObject({
+                    IPv4Retriever(injectInternal())
                 }),
 
                 CustomAttributeValidator::class.java to singleVariantDiObject({
@@ -362,6 +376,7 @@ internal object Dependencies {
 
                 ProfileInteractor::class.java to singleVariantDiObject({
                     ProfileInteractor(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),

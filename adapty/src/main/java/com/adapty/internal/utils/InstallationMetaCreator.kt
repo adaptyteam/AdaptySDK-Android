@@ -25,6 +25,7 @@ internal class InstallationMetaCreator(
             platform = metaInfoRetriever.platform,
             storeCountry = storeCountry.takeIf(String::isNotEmpty),
             timezone = metaInfoRetriever.timezone,
+            userAgent = metaInfoRetriever.userAgent,
         )
     }
 }

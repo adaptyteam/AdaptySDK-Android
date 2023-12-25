@@ -179,10 +179,11 @@ internal class CloudRepository(
 
     @JvmSynthetic
     fun updateProfile(
-        params: AdaptyProfileParameters?,
-        installationMeta: InstallationMeta?,
+        params: AdaptyProfileParameters? = null,
+        installationMeta: InstallationMeta? = null,
+        ipv4Address: String? = null,
     ): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
-        val request = requestFactory.updateProfileRequest(params, installationMeta)
+        val request = requestFactory.updateProfileRequest(params, installationMeta, ipv4Address)
         val response =
             httpClient.newCall<ProfileDto>(
                 request,
@@ -210,6 +211,18 @@ internal class CloudRepository(
             Any::class.java
         )
         processEmptyResponse(response)
+    }
+
+    @JvmSynthetic
+    fun getIPv4Request(): IP {
+        val response = httpClient.newCall<IP>(
+            requestFactory.getIPv4Request(),
+            IP::class.java
+        )
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> throw response.error
+        }
     }
 
     private fun processEmptyResponse(response: Response<*>) {

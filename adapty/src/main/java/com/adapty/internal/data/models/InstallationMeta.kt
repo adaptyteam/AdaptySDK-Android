@@ -23,6 +23,8 @@ internal class InstallationMeta(
     private val platform: String,
     @SerializedName("timezone")
     private val timezone: String,
+    @SerializedName("user_agent")
+    private val userAgent: String?,
     @SerializedName("advertising_id")
     private val advertisingId: String,
     @SerializedName("android_app_set_id")
@@ -48,6 +50,7 @@ internal class InstallationMeta(
         if (os != other.os) return false
         if (platform != other.platform) return false
         if (timezone != other.timezone) return false
+        if (userAgent != other.userAgent) return false
         if (advertisingId != other.advertisingId) return false
         if (appSetId != other.appSetId) return false
         if (androidId != other.androidId) return false
@@ -65,6 +68,7 @@ internal class InstallationMeta(
         result = 31 * result + os.hashCode()
         result = 31 * result + platform.hashCode()
         result = 31 * result + timezone.hashCode()
+        result = 31 * result + (userAgent?.hashCode() ?: 0)
         result = 31 * result + advertisingId.hashCode()
         result = 31 * result + appSetId.hashCode()
         result = 31 * result + androidId.hashCode()

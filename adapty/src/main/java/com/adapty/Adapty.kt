@@ -1,3 +1,5 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty
 
 import android.Manifest
@@ -217,6 +219,7 @@ public object Adapty {
      * Use it with [AdaptyUI](https://search.maven.org/artifact/io.adapty/android-ui) library.
      */
     @JvmStatic
+    @JvmOverloads
     public fun getViewConfiguration(
         paywall: AdaptyPaywall,
         locale: String,
@@ -439,7 +442,6 @@ public object Adapty {
      *
      * @see <a href="https://docs.adapty.io/docs/android-displaying-products#paywall-analytics">Android - Paywall analytics</a>
      */
-    @OptIn(InternalAdaptyApi::class)
     @JvmStatic
     @JvmOverloads
     public fun logShowPaywall(paywall: AdaptyPaywall, callback: ErrorCallback? = null) {

@@ -38,7 +38,7 @@ internal class Request internal constructor(val baseUrl: String) {
 
     @JvmSynthetic
     @JvmField
-    var additionalHeaders: List<Header>? = null
+    var headers: Set<Header>? = null
 
     @JvmSynthetic
     @JvmField
@@ -60,7 +60,7 @@ internal class Request internal constructor(val baseUrl: String) {
 
         @JvmSynthetic
         @JvmField
-        var additionalHeaders: List<Header>? = null
+        var headers = mutableSetOf<Header>()
 
         @JvmSynthetic
         @JvmField
@@ -92,7 +92,7 @@ internal class Request internal constructor(val baseUrl: String) {
                 }
             }.toString()
             body = this@Builder.body.orEmpty()
-            additionalHeaders = this@Builder.additionalHeaders
+            headers = this@Builder.headers
             responseCacheKeys = this@Builder.responseCacheKeys
             currentDataWhenSent = this@Builder.currentDataWhenSent
         }
@@ -102,7 +102,7 @@ internal class Request internal constructor(val baseUrl: String) {
         GET, POST, PATCH
     }
 
-    internal class Header(val key: String, val value: String)
+    internal class Header(val key: String, val value: String?)
 
     internal class CurrentDataWhenSent(val profileId: String)
 }
@@ -114,11 +114,14 @@ internal class RequestFactory(
     private val metaInfoRetriever: MetaInfoRetriever,
     private val payloadProvider: PayloadProvider,
     private val gson: Gson,
-    private val apiKeyPrefix: String,
+    private val apiKey: String,
+    private val isObserverMode: Boolean,
 ) {
 
     private val inappsEndpointPrefix = "in-apps"
     private val profilesEndpointPrefix = "analytics/profiles"
+
+    private val apiKeyPrefix = apiKey.split(".").getOrNull(0).orEmpty()
 
     private fun getEndpointForProfileRequests(profileId: String): String {
         return "$profilesEndpointPrefix/$profileId/"
@@ -130,13 +133,13 @@ internal class RequestFactory(
             buildRequest {
                 method = GET
                 endPoint = getEndpointForProfileRequests(profileId)
-                responseCacheKeys = responseCacheKeyProvider.forGetProfile()
+                addResponseCacheKeys(responseCacheKeyProvider.forGetProfile())
                 currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
             }
         }
 
     @JvmSynthetic
-    fun updateProfileRequest(params: AdaptyProfileParameters?, installationMeta: InstallationMeta?) =
+    fun updateProfileRequest(params: AdaptyProfileParameters?, installationMeta: InstallationMeta?, ipv4Address: String?) =
         cacheRepository.getProfileId().let { profileId ->
             buildRequest {
                 method = PATCH
@@ -145,10 +148,11 @@ internal class RequestFactory(
                         profileId,
                         installationMeta,
                         params,
+                        ipv4Address,
                     )
                 )
                 endPoint = getEndpointForProfileRequests(profileId)
-                responseCacheKeys = responseCacheKeyProvider.forGetProfile()
+                addResponseCacheKeys(responseCacheKeyProvider.forGetProfile())
                 currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
             }
         }
@@ -212,7 +216,7 @@ internal class RequestFactory(
     fun getProductIdsRequest() = buildRequest {
         method = GET
         endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/products-ids/${metaInfoRetriever.store}/"
-        responseCacheKeys = responseCacheKeyProvider.forGetProductIds()
+        addResponseCacheKeys(responseCacheKeyProvider.forGetProductIds())
     }
 
     @JvmSynthetic
@@ -220,7 +224,7 @@ internal class RequestFactory(
         method = GET
         val payloadHash = payloadProvider.getPayloadHashForPaywallRequest(locale, segmentId)
         endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/$id/$payloadHash/"
-        additionalHeaders = listOf(Request.Header("adapty-paywall-locale", locale))
+        headers += listOf(Request.Header("adapty-paywall-locale", locale))
     }
 
     @JvmSynthetic
@@ -228,7 +232,8 @@ internal class RequestFactory(
         method = GET
         val languageCode = extractLanguageCode(locale)
         endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/$id/${metaInfoRetriever.store}/$languageCode/fallback.json"
-        additionalHeaders = listOf(Request.Header("Content-type", "application/json"))
+        headers += listOf(Request.Header("Content-type", "application/json"))
+        addDefaultHeaders()
     }.build()
 
     @JvmSynthetic
@@ -237,7 +242,7 @@ internal class RequestFactory(
         val (adaptyUiVersion, builderVersion) = metaInfoRetriever.adaptyUiAndBuilderVersion
         val payloadHash = payloadProvider.getPayloadHashForPaywallBuilderRequest(locale, builderVersion)
         endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$variationId/$payloadHash/"
-        additionalHeaders = listOf(
+        headers += listOf(
             Request.Header("adapty-paywall-builder-locale", locale),
             Request.Header("adapty-paywall-builder-version", builderVersion),
             Request.Header("adapty-ui-version", adaptyUiVersion),
@@ -250,7 +255,8 @@ internal class RequestFactory(
         val (_, builderVersion) = metaInfoRetriever.adaptyUiAndBuilderVersion
         val languageCode = extractLanguageCode(locale)
         endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$paywallId/$builderVersion/$languageCode/fallback.json"
-        additionalHeaders = listOf(Request.Header("Content-type", "application/json"))
+        headers += listOf(Request.Header("Content-type", "application/json"))
+        addDefaultHeaders()
     }.build()
 
     @JvmSynthetic
@@ -278,6 +284,11 @@ internal class RequestFactory(
         }
 
     @JvmSynthetic
+    fun getIPv4Request() = Request.Builder(baseRequest = Request("https://api.ipify.org?format=json")).apply {
+        method = GET
+    }.build()
+
+    @JvmSynthetic
     fun kinesisRequest(requestBody: Map<String, Any>) =
         Request.Builder(Request("https://kinesis.us-east-1.amazonaws.com/"))
             .apply {
@@ -287,5 +298,53 @@ internal class RequestFactory(
             .build()
 
     private inline fun buildRequest(action: Request.Builder.() -> Unit) =
-        Request.Builder().apply(action).build()
+        Request.Builder().apply {
+            action()
+            addDefaultHeaders()
+        }.build()
+
+    private fun Request.Builder.addDefaultHeaders() {
+        val defaultHeaders = setOfNotNull(
+            Request.Header("Content-type", "application/vnd.api+json"),
+            Request.Header("Accept-Encoding", "gzip"),
+            Request.Header("adapty-sdk-profile-id", cacheRepository.getProfileId()),
+            Request.Header("adapty-sdk-platform", "Android"),
+            Request.Header("adapty-sdk-version", com.adapty.BuildConfig.VERSION_NAME),
+            Request.Header("adapty-sdk-session", cacheRepository.getSessionId()),
+            Request.Header("adapty-sdk-device-id", metaInfoRetriever.installationMetaId),
+            Request.Header("adapty-sdk-observer-mode-enabled", "$isObserverMode"),
+            Request.Header("adapty-sdk-android-billing-new", "true"),
+            Request.Header("adapty-sdk-store", metaInfoRetriever.store),
+            Request.Header(AUTHORIZATION_KEY, "$API_KEY_PREFIX${apiKey}"),
+            metaInfoRetriever.appBuildAndVersion.let { (_, appVersion) ->
+                Request.Header("adapty-app-version", appVersion)
+            },
+        )
+
+        val crossplatformHeaders = metaInfoRetriever.crossplatformNameAndVersion?.let { (name, version) ->
+            setOf(
+                Request.Header("adapty-sdk-crossplatform-name", name),
+                Request.Header("adapty-sdk-crossplatform-version", version),
+            )
+        }
+
+        headers += defaultHeaders
+
+        if (crossplatformHeaders != null)
+            headers += crossplatformHeaders
+    }
+
+    private fun Request.Builder.addResponseCacheKeys(keys: ResponseCacheKeys) {
+        responseCacheKeys = keys
+        headers += setOfNotNull(
+            cacheRepository.getString(keys.responseHashKey)?.let { latestResponseHash ->
+                Request.Header("adapty-sdk-previous-response-hash", latestResponseHash)
+            }
+        )
+    }
+
+    private companion object {
+        private const val AUTHORIZATION_KEY = "Authorization"
+        private const val API_KEY_PREFIX = "Api-Key "
+    }
 }
