@@ -5,6 +5,8 @@ import android.content.Context
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
+import com.adapty.internal.data.models.AnalyticsEvent.GoogleAPIRequestData
+import com.adapty.internal.data.models.AnalyticsEvent.GoogleAPIResponseData
 import com.adapty.internal.data.models.PurchaseRecordModel
 import com.adapty.internal.domain.models.ProductType.Consumable
 import com.adapty.internal.domain.models.ProductType.Subscription
@@ -30,6 +32,7 @@ import kotlin.coroutines.resumeWithException
 internal class StoreManager(
     context: Context,
     private val replacementModeMapper: ReplacementModeMapper,
+    private val analyticsTracker: AnalyticsTracker,
 ) : PurchasesUpdatedListener {
 
     private val billingClient = BillingClient
@@ -38,7 +41,7 @@ internal class StoreManager(
         .setListener(this)
         .build()
 
-    private val storeHelper = StoreHelper(billingClient)
+    private val storeHelper = StoreHelper(billingClient, analyticsTracker)
 
     private var makePurchaseCallback: MakePurchaseCallback? = null
 
@@ -202,6 +205,8 @@ internal class StoreManager(
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
         callback: MakePurchaseCallback
     ) {
+        val requestEvent = GoogleAPIRequestData.MakePurchase.create(purchaseableProduct, subscriptionUpdateParams)
+        analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             if (subscriptionUpdateParams != null) {
                 onConnected {
@@ -217,11 +222,16 @@ internal class StoreManager(
                 flowOf(purchaseableProduct.productDetails to null)
             }
                 .flowOnIO()
-                .catch { error -> onError(error, callback) }
+                .catch { error ->
+                    analyticsTracker.trackSystemEvent(GoogleAPIResponseData.MakePurchase.create(requestEvent, error.asAdaptyError()))
+                    onError(error, callback)
+                }
                 .onEach { (productDetails, billingFlowSubUpdateParams) ->
                     makePurchaseCallback = MakePurchaseCallbackWrapper(
                         productDetails.productId,
                         subscriptionUpdateParams?.oldSubVendorProductId,
+                        requestEvent,
+                        analyticsTracker,
                         callback,
                     )
 
@@ -272,17 +282,9 @@ internal class StoreManager(
     fun acknowledgeOrConsume(purchase: Purchase, product: PurchaseableProduct) =
         onConnected {
             if (product.type == Consumable.NAME) {
-                storeHelper.consumePurchase(
-                    ConsumeParams.newBuilder()
-                        .setPurchaseToken(purchase.purchaseToken)
-                        .build()
-                )
+                storeHelper.consumePurchase(purchase)
             } else {
-                storeHelper.acknowledgePurchase(
-                    AcknowledgePurchaseParams.newBuilder()
-                        .setPurchaseToken(purchase.purchaseToken)
-                        .build()
-                )
+                storeHelper.acknowledgePurchase(purchase)
             }
         }
             .retryOnConnectionError(DEFAULT_RETRY_COUNT)
@@ -408,11 +410,16 @@ internal class StoreManager(
     }
 }
 
-private class StoreHelper(private val billingClient: BillingClient) {
+private class StoreHelper(
+    private val billingClient: BillingClient,
+    private val analyticsTracker: AnalyticsTracker,
+) {
 
     @JvmSynthetic
     fun queryProductDetailsForType(productList: List<String>, @BillingClient.ProductType productType: String) =
         flow {
+            val requestEvent = GoogleAPIRequestData.QueryProductDetails.create(productList, productType)
+            analyticsTracker.trackSystemEvent(requestEvent)
             val params = QueryProductDetailsParams.newBuilder().setProductList(
                 productList.map { productId ->
                     QueryProductDetailsParams.Product.newBuilder().setProductId(productId).setProductType(productType).build()
@@ -423,32 +430,51 @@ private class StoreHelper(private val billingClient: BillingClient) {
                 emit(
                     productDetailsResult.productDetailsList.orEmpty()
                 )
+                analyticsTracker.trackSystemEvent(
+                    GoogleAPIResponseData.QueryProductDetails.create(productDetailsResult.productDetailsList, requestEvent)
+                )
             } else {
-                throwException(productDetailsResult.billingResult, "on query product details")
+                val e = createException(productDetailsResult.billingResult, "on query product details")
+                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.QueryProductDetails.create(e, requestEvent))
+                throw e
             }
         }
 
     @JvmSynthetic
     fun queryActivePurchasesForType(@BillingClient.ProductType type: String) =
         flow {
+            val requestEvent = GoogleAPIRequestData.QueryActivePurchases.create(type)
+            analyticsTracker.trackSystemEvent(requestEvent)
             val params = QueryPurchasesParams.newBuilder().setProductType(type).build()
             val purchasesResult = billingClient.queryPurchasesAsync(params)
             if (purchasesResult.billingResult.responseCode == OK) {
                 emit(purchasesResult.purchasesList)
+                analyticsTracker.trackSystemEvent(
+                    GoogleAPIResponseData.QueryActivePurchases.create(purchasesResult.purchasesList, requestEvent)
+                )
             } else {
-                throwException(purchasesResult.billingResult, "on query active purchases")
+                val e = createException(purchasesResult.billingResult, "on query active purchases")
+                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.QueryActivePurchases.create(e, requestEvent))
+                throw e
             }
         }
 
     @JvmSynthetic
     fun queryPurchaseHistoryForType(@BillingClient.ProductType type: String) =
         flow {
+            val requestEvent = GoogleAPIRequestData.QueryPurchaseHistory.create(type)
+            analyticsTracker.trackSystemEvent(requestEvent)
             val params = QueryPurchaseHistoryParams.newBuilder().setProductType(type).build()
             val purchaseHistoryResult = billingClient.queryPurchaseHistory(params)
             if (purchaseHistoryResult.billingResult.responseCode == OK) {
                 emit(purchaseHistoryResult.purchaseHistoryRecordList.orEmpty())
+                analyticsTracker.trackSystemEvent(
+                    GoogleAPIResponseData.QueryPurchaseHistory.create(purchaseHistoryResult.purchaseHistoryRecordList, requestEvent)
+                )
             } else {
-                throwException(purchaseHistoryResult.billingResult, "on query history")
+                val e = createException(purchaseHistoryResult.billingResult, "on query history")
+                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.QueryPurchaseHistory.create(e, requestEvent))
+                throw e
             }
         }
 
@@ -468,24 +494,40 @@ private class StoreHelper(private val billingClient: BillingClient) {
             .map { (_, activePurchases) -> activePurchases }
 
     @JvmSynthetic
-    fun acknowledgePurchase(params: AcknowledgePurchaseParams) =
+    fun acknowledgePurchase(purchase: Purchase) =
         flow {
+            val requestEvent = GoogleAPIRequestData.AcknowledgePurchase.create(purchase)
+            analyticsTracker.trackSystemEvent(requestEvent)
+            val params = AcknowledgePurchaseParams.newBuilder()
+                .setPurchaseToken(purchase.purchaseToken)
+                .build()
             val result = billingClient.acknowledgePurchase(params)
             if (result.responseCode == OK) {
                 emit(Unit)
+                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.create(requestEvent))
             } else {
-                throwException(result, "on acknowledge")
+                val e = createException(result, "on acknowledge")
+                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.create(requestEvent, e))
+                throw e
             }
         }
 
     @JvmSynthetic
-    fun consumePurchase(params: ConsumeParams) =
+    fun consumePurchase(purchase: Purchase) =
         flow {
+            val requestEvent = GoogleAPIRequestData.ConsumePurchase.create(purchase)
+            analyticsTracker.trackSystemEvent(requestEvent)
+            val params = ConsumeParams.newBuilder()
+                .setPurchaseToken(purchase.purchaseToken)
+                .build()
             val result = billingClient.consumePurchase(params).billingResult
             if (result.responseCode == OK) {
                 emit(Unit)
+                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.create(requestEvent))
             } else {
-                throwException(result, "on consume")
+                val e = createException(result, "on consume")
+                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.create(requestEvent, e))
+                throw e
             }
         }
 
@@ -496,7 +538,7 @@ private class StoreHelper(private val billingClient: BillingClient) {
             if (result.responseCode == OK) {
                 emit(config)
             } else {
-                throwException(result, "on get billing config")
+                throw createException(result, "on get billing config")
             }
         }
 
@@ -518,9 +560,9 @@ private class StoreHelper(private val billingClient: BillingClient) {
             billingResult.debugMessage.takeIf(String::isNotEmpty)?.let { msg -> ", debugMessage=$msg" }.orEmpty()
         }"
 
-    private fun throwException(billingResult: BillingResult, where: String) {
+    private fun createException(billingResult: BillingResult, where: String): AdaptyError {
         val message = errorMessageFromBillingResult(billingResult, where)
-        throw AdaptyError(
+        return AdaptyError(
             message = message,
             adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)
         )
@@ -532,6 +574,8 @@ private typealias MakePurchaseCallback = (purchase: Purchase?, error: AdaptyErro
 private class MakePurchaseCallbackWrapper(
     private val productId: String,
     private val oldSubProductId: String?,
+    private val requestEvent: GoogleAPIRequestData.MakePurchase,
+    private val analyticsTracker: AnalyticsTracker,
     private val callback: MakePurchaseCallback
 ) : MakePurchaseCallback {
 
@@ -541,6 +585,7 @@ private class MakePurchaseCallbackWrapper(
         val purchaseProductId = purchase?.products?.firstOrNull()
         if (purchaseProductId == null || listOfNotNull(productId, oldSubProductId).contains(purchaseProductId)) {
             if (wasInvoked.compareAndSet(false, true)) {
+                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.MakePurchase.create(requestEvent, error, purchaseProductId))
                 callback.invoke(if (error == null && productId == purchaseProductId) purchase else null, error)
             }
         }

@@ -5,7 +5,9 @@ import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
 import com.adapty.errors.AdaptyErrorCode.WRONG_PARAMETER
-import com.adapty.internal.data.cloud.KinesisManager
+import com.adapty.internal.data.cloud.AnalyticsTracker
+import com.adapty.internal.data.models.AnalyticsEvent.SDKMethodRequestData
+import com.adapty.internal.data.models.AnalyticsEvent.SDKMethodResponseData
 import com.adapty.internal.domain.AuthInteractor
 import com.adapty.internal.domain.ProductsInteractor
 import com.adapty.internal.domain.ProfileInteractor
@@ -14,7 +16,6 @@ import com.adapty.internal.utils.*
 import com.adapty.listeners.OnProfileUpdatedListener
 import com.adapty.models.*
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
-import com.adapty.utils.AdaptyResult
 import com.adapty.utils.ErrorCallback
 import com.adapty.utils.ResultCallback
 import kotlinx.coroutines.flow.*
@@ -25,9 +26,10 @@ internal class AdaptyInternal(
     private val profileInteractor: ProfileInteractor,
     private val purchasesInteractor: PurchasesInteractor,
     private val productsInteractor: ProductsInteractor,
-    private val kinesisManager: KinesisManager,
+    private val analyticsTracker: AnalyticsTracker,
     private val lifecycleAwareRequestRunner: LifecycleAwareRequestRunner,
     private val lifecycleManager: LifecycleManager,
+    private val isObserverMode: Boolean,
 ) {
 
     @get:JvmSynthetic
@@ -55,11 +57,17 @@ internal class AdaptyInternal(
     fun getProfile(
         callback: ResultCallback<AdaptyProfile>
     ) {
+        val requestEvent = SDKMethodRequestData.create("get_profile")
+        analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             profileInteractor
                 .getProfile()
-                .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
-                .onEach { profile -> callback.onResult(AdaptyResult.Success(profile)) }
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result)
+                }
                 .flowOnMain()
                 .collect()
         }
@@ -70,11 +78,17 @@ internal class AdaptyInternal(
         params: AdaptyProfileParameters,
         callback: ErrorCallback
     ) {
+        val requestEvent = SDKMethodRequestData.create("update_profile")
+        analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             profileInteractor
                 .updateProfile(params)
-                .catch { error -> callback.onResult(error.asAdaptyError()) }
-                .onEach { callback.onResult(null) }
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result.errorOrNull())
+                }
                 .flowOnMain()
                 .collect()
         }
@@ -86,25 +100,24 @@ internal class AdaptyInternal(
         callback: ErrorCallback? = null,
         isInitialActivation: Boolean = true,
     ) {
+        val requestEvent =
+            if (isInitialActivation)
+                SDKMethodRequestData.Activate.create(isObserverMode, customerUserId != null)
+            else
+                SDKMethodRequestData.create("logout")
+        analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             authInteractor.prepareAuthDataToSync(customerUserId)
 
             authInteractor
                 .activateOrIdentify()
-                .catch { error ->
-                    callback?.onResult(error.asAdaptyError())
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback?.onResult(result.errorOrNull())
                     if (isInitialActivation) setupStartRequests()
                 }
-                .onEach {
-                    callback?.onResult(null)
-                    if (isInitialActivation) setupStartRequests()
-                }
-                .flowOnMain()
-                .collect()
-        }
-        execute {
-            profileInteractor.getAnalyticsCredsOnStart()
-                .catch { }
                 .flowOnMain()
                 .collect()
         }
@@ -122,17 +135,24 @@ internal class AdaptyInternal(
 
     @JvmSynthetic
     fun identify(customerUserId: String, callback: ErrorCallback) {
+        val requestEvent = SDKMethodRequestData.create("identify")
+        analyticsTracker.trackSystemEvent(requestEvent)
         if (customerUserId.isBlank()) {
             val errorMessage = "customerUserId should not be empty"
             Logger.log(ERROR) { errorMessage }
-            callback.onResult(
-                AdaptyError(
-                    message = errorMessage,
-                    adaptyErrorCode = WRONG_PARAMETER
-                )
+            val e = AdaptyError(
+                message = errorMessage,
+                adaptyErrorCode = WRONG_PARAMETER
             )
+            analyticsTracker.trackSystemEvent(
+                SDKMethodResponseData.create(requestEvent, e)
+            )
+            callback.onResult(e)
             return
         } else if (customerUserId == authInteractor.getCustomerUserId()) {
+            analyticsTracker.trackSystemEvent(
+                SDKMethodResponseData.create(requestEvent, null)
+            )
             callback.onResult(null)
             return
         }
@@ -142,8 +162,12 @@ internal class AdaptyInternal(
 
             authInteractor
                 .activateOrIdentify()
-                .catch { error -> callback.onResult(error.asAdaptyError()) }
-                .onEach { callback.onResult(null) }
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result.errorOrNull())
+                }
                 .flowOnMain()
                 .collect()
         }
@@ -163,11 +187,16 @@ internal class AdaptyInternal(
         isOfferPersonalized: Boolean,
         callback: ResultCallback<AdaptyProfile?>
     ) {
-
+        val requestEvent = SDKMethodRequestData.MakePurchase.create(product)
+        analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             purchasesInteractor.makePurchase(activity, product, subscriptionUpdateParams, isOfferPersonalized)
-                .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
-                .onEach { profile -> callback.onResult(AdaptyResult.Success(profile)) }
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result)
+                }
                 .flowOnMain()
                 .collect()
         }
@@ -175,11 +204,17 @@ internal class AdaptyInternal(
 
     @JvmSynthetic
     fun restorePurchases(callback: ResultCallback<AdaptyProfile>) {
+        val requestEvent = SDKMethodRequestData.create("restore_purchases")
+        analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             purchasesInteractor
                 .restorePurchases()
-                .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
-                .onEach { profile -> callback.onResult(AdaptyResult.Success(profile)) }
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result)
+                }
                 .flowOnMain()
                 .collect()
         }
@@ -193,11 +228,17 @@ internal class AdaptyInternal(
         loadTimeout: Int,
         callback: ResultCallback<AdaptyPaywall>
     ) {
+        val requestEvent = SDKMethodRequestData.GetPaywall.create(id, locale, fetchPolicy, loadTimeout)
+        analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             productsInteractor
                 .getPaywall(id, locale, fetchPolicy, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT_MILLIS))
-                .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
-                .onEach { paywall -> callback.onResult(AdaptyResult.Success(paywall)) }
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result)
+                }
                 .flowOnMain()
                 .collect()
         }
@@ -210,11 +251,17 @@ internal class AdaptyInternal(
         loadTimeout: Int,
         callback: ResultCallback<AdaptyViewConfiguration>
     ) {
+        val requestEvent = SDKMethodRequestData.create("get_paywall_builder")
+        analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             productsInteractor
                 .getViewConfiguration(paywall, locale, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT_MILLIS))
-                .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
-                .onEach { viewConfig -> callback.onResult(AdaptyResult.Success(viewConfig)) }
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result)
+                }
                 .flowOnMain()
                 .collect()
         }
@@ -225,11 +272,17 @@ internal class AdaptyInternal(
         paywall: AdaptyPaywall,
         callback: ResultCallback<List<AdaptyPaywallProduct>>
     ) {
+        val requestEvent = SDKMethodRequestData.GetPaywallProducts.create(paywall.placementId)
+        analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             productsInteractor
                 .getPaywallProducts(paywall)
-                .catch { error -> callback.onResult(AdaptyResult.Error(error.asAdaptyError())) }
-                .onEach { products -> callback.onResult(AdaptyResult.Success(products)) }
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result)
+                }
                 .flowOnMain()
                 .collect()
         }
@@ -237,19 +290,26 @@ internal class AdaptyInternal(
 
     @JvmSynthetic
     fun setFallbackPaywalls(paywalls: String, callback: ErrorCallback?) {
-        productsInteractor.setFallbackPaywalls(paywalls).let { error -> callback?.onResult(error) }
+        val requestEvent = SDKMethodRequestData.create("set_fallback_paywalls")
+        analyticsTracker.trackSystemEvent(requestEvent)
+        productsInteractor.setFallbackPaywalls(paywalls).let { error ->
+            analyticsTracker.trackSystemEvent(
+                SDKMethodResponseData.create(requestEvent, error)
+            )
+            callback?.onResult(error)
+        }
     }
 
     @JvmSynthetic
     fun logShowPaywall(paywall: AdaptyPaywall, viewConfiguration: AdaptyViewConfiguration?, callback: ErrorCallback?) {
-        kinesisManager.trackEvent(
+        analyticsTracker.trackEvent(
             "paywall_showed",
             mutableMapOf(
                 "variation_id" to paywall.variationId
             ).apply {
                 viewConfiguration?.id?.let { id -> put("paywall_builder_id", id) }
             },
-            callback,
+            completion = callback,
         )
     }
 
@@ -272,14 +332,14 @@ internal class AdaptyInternal(
             return
         }
 
-        kinesisManager.trackEvent(
+        analyticsTracker.trackEvent(
             "onboarding_screen_showed",
             hashMapOf<String, Any>("onboarding_screen_order" to screenOrder)
                 .apply {
                     name?.let { put("onboarding_name", name) }
                     screenName?.let { put("onboarding_screen_name", screenName) }
                 },
-            callback,
+            completion = callback,
         )
     }
 
@@ -290,11 +350,17 @@ internal class AdaptyInternal(
         networkUserId: String?,
         callback: ErrorCallback
     ) {
+        val requestEvent = SDKMethodRequestData.UpdateAttribution.create(source.toString(), networkUserId)
+        analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             profileInteractor
                 .updateAttribution(attribution, source, networkUserId)
-                .catch { error -> callback.onResult(error.asAdaptyError()) }
-                .onEach { callback.onResult(null) }
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result.errorOrNull())
+                }
                 .flowOnMain()
                 .collect()
         }
@@ -306,11 +372,17 @@ internal class AdaptyInternal(
         variationId: String,
         callback: ErrorCallback
     ) {
+        val requestEvent = SDKMethodRequestData.SetVariationId.create(transactionId, variationId)
+        analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             purchasesInteractor
                 .setVariationId(transactionId, variationId)
-                .catch { error -> callback.onResult(error.asAdaptyError()) }
-                .onEach { callback.onResult(null) }
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result.errorOrNull())
+                }
                 .flowOnMain()
                 .collect()
         }

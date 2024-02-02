@@ -97,18 +97,6 @@ internal class ProfileInteractor(
         getProfile(INFINITE_RETRY)
 
     @JvmSynthetic
-    fun getAnalyticsCredsOnStart() =
-        getAnalyticsCreds(INFINITE_RETRY)
-
-    @JvmSynthetic
-    fun getAnalyticsCreds(maxAttemptCount: Long) =
-        cloudRepository.onActivateAllowed()
-            .mapLatest { cloudRepository.getAnalyticsCreds() }
-            .retryIfNecessary(maxAttemptCount)
-            .map(cacheRepository::updateAnalyticsCreds)
-            .flowOnIO()
-
-    @JvmSynthetic
     fun syncMetaOnStart() =
         updateProfile(params = null, INFINITE_RETRY)
 

@@ -153,18 +153,6 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun getAnalyticsCreds(): AnalyticsCreds {
-        val response = httpClient.newCall<AnalyticsCreds>(
-            requestFactory.getAnalyticsCreds(),
-            AnalyticsCreds::class.java
-        )
-        when (response) {
-            is Response.Success -> return response.body
-            is Response.Error -> throw response.error
-        }
-    }
-
-    @JvmSynthetic
     fun restorePurchases(purchases: List<RestoreProductInfo>): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
         val request = requestFactory.restorePurchasesRequest(purchases)
         val response = httpClient.newCall<ProfileDto>(

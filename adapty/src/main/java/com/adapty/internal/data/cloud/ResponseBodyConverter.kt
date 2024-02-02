@@ -16,11 +16,3 @@ internal class DefaultResponseBodyConverter(private val gson: Gson) : ResponseBo
         typeOfT: Type,
     ) = gson.fromJson<T>(response, typeOfT)
 }
-
-@RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class KinesisResponseBodyConverter(private val gson: Gson) : ResponseBodyConverter {
-    override fun <T> convertSuccess(
-        response: String,
-        typeOfT: Type,
-    ) = gson.fromJson<T>("", typeOfT)
-}

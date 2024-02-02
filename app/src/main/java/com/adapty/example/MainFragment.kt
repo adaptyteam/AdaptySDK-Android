@@ -35,7 +35,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         val restorePurchases = view.findViewById<View>(R.id.restore_purchases)
         val getProfile = view.findViewById<View>(R.id.get_profile)
         val getPaywallById = view.findViewById<View>(R.id.get_paywall_by_id)
-        val paywallId = view.findViewById<EditText>(R.id.paywall_id)
+        val placementId = view.findViewById<EditText>(R.id.placement_id)
         val updateProfile = view.findViewById<View>(R.id.update_profile)
         val updateCustomAttribution = view.findViewById<View>(R.id.update_custom_attribution)
         val identify = view.findViewById<View>(R.id.identify)
@@ -68,7 +68,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         getPaywallById.setOnClickListener {
             progressDialog.show()
 
-            Adapty.getPaywall(paywallId.text.toString()) { result ->
+            Adapty.getPaywall(placementId.text.toString()) { result ->
                 when (result) {
                     is AdaptyResult.Success -> {
                         val paywall = result.value

@@ -5,7 +5,7 @@ import androidx.annotation.RestrictTo
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.adapty.internal.data.cache.CacheRepository
-import com.adapty.internal.data.cloud.KinesisManager
+import com.adapty.internal.data.cloud.AnalyticsTracker
 import com.adapty.internal.domain.ProfileInteractor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class LifecycleAwareRequestRunner(
     lifecycleManager: LifecycleManager,
     private val profileInteractor: ProfileInteractor,
-    private val kinesisManager: KinesisManager,
+    private val analyticsTracker: AnalyticsTracker,
     private val cacheRepository: CacheRepository,
 ) : LifecycleManager.StateCallback {
 
@@ -68,11 +68,11 @@ internal class LifecycleAwareRequestRunner(
     private fun handleAppOpenedEvent() {
         val now = SystemClock.elapsedRealtime()
         if (now - cacheRepository.getLastAppOpenedTime() !in 0L..APP_OPENED_EVENT_MIN_INTERVAL) {
-            kinesisManager.trackEvent("app_opened") { error ->
+            analyticsTracker.trackEvent("app_opened", completion = { error ->
                 if (error == null) {
                     cacheRepository.saveLastAppOpenedTime(now)
                 }
-            }
+            })
         }
     }
 

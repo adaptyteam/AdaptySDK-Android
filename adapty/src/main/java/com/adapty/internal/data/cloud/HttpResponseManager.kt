@@ -4,7 +4,7 @@ import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
-import com.adapty.internal.data.cache.ResponseCacheKeys
+import com.adapty.internal.data.models.AnalyticsEvent.BackendAPIResponseData
 import com.adapty.internal.utils.Logger
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.INFO
@@ -21,7 +21,7 @@ internal interface HttpResponseManager {
 
     fun <T> handleResponse(
         connection: HttpURLConnection,
-        responseCacheKeys: ResponseCacheKeys?,
+        request: Request,
         typeOfT: Type,
     ): Response<T>
 }
@@ -30,16 +30,18 @@ internal interface HttpResponseManager {
 internal class DefaultHttpResponseManager(
     private val bodyConverter: ResponseBodyConverter,
     private val cacheRepository: CacheRepository,
+    private val analyticsTracker: AnalyticsTracker,
 ) : HttpResponseManager {
 
     override fun <T> handleResponse(
         connection: HttpURLConnection,
-        responseCacheKeys: ResponseCacheKeys?,
+        request: Request,
         typeOfT: Type,
     ): Response<T> {
         val isInGzip =
             connection.getHeaderField("Content-Encoding")?.contains("gzip", true) ?: false
 
+        val requestId = connection.getHeaderField("request-id").orEmpty()
         if (connection.isSuccessful()) {
             val previousResponseHash = connection.getRequestProperty("ADAPTY-SDK-PREVIOUS-RESPONSE-HASH")
             val currentResponseHash = connection.getHeaderField("X-Response-Hash")
@@ -48,6 +50,7 @@ internal class DefaultHttpResponseManager(
                 Logger.log(INFO) { "CF-Cache-Status: $header" }
             }
 
+            val responseCacheKeys = request.responseCacheKeys
             val responseStr: String
             if (!previousResponseHash.isNullOrEmpty() && previousResponseHash == currentResponseHash) {
                 responseStr = responseCacheKeys?.responseKey?.let(cacheRepository::getString)
@@ -64,6 +67,9 @@ internal class DefaultHttpResponseManager(
                 }
             }
             Logger.log(VERBOSE) { "Request is successful. ${connection.url} Response: $responseStr" }
+            request.systemLog?.let { customData ->
+                analyticsTracker.trackSystemEvent(BackendAPIResponseData.create(requestId, customData))
+            }
             return Response.Success(bodyConverter.convertSuccess(responseStr, typeOfT))
 
         } else {
@@ -71,12 +77,14 @@ internal class DefaultHttpResponseManager(
             val errorMessage =
                 "Request is unsuccessful. ${connection.url} Code: ${connection.responseCode}, Response: $responseStr"
             Logger.log(ERROR) { errorMessage }
-            return Response.Error(
-                AdaptyError(
-                    message = errorMessage,
-                    adaptyErrorCode = AdaptyErrorCode.fromNetwork(connection.responseCode)
-                )
+            val e = AdaptyError(
+                message = errorMessage,
+                adaptyErrorCode = AdaptyErrorCode.fromNetwork(connection.responseCode)
             )
+            request.systemLog?.let { customData ->
+                analyticsTracker.trackSystemEvent(BackendAPIResponseData.create(requestId, customData, e))
+            }
+            return Response.Error(e)
         }
     }
 

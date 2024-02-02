@@ -5,6 +5,8 @@ import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cache.ResponseCacheKeyProvider
 import com.adapty.internal.data.cache.ResponseCacheKeys
 import com.adapty.internal.data.cloud.Request.Method.*
+import com.adapty.internal.data.models.AnalyticsEvent
+import com.adapty.internal.data.models.AnalyticsEvent.BackendAPIRequestData
 import com.adapty.internal.data.models.AttributionData
 import com.adapty.internal.data.models.InstallationMeta
 import com.adapty.internal.data.models.RestoreProductInfo
@@ -44,6 +46,10 @@ internal class Request internal constructor(val baseUrl: String) {
     @JvmField
     var currentDataWhenSent: CurrentDataWhenSent? = null
 
+    @JvmSynthetic
+    @JvmField
+    var systemLog: BackendAPIRequestData? = null
+
     internal class Builder(private val baseRequest: Request = Request(baseUrl = "https://api.adapty.io/api/v1/sdk/")) {
 
         @get:JvmSynthetic
@@ -70,6 +76,10 @@ internal class Request internal constructor(val baseUrl: String) {
         @JvmField
         var responseCacheKeys: ResponseCacheKeys? = null
 
+        @JvmSynthetic
+        @JvmField
+        var systemLog: BackendAPIRequestData? = null
+
         private val queryParams = arrayListOf<Pair<String, String>>()
 
         private fun queryDelimiter(index: Int) = if (index == 0) "?" else "&"
@@ -95,6 +105,7 @@ internal class Request internal constructor(val baseUrl: String) {
             headers = this@Builder.headers
             responseCacheKeys = this@Builder.responseCacheKeys
             currentDataWhenSent = this@Builder.currentDataWhenSent
+            systemLog = this@Builder.systemLog
         }
     }
 
@@ -135,6 +146,7 @@ internal class RequestFactory(
                 endPoint = getEndpointForProfileRequests(profileId)
                 addResponseCacheKeys(responseCacheKeyProvider.forGetProfile())
                 currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
+                systemLog = BackendAPIRequestData.GetProfile.create()
             }
         }
 
@@ -154,6 +166,7 @@ internal class RequestFactory(
                 endPoint = getEndpointForProfileRequests(profileId)
                 addResponseCacheKeys(responseCacheKeyProvider.forGetProfile())
                 currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
+                systemLog = BackendAPIRequestData.UpdateProfile.create()
             }
         }
 
@@ -175,14 +188,9 @@ internal class RequestFactory(
                     )
                 )
                 endPoint = getEndpointForProfileRequests(profileId)
+                systemLog = BackendAPIRequestData.CreateProfile.create(!customerUserId.isNullOrEmpty())
             }
         }
-
-    @JvmSynthetic
-    fun getAnalyticsCreds() = buildRequest {
-        method = GET
-        endPoint = "kinesis/credentials/"
-    }
 
     @JvmSynthetic
     fun validatePurchaseRequest(
@@ -196,6 +204,7 @@ internal class RequestFactory(
                 ValidateReceiptRequest.create(profileId, purchase, product)
             )
             currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
+            systemLog = BackendAPIRequestData.Validate.create(product, purchase)
         }
     }
 
@@ -209,6 +218,7 @@ internal class RequestFactory(
                 )
                 endPoint = "purchase/play-store/token/v2/restore/"
                 currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
+                systemLog = BackendAPIRequestData.Restore.create(purchases)
             }
         }
 
@@ -217,6 +227,7 @@ internal class RequestFactory(
         method = GET
         endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/products-ids/${metaInfoRetriever.store}/"
         addResponseCacheKeys(responseCacheKeyProvider.forGetProductIds())
+        systemLog = BackendAPIRequestData.GetProductIds.create()
     }
 
     @JvmSynthetic
@@ -225,6 +236,7 @@ internal class RequestFactory(
         val payloadHash = payloadProvider.getPayloadHashForPaywallRequest(locale, segmentId)
         endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/$id/$payloadHash/"
         headers += listOf(Request.Header("adapty-paywall-locale", locale))
+        systemLog = BackendAPIRequestData.GetPaywall.create(apiKeyPrefix, id, locale, segmentId, payloadHash)
     }
 
     @JvmSynthetic
@@ -232,8 +244,7 @@ internal class RequestFactory(
         method = GET
         val languageCode = extractLanguageCode(locale)
         endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/$id/${metaInfoRetriever.store}/$languageCode/fallback.json"
-        headers += listOf(Request.Header("Content-type", "application/json"))
-        addDefaultHeaders()
+        systemLog = BackendAPIRequestData.GetFallbackPaywall.create(apiKeyPrefix, id, languageCode)
     }.build()
 
     @JvmSynthetic
@@ -247,6 +258,7 @@ internal class RequestFactory(
             Request.Header("adapty-paywall-builder-version", builderVersion),
             Request.Header("adapty-ui-version", adaptyUiVersion),
         )
+        systemLog = BackendAPIRequestData.GetPaywallBuilder.create(variationId)
     }
 
     @JvmSynthetic
@@ -255,8 +267,7 @@ internal class RequestFactory(
         val (_, builderVersion) = metaInfoRetriever.adaptyUiAndBuilderVersion
         val languageCode = extractLanguageCode(locale)
         endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$paywallId/$builderVersion/$languageCode/fallback.json"
-        headers += listOf(Request.Header("Content-type", "application/json"))
-        addDefaultHeaders()
+        systemLog = BackendAPIRequestData.GetFallbackPaywallBuilder.create(apiKeyPrefix, paywallId, builderVersion, languageCode)
     }.build()
 
     @JvmSynthetic
@@ -268,6 +279,7 @@ internal class RequestFactory(
         body = gson.toJson(
             UpdateAttributionRequest.create(attributionData)
         )
+        systemLog = BackendAPIRequestData.SetAttribution.create(attributionData)
     }
 
     @JvmSynthetic
@@ -276,11 +288,9 @@ internal class RequestFactory(
             method = POST
             endPoint = "$inappsEndpointPrefix/transaction-variation-id/"
             body = gson.toJson(
-                SetVariationIdRequest.create(
-                    transactionId,
-                    variationId,
-                )
+                SetVariationIdRequest.create(transactionId, variationId)
             )
+            systemLog = BackendAPIRequestData.SetVariationId.create(transactionId, variationId)
         }
 
     @JvmSynthetic
@@ -289,23 +299,31 @@ internal class RequestFactory(
     }.build()
 
     @JvmSynthetic
-    fun kinesisRequest(requestBody: Map<String, Any>) =
-        Request.Builder(Request("https://kinesis.us-east-1.amazonaws.com/"))
-            .apply {
-                method = POST
-                body = gson.toJson(requestBody).replace("\\u003d", "=")
-            }
-            .build()
+    fun sendAnalyticsEventsRequest(events: List<AnalyticsEvent>) =
+        buildRequest {
+            method = POST
+            endPoint = "events/"
+            body = gson.toJson(SendEventRequest.create(events))
+        }
+
+    @JvmSynthetic
+    fun getAnalyticsConfig() =
+        buildRequest {
+            method = GET
+            endPoint = "events/blacklist/"
+            systemLog = BackendAPIRequestData.GetAnalyticsConfig.create()
+        }
 
     private inline fun buildRequest(action: Request.Builder.() -> Unit) =
         Request.Builder().apply {
             action()
+            if (method != GET)
+                headers += listOf(Request.Header("Content-type", "application/vnd.api+json"))
             addDefaultHeaders()
         }.build()
 
     private fun Request.Builder.addDefaultHeaders() {
         val defaultHeaders = setOfNotNull(
-            Request.Header("Content-type", "application/vnd.api+json"),
             Request.Header("Accept-Encoding", "gzip"),
             Request.Header("adapty-sdk-profile-id", cacheRepository.getProfileId()),
             Request.Header("adapty-sdk-platform", "Android"),

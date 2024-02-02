@@ -6,9 +6,9 @@ import com.google.gson.annotations.SerializedName
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class AttributionData(
     @SerializedName("source")
-    internal val source: String,
+    val source: String,
     @SerializedName("attribution")
-    private val attribution: Any,
+    val attribution: Any,
     @SerializedName("network_user_id")
-    private val networkUserId: String?
+    val networkUserId: String?
 )

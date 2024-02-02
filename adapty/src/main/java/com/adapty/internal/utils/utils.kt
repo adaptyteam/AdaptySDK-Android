@@ -3,6 +3,7 @@ package com.adapty.internal.utils
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyError.RetryType
 import com.adapty.errors.AdaptyErrorCode
+import com.adapty.utils.AdaptyResult
 import com.adapty.utils.ImmutableList
 import com.adapty.utils.ImmutableMap
 import kotlinx.coroutines.*
@@ -10,7 +11,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.take
 import java.util.*
@@ -54,6 +57,25 @@ internal fun <T> Flow<T>.flowOnIO(): Flow<T> =
 @JvmSynthetic
 internal fun <T> Flow<T>.flowOnMain(): Flow<T> =
     this.flowOn(Dispatchers.Main)
+
+@JvmSynthetic
+internal fun <T> Flow<T>.onSingleResult(action: suspend (AdaptyResult<T>) -> Unit): Flow<AdaptyResult<T>> {
+    var consumed = false
+    return this
+        .map<T, AdaptyResult<T>> { AdaptyResult.Success(it) }
+        .catch { error ->
+            emit(AdaptyResult.Error(error.asAdaptyError()))
+        }
+        .onEach { result ->
+            if (!consumed) {
+                consumed = true
+                action(result)
+            }
+        }
+}
+
+@JvmSynthetic
+internal fun AdaptyResult<*>.errorOrNull() = (this as? AdaptyResult.Error)?.error
 
 @JvmSynthetic
 internal fun execute(block: suspend CoroutineScope.() -> Unit) =

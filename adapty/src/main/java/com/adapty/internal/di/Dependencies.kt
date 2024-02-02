@@ -9,6 +9,7 @@ import com.adapty.internal.data.cache.PreferenceManager
 import com.adapty.internal.data.cache.ResponseCacheKeyProvider
 import com.adapty.internal.data.cloud.*
 import com.adapty.internal.data.models.*
+import com.adapty.internal.data.models.requests.SendEventRequest
 import com.adapty.internal.domain.AuthInteractor
 import com.adapty.internal.domain.ProductsInteractor
 import com.adapty.internal.domain.ProfileInteractor
@@ -16,6 +17,7 @@ import com.adapty.internal.domain.PurchasesInteractor
 import com.adapty.internal.utils.*
 import com.google.gson.*
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.sync.Semaphore
 import java.math.BigDecimal
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
@@ -35,8 +37,11 @@ internal object Dependencies {
     @get:JvmSynthetic
     internal val map = hashMapOf<Class<*>, Map<String?, DIObject<*>>>()
 
-    private const val KINESIS = "kinesis"
     private const val BASE = "base"
+    private const val ANALYTICS = "analytics"
+    private const val RECORD_ONLY = "record_only"
+    private const val LOCAL = "local"
+    private const val REMOTE = "remote"
 
     private fun <T> singleVariantDiObject(
         initializer: () -> T,
@@ -47,128 +52,147 @@ internal object Dependencies {
     internal fun init(appContext: Context, apiKey: String, observerMode: Boolean) {
         map.putAll(
             listOf(
-                Gson::class.java to singleVariantDiObject({
-                    val dataKey = "data"
-                    val attributesKey = "attributes"
-                    val metaKey = "meta"
-                    val paywallsKey = "paywalls"
-                    val productsKey = "products"
-                    val versionKey = "version"
-                    val profileKey = "profile"
-                    val errorsKey = "errors"
+                Gson::class.java to mapOf(
+                    BASE to DIObject({
+                        val dataKey = "data"
+                        val attributesKey = "attributes"
+                        val metaKey = "meta"
+                        val paywallsKey = "paywalls"
+                        val productsKey = "products"
+                        val versionKey = "version"
+                        val profileKey = "profile"
+                        val errorsKey = "errors"
 
-                    val attributesObjectExtractor = ResponseDataExtractor { jsonElement ->
-                        ((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)
-                            ?.get(attributesKey) as? JsonObject
-                    }
-                    val dataArrayExtractor = ResponseDataExtractor { jsonElement ->
-                        (jsonElement as? JsonObject)?.get(dataKey) as? JsonArray
-                    }
-                    val dataObjectExtractor = ResponseDataExtractor { jsonElement ->
-                        (jsonElement as? JsonObject)?.get(dataKey) as? JsonObject
-                    }
-                    val fallbackPaywallsExtractor = ResponseDataExtractor { jsonElement ->
-                        val paywalls = JsonArray()
-
-                        ((jsonElement as? JsonObject)?.get(dataKey) as? JsonArray)
-                            ?.forEach { element ->
-                                ((element as? JsonObject)?.get(attributesKey) as? JsonObject)
-                                    ?.let(paywalls::add)
-                            }
-
-                        val meta = (jsonElement as? JsonObject)?.get(metaKey) as? JsonObject
-
-                        val products = (meta?.get(productsKey) as? JsonArray) ?: JsonArray()
-
-                        val version = (meta?.get(versionKey) as? JsonPrimitive) ?: JsonPrimitive(0)
-
-                        JsonObject().apply {
-                            add(paywallsKey, paywalls)
-                            add(productsKey, products)
-                            add(versionKey, version)
+                        val attributesObjectExtractor = ResponseDataExtractor { jsonElement ->
+                            ((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)
+                                ?.get(attributesKey) as? JsonObject
                         }
-                    }
-                    val validationResultExtractor = ResponseDataExtractor { jsonElement ->
-                        (((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)
-                            ?.get(attributesKey) as? JsonObject)?.let { result ->
+                        val dataArrayExtractor = ResponseDataExtractor { jsonElement ->
+                            (jsonElement as? JsonObject)?.get(dataKey) as? JsonArray
+                        }
+                        val dataObjectExtractor = ResponseDataExtractor { jsonElement ->
+                            (jsonElement as? JsonObject)?.get(dataKey) as? JsonObject
+                        }
+                        val fallbackPaywallsExtractor = ResponseDataExtractor { jsonElement ->
+                            val paywalls = JsonArray()
 
-                            val errors = (result.remove(errorsKey) as? JsonArray) ?: JsonArray()
+                            ((jsonElement as? JsonObject)?.get(dataKey) as? JsonArray)
+                                ?.forEach { element ->
+                                    ((element as? JsonObject)?.get(attributesKey) as? JsonObject)
+                                        ?.let(paywalls::add)
+                                }
+
+                            val meta = (jsonElement as? JsonObject)?.get(metaKey) as? JsonObject
+
+                            val products = (meta?.get(productsKey) as? JsonArray) ?: JsonArray()
+
+                            val version = (meta?.get(versionKey) as? JsonPrimitive) ?: JsonPrimitive(0)
 
                             JsonObject().apply {
-                                add(profileKey, result)
-                                add(errorsKey, errors)
+                                add(paywallsKey, paywalls)
+                                add(productsKey, products)
+                                add(versionKey, version)
                             }
                         }
-                    }
+                        val validationResultExtractor = ResponseDataExtractor { jsonElement ->
+                            (((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)
+                                ?.get(attributesKey) as? JsonObject)?.let { result ->
 
-                    GsonBuilder()
-                        .registerTypeAdapterFactory(
-                            AdaptyResponseTypeAdapterFactory(
-                                TypeToken.get(PaywallDto::class.java),
-                                attributesObjectExtractor,
+                                val errors = (result.remove(errorsKey) as? JsonArray) ?: JsonArray()
+
+                                JsonObject().apply {
+                                    add(profileKey, result)
+                                    add(errorsKey, errors)
+                                }
+                            }
+                        }
+
+                        GsonBuilder()
+                            .registerTypeAdapterFactory(
+                                AdaptyResponseTypeAdapterFactory(
+                                    TypeToken.get(PaywallDto::class.java),
+                                    attributesObjectExtractor,
+                                )
                             )
-                        )
-                        .registerTypeAdapterFactory(
-                            AdaptyResponseTypeAdapterFactory(
-                                TypeToken.get(ViewConfigurationDto::class.java),
-                                dataObjectExtractor,
+                            .registerTypeAdapterFactory(
+                                AdaptyResponseTypeAdapterFactory(
+                                    TypeToken.get(ViewConfigurationDto::class.java),
+                                    dataObjectExtractor,
+                                )
                             )
-                        )
-                        .registerTypeAdapterFactory(
-                            AdaptyResponseTypeAdapterFactory(
-                                TypeToken.get(ProfileDto::class.java),
-                                attributesObjectExtractor,
+                            .registerTypeAdapterFactory(
+                                AdaptyResponseTypeAdapterFactory(
+                                    TypeToken.get(AnalyticsConfig::class.java),
+                                    dataObjectExtractor,
+                                )
                             )
-                        )
-                        .registerTypeAdapterFactory(
-                            AdaptyResponseTypeAdapterFactory(
-                                object : TypeToken<ArrayList<ProductDto>>() {},
-                                dataArrayExtractor,
+                            .registerTypeAdapterFactory(
+                                AdaptyResponseTypeAdapterFactory(
+                                    TypeToken.get(ProfileDto::class.java),
+                                    attributesObjectExtractor,
+                                )
                             )
-                        )
-                        .registerTypeAdapterFactory(
-                            AdaptyResponseTypeAdapterFactory(
-                                object : TypeToken<ArrayList<String>>() {},
-                                dataArrayExtractor,
+                            .registerTypeAdapterFactory(
+                                AdaptyResponseTypeAdapterFactory(
+                                    object : TypeToken<ArrayList<ProductDto>>() {},
+                                    dataArrayExtractor,
+                                )
                             )
-                        )
-                        .registerTypeAdapterFactory(
-                            AdaptyResponseTypeAdapterFactory(
-                                TypeToken.get(AnalyticsCreds::class.java),
-                                dataObjectExtractor,
+                            .registerTypeAdapterFactory(
+                                AdaptyResponseTypeAdapterFactory(
+                                    object : TypeToken<ArrayList<String>>() {},
+                                    dataArrayExtractor,
+                                )
                             )
-                        )
-                        .registerTypeAdapterFactory(
-                            AdaptyResponseTypeAdapterFactory(
-                                TypeToken.get(FallbackPaywalls::class.java),
-                                fallbackPaywallsExtractor,
+                            .registerTypeAdapterFactory(
+                                AdaptyResponseTypeAdapterFactory(
+                                    TypeToken.get(FallbackPaywalls::class.java),
+                                    fallbackPaywallsExtractor,
+                                )
                             )
-                        )
-                        .registerTypeAdapterFactory(
-                            AdaptyResponseTypeAdapterFactory(
-                                TypeToken.get(ValidationResult::class.java),
-                                validationResultExtractor,
+                            .registerTypeAdapterFactory(
+                                AdaptyResponseTypeAdapterFactory(
+                                    TypeToken.get(ValidationResult::class.java),
+                                    validationResultExtractor,
+                                )
                             )
-                        )
-                        .registerTypeAdapterFactory(
-                            CacheEntityTypeAdapterFactory()
-                        )
-                        .registerTypeAdapterFactory(
-                            CreateOrUpdateProfileRequestTypeAdapterFactory()
-                        )
-                        .registerTypeAdapter(
-                            BigDecimal::class.java,
-                            BigDecimalDeserializer()
-                        )
-                        .create()
-                }),
+                            .registerTypeAdapterFactory(
+                                CacheEntityTypeAdapterFactory()
+                            )
+                            .registerTypeAdapterFactory(
+                                CreateOrUpdateProfileRequestTypeAdapterFactory()
+                            )
+                            .registerTypeAdapter(
+                                SendEventRequest::class.java,
+                                SendEventRequestSerializer()
+                            )
+                            .registerTypeAdapter(
+                                AnalyticsEvent::class.java,
+                                AnalyticsEventTypeAdapter()
+                            )
+                            .registerTypeAdapter(
+                                AnalyticsData::class.java,
+                                AnalyticsDataTypeAdapter()
+                            )
+                            .registerTypeAdapter(
+                                BigDecimal::class.java,
+                                BigDecimalDeserializer()
+                            )
+                            .create()
+                    }),
+                    ANALYTICS to DIObject({
+                        GsonBuilder()
+                            .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+                            .create()
+                    })
+                ),
 
                 Format::class.java to singleVariantDiObject({
                     DecimalFormat("0.00", DecimalFormatSymbols(Locale.US))
                 }),
 
                 PreferenceManager::class.java to singleVariantDiObject({
-                    PreferenceManager(appContext, injectInternal())
+                    PreferenceManager(appContext, injectInternal(named = BASE))
                 }),
 
                 CloudRepository::class.java to singleVariantDiObject({
@@ -182,7 +206,7 @@ internal object Dependencies {
                     CacheRepository(
                         injectInternal(),
                         injectInternal(),
-                        injectInternal(),
+                        injectInternal(named = BASE),
                     )
                 }),
 
@@ -190,59 +214,78 @@ internal object Dependencies {
                     BASE to DIObject({
                         BaseHttpClient(
                             injectInternal(),
-                            injectInternal(),
+                            injectInternal(named = BASE),
+                            injectInternal(named = BASE),
                         )
                     }),
-                    KINESIS to DIObject({
+                    ANALYTICS to DIObject({
                         BaseHttpClient(
-                            injectInternal(named = KINESIS),
-                            injectInternal(named = KINESIS),
+                            injectInternal(),
+                            injectInternal(named = ANALYTICS),
+                            injectInternal(named = RECORD_ONLY),
                         )
                     }),
                 ),
 
-                KinesisManager::class.java to singleVariantDiObject({
-                    KinesisManager(
+                Semaphore::class.java to mapOf(
+                    LOCAL to DIObject({
+                        Semaphore(1)
+                    }),
+                    REMOTE to DIObject({
+                        Semaphore(1)
+                    }),
+                ),
+
+                AnalyticsEventQueueDispatcher::class.java to singleVariantDiObject({
+                    AnalyticsEventQueueDispatcher(
                         injectInternal(),
+                        injectInternal(named = ANALYTICS),
                         injectInternal(),
-                        injectInternal(named = KINESIS),
-                        injectInternal(),
-                        injectInternal(),
+                        injectInternal(named = LOCAL),
+                        injectInternal(named = REMOTE),
                     )
                 }),
 
-                NetworkConnectionCreator::class.java to mapOf(
-                    null to DIObject({
-                        DefaultConnectionCreator()
+                AnalyticsTracker::class.java to mapOf(
+                    BASE to DIObject({
+                        AnalyticsManager(
+                            injectInternal(named = RECORD_ONLY),
+                            injectInternal(),
+                        )
                     }),
-                    KINESIS to DIObject({
-                        KinesisConnectionCreator(injectInternal(), injectInternal())
+                    RECORD_ONLY to DIObject({
+                        AnalyticsEventRecorder(
+                            injectInternal(),
+                            injectInternal(named = ANALYTICS),
+                            injectInternal(named = LOCAL),
+                        )
                     }),
                 ),
+
+                NetworkConnectionCreator::class.java to singleVariantDiObject({
+                    DefaultConnectionCreator()
+                }),
 
                 HttpResponseManager::class.java to mapOf(
-                    null to DIObject({
+                    BASE to DIObject({
                         DefaultHttpResponseManager(
                             injectInternal(),
                             injectInternal(),
+                            injectInternal(named = BASE),
                         )
                     }),
-                    KINESIS to DIObject({
+                    ANALYTICS to DIObject({
                         DefaultHttpResponseManager(
-                            injectInternal(named = KINESIS),
                             injectInternal(),
+                            injectInternal(),
+                            injectInternal(named = RECORD_ONLY),
                         )
                     }),
                 ),
 
-                ResponseBodyConverter::class.java to mapOf(
-                    null to DIObject({
-                        DefaultResponseBodyConverter(injectInternal())
-                    }),
-                    KINESIS to DIObject({
-                        KinesisResponseBodyConverter(injectInternal())
-                    }),
-                ),
+                ResponseBodyConverter::class.java to singleVariantDiObject({
+                    DefaultResponseBodyConverter(injectInternal(named = BASE))
+                }),
 
                 ResponseCacheKeyProvider::class.java to singleVariantDiObject({
                     ResponseCacheKeyProvider()
@@ -258,7 +301,7 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
-                        injectInternal(),
+                        injectInternal(named = BASE),
                         apiKey,
                         observerMode,
                     )
@@ -321,7 +364,7 @@ internal object Dependencies {
                 HashingHelper::class.java to singleVariantDiObject({ HashingHelper() }),
 
                 PaywallMapper::class.java to singleVariantDiObject({
-                    PaywallMapper(injectInternal())
+                    PaywallMapper(injectInternal(named = BASE))
                 }),
 
                 ProductMapper::class.java to singleVariantDiObject({
@@ -343,6 +386,7 @@ internal object Dependencies {
                     StoreManager(
                         appContext,
                         injectInternal(),
+                        injectInternal(named = BASE),
                     )
                 }),
 
@@ -350,7 +394,7 @@ internal object Dependencies {
                     LifecycleAwareRequestRunner(
                         injectInternal(),
                         injectInternal(),
-                        injectInternal(),
+                        injectInternal(named = BASE),
                         injectInternal(),
                     )
                 }),
@@ -415,9 +459,10 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(named = BASE),
                         injectInternal(),
                         injectInternal(),
-                        injectInternal(),
+                        observerMode,
                     )
                 }),
             )

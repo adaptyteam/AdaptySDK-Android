@@ -4,6 +4,7 @@ import androidx.annotation.RestrictTo
 import androidx.annotation.WorkerThread
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
+import com.adapty.internal.data.models.AnalyticsEvent.BackendAPIResponseData
 import com.adapty.internal.utils.Logger
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
@@ -14,6 +15,7 @@ import java.net.HttpURLConnection
 internal class BaseHttpClient(
     private val connectionCreator: NetworkConnectionCreator,
     private val responseManager: HttpResponseManager,
+    private val analyticsTracker: AnalyticsTracker,
 ) : HttpClient {
 
     @WorkerThread
@@ -24,17 +26,24 @@ internal class BaseHttpClient(
                 request.body.takeIf(String::isNotEmpty)?.let { body -> " Body: $body" }.orEmpty()
             }"
         }
+        request.systemLog?.let { customData ->
+            customData.resetFlowId()
+            analyticsTracker.trackSystemEvent(customData)
+        }
 
         var connection: HttpURLConnection? = null
 
         try {
             connection = connectionCreator.createUrlConnection(request)
             connection.connect()
-            return responseManager.handleResponse(connection, request.responseCacheKeys, typeOfT)
+            return responseManager.handleResponse(connection, request, typeOfT)
 
         } catch (e: Exception) {
             val message = "Request Error: ${e.localizedMessage ?: e.message}"
             Logger.log(WARN) { message }
+            request.systemLog?.let { customData ->
+                analyticsTracker.trackSystemEvent(BackendAPIResponseData.create("", customData, e))
+            }
             return Response.Error(
                 AdaptyError(
                     originalError = e,

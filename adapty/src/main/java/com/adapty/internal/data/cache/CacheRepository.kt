@@ -26,13 +26,6 @@ internal class CacheRepository(
     private val cache = ConcurrentHashMap<String, Any>(32)
 
     @JvmSynthetic
-    fun updateAnalyticsCreds(creds: AnalyticsCreds) {
-        creds.iamAccessKeyId?.let(::saveIamAccessKeyId)
-        creds.iamSecretKey?.let(::saveIamSecretKey)
-        creds.iamSessionToken?.let(::saveIamSessionToken)
-    }
-
-    @JvmSynthetic
     suspend fun updateDataOnCreateProfile(
         profile: ProfileDto,
         installationMeta: InstallationMeta,
@@ -182,27 +175,6 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
-    fun getIamSessionToken() = cache[IAM_SESSION_TOKEN] as? String
-
-    private fun saveIamSessionToken(iamSessionToken: String) {
-        cache[IAM_SESSION_TOKEN] = iamSessionToken
-    }
-
-    @JvmSynthetic
-    fun getIamSecretKey() = cache[IAM_SECRET_KEY] as? String
-
-    private fun saveIamSecretKey(iamSecretKey: String) {
-        cache[IAM_SECRET_KEY] = iamSecretKey
-    }
-
-    @JvmSynthetic
-    fun getIamAccessKeyId() = cache[IAM_ACCESS_KEY_ID] as? String
-
-    private fun saveIamAccessKeyId(iamAccessKeyId: String) {
-        cache[IAM_ACCESS_KEY_ID] = iamAccessKeyId
-    }
-
-    @JvmSynthetic
     fun getPurchasesHaveBeenSynced() =
         cache.safeGetOrPut(
             PURCHASES_HAVE_BEEN_SYNCED,
@@ -256,12 +228,19 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
-    fun getKinesisRecords() = getData<ArrayList<AwsRecordModel>>(KINESIS_RECORDS) ?: arrayListOf()
+    fun getAnalyticsData(isSystemLog: Boolean) =
+        getData<AnalyticsData>(getAnalyticsKey(isSystemLog)) ?: AnalyticsData.DEFAULT
 
     @JvmSynthetic
-    fun saveKinesisRecords(data: List<AwsRecordModel>) {
-        saveData(KINESIS_RECORDS, data)
+    fun saveAnalyticsData(data: AnalyticsData, isSystemLog: Boolean) {
+        saveData(getAnalyticsKey(isSystemLog), data)
     }
+
+    private fun getAnalyticsKey(isSystemLog: Boolean) =
+        if (isSystemLog) ANALYTICS_LOW_PRIORITY_DATA else ANALYTICS_DATA
+
+    @Volatile
+    var analyticsConfig = AnalyticsConfig.DEFAULT
 
     fun getPaywall(id: String, maxAgeMillis: Long? = null): PaywallDto? {
         return getData<CacheEntity<PaywallDto>>(getPaywallCacheKey(id))?.let { (paywall, cachedAt) ->
@@ -332,7 +311,7 @@ internal class CacheRepository(
                 PRODUCT_IDS_RESPONSE_HASH,
                 PROFILE_RESPONSE,
                 PROFILE_RESPONSE_HASH,
-                KINESIS_RECORDS,
+                ANALYTICS_DATA,
                 YET_UNPROCESSED_VALIDATE_PRODUCT_INFO,
                 EXTERNAL_ANALYTICS_ENABLED,
             ),

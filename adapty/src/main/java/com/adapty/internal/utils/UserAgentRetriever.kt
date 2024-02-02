@@ -33,6 +33,7 @@ internal class UserAgentRetriever(
             try {
                 lock.writeLock().lock()
                 userAgent = WebSettings.getDefaultUserAgent(appContext)
+            } catch (e: Exception) {
             } finally {
                 lock.writeLock().unlock()
             }
