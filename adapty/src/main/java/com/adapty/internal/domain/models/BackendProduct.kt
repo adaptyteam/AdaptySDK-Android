@@ -5,6 +5,7 @@ import com.android.billingclient.api.BillingClient
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class BackendProduct(
+    val id: String,
     val vendorProductId: String,
     val timestamp: Long,
     val type: ProductType,

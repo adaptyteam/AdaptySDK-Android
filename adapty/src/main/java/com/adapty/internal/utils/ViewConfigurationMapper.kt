@@ -44,7 +44,7 @@ internal class ViewConfigurationMapper {
                         )
                     }
 
-                    str.id to str.value
+                    str.id to Localization.Str(str.value, str.fallback, str.hasTags ?: false)
                 }.orEmpty()
 
                 val assets = mapVisualAssets(localization.assets)
@@ -72,14 +72,21 @@ internal class ViewConfigurationMapper {
             }
 
             val mainProductIndex = (productBlock["main_product_index"] as? Number)?.toInt()?.coerceAtLeast(0) ?: 0
+            val initiatePurchaseOnTap = (productBlock["initiate_purchase_on_tap"] as? Boolean) ?: false
 
-            val orderedItems =
-                (productBlock["infos"] as? Map<*, *>)?.let(::mapCustomObjectComponent)?.properties?.map { (_, v) -> v } ?: throw AdaptyError(
-                    message = "infos in ProductBlock should not be null",
-                    adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
-                )
+            val products =
+                (productBlock["products"] as? List<*>)
+                    ?.mapNotNull { product ->
+                        val productObject = (product as? Map<*, *>)?.let(::mapProductObjectComponent)
+                        productObject?.let { productObject.productId to productObject }
+                    }
+                    ?.toMap()
+                    ?: throw AdaptyError(
+                        message = "products in ProductBlock should not be null",
+                        adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
+                    )
 
-            ProductBlock(type, mainProductIndex, orderedItems)
+            ProductBlock(type, mainProductIndex, initiatePurchaseOnTap, products)
         } ?: throw AdaptyError(
             message = "products_block in style should not be null",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
@@ -131,6 +138,7 @@ internal class ViewConfigurationMapper {
                     "shape", "rectangle", "rect", "circle", "curve_up", "curve_down" -> mapShapeComponent(value)
                     "text" -> mapTextComponent(value)
                     "button" -> mapButtonComponent(value)
+                    "product" -> mapProductObjectComponent(value)
                     else -> mapCustomObjectComponent(value)
                 }
             }
@@ -313,6 +321,23 @@ internal class ViewConfigurationMapper {
         )
     }
 
+    private fun mapProductObjectComponent(value: Map<*, *>) : Component.ProductObject {
+        val productId = (value["product_id"] as? String) ?: throw AdaptyError(
+            message = "productId in Product should not be null",
+            adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
+        )
+
+        val properties = value.mapNotNull { (k, v) ->
+            when (k) {
+                !is String -> null
+                "type", "order", "product_id" -> null
+                else -> mapVisualStyleComponent(v)?.let { k to it }
+            }
+        }.toMap()
+
+        return Component.ProductObject(productId, properties)
+    }
+
     private fun mapCustomObjectComponent(value: Map<*, *>) : Component.CustomObject? {
         val type = value["type"] as? String ?: return null
 
@@ -413,14 +438,10 @@ internal class ViewConfigurationMapper {
                         ),
                     )
                     "font" -> Asset.Font(
-                        (asset.value as? String) ?: throw AdaptyError(
-                            message = "font value should not be null",
-                            adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
-                        ),
-                        asset.style ?: throw AdaptyError(
-                            message = "font style should not be null",
-                            adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
-                        ),
+                        asset.familyName ?: "adapty_system",
+                        asset.resources ?: emptyArray(),
+                        asset.weight ?: 400,
+                        asset.isItalic ?: false,
                         asset.size,
                         mapHorizontalAlign(asset.horizontalAlign),
                         asset.color?.let(::mapVisualAssetColorString),

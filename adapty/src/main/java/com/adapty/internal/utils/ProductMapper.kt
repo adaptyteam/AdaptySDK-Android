@@ -171,6 +171,10 @@ internal class ProductMapper(
     @JvmSynthetic
     fun map(productDto: ProductDto) =
         BackendProduct(
+            id = productDto.id ?: throw AdaptyError(
+                message = "id in Product should not be null",
+                adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
+            ),
             vendorProductId = productDto.vendorProductId ?: throw AdaptyError(
                 message = "vendorProductId in Product should not be null",
                 adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED

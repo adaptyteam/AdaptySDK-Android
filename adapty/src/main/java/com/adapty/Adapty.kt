@@ -250,9 +250,10 @@ public object Adapty {
      *
      * @param[isOfferPersonalized] Indicates whether the price is personalized, [read more](https://developer.android.com/google/play/billing/integrate#personalized-price).
      *
-     * @param[callback] A result containing the [AdaptyProfile] object (is null if and only if it was
+     * @param[callback] A result containing the [AdaptyPurchasedInfo] object (is null if and only if it was
      * a subscription change with the [DEFERRED][AdaptySubscriptionUpdateParameters.ReplacementMode.DEFERRED]
-     * replacement mode). This model contains info about access levels, subscriptions, and non-subscription
+     * replacement mode). This model contains information about the purchase and the user's profile.
+     * The profile, in turn, includes details about access levels, subscriptions, and non-subscription
      * purchases. Generally, you have to check only access level status to determine whether the user
      * has premium access to the app.
      *
@@ -265,7 +266,7 @@ public object Adapty {
         product: AdaptyPaywallProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters? = null,
         isOfferPersonalized: Boolean = false,
-        callback: ResultCallback<AdaptyProfile?>,
+        callback: ResultCallback<AdaptyPurchasedInfo?>,
     ) {
         Logger.log(VERBOSE) { "makePurchase(vendorProductId = ${product.vendorProductId}${product.subscriptionDetails?.let { "; basePlanId = ${it.basePlanId}${it.offerId?.let { offerId -> "; offerId = $offerId" }.orEmpty()}" }.orEmpty()}${subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; replacementMode = ${it.replacementMode}" }.orEmpty()})" }
         if (!isActivated) {

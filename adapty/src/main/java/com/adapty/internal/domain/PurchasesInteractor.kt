@@ -11,6 +11,7 @@ import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
+import com.adapty.models.AdaptyPurchasedInfo
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.utils.AdaptyLogLevel.Companion.INFO
 import com.android.billingclient.api.Purchase
@@ -35,7 +36,7 @@ internal class PurchasesInteractor(
         product: AdaptyPaywallProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
         isOfferPersonalized: Boolean,
-    ) : Flow<AdaptyProfile?> {
+    ) : Flow<AdaptyPurchasedInfo?> {
         return storeManager.queryInfoForProduct(product.vendorProductId, product.payloadData.type)
             .flatMapConcat { productDetails ->
                 val purchaseableProduct = productMapper.mapToPurchaseableProduct(
@@ -82,7 +83,7 @@ internal class PurchasesInteractor(
     private fun validatePurchase(
         purchase: Purchase,
         product: PurchaseableProduct,
-    ): Flow<AdaptyProfile> =
+    ): Flow<AdaptyPurchasedInfo> =
         authInteractor.runWhenAuthDataSynced {
             cloudRepository.validatePurchase(purchase, product)
         }
@@ -96,7 +97,9 @@ internal class PurchasesInteractor(
                 cacheRepository.updateOnProfileReceived(
                     profile,
                     currentDataWhenRequestSent?.profileId,
-                ).let(profileMapper::map)
+                ).let { profile ->
+                    AdaptyPurchasedInfo(profileMapper.map(profile), purchase)
+                }
             }
 
     private suspend fun makePurchase(

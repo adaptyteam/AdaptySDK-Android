@@ -2,6 +2,7 @@ package com.adapty.internal.utils
 
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
+import com.adapty.models.AdaptyPaywall
 import com.adapty.utils.AdaptyLogLevel
 
 @RequiresOptIn(
@@ -21,3 +22,7 @@ public fun adaptyError(
 public fun log(messageLogLevel: AdaptyLogLevel, msg: () -> String) {
     Logger.log(messageLogLevel, msg)
 }
+
+@JvmSynthetic @InternalAdaptyApi
+public fun getOrderedOriginalProductIds(paywall: AdaptyPaywall): List<String> =
+    paywall.products.map { it.id }

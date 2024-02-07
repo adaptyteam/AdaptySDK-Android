@@ -185,7 +185,7 @@ internal class AdaptyInternal(
         product: AdaptyPaywallProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
         isOfferPersonalized: Boolean,
-        callback: ResultCallback<AdaptyProfile?>
+        callback: ResultCallback<AdaptyPurchasedInfo?>
     ) {
         val requestEvent = SDKMethodRequestData.MakePurchase.create(product)
         analyticsTracker.trackSystemEvent(requestEvent)

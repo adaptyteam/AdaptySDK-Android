@@ -354,6 +354,6 @@ internal class CacheRepository(
     }
 
     private companion object {
-        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 3
+        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 4
     }
 }

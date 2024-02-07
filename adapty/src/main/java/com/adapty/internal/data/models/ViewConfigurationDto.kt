@@ -33,8 +33,6 @@ internal class ViewConfigurationConfig(
         val id: String?,
         @SerializedName("size")
         val size: Float?,
-        @SerializedName("style")
-        val style: String?,
         @SerializedName("type")
         val type: String?,
         @SerializedName("color")
@@ -45,6 +43,14 @@ internal class ViewConfigurationConfig(
         val points: HashMap<String, Float?>?,
         @SerializedName("horizontal_align")
         val horizontalAlign: String?,
+        @SerializedName("family_name")
+        val familyName: String?,
+        @SerializedName("weight")
+        val weight: Int?,
+        @SerializedName("italic")
+        val isItalic: Boolean?,
+        @SerializedName("resources")
+        val resources: Array<String>?,
         @SerializedName("values")
         val values: List<HashMap<String, Any?>?>?,
     )
@@ -62,6 +68,10 @@ internal class ViewConfigurationConfig(
             val id: String?,
             @SerializedName("value")
             val value: String?,
+            @SerializedName("has_tags")
+            val hasTags: Boolean?,
+            @SerializedName("fallback")
+            val fallback: String?,
         )
     }
 }

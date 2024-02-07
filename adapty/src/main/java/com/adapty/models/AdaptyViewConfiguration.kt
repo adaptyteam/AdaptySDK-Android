@@ -33,7 +33,8 @@ public class AdaptyViewConfiguration(
     public class ProductBlock(
         public val type: Type,
         public val mainProductIndex: Int,
-        public val orderedItems: List<Component>,
+        public val initiatePurchaseOnTap: Boolean,
+        public val products: Map<String, Component.ProductObject>,
     ) {
         public enum class Type { SINGLE, VERTICAL, HORIZONTAL }
     }
@@ -145,6 +146,11 @@ public class AdaptyViewConfiguration(
             public val assetId: String,
         ): Component()
 
+        public class ProductObject(
+            public val productId: String,
+            public val properties: Map<String, Component>,
+        ): Component()
+
         public class CustomObject(
             public val type: String,
             public val properties: List<Pair<String, Component>>,
@@ -188,8 +194,10 @@ public class AdaptyViewConfiguration(
         }
 
         public class Font(
-            public val value: String,
-            public val style: String,
+            public val familyName: String,
+            public val resources: Array<String>,
+            public val weight: Int,
+            public val isItalic: Boolean,
             public val size: Float?,
             public val horizontalAlign: HorizontalAlign?,
             @ColorInt public val color: Int?,
@@ -273,9 +281,15 @@ public class AdaptyViewConfiguration(
     }
 
     public class Localization(
-        public val strings: Map<String, String>,
+        public val strings: Map<String, Str>,
         public val assets: Map<String, Asset>,
-    )
+    ) {
+        public class Str(
+            public val value: String,
+            public val fallback: String?,
+            public val hasTags: Boolean,
+        )
+    }
 
     @InternalAdaptyApi
     public fun <T : Asset> getAsset(assetId: String): T? {
@@ -285,7 +299,7 @@ public class AdaptyViewConfiguration(
     }
 
     @InternalAdaptyApi
-    public fun getString(strId: String): String? {
+    public fun getString(strId: String): Localization.Str? {
         val localeStr = defaultLocalization
         return (localizations[localeStr]?.strings?.get(strId)
             ?: localizations[defaultLocalization]?.strings?.get(strId))
