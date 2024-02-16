@@ -318,6 +318,8 @@ internal class ViewConfigurationMapper {
             (value["selected_title"] as? Map<*, *>)?.let(::mapTextComponent),
             mapButtonAlign(value["align"] as? String),
             (value["action"] as? Map<*, *>)?.let(::mapButtonAction),
+            (value["visibility"] as? Boolean) ?: true,
+            (value["transition_in"] as? Map<*, *>)?.let(::mapButtonTransition),
         )
     }
 
@@ -391,6 +393,17 @@ internal class ViewConfigurationMapper {
                     message = "custom_id value should not be null when type is custom",
                     adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                 )
+            )
+            else -> null
+        }
+    }
+
+    private fun mapButtonTransition(value: Map<*, *>): Component.Button.Transition? {
+        return when (value["type"]) {
+            "fade" -> Component.Button.Transition.Fade(
+                (value["duration"] as? Number)?.toLong() ?: 300L,
+                (value["start_delay"] as? Number)?.toLong() ?: 0L,
+                (value["interpolator"] as? String) ?: "ease_in_out"
             )
             else -> null
         }

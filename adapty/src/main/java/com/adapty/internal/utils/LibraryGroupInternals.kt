@@ -23,6 +23,9 @@ public fun log(messageLogLevel: AdaptyLogLevel, msg: () -> String) {
     Logger.log(messageLogLevel, msg)
 }
 
+@get:JvmSynthetic @InternalAdaptyApi
+public val adaptySdkVersion: String get() = com.adapty.BuildConfig.VERSION_NAME
+
 @JvmSynthetic @InternalAdaptyApi
 public fun getOrderedOriginalProductIds(paywall: AdaptyPaywall): List<String> =
     paywall.products.map { it.id }

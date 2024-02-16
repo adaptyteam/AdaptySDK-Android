@@ -129,6 +129,8 @@ public class AdaptyViewConfiguration(
             public val selectedTitle: Text?,
             public val align: Align,
             public val action: Action?,
+            public val isVisible: Boolean,
+            public val transitionIn: Transition?,
         ): Component() {
             public sealed class Action {
                 public object Close: Action()
@@ -139,6 +141,19 @@ public class AdaptyViewConfiguration(
 
             public enum class Align {
                 LEADING, TRAILING, CENTER, FILL
+            }
+
+            public sealed class Transition(
+                public val durationMillis: Long,
+                public val startDelayMillis: Long,
+                public val interpolatorName: String,
+            ) {
+
+                public class Fade(
+                    durationMillis: Long,
+                    startDelayMillis: Long,
+                    interpolatorName: String,
+                ): Transition(durationMillis, startDelayMillis, interpolatorName)
             }
         }
 
