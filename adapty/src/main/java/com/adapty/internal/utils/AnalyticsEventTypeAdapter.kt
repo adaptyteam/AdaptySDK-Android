@@ -58,6 +58,7 @@ internal class AnalyticsEventTypeAdapter : JsonDeserializer<AnalyticsEvent>, Jso
             addProperty(COUNTER, src.ordinal)
             src.other.forEach { (key, value) ->
                 when (value) {
+                    is JsonPrimitive -> add(key, value)
                     is Number -> add(key, JsonPrimitive(value))
                     is String -> add(key, JsonPrimitive(value))
                     is Boolean -> add(key, JsonPrimitive(value))
@@ -91,6 +92,7 @@ internal class AnalyticsEventTypeAdapter : JsonDeserializer<AnalyticsEvent>, Jso
             PROFILE_ID,
             SESSION_ID,
             DEVICE_ID,
+            DEVICE_ID_OLD,
             CREATED_AT,
             PLATFORM,
             COUNTER,
