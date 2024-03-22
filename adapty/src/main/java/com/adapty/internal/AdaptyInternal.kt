@@ -122,15 +122,6 @@ internal class AdaptyInternal(
                 .collect()
         }
         execute { productsInteractor.getProductsOnStart().catch { }.collect() }
-        execute {
-            purchasesInteractor.syncPurchasesOnStart()
-                .catch { error ->
-                    if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
-                        profileInteractor.getProfileOnStart().catch { }.collect()
-                    }
-                }
-                .collect()
-        }
     }
 
     @JvmSynthetic
@@ -397,13 +388,13 @@ internal class AdaptyInternal(
                         lifecycleAwareRequestRunner.restart()
                 }
                 .flowOnMain()
-                .flatMapConcat { (newProfileIdDuringThisSession, _) ->
+                .flatMapMerge { (newProfileIdDuringThisSession, newCustomerUserIdDuringThisSession) ->
                     mutableListOf<Flow<*>>(
                         profileInteractor.syncMetaOnStart().catch { }
                     ).apply {
-                        if (newProfileIdDuringThisSession) {
+                        if ((newProfileIdDuringThisSession || newCustomerUserIdDuringThisSession)) {
                             add(
-                                purchasesInteractor.syncPurchasesIfNeeded()
+                                purchasesInteractor.syncPurchasesOnStart()
                                     .catch { error ->
                                         if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
                                             emitAll(profileInteractor.getProfileOnStart().catch { })

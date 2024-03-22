@@ -23,12 +23,27 @@ import kotlin.coroutines.resumeWithException
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class PurchasesInteractor(
     private val authInteractor: AuthInteractor,
+    private val profileInteractor: ProfileInteractor,
     private val cloudRepository: CloudRepository,
     private val cacheRepository: CacheRepository,
     private val storeManager: StoreManager,
     private val productMapper: ProductMapper,
     private val profileMapper: ProfileMapper,
 ) {
+
+    init {
+        execute {
+            profileInteractor.subscribeOnEventsForStartRequests()
+                .onEach { (newProfileIdDuringThisSession, newCustomerUserIdDuringThisSession) ->
+                    if (newProfileIdDuringThisSession || newCustomerUserIdDuringThisSession) {
+                        syncPurchasesSemaphore.releaseQuietly()
+                    }
+                }
+                .flowOnIO()
+                .catch { }
+                .collect()
+        }
+    }
 
     @JvmSynthetic
     fun makePurchase(
@@ -128,30 +143,30 @@ internal class PurchasesInteractor(
     private val syncPurchasesSemaphore = Semaphore(1)
 
     @JvmSynthetic
-    suspend fun syncPurchasesIfNeeded(): Flow<*> {
+    suspend fun syncPurchasesIfNeeded(): Flow<AdaptyProfile?> {
         if (cacheRepository.getPurchasesHaveBeenSynced()) {
-            return flowOf(Unit)
+            return flowOf(null)
         }
 
         syncPurchasesSemaphore.acquire()
         return if (cacheRepository.getPurchasesHaveBeenSynced()) {
-            syncPurchasesSemaphore.release()
-            flowOf(Unit)
+            syncPurchasesSemaphore.releaseQuietly()
+            flowOf(null)
         } else {
             syncPurchasesInternal(maxAttemptCount = DEFAULT_RETRY_COUNT)
                 .flowOnIO()
-                .onEach { syncPurchasesSemaphore.release() }
-                .catch { error -> syncPurchasesSemaphore.release(); throw error }
+                .onEach { syncPurchasesSemaphore.releaseQuietly() }
+                .catch { error -> syncPurchasesSemaphore.releaseQuietly(); throw error }
         }
     }
 
     @JvmSynthetic
-    suspend fun syncPurchasesOnStart(): Flow<*> {
+    suspend fun syncPurchasesOnStart(): Flow<AdaptyProfile> {
         syncPurchasesSemaphore.acquire()
         return syncPurchasesInternal(maxAttemptCount = DEFAULT_RETRY_COUNT)
             .flowOnIO()
-            .onEach { syncPurchasesSemaphore.release() }
-            .catch { error -> syncPurchasesSemaphore.release(); throw error }
+            .onEach { syncPurchasesSemaphore.releaseQuietly() }
+            .catch { error -> syncPurchasesSemaphore.releaseQuietly(); throw error }
     }
 
     private fun syncPurchasesInternal(
@@ -189,7 +204,7 @@ internal class PurchasesInteractor(
                                 }
                             )
                         }.map { (profile, currentDataWhenRequestSent) ->
-                            if (cacheRepository.getProfileId() == currentDataWhenRequestSent?.profileId) {
+                            if (cacheRepository.getProfileId() == currentDataWhenRequestSent?.profileId && cacheRepository.getCustomerUserId() == currentDataWhenRequestSent.customerUserId) {
                                 cacheRepository.saveSyncedPurchases(
                                     dataToSync.map(productMapper::mapToSyncedPurchase)
                                         .union(syncedPurchases.filter { it.purchaseToken != null && it.purchaseTime != null })

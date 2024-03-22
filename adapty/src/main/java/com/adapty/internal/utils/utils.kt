@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.sync.Semaphore
 import java.util.*
 import java.util.regex.Pattern
 import kotlin.math.min
@@ -76,6 +77,14 @@ internal fun <T> Flow<T>.onSingleResult(action: suspend (AdaptyResult<T>) -> Uni
 
 @JvmSynthetic
 internal fun AdaptyResult<*>.errorOrNull() = (this as? AdaptyResult.Error)?.error
+
+@JvmSynthetic
+internal fun Semaphore.releaseQuietly() {
+    try {
+        release()
+    } catch (t: Throwable) {
+    }
+}
 
 @JvmSynthetic
 internal fun execute(block: suspend CoroutineScope.() -> Unit) =

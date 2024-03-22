@@ -12,6 +12,7 @@ import com.adapty.internal.data.models.InstallationMeta
 import com.adapty.internal.data.models.RestoreProductInfo
 import com.adapty.internal.data.models.requests.*
 import com.adapty.internal.domain.models.PurchaseableProduct
+import com.adapty.internal.utils.ID
 import com.adapty.internal.utils.MetaInfoRetriever
 import com.adapty.internal.utils.PayloadProvider
 import com.adapty.internal.utils.extractLanguageCode
@@ -115,7 +116,20 @@ internal class Request internal constructor(val baseUrl: String) {
 
     internal class Header(val key: String, val value: String?)
 
-    internal class CurrentDataWhenSent(val profileId: String)
+    internal class CurrentDataWhenSent private constructor(profileId: ID<String>, customerUserId: ID<String?>) {
+
+        val profileId: String = profileId.value
+
+        val customerUserId: String? = customerUserId.value
+
+        companion object {
+            fun create(profileId: String) =
+                CurrentDataWhenSent(ID(profileId), ID.UNSPECIFIED)
+
+            fun create(profileId: String, customerUserId: String?) =
+                CurrentDataWhenSent(ID(profileId), ID(customerUserId))
+        }
+    }
 }
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -145,7 +159,7 @@ internal class RequestFactory(
                 method = GET
                 endPoint = getEndpointForProfileRequests(profileId)
                 addResponseCacheKeys(responseCacheKeyProvider.forGetProfile())
-                currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
+                currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
                 systemLog = BackendAPIRequestData.GetProfile.create()
             }
         }
@@ -165,7 +179,7 @@ internal class RequestFactory(
                 )
                 endPoint = getEndpointForProfileRequests(profileId)
                 addResponseCacheKeys(responseCacheKeyProvider.forGetProfile())
-                currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
+                currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
                 systemLog = BackendAPIRequestData.UpdateProfile.create()
             }
         }
@@ -203,7 +217,7 @@ internal class RequestFactory(
             body = gson.toJson(
                 ValidateReceiptRequest.create(profileId, purchase, product)
             )
-            currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
+            currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
             systemLog = BackendAPIRequestData.Validate.create(product, purchase)
         }
     }
@@ -217,7 +231,7 @@ internal class RequestFactory(
                     RestoreReceiptRequest.create(profileId, purchases)
                 )
                 endPoint = "purchase/play-store/token/v2/restore/"
-                currentDataWhenSent = Request.CurrentDataWhenSent(profileId)
+                currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId, cacheRepository.getCustomerUserId()?.takeIf(String::isNotBlank))
                 systemLog = BackendAPIRequestData.Restore.create(purchases)
             }
         }

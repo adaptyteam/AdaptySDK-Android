@@ -36,6 +36,9 @@ internal class CacheRepository(
 
             if (profileIdHasChanged) onNewProfileIdReceived(profileId)
         }
+        if (profileIdHasChanged || (getCustomerUserId() != profile.customerUserId)) {
+            clearSyncedPurchases()
+        }
         profile.customerUserId?.let(::saveCustomerUserId)
         saveProfile(profile)
 
@@ -292,6 +295,17 @@ internal class CacheRepository(
                 PROFILE_RESPONSE_HASH,
             ),
             startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART),
+        )
+    }
+
+    @JvmSynthetic
+    fun clearSyncedPurchases() {
+        clearData(
+            containsKeys = setOf(
+                SYNCED_PURCHASES,
+                PURCHASES_HAVE_BEEN_SYNCED,
+            ),
+            startsWithKeys = setOf(),
         )
     }
 
