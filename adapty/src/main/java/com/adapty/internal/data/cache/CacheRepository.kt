@@ -30,6 +30,8 @@ internal class CacheRepository(
         profile: ProfileDto,
         installationMeta: InstallationMeta,
     ): Boolean {
+        if ((profile.timestamp ?: 0L) < (getProfile()?.timestamp ?: 0L))
+            return false
         var profileIdHasChanged = false
         (profile.profileId ?: (cache[UNSYNCED_PROFILE_ID] as? String))?.let { profileId ->
             profileIdHasChanged = profileId != preferenceManager.getString(PROFILE_ID)
@@ -55,7 +57,7 @@ internal class CacheRepository(
         profile: ProfileDto,
         profileIdWhenRequestSent: String?,
     ): ProfileDto {
-        if (profileIdWhenRequestSent != null && getProfileId() != profileIdWhenRequestSent) {
+        if (profileIdWhenRequestSent != null && getProfileId() != profileIdWhenRequestSent && (profile.timestamp ?: 0L) < (getProfile()?.timestamp ?: 0L)) {
             return profile
         }
 

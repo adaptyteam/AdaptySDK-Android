@@ -11,6 +11,8 @@ internal class ProfileDto(
     val customerUserId: String?,
     @SerializedName("segment_hash")
     val segmentId: String?,
+    @SerializedName("timestamp")
+    val timestamp: Long?,
     @SerializedName("paid_access_levels")
     val accessLevels: HashMap<String, AccessLevelDto>?,
     @SerializedName("subscriptions")

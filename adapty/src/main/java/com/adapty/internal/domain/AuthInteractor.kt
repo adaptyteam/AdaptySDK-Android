@@ -15,6 +15,7 @@ import kotlinx.coroutines.sync.Semaphore
 internal class AuthInteractor(
     private val cloudRepository: CloudRepository,
     private val cacheRepository: CacheRepository,
+    private val lifecycleManager: LifecycleManager,
     private val installationMetaCreator: InstallationMetaCreator,
     private val adIdRetriever: AdIdRetriever,
     private val appSetIdRetriever: AppSetIdRetriever,
@@ -24,7 +25,7 @@ internal class AuthInteractor(
 
     @JvmSynthetic
     fun activateOrIdentify() =
-        cloudRepository.onActivateAllowed()
+        lifecycleManager.onActivateAllowed()
             .flatMapConcat { createProfileIfNeeded() }
             .retryIfNecessary(DEFAULT_RETRY_COUNT)
             .flowOnIO()
@@ -104,7 +105,7 @@ internal class AuthInteractor(
         switchIfProfileCreationFailed: (() -> T?)? = null,
         call: suspend () -> T,
     ): Flow<T> {
-        return cloudRepository.onActivateAllowed()
+        return lifecycleManager.onActivateAllowed()
             .flatMapConcat { createProfileIfNeeded() }
             .catch { error ->
                 if (switchIfProfileCreationFailed == null) {

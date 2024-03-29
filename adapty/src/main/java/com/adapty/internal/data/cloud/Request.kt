@@ -287,13 +287,16 @@ internal class RequestFactory(
     @JvmSynthetic
     fun updateAttributionRequest(
         attributionData: AttributionData,
-    ) = buildRequest {
-        method = POST
-        endPoint = "${getEndpointForProfileRequests(cacheRepository.getProfileId())}attribution/"
-        body = gson.toJson(
-            UpdateAttributionRequest.create(attributionData)
-        )
-        systemLog = BackendAPIRequestData.SetAttribution.create(attributionData)
+    ) = cacheRepository.getProfileId().let { profileId ->
+        buildRequest {
+            method = POST
+            endPoint = "${getEndpointForProfileRequests(profileId)}attribution/"
+            body = gson.toJson(
+                UpdateAttributionRequest.create(attributionData)
+            )
+            currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
+            systemLog = BackendAPIRequestData.SetAttribution.create(attributionData)
+        }
     }
 
     @JvmSynthetic

@@ -106,7 +106,15 @@ internal class ProfileInteractor(
             cloudRepository.updateAttribution(
                 attributionHelper.createAttributionData(attribution, source, networkUserId)
             )
-        }.flowOnIO()
+        }
+            .map { (profile, currentDataWhenRequestSent) ->
+                cacheRepository.updateOnProfileReceived(
+                    profile,
+                    currentDataWhenRequestSent?.profileId,
+                )
+                Unit
+            }
+            .flowOnIO()
 
     @JvmSynthetic
     fun subscribeOnProfileChanges() =

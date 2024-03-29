@@ -17,8 +17,6 @@ internal class CloudRepository(
     private val requestFactory: RequestFactory
 ) {
 
-    private val isActivateAllowed = MutableStateFlow(false)
-
     @JvmSynthetic
     fun getProfile(): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
         val request = requestFactory.getProfileRequest()
@@ -184,12 +182,16 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun updateAttribution(attributionData: AttributionData) {
-        val response = httpClient.newCall<Any>(
-            requestFactory.updateAttributionRequest(attributionData),
-            Any::class.java
+    fun updateAttribution(attributionData: AttributionData): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
+        val request = requestFactory.updateAttributionRequest(attributionData)
+        val response = httpClient.newCall<ProfileDto>(
+            request,
+            ProfileDto::class.java
         )
-        processEmptyResponse(response)
+        when (response) {
+            is Response.Success -> return response.body to request.currentDataWhenSent
+            is Response.Error -> throw response.error
+        }
     }
 
     @JvmSynthetic
@@ -219,15 +221,4 @@ internal class CloudRepository(
             is Response.Error -> throw response.error
         }
     }
-
-    @JvmSynthetic
-    fun allowActivate() {
-        isActivateAllowed.value = true
-    }
-
-    @JvmSynthetic
-    fun onActivateAllowed() =
-        isActivateAllowed
-            .filter { it }
-            .take(1)
 }

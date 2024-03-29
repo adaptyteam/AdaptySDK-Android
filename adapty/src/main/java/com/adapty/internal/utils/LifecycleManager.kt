@@ -6,11 +6,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.adapty.internal.data.cloud.CloudRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.take
 
-internal class LifecycleManager(
-    private val cloudRepository: CloudRepository,
-) : LifecycleObserver {
+internal class LifecycleManager : LifecycleObserver {
 
     interface StateCallback {
         fun onGoForeground()
@@ -22,6 +22,8 @@ internal class LifecycleManager(
     var stateCallback: StateCallback? = null
 
     private var isFirstStart = true
+
+    private val isActivateAllowed = MutableStateFlow(false)
 
     @JvmSynthetic
     fun init() {
@@ -38,7 +40,7 @@ internal class LifecycleManager(
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
 
         if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-            cloudRepository.allowActivate()
+            allowActivate()
         }
     }
 
@@ -46,7 +48,7 @@ internal class LifecycleManager(
     @OnLifecycleEvent(Lifecycle.Event.ON_START)
     fun onStart() {
         if (isFirstStart) {
-            cloudRepository.allowActivate()
+            allowActivate()
             isFirstStart = false
         }
         stateCallback?.onGoForeground()
@@ -56,5 +58,15 @@ internal class LifecycleManager(
     @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
     fun onStop() {
         stateCallback?.onGoBackground()
+    }
+
+    @JvmSynthetic
+    fun onActivateAllowed() =
+        isActivateAllowed
+            .filter { it }
+            .take(1)
+
+    private fun allowActivate() {
+        isActivateAllowed.value = true
     }
 }

@@ -11,13 +11,13 @@ import com.adapty.internal.utils.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import java.util.*
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class AnalyticsEventQueueDispatcher(
     private val cacheRepository: CacheRepository,
     private val httpClient: HttpClient,
     private val requestFactory: RequestFactory,
+    private val lifecycleManager: LifecycleManager,
     private val dataLocalSemaphore: Semaphore,
     private val dataRemoteSemaphore: Semaphore,
 ) {
@@ -37,7 +37,8 @@ internal class AnalyticsEventQueueDispatcher(
             eventFlow
                 .flatMapConcat { event ->
                     dataRemoteSemaphore.acquire()
-                    fetchDisabledEventTypes()
+                    lifecycleManager.onActivateAllowed()
+                        .mapLatest { fetchDisabledEventTypes() }
                         .retryIfNecessary(DEFAULT_RETRY_COUNT)
                         .flatMapConcat { disabledEventTypes ->
                             val (filteredEvents, processedEvents) =
@@ -56,10 +57,10 @@ internal class AnalyticsEventQueueDispatcher(
         }
     }
 
-    private suspend fun fetchDisabledEventTypes() = flow {
+    private fun fetchDisabledEventTypes() : List<String> {
         val (disabledEventTypes, expiresAt) = cacheRepository.analyticsConfig
         if (System.currentTimeMillis() < expiresAt) {
-            emit(disabledEventTypes)
+            return disabledEventTypes
         } else {
             val response = httpClient.newCall<AnalyticsConfig>(
                 requestFactory.getAnalyticsConfig(),
@@ -68,7 +69,7 @@ internal class AnalyticsEventQueueDispatcher(
             when (response) {
                 is Response.Success -> {
                     cacheRepository.analyticsConfig = response.body
-                    emit(response.body.disabledEventTypes)
+                    return response.body.disabledEventTypes
                 }
                 is Response.Error -> {
                     throw response.error

@@ -23,6 +23,7 @@ internal class ProductsInteractor(
     private val purchasesInteractor: PurchasesInteractor,
     private val cloudRepository: CloudRepository,
     private val cacheRepository: CacheRepository,
+    private val lifecycleManager: LifecycleManager,
     private val storeManager: StoreManager,
     private val paywallMapper: PaywallMapper,
     private val viewConfigurationMapper: ViewConfigurationMapper,
@@ -164,7 +165,7 @@ internal class ProductsInteractor(
 
     @JvmSynthetic
     fun getProductsOnStart() =
-        cloudRepository.onActivateAllowed()
+        lifecycleManager.onActivateAllowed()
             .mapLatest { cloudRepository.getProductIds() }
             .retryIfNecessary(INFINITE_RETRY)
             .flatMapConcat { productIds -> storeManager.queryProductDetails(productIds, INFINITE_RETRY) }

@@ -143,7 +143,7 @@ private fun <T> getTimeoutFlow(timeout: Int) =
 
 @JvmSynthetic
 internal fun getServerErrorDelay(attempt: Long) =
-    min((2f.pow(attempt.coerceAtMost(7).toInt()) + 1), 90f).toLong() * 1000L
+    min((2f.pow((attempt + 3).coerceAtMost(7).toInt()) + 1), 90f).toLong() * 1000L
 
 @JvmSynthetic
 internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long = INFINITE_RETRY): Flow<T> =

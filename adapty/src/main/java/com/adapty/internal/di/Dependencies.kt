@@ -241,6 +241,7 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(named = ANALYTICS),
                         injectInternal(),
+                        injectInternal(),
                         injectInternal(named = LOCAL),
                         injectInternal(named = REMOTE),
                     )
@@ -400,11 +401,12 @@ internal object Dependencies {
                 }),
 
                 LifecycleManager::class.java to singleVariantDiObject({
-                    LifecycleManager(injectInternal())
+                    LifecycleManager()
                 }),
 
                 ProductsInteractor::class.java to singleVariantDiObject({
                     ProductsInteractor(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
@@ -444,6 +446,7 @@ internal object Dependencies {
 
                 AuthInteractor::class.java to singleVariantDiObject({
                     AuthInteractor(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
