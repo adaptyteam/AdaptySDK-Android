@@ -35,7 +35,7 @@ internal class ProfileInteractor(
                 ).let(profileMapper::map)
             }
             .catch { error ->
-                if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
+                if (error !is AdaptyError || error.backendError == null || error.backendError.responseCode !in 400..406) {
                     val cachedProfile = cacheRepository.getProfile()?.let(profileMapper::map)
                     if (cachedProfile != null) {
                         emitAll(flowOf(cachedProfile))
@@ -57,13 +57,15 @@ internal class ProfileInteractor(
                 val metaToBeSent = installationMeta.takeIf { metaHasChanged }
 
                 authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
-                    val ip = iPv4Retriever.value
-                    if (ip == null) {
-                        sendIpWhenReceived()
-
-                        if (params == null && metaToBeSent == null)
-                            throw NothingToUpdateException()
-                    }
+                    val ip = if (!iPv4Retriever.disabled) {
+                        iPv4Retriever.value
+                            .also { value ->
+                                if (value == null)
+                                    sendIpWhenReceived()
+                            }
+                    } else null
+                    if (ip == null && params == null && metaToBeSent == null)
+                        throw NothingToUpdateException()
                     cloudRepository.updateProfile(params, metaToBeSent, ip)
                 }
                     .map { (profile, currentDataWhenRequestSent) ->

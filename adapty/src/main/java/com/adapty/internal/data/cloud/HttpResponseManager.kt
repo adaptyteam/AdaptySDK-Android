@@ -5,6 +5,7 @@ import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.models.AnalyticsEvent.BackendAPIResponseData
+import com.adapty.internal.data.models.BackendError
 import com.adapty.internal.utils.Logger
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.INFO
@@ -79,7 +80,8 @@ internal class DefaultHttpResponseManager(
             Logger.log(ERROR) { errorMessage }
             val e = AdaptyError(
                 message = errorMessage,
-                adaptyErrorCode = AdaptyErrorCode.fromNetwork(connection.responseCode)
+                adaptyErrorCode = AdaptyErrorCode.fromNetwork(connection.responseCode),
+                backendError = BackendError(connection.responseCode, responseStr),
             )
             request.systemLog?.let { customData ->
                 analyticsTracker.trackSystemEvent(BackendAPIResponseData.create(requestId, customData, e))

@@ -35,7 +35,7 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
     internal companion object {
         @JvmSynthetic
         internal fun fromNetwork(responseCode: Int): AdaptyErrorCode = when (responseCode) {
-            429, in 500..599 -> SERVER_ERROR
+            429, 499, in 500..599 -> SERVER_ERROR
             401, 403 -> AUTHENTICATION_ERROR
             in 400..499 -> BAD_REQUEST
             else -> REQUEST_FAILED

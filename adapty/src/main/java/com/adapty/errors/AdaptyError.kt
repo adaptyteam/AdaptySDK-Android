@@ -1,11 +1,13 @@
 package com.adapty.errors
 
+import com.adapty.internal.data.models.BackendError
 import java.io.IOException
 
 public class AdaptyError internal constructor(
     public val originalError: Throwable? = null,
     message: String = "",
-    public val adaptyErrorCode: AdaptyErrorCode = AdaptyErrorCode.UNKNOWN
+    public val adaptyErrorCode: AdaptyErrorCode = AdaptyErrorCode.UNKNOWN,
+    @get:JvmSynthetic internal val backendError: BackendError? = null,
 ) : Exception(message, originalError) {
 
     @JvmSynthetic

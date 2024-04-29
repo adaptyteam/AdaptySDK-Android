@@ -15,6 +15,7 @@ import com.adapty.internal.domain.ProductsInteractor
 import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.domain.PurchasesInteractor
 import com.adapty.internal.utils.*
+import com.adapty.models.AdaptyConfig
 import com.google.gson.*
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.sync.Semaphore
@@ -49,7 +50,7 @@ internal object Dependencies {
     ): Map<String?, DIObject<T>> = mapOf(null to DIObject(initializer, initType))
 
     @JvmSynthetic
-    internal fun init(appContext: Context, apiKey: String, observerMode: Boolean) {
+    internal fun init(appContext: Context, config: AdaptyConfig) {
         map.putAll(
             listOf(
                 Gson::class.java to mapOf(
@@ -303,8 +304,8 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(named = BASE),
-                        apiKey,
-                        observerMode,
+                        config.apiKey,
+                        config.observerMode,
                     )
                 }),
 
@@ -347,7 +348,7 @@ internal object Dependencies {
                 }),
 
                 IPv4Retriever::class.java to singleVariantDiObject({
-                    IPv4Retriever(injectInternal())
+                    IPv4Retriever(config.ipAddressCollectionDisabled, injectInternal())
                 }),
 
                 CustomAttributeValidator::class.java to singleVariantDiObject({
@@ -466,7 +467,7 @@ internal object Dependencies {
                         injectInternal(named = BASE),
                         injectInternal(),
                         injectInternal(),
-                        observerMode,
+                        config.observerMode,
                     )
                 }),
             )

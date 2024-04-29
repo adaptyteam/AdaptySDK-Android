@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.retryWhen
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class IPv4Retriever(
+    val disabled: Boolean,
     private val cloudRepository: CloudRepository,
 ) {
 
@@ -25,7 +26,8 @@ internal class IPv4Retriever(
     var onValueReceived: ((String) -> Unit)? = null
 
     init {
-        execute { getIPv4().retryWhen { _, _ -> delay(1000L); true }.catch { }.collect() }
+        if (!disabled)
+            execute { getIPv4().retryWhen { _, _ -> delay(1000L); true }.catch { }.collect() }
     }
 
     private fun getIPv4(): Flow<String?> =

@@ -33,6 +33,35 @@ public object Adapty {
      *
      * @param[context] Application context.
      *
+     * @param[config] An [AdaptyConfig] object.
+     */
+    @JvmStatic
+    public fun activate(
+        context: Context,
+        config: AdaptyConfig,
+    ) {
+        Logger.log(VERBOSE) { "activate(customerUserId = ${config.customerUserId})" }
+
+        require(config.apiKey.isNotBlank()) { "Public SDK key must not be empty." }
+        require(context.applicationContext is Application) { "Application context must be provided." }
+        require(context.checkCallingOrSelfPermission(Manifest.permission.INTERNET) == PackageManager.PERMISSION_GRANTED) { "INTERNET permission must be granted." }
+
+        if (isActivated) {
+            Logger.log(ERROR) { "Adapty was already activated. If you want to provide new customerUserId, please call 'identify' function instead." }
+            return
+        }
+
+        init(context, config)
+        adaptyInternal.activate(config.customerUserId)
+    }
+
+    /**
+     * Use this method to initialize the Adapty SDK.
+     *
+     * ### If your app starts multiple processes (not always by yourself) don't forget to check main process.
+     *
+     * @param[context] Application context.
+     *
      * @param[appKey] You can find it in your app settings
      * in [Adapty Dashboard](https://app.adapty.io/) _App settings_ > _General_.
      *
@@ -42,6 +71,10 @@ public object Adapty {
      *
      * @param[customerUserId] User identifier in your system.
      */
+    @Deprecated(
+        message = "This method has been deprecated. Please use Adapty.activate(context: Context, config: AdaptyConfig) instead",
+        replaceWith = ReplaceWith("Adapty.activate(context, AdaptyConfig.Builder(appKey).build())", "com.adapty.models.AdaptyConfig"),
+    )
     @JvmStatic
     @JvmOverloads
     public fun activate(
@@ -50,19 +83,13 @@ public object Adapty {
         observerMode: Boolean = false,
         customerUserId: String? = null,
     ) {
-        Logger.log(VERBOSE) { "activate(customerUserId = $customerUserId)" }
-
-        require(appKey.isNotBlank()) { "Public SDK key must not be empty." }
-        require(context.applicationContext is Application) { "Application context must be provided." }
-        require(context.checkCallingOrSelfPermission(Manifest.permission.INTERNET) == PackageManager.PERMISSION_GRANTED) { "INTERNET permission must be granted." }
-
-        if (isActivated) {
-            Logger.log(ERROR) { "Adapty was already activated. If you want to provide new customerUserId, please call 'identify' function instead." }
-            return
-        }
-
-        init(context, appKey, observerMode)
-        adaptyInternal.activate(customerUserId)
+        activate(
+            context,
+            AdaptyConfig.Builder(appKey)
+                .withObserverMode(observerMode)
+                .withCustomerUserId(customerUserId)
+                .build()
+        )
     }
 
     /**
@@ -513,11 +540,11 @@ public object Adapty {
         adaptyErrorCode = AdaptyErrorCode.ADAPTY_NOT_INITIALIZED
     )
 
-    private fun init(context: Context, appKey: String, observerMode: Boolean) {
+    private fun init(context: Context, config: AdaptyConfig) {
         try {
             lock.writeLock().lock()
-            Dependencies.init(context.applicationContext, appKey, observerMode)
-            adaptyInternal.init(appKey)
+            Dependencies.init(context.applicationContext, config)
+            adaptyInternal.init(config.apiKey)
             isActivated = true
         } finally {
             lock.writeLock().unlock()
