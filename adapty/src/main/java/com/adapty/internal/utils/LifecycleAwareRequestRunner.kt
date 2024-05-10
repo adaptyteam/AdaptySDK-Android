@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -34,6 +35,8 @@ internal class LifecycleAwareRequestRunner(
     }
 
     private val areRequestsAllowed = AtomicBoolean(false)
+
+    private val appOpenedHandlingExecutor = Executors.newSingleThreadExecutor()
 
     @JvmSynthetic
     fun restart() {
@@ -70,7 +73,9 @@ internal class LifecycleAwareRequestRunner(
         if (now - cacheRepository.getLastAppOpenedTime() !in 0L..APP_OPENED_EVENT_MIN_INTERVAL) {
             analyticsTracker.trackEvent("app_opened", completion = { error ->
                 if (error == null) {
-                    cacheRepository.saveLastAppOpenedTime(now)
+                    appOpenedHandlingExecutor.execute {
+                        cacheRepository.saveLastAppOpenedTime(now)
+                    }
                 }
             })
         }

@@ -1,3 +1,5 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.internal.domain
 
 import androidx.annotation.RestrictTo

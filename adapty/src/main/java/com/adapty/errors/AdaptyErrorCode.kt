@@ -8,7 +8,6 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
     ITEM_UNAVAILABLE(5),
     ADAPTY_NOT_INITIALIZED(20),
     PRODUCT_NOT_FOUND(22),
-    INVALID_JSON(23),
     CURRENT_SUBSCRIPTION_TO_UPDATE_NOT_FOUND_IN_HISTORY(24),
     PENDING_PURCHASE(25),
     BILLING_SERVICE_TIMEOUT(97),
@@ -32,7 +31,15 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
     WRONG_PARAMETER(3001),
     UNSUPPORTED_DATA(3007);
 
-    internal companion object {
+    public companion object {
+        @Deprecated(
+            "This constant has been deprecated, please replace it with 'WRONG_PARAMETER'",
+            ReplaceWith("AdaptyErrorCode.WRONG_PARAMETER"),
+            DeprecationLevel.ERROR,
+        )
+        @JvmField
+        public val INVALID_JSON: AdaptyErrorCode = WRONG_PARAMETER
+
         @JvmSynthetic
         internal fun fromNetwork(responseCode: Int): AdaptyErrorCode = when (responseCode) {
             429, 499, in 500..599 -> SERVER_ERROR

@@ -4,14 +4,17 @@ import android.content.Context
 import android.os.Build
 import android.provider.Settings.Secure
 import androidx.annotation.RestrictTo
+import com.adapty.errors.AdaptyError
+import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
+import com.adapty.utils.AdaptyLogLevel
 import java.util.*
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class MetaInfoRetriever(
     private val appContext: Context,
     private val crossplatformMetaRetriever: CrossplatformMetaRetriever,
-    private val adaptyUiMetaRetriever: AdaptyUiMetaRetriever,
+    private val adaptyUiAccessor: AdaptyUiAccessor,
     private val userAgentRetriever: UserAgentRetriever,
     private val cacheRepository: CacheRepository,
 ) {
@@ -80,7 +83,24 @@ internal class MetaInfoRetriever(
     val timezone get() = TimeZone.getDefault().id
 
     @get:JvmSynthetic
-    val adaptyUiAndBuilderVersion by lazy {
-        adaptyUiMetaRetriever.adaptyUiAndBuilderVersion
+    val adaptyUiVersionOrNull by lazy {
+        adaptyUiAccessor.adaptyUiVersion
+    }
+
+    @get:JvmSynthetic
+    val adaptyUiVersion get() = adaptyUiVersionOrNull
+        ?: throwWrongParamError("Unable to retrieve the version of Adapty UI. Please ensure that the dependency is added to the project.")
+
+    @get:JvmSynthetic
+    val builderVersion by lazy {
+        adaptyUiAccessor.builderVersion
+    }
+
+    private fun throwWrongParamError(message: String): Nothing {
+        Logger.log(AdaptyLogLevel.ERROR) { message }
+        throw AdaptyError(
+            message = message,
+            adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER
+        )
     }
 }

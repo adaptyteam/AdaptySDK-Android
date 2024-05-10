@@ -29,19 +29,36 @@ internal class PaywallMapper(private val gson: Gson) {
             message = "variationId in Paywall should not be null",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         ),
-        locale = paywallDto.remoteConfig?.lang ?: DEFAULT_PAYWALL_LOCALE,
-        remoteConfigString = paywallDto.remoteConfig?.data,
-        remoteConfig = (try {
-            paywallDto.remoteConfig?.data?.let { gson.fromJson<Map<String, Any>>(it, type) }
-        } catch (e: Exception) {
-            null
-        })?.immutableWithInterop(),
+        remoteConfig = paywallDto.remoteConfig?.takeIf { it.data != null }?.let { remoteConfig ->
+            AdaptyPaywall.RemoteConfig(
+                locale = remoteConfig.lang ?: throw AdaptyError(
+                    message = "lang in RemoteConfig should not be null",
+                    adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
+                ),
+                jsonString = remoteConfig.data ?: throw AdaptyError(
+                    message = "data in RemoteConfig should not be null",
+                    adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
+                ),
+                dataMap = (try {
+                    gson.fromJson<Map<String, Any>>(remoteConfig.data, type) ?: emptyMap()
+                } catch (e: Exception) {
+                    throw AdaptyError(
+                        originalError = e,
+                        message = "Couldn't decode jsonString in RemoteConfig: ${e.localizedMessage}",
+                        adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
+                    )
+                }).immutableWithInterop(),
+            )
+        },
         products = products,
         paywallId = paywallDto.paywallId ?: throw AdaptyError(
             message = "paywallId in Paywall should not be null",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         ),
-        updatedAt = paywallDto.updatedAt ?: 0L,
-        hasViewConfiguration = paywallDto.hasViewConfiguration ?: false,
+        snapshotAt = paywallDto.snapshotAt.orDefault(),
+        viewConfig = paywallDto.paywallBuilder,
     )
+
+    fun mapToCache(paywallDto: PaywallDto, snapshotAt: Long) =
+        paywallDto.copy(snapshotAt = snapshotAt)
 }

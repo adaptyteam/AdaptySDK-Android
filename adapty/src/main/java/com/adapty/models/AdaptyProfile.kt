@@ -299,7 +299,7 @@ public class AdaptyProfile(
         @Deprecated(
             message = "This property is deprecated and will be removed in future releases",
             replaceWith = ReplaceWith("isConsumable"),
-            level = DeprecationLevel.WARNING,
+            level = DeprecationLevel.ERROR,
         )
         public val isOneTime: Boolean get() = isConsumable
 

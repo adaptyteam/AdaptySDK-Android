@@ -25,44 +25,66 @@ import java.text.DecimalFormatSymbols
 import java.text.Format
 import java.util.*
 import kotlin.LazyThreadSafetyMode.NONE
+import kotlin.reflect.KClass
 
+/**
+ * @suppress
+ */
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal object Dependencies {
-    internal inline fun <reified T> inject(named: String? = null) = lazy(NONE) {
+@InternalAdaptyApi
+public object Dependencies {
+
+    public inline fun <reified T: Any> inject(named: String? = null): Lazy<T> = lazy(NONE) {
         injectInternal<T>(named)
     }
 
-    private inline fun <reified T> injectInternal(named: String? = null) =
-        (map[T::class.java]!![named] as DIObject<T>).provide()
+    public inline fun <reified T: Any> injectInternal(named: String? = null): T =
+        resolve(named, T::class)
+
+    public fun <T: Any> resolve(named: String? = null, classOfT: KClass<T>): T =
+        (map[classOfT]!![named] as DIObject<T>).provide()
 
     @get:JvmSynthetic
-    internal val map = hashMapOf<Class<*>, Map<String?, DIObject<*>>>()
+    internal val map = hashMapOf<KClass<*>, Map<String?, DIObject<*>>>()
 
     private const val BASE = "base"
     private const val ANALYTICS = "analytics"
     private const val RECORD_ONLY = "record_only"
     private const val LOCAL = "local"
     private const val REMOTE = "remote"
+    public const val OBSERVER_MODE: String = "observer_mode"
 
-    private fun <T> singleVariantDiObject(
+    public fun <T> singleVariantDiObject(
         initializer: () -> T,
         initType: DIObject.InitType = DIObject.InitType.SINGLETON
     ): Map<String?, DIObject<T>> = mapOf(null to DIObject(initializer, initType))
+
+    public fun contribute(deps: Iterable<Pair<KClass<*>, Map<String?, DIObject<*>>>>) {
+        map.putAll(deps)
+    }
+
+    public fun contribute(dep: Pair<KClass<*>, Map<String?, DIObject<*>>>) {
+        map[dep.first] = dep.second
+    }
+
+    public var onInitialDepsCreated: (() -> Unit)? = null
 
     @JvmSynthetic
     internal fun init(appContext: Context, config: AdaptyConfig) {
         map.putAll(
             listOf(
-                Gson::class.java to mapOf(
+                Context::class to singleVariantDiObject({ appContext }),
+                Gson::class to mapOf(
                     BASE to DIObject({
                         val dataKey = "data"
                         val attributesKey = "attributes"
                         val metaKey = "meta"
-                        val paywallsKey = "paywalls"
-                        val productsKey = "products"
+                        val idKey = "id"
                         val versionKey = "version"
                         val profileKey = "profile"
                         val errorsKey = "errors"
+                        val placementAudienceVersionUpdatedAtKey = "placement_audience_version_updated_at"
+                        val updatedAtKey = "updated_at"
 
                         val attributesObjectExtractor = ResponseDataExtractor { jsonElement ->
                             ((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)
@@ -74,26 +96,48 @@ internal object Dependencies {
                         val dataObjectExtractor = ResponseDataExtractor { jsonElement ->
                             (jsonElement as? JsonObject)?.get(dataKey) as? JsonObject
                         }
-                        val fallbackPaywallsExtractor = ResponseDataExtractor { jsonElement ->
-                            val paywalls = JsonArray()
+                        val variationsExtractor = ResponseDataExtractor { jsonElement ->
+                            val variations = JsonArray()
 
                             ((jsonElement as? JsonObject)?.get(dataKey) as? JsonArray)
                                 ?.forEach { element ->
                                     ((element as? JsonObject)?.get(attributesKey) as? JsonObject)
-                                        ?.let(paywalls::add)
+                                        ?.let(variations::add)
                                 }
 
                             val meta = (jsonElement as? JsonObject)?.get(metaKey) as? JsonObject
 
-                            val products = (meta?.get(productsKey) as? JsonArray) ?: JsonArray()
+                            val updatedAt = (meta?.get(placementAudienceVersionUpdatedAtKey) as? JsonPrimitive) ?: JsonPrimitive(0)
 
                             val version = (meta?.get(versionKey) as? JsonPrimitive) ?: JsonPrimitive(0)
 
                             JsonObject().apply {
-                                add(paywallsKey, paywalls)
-                                add(productsKey, products)
+                                add(dataKey, variations)
+                                add(updatedAtKey, updatedAt)
                                 add(versionKey, version)
                             }
+                        }
+                        val fallbackVariationsExtractor = ResponseDataExtractor { jsonElement ->
+                            val jsonObject = jsonElement.asJsonObject
+                            jsonObject.remove(metaKey)
+
+                            val variations = JsonArray()
+
+                            jsonObject.getAsJsonObject(dataKey).entrySet()
+                                .first { (key, value) ->
+                                    val desiredArray = (value as? JsonArray)?.isEmpty == false
+                                    desiredArray.also {
+                                        if (desiredArray) jsonObject.addProperty(idKey, key)
+                                    }
+                                }
+                                .value.asJsonArray
+                                .forEach { element ->
+                                    ((element as? JsonObject)?.get(attributesKey) as? JsonObject)
+                                        ?.let(variations::add)
+                                }
+
+                            jsonObject.add(dataKey, variations)
+                            jsonObject
                         }
                         val validationResultExtractor = ResponseDataExtractor { jsonElement ->
                             (((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)
@@ -111,14 +155,8 @@ internal object Dependencies {
                         GsonBuilder()
                             .registerTypeAdapterFactory(
                                 AdaptyResponseTypeAdapterFactory(
-                                    TypeToken.get(PaywallDto::class.java),
-                                    attributesObjectExtractor,
-                                )
-                            )
-                            .registerTypeAdapterFactory(
-                                AdaptyResponseTypeAdapterFactory(
-                                    TypeToken.get(ViewConfigurationDto::class.java),
-                                    dataObjectExtractor,
+                                    TypeToken.get(Variations::class.java),
+                                    variationsExtractor,
                                 )
                             )
                             .registerTypeAdapterFactory(
@@ -147,8 +185,8 @@ internal object Dependencies {
                             )
                             .registerTypeAdapterFactory(
                                 AdaptyResponseTypeAdapterFactory(
-                                    TypeToken.get(FallbackPaywalls::class.java),
-                                    fallbackPaywallsExtractor,
+                                    TypeToken.get(FallbackVariations::class.java),
+                                    fallbackVariationsExtractor,
                                 )
                             )
                             .registerTypeAdapterFactory(
@@ -162,6 +200,10 @@ internal object Dependencies {
                             )
                             .registerTypeAdapterFactory(
                                 CreateOrUpdateProfileRequestTypeAdapterFactory()
+                            )
+                            .registerTypeAdapter(
+                                object : TypeToken<Set<BackendError.InternalError>>() {}.type,
+                                BackendInternalErrorDeserializer()
                             )
                             .registerTypeAdapter(
                                 SendEventRequest::class.java,
@@ -188,30 +230,33 @@ internal object Dependencies {
                     })
                 ),
 
-                Format::class.java to singleVariantDiObject({
+                Format::class to singleVariantDiObject({
                     DecimalFormat("0.00", DecimalFormatSymbols(Locale.US))
                 }),
 
-                PreferenceManager::class.java to singleVariantDiObject({
+                Boolean::class to mapOf(
+                    OBSERVER_MODE to DIObject({ config.observerMode }),
+                ),
+
+                PreferenceManager::class to singleVariantDiObject({
                     PreferenceManager(appContext, injectInternal(named = BASE))
                 }),
 
-                CloudRepository::class.java to singleVariantDiObject({
+                CloudRepository::class to singleVariantDiObject({
                     CloudRepository(
                         injectInternal(named = BASE),
                         injectInternal()
                     )
                 }),
 
-                CacheRepository::class.java to singleVariantDiObject({
+                CacheRepository::class to singleVariantDiObject({
                     CacheRepository(
                         injectInternal(),
                         injectInternal(),
-                        injectInternal(named = BASE),
                     )
                 }),
 
-                HttpClient::class.java to mapOf(
+                HttpClient::class to mapOf(
                     BASE to DIObject({
                         BaseHttpClient(
                             injectInternal(),
@@ -228,7 +273,7 @@ internal object Dependencies {
                     }),
                 ),
 
-                Semaphore::class.java to mapOf(
+                Semaphore::class to mapOf(
                     LOCAL to DIObject({
                         Semaphore(1)
                     }),
@@ -237,7 +282,7 @@ internal object Dependencies {
                     }),
                 ),
 
-                AnalyticsEventQueueDispatcher::class.java to singleVariantDiObject({
+                AnalyticsEventQueueDispatcher::class to singleVariantDiObject({
                     AnalyticsEventQueueDispatcher(
                         injectInternal(),
                         injectInternal(named = ANALYTICS),
@@ -248,7 +293,7 @@ internal object Dependencies {
                     )
                 }),
 
-                AnalyticsTracker::class.java to mapOf(
+                AnalyticsTracker::class to mapOf(
                     BASE to DIObject({
                         AnalyticsManager(
                             injectInternal(named = RECORD_ONLY),
@@ -264,11 +309,11 @@ internal object Dependencies {
                     }),
                 ),
 
-                NetworkConnectionCreator::class.java to singleVariantDiObject({
+                NetworkConnectionCreator::class to singleVariantDiObject({
                     DefaultConnectionCreator()
                 }),
 
-                HttpResponseManager::class.java to mapOf(
+                HttpResponseManager::class to mapOf(
                     BASE to DIObject({
                         DefaultHttpResponseManager(
                             injectInternal(),
@@ -285,19 +330,19 @@ internal object Dependencies {
                     }),
                 ),
 
-                ResponseBodyConverter::class.java to singleVariantDiObject({
+                ResponseBodyConverter::class to singleVariantDiObject({
                     DefaultResponseBodyConverter(injectInternal(named = BASE))
                 }),
 
-                ResponseCacheKeyProvider::class.java to singleVariantDiObject({
+                ResponseCacheKeyProvider::class to singleVariantDiObject({
                     ResponseCacheKeyProvider()
                 }),
 
-                PayloadProvider::class.java to singleVariantDiObject({
+                PayloadProvider::class to singleVariantDiObject({
                     PayloadProvider(injectInternal(), injectInternal())
                 }),
 
-                RequestFactory::class.java to singleVariantDiObject({
+                RequestFactory::class to singleVariantDiObject({
                     RequestFactory(
                         injectInternal(),
                         injectInternal(),
@@ -309,11 +354,11 @@ internal object Dependencies {
                     )
                 }),
 
-                InstallationMetaCreator::class.java to singleVariantDiObject({
+                InstallationMetaCreator::class to singleVariantDiObject({
                     InstallationMetaCreator(injectInternal())
                 }),
 
-                MetaInfoRetriever::class.java to singleVariantDiObject({
+                MetaInfoRetriever::class to singleVariantDiObject({
                     MetaInfoRetriever(
                         appContext,
                         injectInternal(),
@@ -323,68 +368,68 @@ internal object Dependencies {
                     )
                 }),
 
-                CrossplatformMetaRetriever::class.java to singleVariantDiObject({
+                CrossplatformMetaRetriever::class to singleVariantDiObject({
                     CrossplatformMetaRetriever()
                 }),
 
-                AdaptyUiMetaRetriever::class.java to singleVariantDiObject({
-                    AdaptyUiMetaRetriever()
+                AdaptyUiAccessor::class to singleVariantDiObject({
+                    AdaptyUiAccessor()
                 }),
 
-                AdIdRetriever::class.java to singleVariantDiObject({
+                AdIdRetriever::class to singleVariantDiObject({
                     AdIdRetriever(appContext, injectInternal())
                 }),
 
-                AppSetIdRetriever::class.java to singleVariantDiObject({
+                AppSetIdRetriever::class to singleVariantDiObject({
                     AppSetIdRetriever(appContext)
                 }),
 
-                StoreCountryRetriever::class.java to singleVariantDiObject({
+                StoreCountryRetriever::class to singleVariantDiObject({
                     StoreCountryRetriever(injectInternal())
                 }),
 
-                UserAgentRetriever::class.java to singleVariantDiObject({
+                UserAgentRetriever::class to singleVariantDiObject({
                     UserAgentRetriever(appContext)
                 }),
 
-                IPv4Retriever::class.java to singleVariantDiObject({
+                IPv4Retriever::class to singleVariantDiObject({
                     IPv4Retriever(config.ipAddressCollectionDisabled, injectInternal())
                 }),
 
-                CustomAttributeValidator::class.java to singleVariantDiObject({
+                FallbackPaywallRetriever::class to singleVariantDiObject({
+                    FallbackPaywallRetriever(appContext, injectInternal(named = BASE))
+                }),
+
+                CustomAttributeValidator::class to singleVariantDiObject({
                     CustomAttributeValidator()
                 }),
 
-                PaywallPicker::class.java to singleVariantDiObject({ PaywallPicker() }),
+                VariationPicker::class to singleVariantDiObject({
+                    VariationPicker(injectInternal())
+                }),
 
-                ProductPicker::class.java to singleVariantDiObject({ ProductPicker() }),
+                AttributionHelper::class to singleVariantDiObject({ AttributionHelper() }),
 
-                AttributionHelper::class.java to singleVariantDiObject({ AttributionHelper() }),
+                CurrencyHelper::class to singleVariantDiObject({ CurrencyHelper() }),
 
-                CurrencyHelper::class.java to singleVariantDiObject({ CurrencyHelper() }),
+                HashingHelper::class to singleVariantDiObject({ HashingHelper() }),
 
-                HashingHelper::class.java to singleVariantDiObject({ HashingHelper() }),
-
-                PaywallMapper::class.java to singleVariantDiObject({
+                PaywallMapper::class to singleVariantDiObject({
                     PaywallMapper(injectInternal(named = BASE))
                 }),
 
-                ProductMapper::class.java to singleVariantDiObject({
+                ProductMapper::class to singleVariantDiObject({
                     ProductMapper(
                         appContext,
                         injectInternal(),
                     )
                 }),
 
-                ReplacementModeMapper::class.java to singleVariantDiObject({ ReplacementModeMapper() }),
+                ReplacementModeMapper::class to singleVariantDiObject({ ReplacementModeMapper() }),
 
-                ProfileMapper::class.java to singleVariantDiObject({ ProfileMapper() }),
+                ProfileMapper::class to singleVariantDiObject({ ProfileMapper() }),
 
-                ViewConfigurationMapper::class.java to singleVariantDiObject({
-                    ViewConfigurationMapper()
-                }),
-
-                StoreManager::class.java to singleVariantDiObject({
+                StoreManager::class to singleVariantDiObject({
                     StoreManager(
                         appContext,
                         injectInternal(),
@@ -392,7 +437,7 @@ internal object Dependencies {
                     )
                 }),
 
-                LifecycleAwareRequestRunner::class.java to singleVariantDiObject({
+                LifecycleAwareRequestRunner::class to singleVariantDiObject({
                     LifecycleAwareRequestRunner(
                         injectInternal(),
                         injectInternal(),
@@ -401,11 +446,11 @@ internal object Dependencies {
                     )
                 }),
 
-                LifecycleManager::class.java to singleVariantDiObject({
+                LifecycleManager::class to singleVariantDiObject({
                     LifecycleManager()
                 }),
 
-                ProductsInteractor::class.java to singleVariantDiObject({
+                ProductsInteractor::class to singleVariantDiObject({
                     ProductsInteractor(
                         injectInternal(),
                         injectInternal(),
@@ -416,12 +461,11 @@ internal object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
-                        injectInternal(),
-                        injectInternal()
+                        injectInternal(named = BASE),
                     )
                 }),
 
-                ProfileInteractor::class.java to singleVariantDiObject({
+                ProfileInteractor::class to singleVariantDiObject({
                     ProfileInteractor(
                         injectInternal(),
                         injectInternal(),
@@ -433,7 +477,7 @@ internal object Dependencies {
                     )
                 }),
 
-                PurchasesInteractor::class.java to singleVariantDiObject({
+                PurchasesInteractor::class to singleVariantDiObject({
                     PurchasesInteractor(
                         injectInternal(),
                         injectInternal(),
@@ -445,7 +489,7 @@ internal object Dependencies {
                     )
                 }),
 
-                AuthInteractor::class.java to singleVariantDiObject({
+                AuthInteractor::class to singleVariantDiObject({
                     AuthInteractor(
                         injectInternal(),
                         injectInternal(),
@@ -458,7 +502,7 @@ internal object Dependencies {
                     )
                 }),
 
-                AdaptyInternal::class.java to singleVariantDiObject({
+                AdaptyInternal::class to singleVariantDiObject({
                     AdaptyInternal(
                         injectInternal(),
                         injectInternal(),
@@ -467,10 +511,13 @@ internal object Dependencies {
                         injectInternal(named = BASE),
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
                         config.observerMode,
+                        config.ipAddressCollectionDisabled,
                     )
                 }),
             )
         )
+        onInitialDepsCreated?.invoke()
     }
 }

@@ -1,13 +1,13 @@
 package com.adapty.internal.data.cache
 
+import android.net.Uri
 import androidx.annotation.RestrictTo
-import com.adapty.errors.AdaptyError
-import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.*
-import com.adapty.internal.utils.Logger
+import com.adapty.internal.utils.FallbackPaywallRetriever
+import com.adapty.internal.utils.extractLanguageCode
 import com.adapty.internal.utils.generateUuid
-import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
-import com.google.gson.Gson
+import com.adapty.internal.utils.getLanguageCode
+import com.adapty.internal.utils.orDefault
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.concurrent.ConcurrentHashMap
@@ -17,8 +17,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class CacheRepository(
     private val preferenceManager: PreferenceManager,
-    private val responseCacheKeyProvider: ResponseCacheKeyProvider,
-    private val gson: Gson,
+    private val fallbackPaywallRetriever: FallbackPaywallRetriever,
 ) {
 
     private val currentProfile = MutableSharedFlow<ProfileDto>()
@@ -30,7 +29,7 @@ internal class CacheRepository(
         profile: ProfileDto,
         installationMeta: InstallationMeta,
     ): Boolean {
-        if ((profile.timestamp ?: 0L) < (getProfile()?.timestamp ?: 0L))
+        if (profile.timestamp.orDefault() < getProfile()?.timestamp.orDefault())
             return false
         var profileIdHasChanged = false
         (profile.profileId ?: (cache[UNSYNCED_PROFILE_ID] as? String))?.let { profileId ->
@@ -57,7 +56,7 @@ internal class CacheRepository(
         profile: ProfileDto,
         profileIdWhenRequestSent: String?,
     ): ProfileDto {
-        if (profileIdWhenRequestSent != null && getProfileId() != profileIdWhenRequestSent && (profile.timestamp ?: 0L) < (getProfile()?.timestamp ?: 0L)) {
+        if (profileIdWhenRequestSent != null && getProfileId() != profileIdWhenRequestSent && profile.timestamp.orDefault() < getProfile()?.timestamp.orDefault()) {
             return profile
         }
 
@@ -221,7 +220,17 @@ internal class CacheRepository(
         getData(PROFILE, ProfileDto::class.java)
 
     @JvmSynthetic
-    fun getFallbackPaywalls() = cache[FALLBACK_PAYWALLS] as? FallbackPaywalls
+    fun getPaywallVariationsFallback(placementId: String): FallbackVariations? {
+        val fallbackPaywallsInfo = getFallbackPaywallsMetaInfo() ?: return null
+        if (placementId !in fallbackPaywallsInfo.meta.developerIds) return null
+        return fallbackPaywallRetriever.getPaywall(fallbackPaywallsInfo.source, placementId)
+    }
+
+    @JvmSynthetic
+    fun getFallbackPaywallsSnapshotAt() =
+        getFallbackPaywallsMetaInfo()?.meta?.snapshotAt
+
+    private fun getFallbackPaywallsMetaInfo() = cache[FALLBACK_PAYWALLS] as? FallbackPaywallsInfo
 
     @JvmSynthetic
     fun getSyncedPurchases() =
@@ -247,39 +256,30 @@ internal class CacheRepository(
     @Volatile
     var analyticsConfig = AnalyticsConfig.DEFAULT
 
-    fun getPaywall(id: String, maxAgeMillis: Long? = null): PaywallDto? {
-        return getData<CacheEntity<PaywallDto>>(getPaywallCacheKey(id))?.let { (paywall, cachedAt) ->
-            paywall.takeIf { (maxAgeMillis == null) || (System.currentTimeMillis() - cachedAt <= maxAgeMillis) }
+    fun getPaywall(id: String, locale: String, maxAgeMillis: Long? = null) =
+        getPaywall(id, setOf(locale), maxAgeMillis)
+
+    fun getPaywall(id: String, locales: Set<String>, maxAgeMillis: Long? = null): PaywallDto? {
+        return getData<CacheEntity<PaywallDto>>(getPaywallCacheKey(id))?.let { (paywall, version, cachedAt) ->
+            if (version < CURRENT_CACHED_PAYWALL_VERSION) return@let null
+            if ((maxAgeMillis != null) && (System.currentTimeMillis() - cachedAt > maxAgeMillis)) return@let null
+            val languageCodes = locales.mapNotNull { locale -> extractLanguageCode(locale) }
+            if (paywall.getLanguageCode() !in languageCodes) return@let null
+            paywall
         }
     }
 
     fun savePaywall(id: String, paywallDto: PaywallDto) {
-        saveData(getPaywallCacheKey(id), CacheEntity(paywallDto))
+        saveData(getPaywallCacheKey(id), CacheEntity(paywallDto, CURRENT_CACHED_PAYWALL_VERSION))
     }
 
     private fun getPaywallCacheKey(id: String) =
         "$PAYWALL_RESPONSE_START_PART${id}$PAYWALL_RESPONSE_END_PART"
 
     @JvmSynthetic
-    fun saveFallbackPaywalls(paywalls: String): AdaptyError? =
-        try {
-            cache[FALLBACK_PAYWALLS] = gson.fromJson(paywalls, FallbackPaywalls::class.java).also { fallbackPaywalls ->
-                val version = fallbackPaywalls.version
-                if (version < CURRENT_FALLBACK_PAYWALL_VERSION) {
-                    Logger.log(ERROR) { "The fallback paywalls version is not correct. Download a new one from the Adapty Dashboard." }
-                } else if (version > CURRENT_FALLBACK_PAYWALL_VERSION) {
-                    Logger.log(ERROR) { "The fallback paywalls version is not correct. Please update the AdaptySDK." }
-                }
-            }
-            null
-        } catch (e: Exception) {
-            Logger.log(ERROR) { "Couldn't set fallback paywalls. $e" }
-            AdaptyError(
-                originalError = e,
-                message = "Couldn't set fallback paywalls. Invalid JSON",
-                adaptyErrorCode = AdaptyErrorCode.INVALID_JSON
-            )
-        }
+    fun saveFallbackPaywalls(source: Uri) {
+        cache[FALLBACK_PAYWALLS] = fallbackPaywallRetriever.getMetaInfo(source)
+    }
 
     @JvmSynthetic
     fun clearOnLogout() {
@@ -370,6 +370,6 @@ internal class CacheRepository(
     }
 
     private companion object {
-        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 4
+        private const val CURRENT_CACHED_PAYWALL_VERSION = 2
     }
 }

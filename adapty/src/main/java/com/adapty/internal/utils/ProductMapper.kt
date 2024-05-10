@@ -189,7 +189,7 @@ internal class ProductMapper(
                 productDto.isConsumable == true -> Consumable
                 else -> NonConsumable
             },
-            timestamp = productDto.timestamp ?: 0L,
+            timestamp = productDto.timestamp.orDefault(),
         )
 
     @JvmSynthetic

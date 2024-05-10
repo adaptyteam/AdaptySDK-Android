@@ -16,6 +16,7 @@ internal class CacheEntityTypeAdapterFactory : TypeAdapterFactory {
     private companion object {
         const val CACHED_AT = "cached_at"
         const val VALUE = "value"
+        const val VERSION = "version"
     }
 
     override fun <T : Any?> create(gson: Gson, type: TypeToken<T>): TypeAdapter<T>? {
@@ -37,12 +38,16 @@ internal class CacheEntityTypeAdapterFactory : TypeAdapterFactory {
             override fun read(`in`: JsonReader): T? {
                 val jsonObject = elementAdapter.read(`in`).asJsonObject
                 val cachedAt = kotlin.runCatching { jsonObject.get(CACHED_AT)?.asLong }.getOrNull()
+                val version = kotlin.runCatching { jsonObject.get(VERSION)?.asInt }.getOrNull()
                 val jsonTree = if (cachedAt != null) {
+                    if (version == null)
+                        jsonObject.addProperty(VERSION, 1)
                     jsonObject
                 } else {
                     JsonObject().apply {
                         add(VALUE, jsonObject)
                         addProperty(CACHED_AT, 0L)
+                        addProperty(VERSION, 1)
                     }
                 }
                 return delegateAdapter.fromJsonTree(jsonTree)

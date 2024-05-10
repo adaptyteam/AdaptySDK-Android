@@ -9,8 +9,6 @@ internal data class PaywallDto(
     val developerId: String?,
     @SerializedName("paywall_name")
     val name: String?,
-    @SerializedName("paywall_updated_at")
-    val updatedAt: Long?,
     @SerializedName("ab_test_name")
     val abTestName: String?,
     @SerializedName("revision")
@@ -23,6 +21,11 @@ internal data class PaywallDto(
     val products: ArrayList<ProductDto>,
     @SerializedName("remote_config")
     val remoteConfig: RemoteConfigDto?,
-    @SerializedName("use_paywall_builder")
-    val hasViewConfiguration: Boolean?,
+    @SerializedName("placement_audience_version_id")
+    val placementAudienceVersionId: String?,
+    @SerializedName("weight")
+    val weight: Int?,
+    @SerializedName("paywall_builder")
+    val paywallBuilder: Map<String, Any>?,
+    val snapshotAt: Long?,
 )

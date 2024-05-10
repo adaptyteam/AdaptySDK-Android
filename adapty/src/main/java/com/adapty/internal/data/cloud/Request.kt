@@ -12,6 +12,7 @@ import com.adapty.internal.data.models.InstallationMeta
 import com.adapty.internal.data.models.RestoreProductInfo
 import com.adapty.internal.data.models.requests.*
 import com.adapty.internal.domain.models.PurchaseableProduct
+import com.adapty.internal.utils.DEFAULT_PAYWALL_LOCALE
 import com.adapty.internal.utils.ID
 import com.adapty.internal.utils.MetaInfoRetriever
 import com.adapty.internal.utils.PayloadProvider
@@ -245,26 +246,40 @@ internal class RequestFactory(
     }
 
     @JvmSynthetic
-    fun getPaywallRequest(id: String, locale: String, segmentId: String) = buildRequest {
-        method = GET
-        val payloadHash = payloadProvider.getPayloadHashForPaywallRequest(locale, segmentId)
-        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/$id/$payloadHash/"
-        headers += listOf(Request.Header("adapty-paywall-locale", locale))
-        systemLog = BackendAPIRequestData.GetPaywall.create(apiKeyPrefix, id, locale, segmentId, payloadHash)
-    }
+    fun getPaywallVariationsRequest(id: String, locale: String, segmentId: String) =
+        cacheRepository.getProfileId().let { profileId ->
+            buildRequest {
+                method = GET
+                val builderVersion = metaInfoRetriever.builderVersion
+                val payloadHash = payloadProvider.getPayloadHashForPaywallRequest(locale, segmentId, builderVersion)
+                endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/variations/$id/$payloadHash/"
+                headers += listOfNotNull(
+                    Request.Header("adapty-paywall-locale", locale),
+                    Request.Header("adapty-paywall-builder-version", builderVersion),
+                    Request.Header("adapty-profile-segment-hash", segmentId),
+                    metaInfoRetriever.adaptyUiVersionOrNull?.let { adaptyUiVersion ->
+                        Request.Header("adapty-ui-version", adaptyUiVersion)
+                    },
+                )
+                currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
+                systemLog = BackendAPIRequestData.GetPaywall.create(apiKeyPrefix, id, locale, segmentId, payloadHash)
+            }
+        }
 
     @JvmSynthetic
-    fun getPaywallFallbackRequest(id: String, locale: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1/sdk/")).apply {
+    fun getPaywallVariationsFallbackRequest(id: String, locale: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1/sdk/")).apply {
         method = GET
-        val languageCode = extractLanguageCode(locale)
-        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/$id/${metaInfoRetriever.store}/$languageCode/fallback.json"
+        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PAYWALL_LOCALE
+        val builderVersion = metaInfoRetriever.builderVersion
+        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/variations/$id/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json"
         systemLog = BackendAPIRequestData.GetFallbackPaywall.create(apiKeyPrefix, id, languageCode)
     }.build()
 
     @JvmSynthetic
     fun getViewConfigurationRequest(variationId: String, locale: String) = buildRequest {
         method = GET
-        val (adaptyUiVersion, builderVersion) = metaInfoRetriever.adaptyUiAndBuilderVersion
+        val adaptyUiVersion = metaInfoRetriever.adaptyUiVersion
+        val builderVersion = metaInfoRetriever.builderVersion
         val payloadHash = payloadProvider.getPayloadHashForPaywallBuilderRequest(locale, builderVersion)
         endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$variationId/$payloadHash/"
         headers += listOf(
@@ -278,8 +293,8 @@ internal class RequestFactory(
     @JvmSynthetic
     fun getViewConfigurationFallbackRequest(paywallId: String, locale: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1/sdk/")).apply {
         method = GET
-        val (_, builderVersion) = metaInfoRetriever.adaptyUiAndBuilderVersion
-        val languageCode = extractLanguageCode(locale)
+        val builderVersion = metaInfoRetriever.builderVersion
+        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PAYWALL_LOCALE
         endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$paywallId/$builderVersion/$languageCode/fallback.json"
         systemLog = BackendAPIRequestData.GetFallbackPaywallBuilder.create(apiKeyPrefix, paywallId, builderVersion, languageCode)
     }.build()
@@ -303,7 +318,7 @@ internal class RequestFactory(
     fun setVariationIdRequest(transactionId: String, variationId: String) =
         buildRequest {
             method = POST
-            endPoint = "$inappsEndpointPrefix/transaction-variation-id/"
+            endPoint = "purchase/transaction/variation-id/set/"
             body = gson.toJson(
                 SetVariationIdRequest.create(transactionId, variationId)
             )

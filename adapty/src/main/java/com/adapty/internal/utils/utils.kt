@@ -1,8 +1,14 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.internal.utils
 
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyError.RetryType
 import com.adapty.errors.AdaptyErrorCode
+import com.adapty.internal.data.models.PaywallDto
+import com.adapty.models.AdaptyPaywall
+import com.adapty.utils.TimeInterval
+import com.adapty.utils.seconds
 import com.adapty.utils.AdaptyResult
 import com.adapty.utils.ImmutableList
 import com.adapty.utils.ImmutableMap
@@ -18,6 +24,7 @@ import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.sync.Semaphore
 import java.util.*
+import java.util.concurrent.locks.Lock
 import java.util.regex.Pattern
 import kotlin.math.min
 import kotlin.math.pow
@@ -86,6 +93,17 @@ internal fun Semaphore.releaseQuietly() {
     }
 }
 
+/**
+ * @suppress
+ */
+@InternalAdaptyApi
+public fun Lock.unlockQuietly() {
+    try {
+        unlock()
+    } catch (t: Throwable) {
+    }
+}
+
 @JvmSynthetic
 internal fun execute(block: suspend CoroutineScope.() -> Unit) =
     adaptyScope.launch(context = Dispatchers.IO, block = block)
@@ -106,11 +124,14 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 @JvmSynthetic
 internal const val DEFAULT_PAYWALL_LOCALE = "en"
 
+/**
+ * @suppress
+ */
 @InternalAdaptyApi
-public const val DEFAULT_PAYWALL_TIMEOUT_MILLIS: Int = 5000
+public val DEFAULT_PAYWALL_TIMEOUT: TimeInterval = 5.seconds
 
 @JvmSynthetic
-internal const val MIN_PAYWALL_TIMEOUT_MILLIS = 1000
+internal val MIN_PAYWALL_TIMEOUT = 1.seconds
 
 @JvmSynthetic
 internal const val PAYWALL_TIMEOUT_MILLIS_SHIFT = 500
@@ -122,8 +143,35 @@ internal const val INF_PAYWALL_TIMEOUT_MILLIS = Int.MAX_VALUE
 internal val noLetterRegex by lazy { Pattern.compile("[^\\p{L}]") }
 
 @JvmSynthetic
+internal fun PaywallDto.getLanguageCode() =
+    setOfNotNull(remoteConfig?.lang, getLocaleFromViewConfig(paywallBuilder))
+        .firstNotNullOfOrNull { locale ->
+            extractLanguageCode(locale)?.takeIf { it != DEFAULT_PAYWALL_LOCALE }
+        } ?: DEFAULT_PAYWALL_LOCALE
+
+@JvmSynthetic
+internal fun getLocaleFromViewConfig(viewConfig: Map<String, Any>?) =
+    viewConfig?.get("lang") as? String
+
+@JvmSynthetic
+internal fun AdaptyPaywall.getLocale() =
+    setOfNotNull(remoteConfig?.locale, getLocaleFromViewConfig(viewConfig))
+        .firstOrNull { it != DEFAULT_PAYWALL_LOCALE }
+        ?: DEFAULT_PAYWALL_LOCALE
+
+@JvmSynthetic
 internal fun extractLanguageCode(locale: String) =
-    locale.split(noLetterRegex, 1).firstOrNull().orEmpty()
+    locale.split(noLetterRegex).firstOrNull()?.lowercase(Locale.ENGLISH)
+
+@JvmSynthetic
+internal fun Long?.orDefault(default: Long = 0L) = this ?: default
+
+@JvmSynthetic
+internal fun TimeInterval.toMillis() =
+    if (this == TimeInterval.INFINITE)
+        INF_PAYWALL_TIMEOUT_MILLIS
+    else
+        duration.inWholeMilliseconds.coerceAtMost(INF_PAYWALL_TIMEOUT_MILLIS.toLong()).toInt()
 
 @JvmSynthetic
 internal fun <T> timeout(flow: Flow<T>, timeout: Int) =

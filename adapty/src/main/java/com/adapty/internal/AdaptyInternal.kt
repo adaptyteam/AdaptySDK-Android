@@ -1,6 +1,8 @@
 package com.adapty.internal
 
 import android.app.Activity
+import android.content.ContentResolver
+import android.net.Uri
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
@@ -16,9 +18,12 @@ import com.adapty.internal.utils.*
 import com.adapty.listeners.OnProfileUpdatedListener
 import com.adapty.models.*
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
+import com.adapty.utils.AdaptyResult
+import com.adapty.utils.TimeInterval
 import com.adapty.utils.ErrorCallback
 import com.adapty.utils.ResultCallback
 import kotlinx.coroutines.flow.*
+import java.util.Locale
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class AdaptyInternal(
@@ -29,7 +34,9 @@ internal class AdaptyInternal(
     private val analyticsTracker: AnalyticsTracker,
     private val lifecycleAwareRequestRunner: LifecycleAwareRequestRunner,
     private val lifecycleManager: LifecycleManager,
+    private val adaptyUiAccessor: AdaptyUiAccessor,
     private val isObserverMode: Boolean,
+    private val ipAddressCollectionDisabled: Boolean,
 ) {
 
     @get:JvmSynthetic
@@ -102,7 +109,7 @@ internal class AdaptyInternal(
     ) {
         val requestEvent =
             if (isInitialActivation)
-                SDKMethodRequestData.Activate.create(isObserverMode, customerUserId != null)
+                SDKMethodRequestData.Activate.create(isObserverMode, ipAddressCollectionDisabled, customerUserId != null)
             else
                 SDKMethodRequestData.create("logout")
         analyticsTracker.trackSystemEvent(requestEvent)
@@ -214,17 +221,20 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun getPaywall(
         id: String,
-        locale: String?,
+        locale: String,
         fetchPolicy: AdaptyPaywall.FetchPolicy,
-        loadTimeout: Int,
+        loadTimeout: TimeInterval,
         callback: ResultCallback<AdaptyPaywall>
     ) {
-        val requestEvent = SDKMethodRequestData.GetPaywall.create(id, locale, fetchPolicy, loadTimeout)
+        val requestEvent = SDKMethodRequestData.GetPaywall.create(id, locale, fetchPolicy, loadTimeout.toMillis())
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             productsInteractor
-                .getPaywall(id, locale, fetchPolicy, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT_MILLIS))
+                .getPaywall(id, locale, fetchPolicy, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT).toMillis())
                 .onSingleResult { result ->
+                    if (result is AdaptyResult.Success) {
+                        result.value.viewConfig?.let { config -> adaptyUiAccessor.preloadMedia(config) }
+                    }
                     analyticsTracker.trackSystemEvent(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())
                     )
@@ -238,15 +248,27 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun getViewConfiguration(
         paywall: AdaptyPaywall,
-        locale: String,
-        loadTimeout: Int,
-        callback: ResultCallback<AdaptyViewConfiguration>
+        loadTimeout: TimeInterval,
+        callback: ResultCallback<Map<String, Any>>
     ) {
         val requestEvent = SDKMethodRequestData.create("get_paywall_builder")
         analyticsTracker.trackSystemEvent(requestEvent)
+        if (!paywall.hasViewConfiguration) {
+            val errorMessage = "View configuration has not been found for the requested paywall"
+            Logger.log(ERROR) { errorMessage }
+            val e = AdaptyError(
+                message = errorMessage,
+                adaptyErrorCode = WRONG_PARAMETER
+            )
+            analyticsTracker.trackSystemEvent(
+                SDKMethodResponseData.create(requestEvent, e)
+            )
+            callback.onResult(AdaptyResult.Error(e))
+            return
+        }
         execute {
             productsInteractor
-                .getViewConfiguration(paywall, locale, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT_MILLIS))
+                .getViewConfiguration(paywall, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT).toMillis())
                 .onSingleResult { result ->
                     analyticsTracker.trackSystemEvent(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())
@@ -280,25 +302,46 @@ internal class AdaptyInternal(
     }
 
     @JvmSynthetic
-    fun setFallbackPaywalls(paywalls: String, callback: ErrorCallback?) {
+    fun setFallbackPaywalls(source: Uri, callback: ErrorCallback?) {
         val requestEvent = SDKMethodRequestData.create("set_fallback_paywalls")
         analyticsTracker.trackSystemEvent(requestEvent)
-        productsInteractor.setFallbackPaywalls(paywalls).let { error ->
-            analyticsTracker.trackSystemEvent(
-                SDKMethodResponseData.create(requestEvent, error)
+        val scheme = source.scheme?.lowercase(Locale.ENGLISH)
+        if (scheme.orEmpty() !in setOf(ContentResolver.SCHEME_ANDROID_RESOURCE, ContentResolver.SCHEME_CONTENT, ContentResolver.SCHEME_FILE)) {
+            val errorMessage = "The fallback paywalls' URI has an unsupported scheme: $scheme"
+            Logger.log(ERROR) { errorMessage }
+            val e = AdaptyError(
+                message = errorMessage,
+                adaptyErrorCode = WRONG_PARAMETER
             )
-            callback?.onResult(error)
+            analyticsTracker.trackSystemEvent(
+                SDKMethodResponseData.create(requestEvent, e)
+            )
+            callback?.onResult(e)
+            return
+        }
+        execute {
+            productsInteractor
+                .setFallbackPaywalls(source)
+                .onSingleResult { result ->
+                    val error = result.errorOrNull()
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, error)
+                    )
+                    callback?.onResult(error)
+                }
+                .flowOnMain()
+                .collect()
         }
     }
 
     @JvmSynthetic
-    fun logShowPaywall(paywall: AdaptyPaywall, viewConfiguration: AdaptyViewConfiguration?, callback: ErrorCallback?) {
+    fun logShowPaywall(paywall: AdaptyPaywall, additionalFields: Map<String, Any>?, callback: ErrorCallback?) {
         analyticsTracker.trackEvent(
             "paywall_showed",
-            mutableMapOf(
+            mutableMapOf<String, Any>(
                 "variation_id" to paywall.variationId
             ).apply {
-                viewConfiguration?.id?.let { id -> put("paywall_builder_id", id) }
+                additionalFields?.let(::putAll)
             },
             completion = callback,
         )

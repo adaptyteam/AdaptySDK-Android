@@ -10,6 +10,7 @@ import com.adapty.internal.utils.Logger
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.INFO
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
+import com.google.gson.reflect.TypeToken
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -71,7 +72,7 @@ internal class DefaultHttpResponseManager(
             request.systemLog?.let { customData ->
                 analyticsTracker.trackSystemEvent(BackendAPIResponseData.create(requestId, customData))
             }
-            return Response.Success(bodyConverter.convertSuccess(responseStr, typeOfT))
+            return Response.Success(bodyConverter.convert(responseStr, typeOfT))
 
         } else {
             val responseStr = toStringUtf8(connection.errorStream, isInGzip)
@@ -81,7 +82,15 @@ internal class DefaultHttpResponseManager(
             val e = AdaptyError(
                 message = errorMessage,
                 adaptyErrorCode = AdaptyErrorCode.fromNetwork(connection.responseCode),
-                backendError = BackendError(connection.responseCode, responseStr),
+                backendError = BackendError(
+                    connection.responseCode,
+                    runCatching {
+                        bodyConverter.convert<Set<BackendError.InternalError>>(
+                            responseStr,
+                            object : TypeToken<Set<BackendError.InternalError>>() {}.type,
+                        )
+                    }.getOrNull() ?: emptySet(),
+                ),
             )
             request.systemLog?.let { customData ->
                 analyticsTracker.trackSystemEvent(BackendAPIResponseData.create(requestId, customData, e))

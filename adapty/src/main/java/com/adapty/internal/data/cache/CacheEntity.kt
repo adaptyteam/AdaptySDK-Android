@@ -7,10 +7,14 @@ import com.google.gson.annotations.SerializedName
 internal class CacheEntity<T>(
     @SerializedName("value")
     val value: T,
+    @SerializedName("version")
+    val version: Int,
     @SerializedName("cached_at")
-    val cachedAt: Long = System.currentTimeMillis()
+    val cachedAt: Long = System.currentTimeMillis(),
 ) {
     operator fun component1() = value
 
-    operator fun component2() = cachedAt
+    operator fun component2() = version
+
+    operator fun component3() = cachedAt
 }

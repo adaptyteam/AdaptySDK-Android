@@ -181,6 +181,7 @@ internal class AnalyticsEvent(
 
         class Activate private constructor(
             val observerMode: Boolean,
+            val ipAddressCollectionDisabled: Boolean,
             val hasCustomerUserId: Boolean,
             methodName: String
         ) : SDKMethodRequestData(methodName) {
@@ -188,10 +189,12 @@ internal class AnalyticsEvent(
             companion object {
                 fun create(
                     observerMode: Boolean,
+                    ipAddressCollectionDisabled: Boolean,
                     hasCustomerUserId: Boolean,
                 ) =
                     Activate(
                         observerMode,
+                        ipAddressCollectionDisabled,
                         hasCustomerUserId,
                         "activate",
                     )

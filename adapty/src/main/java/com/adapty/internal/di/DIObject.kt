@@ -1,16 +1,21 @@
 package com.adapty.internal.di
 
 import androidx.annotation.RestrictTo
+import com.adapty.internal.utils.InternalAdaptyApi
 
+/**
+ * @suppress
+ */
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class DIObject<T>(
+@InternalAdaptyApi
+public class DIObject<T>(
     private val initializer: () -> T,
     private val initType: InitType = InitType.SINGLETON
 ) {
     private var cachedObject: T? = null
 
     @JvmSynthetic
-    fun provide(): T {
+    internal fun provide(): T {
         return when (initType) {
             InitType.NEW -> {
                 initializer()
@@ -21,7 +26,11 @@ internal class DIObject<T>(
         }
     }
 
-    internal enum class InitType {
+    /**
+     * @suppress
+     */
+    @InternalAdaptyApi
+    public enum class InitType {
         NEW, SINGLETON
     }
 }

@@ -43,44 +43,10 @@ internal class CloudRepository(
         }
     }
 
-    @JvmSynthetic
-    fun getPaywall(id: String, locale: String, segmentId: String): PaywallDto {
-        val response = httpClient.newCall<PaywallDto>(
-            requestFactory.getPaywallRequest(id, locale, segmentId),
-            PaywallDto::class.java
-        )
-        when (response) {
-            is Response.Success -> return response.body.takeIf { it.remoteConfig != null }
-                ?: response.body.copy(remoteConfig = RemoteConfigDto(locale, null))
-            is Response.Error -> throw response.error
-        }
-    }
-
-    @JvmSynthetic
-    fun getPaywallFallback(id: String, locale: String): PaywallDto {
-        val response = httpClient.newCall<PaywallDto>(
-            requestFactory.getPaywallFallbackRequest(id, locale),
-            PaywallDto::class.java
-        )
-        when (response) {
-            is Response.Success -> return response.body.takeIf { it.remoteConfig != null }
-                ?: response.body.copy(remoteConfig = RemoteConfigDto(locale, null))
-            is Response.Error -> {
-                val error = response.error
-                when {
-                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PAYWALL_LOCALE ->
-                        return getPaywallFallback(id, DEFAULT_PAYWALL_LOCALE)
-                    else -> throw response.error
-                }
-            }
-        }
-    }
-
-    @JvmSynthetic
-    fun getViewConfiguration(variationId: String, locale: String): ViewConfigurationDto {
-        val response = httpClient.newCall<ViewConfigurationDto>(
-            requestFactory.getViewConfigurationRequest(variationId, locale),
-            ViewConfigurationDto::class.java
+    fun getPaywallVariations(id: String, locale: String, segmentId: String): Variations {
+        val response = httpClient.newCall<Variations>(
+            requestFactory.getPaywallVariationsRequest(id, locale, segmentId),
+            Variations::class.java,
         )
         when (response) {
             is Response.Success -> return response.body
@@ -89,10 +55,41 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun getViewConfigurationFallback(paywallId: String, locale: String): ViewConfigurationDto {
-        val response = httpClient.newCall<ViewConfigurationDto>(
+    fun getPaywallVariationsFallback(id: String, locale: String): Variations {
+        val response = httpClient.newCall<Variations>(
+            requestFactory.getPaywallVariationsFallbackRequest(id, locale),
+            Variations::class.java,
+        )
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> {
+                val error = response.error
+                when {
+                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PAYWALL_LOCALE ->
+                        return getPaywallVariationsFallback(id, DEFAULT_PAYWALL_LOCALE)
+                    else -> throw response.error
+                }
+            }
+        }
+    }
+
+    @JvmSynthetic
+    fun getViewConfiguration(variationId: String, locale: String): Map<String, Any> {
+        val response = httpClient.newCall<Map<String, Any>>(
+            requestFactory.getViewConfigurationRequest(variationId, locale),
+            object : TypeToken<Map<String, Any>>() {}.type
+        )
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> throw response.error
+        }
+    }
+
+    @JvmSynthetic
+    fun getViewConfigurationFallback(paywallId: String, locale: String): Map<String, Any> {
+        val response = httpClient.newCall<Map<String, Any>>(
             requestFactory.getViewConfigurationFallbackRequest(paywallId, locale),
-            ViewConfigurationDto::class.java
+            object : TypeToken<Map<String, Any>>() {}.type
         )
         when (response) {
             is Response.Success -> return response.body
