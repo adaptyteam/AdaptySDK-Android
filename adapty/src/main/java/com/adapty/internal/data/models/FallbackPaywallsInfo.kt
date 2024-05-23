@@ -1,13 +1,13 @@
 package com.adapty.internal.data.models
 
-import android.net.Uri
 import androidx.annotation.RestrictTo
+import com.adapty.utils.FileLocation
 import com.google.gson.annotations.SerializedName
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class FallbackPaywallsInfo(
     val meta: Meta,
-    val source: Uri,
+    val source: FileLocation,
 ) {
     class Meta(
         @SerializedName("developer_ids")
@@ -17,5 +17,5 @@ internal class FallbackPaywallsInfo(
         val version: Int,
     )
 
-    fun copy(uri: Uri) = FallbackPaywallsInfo(meta, uri)
+    fun copy(location: FileLocation) = FallbackPaywallsInfo(meta, location)
 }

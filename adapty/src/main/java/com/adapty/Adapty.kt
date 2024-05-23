@@ -425,8 +425,33 @@ public object Adapty {
      *
      * Should not be called before [activate]
      *
-     * @param[paywalls] A JSON representation of your paywalls/products list in the exact same format
-     * as provided by Adapty backend.
+     * @param[location] A [location][FileLocation] of a file with JSON representation of your paywalls/products list
+     * in the exact same format as provided by Adapty backend.
+     *
+     * @param[callback] A result containing the optional [AdaptyError].
+     *
+     * @see <a href="https://docs.adapty.io/docs/android-displaying-products#fallback-paywalls">Android - Fallback paywalls</a>
+     */
+    @JvmStatic
+    @JvmOverloads
+    public fun setFallbackPaywalls(location: FileLocation, callback: ErrorCallback? = null) {
+        Logger.log(VERBOSE) { "setFallbackPaywalls()" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.setFallbackPaywalls(location, callback)
+    }
+
+    /**
+     * To set fallback paywalls, use this method. You should pass exactly the same payload you’re
+     * getting from Adapty backend. You can copy it from Adapty Dashboard.
+     *
+     * Adapty allows you to provide fallback paywalls that will be used when a user opens the app
+     * and there's no connection with Adapty backend (e.g. no internet connection or in the rare case
+     * when backend is down) and there's no cache on the device.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[fileUri] A [uri][android.net.Uri] of a file with JSON representation of your paywalls/products list
+     * in the exact same format as provided by Adapty backend.
      *
      * @param[callback] A result containing the optional [AdaptyError].
      *
@@ -435,9 +460,7 @@ public object Adapty {
     @JvmStatic
     @JvmOverloads
     public fun setFallbackPaywalls(fileUri: Uri, callback: ErrorCallback? = null) {
-        Logger.log(VERBOSE) { "setFallbackPaywalls()" }
-        if (!checkActivated(callback)) return
-        adaptyInternal.setFallbackPaywalls(fileUri, callback)
+        setFallbackPaywalls(FileLocation.Uri(fileUri), callback)
     }
 
     /**

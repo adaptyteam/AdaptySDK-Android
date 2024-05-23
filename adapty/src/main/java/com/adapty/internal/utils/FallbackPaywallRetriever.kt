@@ -1,26 +1,37 @@
 package com.adapty.internal.utils
 
 import android.content.Context
-import android.net.Uri
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.FallbackPaywallsInfo
 import com.adapty.internal.data.models.FallbackVariations
 import com.adapty.utils.AdaptyLogLevel
+import com.adapty.utils.FileLocation
 import com.google.gson.Gson
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
+import java.io.InputStream
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class FallbackPaywallRetriever(
     private val appContext: Context,
     private val gson: Gson,
 ) {
+    fun getMetaInfo(source: FileLocation): FallbackPaywallsInfo {
+        return when (source) {
+            is FileLocation.Uri -> getMetaInfo(source) {
+                appContext.contentResolver.openInputStream(source.uri)
+            }
+            is FileLocation.Asset -> getMetaInfo(source) {
+                appContext.assets?.open(source.relativePath)
+            }
+        }
+    }
 
-    fun getMetaInfo(source: Uri): FallbackPaywallsInfo {
+    private fun getMetaInfo(source: FileLocation, createInputStream: () -> InputStream?): FallbackPaywallsInfo {
         return try {
-            appContext.contentResolver.openInputStream(source)?.reader()?.use { reader ->
+            createInputStream()?.reader()?.use { reader ->
                 val fallbackPaywallsInfo = gson.fromJson<FallbackPaywallsInfo>(reader, FallbackPaywallsInfo::class.java)
                 val version = fallbackPaywallsInfo.meta.version
                 if (version < CURRENT_FALLBACK_PAYWALL_VERSION) {
@@ -35,7 +46,7 @@ internal class FallbackPaywallRetriever(
                     )
                 }
 
-                fallbackPaywallsInfo.copy(uri = source)
+                fallbackPaywallsInfo.copy(location = source)
             } ?: throw AdaptyError(
                 message = "Couldn't open file with fallback paywalls.",
                 adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER,
@@ -52,9 +63,20 @@ internal class FallbackPaywallRetriever(
         }
     }
 
-    fun getPaywall(source: Uri, placementId: String): FallbackVariations? {
+    fun getPaywall(source: FileLocation, placementId: String): FallbackVariations? {
+        return when (source) {
+            is FileLocation.Uri -> getPaywall(placementId) {
+                appContext.contentResolver.openInputStream(source.uri)
+            }
+            is FileLocation.Asset -> getPaywall(placementId) {
+                appContext.assets?.open(source.relativePath)
+            }
+        }
+    }
+
+    private fun getPaywall(placementId: String, createInputStream: () -> InputStream?): FallbackVariations? {
         return try {
-            appContext.contentResolver.openInputStream(source)?.reader()?.use { reader ->
+            createInputStream()?.reader()?.use { reader ->
                 val jsonReader = object : JsonReader(reader) {
                     var currentDepth = 0
                     var skippingMode = false

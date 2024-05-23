@@ -79,12 +79,12 @@ public object Dependencies {
                         val dataKey = "data"
                         val attributesKey = "attributes"
                         val metaKey = "meta"
-                        val idKey = "id"
+                        val placementIdKey = "placement_id"
                         val versionKey = "version"
                         val profileKey = "profile"
                         val errorsKey = "errors"
-                        val placementAudienceVersionUpdatedAtKey = "placement_audience_version_updated_at"
-                        val updatedAtKey = "updated_at"
+                        val responseCreatedAtKey = "response_created_at"
+                        val snapshotAtKey = "snapshot_at"
 
                         val attributesObjectExtractor = ResponseDataExtractor { jsonElement ->
                             ((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)
@@ -107,13 +107,13 @@ public object Dependencies {
 
                             val meta = (jsonElement as? JsonObject)?.get(metaKey) as? JsonObject
 
-                            val updatedAt = (meta?.get(placementAudienceVersionUpdatedAtKey) as? JsonPrimitive) ?: JsonPrimitive(0)
+                            val snapshotAt = (meta?.get(responseCreatedAtKey) as? JsonPrimitive) ?: JsonPrimitive(0)
 
                             val version = (meta?.get(versionKey) as? JsonPrimitive) ?: JsonPrimitive(0)
 
                             JsonObject().apply {
                                 add(dataKey, variations)
-                                add(updatedAtKey, updatedAt)
+                                add(snapshotAtKey, snapshotAt)
                                 add(versionKey, version)
                             }
                         }
@@ -127,7 +127,7 @@ public object Dependencies {
                                 .first { (key, value) ->
                                     val desiredArray = (value as? JsonArray)?.isEmpty == false
                                     desiredArray.also {
-                                        if (desiredArray) jsonObject.addProperty(idKey, key)
+                                        if (desiredArray) jsonObject.addProperty(placementIdKey, key)
                                     }
                                 }
                                 .value.asJsonArray

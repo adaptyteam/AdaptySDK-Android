@@ -1,6 +1,5 @@
 package com.adapty.internal.data.cache
 
-import android.net.Uri
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.*
 import com.adapty.internal.utils.FallbackPaywallRetriever
@@ -8,6 +7,7 @@ import com.adapty.internal.utils.extractLanguageCode
 import com.adapty.internal.utils.generateUuid
 import com.adapty.internal.utils.getLanguageCode
 import com.adapty.internal.utils.orDefault
+import com.adapty.utils.FileLocation
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.concurrent.ConcurrentHashMap
@@ -277,7 +277,7 @@ internal class CacheRepository(
         "$PAYWALL_RESPONSE_START_PART${id}$PAYWALL_RESPONSE_END_PART"
 
     @JvmSynthetic
-    fun saveFallbackPaywalls(source: Uri) {
+    fun saveFallbackPaywalls(source: FileLocation) {
         cache[FALLBACK_PAYWALLS] = fallbackPaywallRetriever.getMetaInfo(source)
     }
 

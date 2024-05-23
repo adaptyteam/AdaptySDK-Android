@@ -2,7 +2,6 @@ package com.adapty.internal
 
 import android.app.Activity
 import android.content.ContentResolver
-import android.net.Uri
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
@@ -21,6 +20,7 @@ import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyResult
 import com.adapty.utils.TimeInterval
 import com.adapty.utils.ErrorCallback
+import com.adapty.utils.FileLocation
 import com.adapty.utils.ResultCallback
 import kotlinx.coroutines.flow.*
 import java.util.Locale
@@ -302,22 +302,24 @@ internal class AdaptyInternal(
     }
 
     @JvmSynthetic
-    fun setFallbackPaywalls(source: Uri, callback: ErrorCallback?) {
+    fun setFallbackPaywalls(source: FileLocation, callback: ErrorCallback?) {
         val requestEvent = SDKMethodRequestData.create("set_fallback_paywalls")
         analyticsTracker.trackSystemEvent(requestEvent)
-        val scheme = source.scheme?.lowercase(Locale.ENGLISH)
-        if (scheme.orEmpty() !in setOf(ContentResolver.SCHEME_ANDROID_RESOURCE, ContentResolver.SCHEME_CONTENT, ContentResolver.SCHEME_FILE)) {
-            val errorMessage = "The fallback paywalls' URI has an unsupported scheme: $scheme"
-            Logger.log(ERROR) { errorMessage }
-            val e = AdaptyError(
-                message = errorMessage,
-                adaptyErrorCode = WRONG_PARAMETER
-            )
-            analyticsTracker.trackSystemEvent(
-                SDKMethodResponseData.create(requestEvent, e)
-            )
-            callback?.onResult(e)
-            return
+        if (source is FileLocation.Uri) {
+            val scheme = source.uri.scheme?.lowercase(Locale.ENGLISH)
+            if (scheme.orEmpty() !in setOf(ContentResolver.SCHEME_ANDROID_RESOURCE, ContentResolver.SCHEME_CONTENT, ContentResolver.SCHEME_FILE)) {
+                val errorMessage = "The fallback paywalls' URI has an unsupported scheme: $scheme"
+                Logger.log(ERROR) { errorMessage }
+                val e = AdaptyError(
+                    message = errorMessage,
+                    adaptyErrorCode = WRONG_PARAMETER
+                )
+                analyticsTracker.trackSystemEvent(
+                    SDKMethodResponseData.create(requestEvent, e)
+                )
+                callback?.onResult(e)
+                return
+            }
         }
         execute {
             productsInteractor

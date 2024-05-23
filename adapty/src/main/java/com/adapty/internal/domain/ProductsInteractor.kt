@@ -1,6 +1,5 @@
 package com.adapty.internal.domain
 
-import android.net.Uri
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
@@ -18,6 +17,7 @@ import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
+import com.adapty.utils.FileLocation
 import com.android.billingclient.api.ProductDetails
 import kotlinx.coroutines.flow.*
 import java.io.IOException
@@ -263,7 +263,7 @@ internal class ProductsInteractor(
             .flowOnIO()
 
     @JvmSynthetic
-    fun setFallbackPaywalls(source: Uri) =
+    fun setFallbackPaywalls(source: FileLocation) =
         flow {
             emit(cacheRepository.saveFallbackPaywalls(source))
         }.flowOnIO()
