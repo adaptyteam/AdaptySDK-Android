@@ -69,10 +69,9 @@ internal class ProductsInteractor(
                                 message = "profileId in Profile should not be null",
                                 adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                             )
-                            extractSingleVariation(variations.data, profileId)
-                                .also { paywall ->
-                                    cacheRepository.savePaywall(id, paywallMapper.mapToCache(paywall, variations.snapshotAt))
-                                }
+                            val variation = extractSingleVariation(variations.data, profileId)
+                            paywallMapper.mapToCache(variation, variations.snapshotAt)
+                                .also { paywall -> cacheRepository.savePaywall(id, paywall) }
                         }
                     }
             },
@@ -98,10 +97,9 @@ internal class ProductsInteractor(
                             cachedPaywall
                         } else {
                             val profileId = cacheRepository.getProfileId()
-                            extractSingleVariation(variations.data, profileId)
-                                .also { paywall ->
-                                    cacheRepository.savePaywall(id, paywallMapper.mapToCache(paywall, variations.snapshotAt))
-                                }
+                            val variation = extractSingleVariation(variations.data, profileId)
+                            paywallMapper.mapToCache(variation, variations.snapshotAt)
+                                .also { paywall -> cacheRepository.savePaywall(id, paywall) }
                         }
                     } else {
                         result

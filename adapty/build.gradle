@@ -7,7 +7,7 @@ android {
     defaultConfig {
         minSdk 19
         targetSdk 30
-        buildConfigField 'String', 'VERSION_NAME', "\"2.11.1\""
+        buildConfigField 'String', 'VERSION_NAME', "\"2.11.2\""
 
         consumerProguardFiles 'consumer-rules.pro'
     }
