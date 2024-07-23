@@ -221,7 +221,6 @@ internal class StoreManager(
             } else {
                 flowOf(purchaseableProduct.productDetails to null)
             }
-                .flowOnIO()
                 .catch { error ->
                     analyticsTracker.trackSystemEvent(GoogleAPIResponseData.MakePurchase.create(requestEvent, error.asAdaptyError()))
                     onError(error, callback)
@@ -288,7 +287,6 @@ internal class StoreManager(
             }
         }
             .retryOnConnectionError(DEFAULT_RETRY_COUNT)
-            .flowOnIO()
 
     @JvmSynthetic
     fun getStoreCountry() =
@@ -301,7 +299,6 @@ internal class StoreManager(
                 throw e
             }
             .map { config -> config?.countryCode }
-            .flowOnIO()
 
     @JvmSynthetic
     fun findActivePurchaseForProduct(
@@ -323,7 +320,6 @@ internal class StoreManager(
             storeHelper.queryActivePurchasesForType(type)
         }
             .retryOnConnectionError(maxAttemptCount)
-            .flowOnIO()
     }
 
     private fun extractGoogleType(type: String) =

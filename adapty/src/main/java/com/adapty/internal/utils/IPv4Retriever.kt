@@ -35,5 +35,5 @@ internal class IPv4Retriever(
             val ip = cloudRepository.getIPv4Request().value
             value = ip
             emit(ip)
-        }.flowOnIO()
+        }
 }

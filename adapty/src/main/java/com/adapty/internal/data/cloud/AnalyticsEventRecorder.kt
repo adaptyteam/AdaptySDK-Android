@@ -51,19 +51,19 @@ internal class AnalyticsEventRecorder(
             }
                 .run {
                     if (completion != null) {
-                        this.flowOnIO()
+                        this
                             .catch { e ->
-                                completion.onResult(e.asAdaptyError())
+                                runOnMain { completion.onResult(e.asAdaptyError()) }
                             }
                             .onEach {
-                                completion.onResult(null) //since the event has been saved and will be sent at least later
+                                runOnMain {
+                                    completion.onResult(null) //since the event has been saved and will be sent at least later
+                                }
                             }
-                            .flowOnMain()
                     } else {
                         this.catch { }
                     }
                 }
-                .flowOnIO()
                 .collect()
         }
     }

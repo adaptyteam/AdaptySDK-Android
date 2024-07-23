@@ -219,6 +219,35 @@ internal class AnalyticsEvent(
                     )
             }
         }
+
+        class GetUntargetedPaywall private constructor(
+            val placementId: String,
+            val locale: String?,
+            val fetchPolicy: Map<String, Any>,
+            methodName: String
+        ) : SDKMethodRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    placementId: String,
+                    locale: String?,
+                    fetchPolicy: AdaptyPaywall.FetchPolicy,
+                ) =
+                    GetUntargetedPaywall(
+                        placementId,
+                        locale,
+                        when (fetchPolicy) {
+                            is AdaptyPaywall.FetchPolicy.ReloadRevalidatingCacheData -> mapOf("type" to "reload_revalidating_cache_data")
+                            is AdaptyPaywall.FetchPolicy.ReturnCacheDataElseLoad -> mapOf("type" to "return_cache_data_else_load")
+                            is AdaptyPaywall.FetchPolicy.ReturnCacheDataIfNotExpiredElseLoad -> mapOf(
+                                "type" to "return_cache_data_else_load",
+                                "max_age" to fetchPolicy.maxAgeMillis / 1000.0,
+                            )
+                        },
+                        "get_untargeted_paywall",
+                    )
+            }
+        }
     }
 
     class SDKMethodResponseData private constructor(
@@ -372,6 +401,28 @@ internal class AnalyticsEvent(
                         builderVersion,
                         languageCode,
                         "get_fallback_paywall_builder",
+                    )
+            }
+        }
+
+        class GetUntargetedPaywall private constructor(
+            val apiPrefix: String,
+            val placementId: String,
+            val languageCode: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    apiPrefix: String,
+                    placementId: String,
+                    languageCode: String,
+                ) =
+                    GetUntargetedPaywall(
+                        apiPrefix,
+                        placementId,
+                        languageCode,
+                        "get_untargeted_paywall",
                     )
             }
         }

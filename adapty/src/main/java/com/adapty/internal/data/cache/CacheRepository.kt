@@ -357,6 +357,9 @@ internal class CacheRepository(
     @JvmSynthetic
     fun getSessionId() = cache.safeGetOrPut(SESSION_ID) { generateUuid() } as? String
 
+    @JvmSynthetic
+    fun hasLocalProfile() = preferenceManager.contains(PROFILE)
+
     private inline fun <reified T> getData(key: String, classOfT: Class<T>? = null): T? =
         cache.safeGetOrPut(key, { preferenceManager.getData<T>(key, classOfT) }) as? T
 

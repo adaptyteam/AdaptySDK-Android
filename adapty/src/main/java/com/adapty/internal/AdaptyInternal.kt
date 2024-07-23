@@ -47,8 +47,7 @@ internal class AdaptyInternal(
                 profileInteractor
                     .subscribeOnProfileChanges()
                     .catch { }
-                    .onEach { value?.onProfileReceived(it) }
-                    .flowOnMain()
+                    .onEach { runOnMain { value?.onProfileReceived(it) } }
                     .collect()
             }
             field = value
@@ -75,7 +74,6 @@ internal class AdaptyInternal(
                     )
                     callback.onResult(result)
                 }
-                .flowOnMain()
                 .collect()
         }
     }
@@ -96,7 +94,6 @@ internal class AdaptyInternal(
                     )
                     callback.onResult(result.errorOrNull())
                 }
-                .flowOnMain()
                 .collect()
         }
     }
@@ -125,7 +122,6 @@ internal class AdaptyInternal(
                     callback?.onResult(result.errorOrNull())
                     if (isInitialActivation) setupStartRequests()
                 }
-                .flowOnMain()
                 .collect()
         }
         execute { productsInteractor.getProductsOnStart().catch { }.collect() }
@@ -166,7 +162,6 @@ internal class AdaptyInternal(
                     )
                     callback.onResult(result.errorOrNull())
                 }
-                .flowOnMain()
                 .collect()
         }
     }
@@ -195,7 +190,6 @@ internal class AdaptyInternal(
                     )
                     callback.onResult(result)
                 }
-                .flowOnMain()
                 .collect()
         }
     }
@@ -213,7 +207,6 @@ internal class AdaptyInternal(
                     )
                     callback.onResult(result)
                 }
-                .flowOnMain()
                 .collect()
         }
     }
@@ -240,7 +233,31 @@ internal class AdaptyInternal(
                     )
                     callback.onResult(result)
                 }
-                .flowOnMain()
+                .collect()
+        }
+    }
+
+    @JvmSynthetic
+    fun getPaywallForDefaultAudience(
+        id: String,
+        locale: String,
+        fetchPolicy: AdaptyPaywall.FetchPolicy,
+        callback: ResultCallback<AdaptyPaywall>
+    ) {
+        val requestEvent = SDKMethodRequestData.GetUntargetedPaywall.create(id, locale, fetchPolicy)
+        analyticsTracker.trackSystemEvent(requestEvent)
+        execute {
+            productsInteractor
+                .getPaywallUntargeted(id, locale, fetchPolicy)
+                .onSingleResult { result ->
+                    if (result is AdaptyResult.Success) {
+                        result.value.viewConfig?.let { config -> adaptyUiAccessor.preloadMedia(config) }
+                    }
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result)
+                }
                 .collect()
         }
     }
@@ -275,7 +292,6 @@ internal class AdaptyInternal(
                     )
                     callback.onResult(result)
                 }
-                .flowOnMain()
                 .collect()
         }
     }
@@ -296,7 +312,6 @@ internal class AdaptyInternal(
                     )
                     callback.onResult(result)
                 }
-                .flowOnMain()
                 .collect()
         }
     }
@@ -331,7 +346,6 @@ internal class AdaptyInternal(
                     )
                     callback?.onResult(error)
                 }
-                .flowOnMain()
                 .collect()
         }
     }
@@ -397,7 +411,6 @@ internal class AdaptyInternal(
                     )
                     callback.onResult(result.errorOrNull())
                 }
-                .flowOnMain()
                 .collect()
         }
     }
@@ -419,7 +432,6 @@ internal class AdaptyInternal(
                     )
                     callback.onResult(result.errorOrNull())
                 }
-                .flowOnMain()
                 .collect()
         }
     }
@@ -430,9 +442,8 @@ internal class AdaptyInternal(
                 .subscribeOnEventsForStartRequests()
                 .onEach { (newProfileIdDuringThisSession, _) ->
                     if (newProfileIdDuringThisSession)
-                        lifecycleAwareRequestRunner.restart()
+                        runOnMain { lifecycleAwareRequestRunner.restart() }
                 }
-                .flowOnMain()
                 .flatMapMerge { (newProfileIdDuringThisSession, newCustomerUserIdDuringThisSession) ->
                     mutableListOf<Flow<*>>(
                         profileInteractor.syncMetaOnStart().catch { }
@@ -449,7 +460,6 @@ internal class AdaptyInternal(
                         }
                     }.merge()
                 }
-                .flowOnIO()
                 .catch { }
                 .collect()
         }

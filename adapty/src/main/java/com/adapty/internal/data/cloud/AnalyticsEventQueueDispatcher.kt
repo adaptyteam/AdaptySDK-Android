@@ -28,8 +28,10 @@ internal class AnalyticsEventQueueDispatcher(
         startProcessingEvents()
     }
 
-    suspend fun addToQueue(event: AnalyticsEvent) {
-        eventFlow.emit(event)
+    fun addToQueue(event: AnalyticsEvent) {
+        execute {
+            eventFlow.emit(event)
+        }
     }
 
     private fun startProcessingEvents() {
@@ -52,7 +54,6 @@ internal class AnalyticsEventQueueDispatcher(
                         .onEach { dataRemoteSemaphore.release() }
                         .catch { dataRemoteSemaphore.release() }
                 }
-                .flowOnIO()
                 .collect()
         }
     }

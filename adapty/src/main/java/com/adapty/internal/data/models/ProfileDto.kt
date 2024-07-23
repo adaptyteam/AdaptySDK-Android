@@ -11,6 +11,8 @@ internal class ProfileDto(
     val customerUserId: String?,
     @SerializedName("segment_hash")
     val segmentId: String?,
+    @SerializedName("is_test_user")
+    val isTestUser: Boolean?,
     @SerializedName("timestamp")
     val timestamp: Long?,
     @SerializedName("paid_access_levels")
@@ -32,6 +34,7 @@ internal class ProfileDto(
         if (profileId != other.profileId) return false
         if (customerUserId != other.customerUserId) return false
         if (segmentId != other.segmentId) return false
+        if (isTestUser != other.isTestUser) return false
         if (accessLevels != other.accessLevels) return false
         if (subscriptions != other.subscriptions) return false
         if (nonSubscriptions != other.nonSubscriptions) return false
@@ -44,6 +47,7 @@ internal class ProfileDto(
         var result = profileId?.hashCode() ?: 0
         result = 31 * result + (customerUserId?.hashCode() ?: 0)
         result = 31 * result + (segmentId?.hashCode() ?: 0)
+        result = 31 * result + (isTestUser?.hashCode() ?: 0)
         result = 31 * result + (accessLevels?.hashCode() ?: 0)
         result = 31 * result + (subscriptions?.hashCode() ?: 0)
         result = 31 * result + (nonSubscriptions?.hashCode() ?: 0)

@@ -39,7 +39,6 @@ internal class PurchasesInteractor(
                         syncPurchasesSemaphore.releaseQuietly()
                     }
                 }
-                .flowOnIO()
                 .catch { }
                 .collect()
         }
@@ -92,7 +91,6 @@ internal class PurchasesInteractor(
                         }
                     }
             }
-            .flowOnIO()
     }
 
     private fun validatePurchase(
@@ -138,7 +136,6 @@ internal class PurchasesInteractor(
     @JvmSynthetic
     fun restorePurchases() =
         syncPurchasesInternal(maxAttemptCount = DEFAULT_RETRY_COUNT, byUser = true)
-            .flowOnIO()
 
     private val syncPurchasesSemaphore = Semaphore(1)
 
@@ -154,7 +151,6 @@ internal class PurchasesInteractor(
             flowOf(null)
         } else {
             syncPurchasesInternal(maxAttemptCount = DEFAULT_RETRY_COUNT)
-                .flowOnIO()
                 .onEach { syncPurchasesSemaphore.releaseQuietly() }
                 .catch { error -> syncPurchasesSemaphore.releaseQuietly(); throw error }
         }
@@ -164,7 +160,6 @@ internal class PurchasesInteractor(
     suspend fun syncPurchasesOnStart(): Flow<AdaptyProfile> {
         syncPurchasesSemaphore.acquire()
         return syncPurchasesInternal(maxAttemptCount = DEFAULT_RETRY_COUNT)
-            .flowOnIO()
             .onEach { syncPurchasesSemaphore.releaseQuietly() }
             .catch { error -> syncPurchasesSemaphore.releaseQuietly(); throw error }
     }
@@ -228,7 +223,6 @@ internal class PurchasesInteractor(
                     }
                 }
             }
-            .flowOnIO()
     }
 
     @JvmSynthetic

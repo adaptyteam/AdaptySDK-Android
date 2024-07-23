@@ -1,5 +1,6 @@
 package com.adapty.internal.di
 
+import android.app.Application
 import android.content.Context
 import androidx.annotation.RestrictTo
 import com.adapty.internal.AdaptyInternal
@@ -447,7 +448,7 @@ public object Dependencies {
                 }),
 
                 LifecycleManager::class to singleVariantDiObject({
-                    LifecycleManager()
+                    LifecycleManager(appContext as Application, injectInternal())
                 }),
 
                 ProductsInteractor::class to singleVariantDiObject({

@@ -55,5 +55,5 @@ internal class StoreCountryRetriever(
                         .onEach { country -> cachedStoreCountry = country; semaphore.release() }
                 )
             }
-        }.flowOnIO()
+        }
 }

@@ -47,5 +47,5 @@ internal class AppSetIdRetriever(
             cachedAppSetId = appSetId
             semaphore.release()
             emit(appSetId.orEmpty())
-        }.flowOnIO()
+        }
 }

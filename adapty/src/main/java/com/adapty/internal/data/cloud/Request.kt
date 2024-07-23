@@ -240,7 +240,7 @@ internal class RequestFactory(
     @JvmSynthetic
     fun getProductIdsRequest() = buildRequest {
         method = GET
-        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/products-ids/${metaInfoRetriever.store}/"
+        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/products-ids/${metaInfoRetriever.store}/${getDisableCacheQueryParamOrEmpty()}"
         addResponseCacheKeys(responseCacheKeyProvider.forGetProductIds())
         systemLog = BackendAPIRequestData.GetProductIds.create()
     }
@@ -252,7 +252,7 @@ internal class RequestFactory(
                 method = GET
                 val builderVersion = metaInfoRetriever.builderVersion
                 val payloadHash = payloadProvider.getPayloadHashForPaywallRequest(locale, segmentId, builderVersion)
-                endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/variations/$id/$payloadHash/"
+                endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/variations/$id/$payloadHash/${getDisableCacheQueryParamOrEmpty()}"
                 headers += listOfNotNull(
                     Request.Header("adapty-paywall-locale", locale),
                     Request.Header("adapty-paywall-builder-version", builderVersion),
@@ -271,8 +271,17 @@ internal class RequestFactory(
         method = GET
         val languageCode = extractLanguageCode(locale) ?: DEFAULT_PAYWALL_LOCALE
         val builderVersion = metaInfoRetriever.builderVersion
-        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/variations/$id/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json"
+        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/variations/$id/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json${getDisableCacheQueryParamOrEmpty()}"
         systemLog = BackendAPIRequestData.GetFallbackPaywall.create(apiKeyPrefix, id, languageCode)
+    }.build()
+
+    @JvmSynthetic
+    fun getPaywallVariationsUntargetedRequest(id: String, locale: String) = Request.Builder(baseRequest = Request("https://configs-cdn.adapty.io/api/v1/sdk/")).apply {
+        method = GET
+        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PAYWALL_LOCALE
+        val builderVersion = metaInfoRetriever.builderVersion
+        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/variations/$id/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json"
+        systemLog = BackendAPIRequestData.GetUntargetedPaywall.create(apiKeyPrefix, id, languageCode)
     }.build()
 
     @JvmSynthetic
@@ -281,7 +290,7 @@ internal class RequestFactory(
         val adaptyUiVersion = metaInfoRetriever.adaptyUiVersion
         val builderVersion = metaInfoRetriever.builderVersion
         val payloadHash = payloadProvider.getPayloadHashForPaywallBuilderRequest(locale, builderVersion)
-        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$variationId/$payloadHash/"
+        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$variationId/$payloadHash/${getDisableCacheQueryParamOrEmpty()}"
         headers += listOf(
             Request.Header("adapty-paywall-builder-locale", locale),
             Request.Header("adapty-paywall-builder-version", builderVersion),
@@ -295,7 +304,7 @@ internal class RequestFactory(
         method = GET
         val builderVersion = metaInfoRetriever.builderVersion
         val languageCode = extractLanguageCode(locale) ?: DEFAULT_PAYWALL_LOCALE
-        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$paywallId/$builderVersion/$languageCode/fallback.json"
+        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$paywallId/$builderVersion/$languageCode/fallback.json${getDisableCacheQueryParamOrEmpty()}"
         systemLog = BackendAPIRequestData.GetFallbackPaywallBuilder.create(apiKeyPrefix, paywallId, builderVersion, languageCode)
     }.build()
 
@@ -345,6 +354,9 @@ internal class RequestFactory(
             endPoint = "events/blacklist/"
             systemLog = BackendAPIRequestData.GetAnalyticsConfig.create()
         }
+
+    private fun getDisableCacheQueryParamOrEmpty() =
+        if (cacheRepository.getProfile()?.isTestUser == true) "?disable_cache" else ""
 
     private inline fun buildRequest(action: Request.Builder.() -> Unit) =
         Request.Builder().apply {

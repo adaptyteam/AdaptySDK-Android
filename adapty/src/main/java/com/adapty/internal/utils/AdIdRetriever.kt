@@ -58,5 +58,5 @@ internal class AdIdRetriever(
             cachedAdvertisingId = adId
             adIdSemaphore.release()
             emit(adId.orEmpty())
-        }.flowOnIO()
+        }
 }

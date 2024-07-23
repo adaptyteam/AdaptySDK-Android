@@ -88,6 +88,9 @@ internal class PreferenceManager(context: Context, private val gson: Gson) {
         editor.putString(key, gson.toJson(data)).commit()
     }
 
+    @JvmSynthetic
+    fun contains(key: String) = pref.contains(key)
+
     private fun isNotEmpty(str: String) = str.length > 4
 
     private companion object {

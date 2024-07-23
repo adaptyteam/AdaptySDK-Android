@@ -538,6 +538,23 @@ public object Adapty {
         adaptyInternal.logShowOnboarding(name, screenName, screenOrder, callback)
     }
 
+    @JvmStatic
+    @JvmOverloads
+    public fun getPaywallForDefaultAudience(
+        placementId: String,
+        locale: String? = null,
+        fetchPolicy: AdaptyPaywall.FetchPolicy = AdaptyPaywall.FetchPolicy.Default,
+        callback: ResultCallback<AdaptyPaywall>,
+    ) {
+        Logger.log(VERBOSE) { "getPaywallForDefaultAudience(placementId = $placementId${locale?.let { ", locale = $locale" }.orEmpty()}, fetchPolicy = ${fetchPolicy})" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.getPaywallForDefaultAudience(placementId, locale ?: DEFAULT_PAYWALL_LOCALE, fetchPolicy, callback)
+    }
+
     private val adaptyInternal: AdaptyInternal by inject()
 
     private val lock = ReentrantReadWriteLock()

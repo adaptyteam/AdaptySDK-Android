@@ -30,7 +30,6 @@ internal class AuthInteractor(
         lifecycleManager.onActivateAllowed()
             .flatMapConcat { createProfileIfNeeded() }
             .retryIfNecessary(DEFAULT_RETRY_COUNT)
-            .flowOnIO()
 
     private val authSemaphore = Semaphore(1)
 
@@ -123,6 +122,5 @@ internal class AuthInteractor(
                 }
             }
             .retryIfNecessary(maxAttemptCount)
-            .flowOnIO()
     }
 }

@@ -38,16 +38,42 @@ internal class ProductsInteractor(
 
     @JvmSynthetic
     fun getPaywall(id: String, locale: String, fetchPolicy: AdaptyPaywall.FetchPolicy, loadTimeout: Int): Flow<AdaptyPaywall> {
-        return when (fetchPolicy) {
-            is AdaptyPaywall.FetchPolicy.ReloadRevalidatingCacheData -> getPaywallFromCloud(id, locale, loadTimeout)
-            else -> {
+        return getPaywallInternal(
+            fetchPolicy = fetchPolicy,
+            fetchFromCloud = { getPaywallFromCloud(id, locale, loadTimeout) },
+            fetchFromCache = {
                 val maxAgeMillis = (fetchPolicy as? AdaptyPaywall.FetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
                 getPaywallFromCache(id, locale, maxAgeMillis)
+            }
+        )
+    }
+
+    @JvmSynthetic
+    fun getPaywallUntargeted(id: String, locale: String, fetchPolicy: AdaptyPaywall.FetchPolicy): Flow<AdaptyPaywall> {
+        return getPaywallInternal(
+            fetchPolicy = fetchPolicy,
+            fetchFromCloud = { getPaywallUntargetedFromCloud(id, locale) },
+            fetchFromCache = {
+                val maxAgeMillis = (fetchPolicy as? AdaptyPaywall.FetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
+                getPaywallFromCache(id, locale, maxAgeMillis)
+            }
+        )
+    }
+
+    private fun getPaywallInternal(
+        fetchPolicy: AdaptyPaywall.FetchPolicy,
+        fetchFromCloud: () -> Flow<AdaptyPaywall>,
+        fetchFromCache: () -> Flow<AdaptyPaywall?>,
+    ): Flow<AdaptyPaywall> {
+        return when (fetchPolicy) {
+            is AdaptyPaywall.FetchPolicy.ReloadRevalidatingCacheData -> fetchFromCloud()
+            else -> {
+                fetchFromCache()
                     .flatMapConcat { paywall ->
                         if (paywall != null) {
                             flowOf(paywall)
                         } else {
-                            getPaywallFromCloud(id, locale, loadTimeout)
+                            fetchFromCloud()
                         }
                     }
             }
@@ -107,33 +133,7 @@ internal class ProductsInteractor(
                 }
         }
             .map { paywall -> paywallMapper.map(paywall, productMapper.map(paywall.products)) }
-            .catch { error ->
-                if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
-                    val cachedPaywall = cacheRepository.getPaywall(id, setOf(locale, DEFAULT_PAYWALL_LOCALE))
-                    val chosenPaywall =
-                        if (cachedPaywall == null) {
-                            val fallbackVariations = cacheRepository.getPaywallVariationsFallback(id) ?: throw error
-                            val profileId = cacheRepository.getProfileId()
-                            runCatching { extractSingleVariation(fallbackVariations.data, profileId) }.getOrNull()
-                        } else {
-                            if (cachedPaywall.snapshotAt.orDefault() >= cacheRepository.getFallbackPaywallsSnapshotAt().orDefault())
-                                cachedPaywall
-                            else {
-                                val fallbackPaywall = cacheRepository.getPaywallVariationsFallback(id)
-                                    ?.let { variations ->
-                                        val profileId = cacheRepository.getProfileId()
-                                        runCatching { extractSingleVariation(variations.data, profileId) }.getOrNull()
-                                    }
-
-                                fallbackPaywall ?: cachedPaywall
-                            }
-                        } ?: throw error
-                    emit(paywallMapper.map(chosenPaywall, productMapper.map(chosenPaywall.products)))
-                } else {
-                    throw error
-                }
-            }
-            .flowOnIO()
+            .handleFetchPaywallError(id, locale)
     }
 
     private fun getPaywallVariationsForProfile(id: String, locale: String, profile: ProfileDto): Pair<Variations, ProfileDto> {
@@ -201,6 +201,53 @@ internal class ProductsInteractor(
         )
     }
 
+    private fun Flow<AdaptyPaywall>.handleFetchPaywallError(id: String, locale: String) =
+        catch { error ->
+            if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
+                val cachedPaywall = cacheRepository.getPaywall(id, setOf(locale, DEFAULT_PAYWALL_LOCALE))
+                val chosenPaywall =
+                    if (cachedPaywall == null) {
+                        val fallbackVariations = cacheRepository.getPaywallVariationsFallback(id) ?: throw error
+                        val profileId = cacheRepository.getProfileId()
+                        runCatching { extractSingleVariation(fallbackVariations.data, profileId) }.getOrNull()
+                    } else {
+                        if (cachedPaywall.snapshotAt.orDefault() >= cacheRepository.getFallbackPaywallsSnapshotAt().orDefault())
+                            cachedPaywall
+                        else {
+                            val fallbackPaywall = cacheRepository.getPaywallVariationsFallback(id)
+                                ?.let { variations ->
+                                    val profileId = cacheRepository.getProfileId()
+                                    runCatching { extractSingleVariation(variations.data, profileId) }.getOrNull()
+                                }
+
+                            fallbackPaywall ?: cachedPaywall
+                        }
+                    } ?: throw error
+                emit(paywallMapper.map(chosenPaywall, productMapper.map(chosenPaywall.products)))
+            } else {
+                throw error
+            }
+        }
+
+    private fun getPaywallUntargetedFromCloud(id: String, locale: String): Flow<AdaptyPaywall> =
+        lifecycleManager
+            .onActivateAllowed()
+            .mapLatest {
+                val variations = cloudRepository.getPaywallVariationsUntargeted(id, locale)
+                val cachedPaywall = cacheRepository.getPaywall(id, locale)
+                val paywall = if (cachedPaywall != null && variations.snapshotAt < cachedPaywall.snapshotAt.orDefault()) {
+                    cachedPaywall
+                } else {
+                    val profileId = cacheRepository.getProfileId()
+                    val variation = extractSingleVariation(variations.data, profileId)
+                    paywallMapper.mapToCache(variation, variations.snapshotAt)
+                        .also { paywall -> cacheRepository.savePaywall(id, paywall) }
+                }
+                paywallMapper.map(paywall, productMapper.map(paywall.products))
+            }
+            .retryIfNecessary(DEFAULT_RETRY_COUNT)
+            .handleFetchPaywallError(id, locale)
+
     private fun getPaywallFromCache(id: String, locale: String, maxAgeMillis: Long?) =
         flow {
             val cachedPaywall = cacheRepository.getPaywall(id, setOf(locale, DEFAULT_PAYWALL_LOCALE), maxAgeMillis)
@@ -238,7 +285,6 @@ internal class ProductsInteractor(
             .map { viewConfig ->
                 viewConfig ?: cloudRepository.getViewConfigurationFallback(paywall.paywallId, locale)
             }
-            .flowOnIO()
     }
 
     @JvmSynthetic
@@ -250,7 +296,7 @@ internal class ProductsInteractor(
                 .map { billingInfo ->
                     productMapper.map(products, billingInfo, paywall)
                 }
-        }.flowOnIO()
+        }
 
     @JvmSynthetic
     fun getProductsOnStart() =
@@ -258,13 +304,12 @@ internal class ProductsInteractor(
             .mapLatest { cloudRepository.getProductIds() }
             .retryIfNecessary(INFINITE_RETRY)
             .flatMapConcat { productIds -> storeManager.queryProductDetails(productIds, INFINITE_RETRY) }
-            .flowOnIO()
 
     @JvmSynthetic
     fun setFallbackPaywalls(source: FileLocation) =
         flow {
             emit(cacheRepository.saveFallbackPaywalls(source))
-        }.flowOnIO()
+        }
 
     private fun getBillingInfo(
         products: List<BackendProduct>,

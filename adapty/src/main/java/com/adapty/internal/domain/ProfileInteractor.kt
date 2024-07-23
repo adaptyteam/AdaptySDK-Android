@@ -46,7 +46,6 @@ internal class ProfileInteractor(
                     throw error
                 }
             }
-            .flowOnIO()
 
     @JvmSynthetic
     fun updateProfile(params: AdaptyProfileParameters?, maxAttemptCount: Long = DEFAULT_RETRY_COUNT) =
@@ -83,7 +82,6 @@ internal class ProfileInteractor(
                             throw e
                     }
             }
-            .flowOnIO()
             .also {
                 params?.analyticsDisabled?.not()?.let(cacheRepository::saveExternalAnalyticsEnabled)
             }
@@ -116,7 +114,6 @@ internal class ProfileInteractor(
                 )
                 Unit
             }
-            .flowOnIO()
 
     @JvmSynthetic
     fun subscribeOnProfileChanges() =
@@ -140,7 +137,6 @@ internal class ProfileInteractor(
             .filter { (profileIdHasChanged, customerUserIdHasChanged) ->
                 profileIdHasChanged || customerUserIdHasChanged
             }
-            .flowOnIO()
 
     private fun sendIpWhenReceived() {
         iPv4Retriever.onValueReceived = { value ->
@@ -148,7 +144,7 @@ internal class ProfileInteractor(
                 flow {
                     emit(cloudRepository.updateProfile(ipv4Address = value))
                 }
-                    .retryIfNecessary(INFINITE_RETRY).flowOnIO().catch { }.collect()
+                    .retryIfNecessary(INFINITE_RETRY).catch { }.collect()
             }
         }
     }

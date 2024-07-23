@@ -74,6 +74,25 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
+    fun getPaywallVariationsUntargeted(id: String, locale: String): Variations {
+        val response = httpClient.newCall<Variations>(
+            requestFactory.getPaywallVariationsUntargetedRequest(id, locale),
+            Variations::class.java,
+        )
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> {
+                val error = response.error
+                when {
+                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PAYWALL_LOCALE ->
+                        return getPaywallVariationsUntargeted(id, DEFAULT_PAYWALL_LOCALE)
+                    else -> throw response.error
+                }
+            }
+        }
+    }
+
+    @JvmSynthetic
     fun getViewConfiguration(variationId: String, locale: String): Map<String, Any> {
         val response = httpClient.newCall<Map<String, Any>>(
             requestFactory.getViewConfigurationRequest(variationId, locale),

@@ -2,6 +2,8 @@
 
 package com.adapty.internal.utils
 
+import android.os.Handler
+import android.os.Looper
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyError.RetryType
 import com.adapty.errors.AdaptyErrorCode
@@ -66,8 +68,13 @@ internal fun <T> Flow<T>.flowOnIO(): Flow<T> =
 internal fun <T> Flow<T>.flowOnMain(): Flow<T> =
     this.flowOn(Dispatchers.Main)
 
+private val uiHandler = Handler(Looper.getMainLooper())
+internal fun runOnMain(action: java.lang.Runnable) {
+    uiHandler.post(action)
+}
+
 @JvmSynthetic
-internal fun <T> Flow<T>.onSingleResult(action: suspend (AdaptyResult<T>) -> Unit): Flow<AdaptyResult<T>> {
+internal fun <T> Flow<T>.onSingleResult(action: (AdaptyResult<T>) -> Unit): Flow<AdaptyResult<T>> {
     var consumed = false
     return this
         .map<T, AdaptyResult<T>> { AdaptyResult.Success(it) }
@@ -77,7 +84,7 @@ internal fun <T> Flow<T>.onSingleResult(action: suspend (AdaptyResult<T>) -> Uni
         .onEach { result ->
             if (!consumed) {
                 consumed = true
-                action(result)
+                runOnMain { action(result) }
             }
         }
 }
