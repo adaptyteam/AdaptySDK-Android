@@ -21,9 +21,6 @@ import com.google.gson.*
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.sync.Semaphore
 import java.math.BigDecimal
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
-import java.text.Format
 import java.util.*
 import kotlin.LazyThreadSafetyMode.NONE
 import kotlin.reflect.KClass
@@ -35,15 +32,28 @@ import kotlin.reflect.KClass
 @InternalAdaptyApi
 public object Dependencies {
 
-    public inline fun <reified T: Any> inject(named: String? = null): Lazy<T> = lazy(NONE) {
-        injectInternal<T>(named)
+    public inline fun <reified T: Any> inject(named: String? = null, noinline putIfAbsent: (() -> DIObject<T>)? = null): Lazy<T> = lazy(NONE) {
+        injectInternal<T>(named, putIfAbsent)
     }
 
-    public inline fun <reified T: Any> injectInternal(named: String? = null): T =
-        resolve(named, T::class)
+    public inline fun <reified T: Any> injectInternal(named: String? = null, noinline putIfAbsent: (() -> DIObject<T>)? = null): T =
+        resolve(named, T::class, putIfAbsent)
 
-    public fun <T: Any> resolve(named: String? = null, classOfT: KClass<T>): T =
-        (map[classOfT]!![named] as DIObject<T>).provide()
+    public fun <T: Any> resolve(named: String? = null, classOfT: KClass<T>, putIfAbsent: (() -> DIObject<T>)?): T {
+        if (putIfAbsent == null)
+            return (map[classOfT]!![named] as DIObject<T>).provide()
+        val desiredObjectBucket = map[classOfT] ?: kotlin.run {
+            val newObject = putIfAbsent()
+            contribute(classOfT to mapOf(named to newObject))
+            return newObject.provide()
+        }
+        val desiredObject = desiredObjectBucket[named] as? DIObject<T> ?: kotlin.run {
+            val newObject = putIfAbsent()
+            contribute(classOfT to desiredObjectBucket.toMutableMap().apply { put(named, newObject) })
+            return newObject.provide()
+        }
+        return desiredObject.provide()
+    }
 
     @get:JvmSynthetic
     internal val map = hashMapOf<KClass<*>, Map<String?, DIObject<*>>>()
@@ -231,10 +241,6 @@ public object Dependencies {
                     })
                 ),
 
-                Format::class to singleVariantDiObject({
-                    DecimalFormat("0.00", DecimalFormatSymbols(Locale.US))
-                }),
-
                 Boolean::class to mapOf(
                     OBSERVER_MODE to DIObject({ config.observerMode }),
                 ),
@@ -411,7 +417,11 @@ public object Dependencies {
 
                 AttributionHelper::class to singleVariantDiObject({ AttributionHelper() }),
 
-                CurrencyHelper::class to singleVariantDiObject({ CurrencyHelper() }),
+                PriceFormatter::class to singleVariantDiObject({
+                    PriceFormatter(
+                        injectInternal<MetaInfoRetriever>().currentLocale ?: Locale.getDefault()
+                    )
+                }),
 
                 HashingHelper::class to singleVariantDiObject({ HashingHelper() }),
 

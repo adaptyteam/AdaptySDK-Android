@@ -1,3 +1,5 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.internal.utils
 
 import android.content.Context
@@ -13,7 +15,6 @@ import com.adapty.internal.domain.models.ProductType.NonConsumable
 import com.adapty.internal.domain.models.ProductType.Subscription
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.models.*
-import com.adapty.models.AdaptyEligibility.*
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.android.billingclient.api.BillingClient.ProductType
@@ -25,7 +26,7 @@ import java.math.BigDecimal
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class ProductMapper(
     private val context: Context,
-    private val currencyHelper: CurrencyHelper,
+    private val priceFormatter: PriceFormatter,
 ) {
 
     @JvmSynthetic
@@ -50,6 +51,7 @@ internal class ProductMapper(
         val priceAmountMicros: Long
         val localizedPrice: String
         val currencyCode: String
+        val currencySymbol: String
         val subscriptionData: BackendProduct.SubscriptionData?
         val subscriptionDetails: AdaptyProductSubscriptionDetails?
 
@@ -82,8 +84,9 @@ internal class ProductMapper(
                 }
 
                 priceAmountMicros = basePriceInfo.priceAmountMicros
-                localizedPrice = basePriceInfo.formattedPrice
+                localizedPrice = priceFormatter.format(basePriceInfo)
                 currencyCode = basePriceInfo.priceCurrencyCode
+                currencySymbol = priceFormatter.formatCurrencySymbol(basePriceInfo)
                 subscriptionData = BackendProduct.SubscriptionData(offer.basePlanId, offer.offerId)
 
                 val subscriptionPeriod = mapSubscriptionPeriod(basePriceInfo.billingPeriod)
@@ -106,9 +109,9 @@ internal class ProductMapper(
                             AdaptyProductDiscountPhase(
                                 price = AdaptyPaywallProduct.Price(
                                     amount = priceFromMicros(phase.priceAmountMicros),
-                                    localizedString = phase.formattedPrice,
+                                    localizedString = priceFormatter.format(phase),
                                     currencyCode = phase.priceCurrencyCode,
-                                    currencySymbol = currencyHelper.getCurrencySymbol(phase.priceCurrencyCode),
+                                    currencySymbol = priceFormatter.formatCurrencySymbol(phase),
                                 ),
                                 numberOfPeriods = numberOfPeriods,
                                 subscriptionPeriod = phaseSubscriptionPeriod,
@@ -135,8 +138,9 @@ internal class ProductMapper(
                 subscriptionDetails = null
                 subscriptionData = null
                 priceAmountMicros = inappDetails.priceAmountMicros
-                localizedPrice = inappDetails.formattedPrice
+                localizedPrice = priceFormatter.format(inappDetails)
                 currencyCode = inappDetails.priceCurrencyCode
+                currencySymbol = priceFormatter.formatCurrencySymbol(inappDetails)
             }
         }
 
@@ -151,7 +155,7 @@ internal class ProductMapper(
                 amount = priceFromMicros(priceAmountMicros),
                 localizedString = localizedPrice,
                 currencyCode = currencyCode,
-                currencySymbol = currencyHelper.getCurrencySymbol(currencyCode),
+                currencySymbol = currencySymbol,
             ),
             subscriptionDetails = subscriptionDetails,
             productDetails = productDetails,

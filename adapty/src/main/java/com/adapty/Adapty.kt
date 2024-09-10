@@ -67,7 +67,7 @@ public object Adapty {
      * @param[appKey] You can find it in your app settings
      * in [Adapty Dashboard](https://app.adapty.io/) _App settings_ > _General_.
      *
-     * @param[observerMode] A boolean value controlling [Observer mode](https://docs.adapty.io/v2.0.0/docs/observer-vs-full-mode).
+     * @param[observerMode] A boolean value controlling [Observer mode](https://adapty.io/docs/observer-vs-full-mode).
      * Turn it on if you handle purchases and subscription status yourself and use Adapty for sending
      * subscription events and analytics.
      *
@@ -116,7 +116,7 @@ public object Adapty {
 
     /**
      * You can set optional attributes such as email, phone number, etc, to the user of your app.
-     * You can then use attributes to create user [segments](https://docs.adapty.io/docs/segments)
+     * You can then use attributes to create user [segments](https://adapty.io/docs/segments)
      * or just view them in CRM.
      *
      * Should not be called before [activate]
@@ -125,7 +125,7 @@ public object Adapty {
      *
      * @param[callback] A result containing the optional [AdaptyError].
      *
-     * @see <a href="https://docs.adapty.io/docs/setting-user-attributes">Setting User Attributes</a>
+     * @see <a href="https://adapty.io/docs/setting-user-attributes">Set user attributes</a>
      */
     @JvmStatic
     public fun updateProfile(params: AdaptyProfileParameters, callback: ErrorCallback) {
@@ -162,9 +162,14 @@ public object Adapty {
     }
 
     /**
-     * Adapty allows you remotely configure the products that will be displayed in your app.
-     * This way you don’t have to hardcode the products and can dynamically change offers or run
-     * A/B tests without app releases.
+     * Fetches the paywall by the specified placement.
+     *
+     * With Adapty, you can remotely configure the products and offers in your app by simply adding
+     * them to paywalls – no need for hardcoding them.
+     * The only thing you hardcode is the placement ID.
+     *
+     * This flexibility allows you to easily update paywalls, products, and offers,
+     * or run A/B tests, all without the need for a new app release.
      *
      * Should not be called before [activate]
      *
@@ -184,7 +189,9 @@ public object Adapty {
      * @param[callback] A result containing the [AdaptyPaywall] object. This model contains the list
      * of the products ids, paywall’s identifier, custom payload, and several other properties.
      *
-     * @see <a href="https://docs.adapty.io/v2.0.0/docs/displaying-products">Displaying Paywalls & Products</a>
+     * @see <a href="https://adapty.io/docs/display-remote-config-paywalls">Display paywalls designed with remote config</a>
+     *
+     * @see <a href="https://adapty.io/docs/display-pb-paywalls">Display paywalls designed with Paywall Builder</a>
      */
     @JvmStatic
     @JvmOverloads
@@ -213,7 +220,9 @@ public object Adapty {
      *
      * @param[callback] A result containing the [AdaptyPaywallProduct] list. You can present them in your UI.
      *
-     * @see <a href="https://docs.adapty.io/v2.0.0/docs/displaying-products">Displaying Paywalls & Products</a>
+     * @see <a href="https://adapty.io/docs/display-remote-config-paywalls">Display paywalls designed with remote config</a>
+     *
+     * @see <a href="https://adapty.io/docs/display-pb-paywalls">Display paywalls designed with Paywall Builder</a>
      */
     @JvmStatic
     public fun getPaywallProducts(
@@ -261,7 +270,7 @@ public object Adapty {
      * @param[product] An [AdaptyPaywallProduct] object retrieved from the paywall.
      *
      * @param[subscriptionUpdateParams] An [AdaptySubscriptionUpdateParameters] object, used when
-     * you need a subscription to be replaced with another one, [read more](https://docs.adapty.io/docs/android-making-purchases#change-subscription).
+     * you need a subscription to be replaced with another one, [read more](https://adapty.io/docs/making-purchases#change-subscription-when-making-a-purchase).
      *
      * @param[isOfferPersonalized] Indicates whether the price is personalized, [read more](https://developer.android.com/google/play/billing/integrate#personalized-price).
      *
@@ -272,7 +281,7 @@ public object Adapty {
      * purchases. Generally, you have to check only access level status to determine whether the user
      * has premium access to the app.
      *
-     * @see <a href="https://docs.adapty.io/docs/android-making-purchases">Android – Making Purchases</a>
+     * @see <a href="https://adapty.io/docs/making-purchases">Make purchases in mobile app</a>
      */
     @JvmStatic
     @JvmOverloads
@@ -301,7 +310,7 @@ public object Adapty {
      * access levels, subscriptions, and non-subscription purchases. Generally, you have to check
      * only access level status to determine whether the user has premium access to the app.
      *
-     * @see <a href="https://docs.adapty.io/docs/android-making-purchases#restoring-purchases">Android – Restoring purchases</a>
+     * @see <a href="https://adapty.io/docs/restore-purchase">Restore purchases in mobile app</a>
      */
     @JvmStatic
     public fun restorePurchases(callback: ResultCallback<AdaptyProfile>) {
@@ -332,8 +341,8 @@ public object Adapty {
 
     /**
      * In Observer mode, Adapty SDK doesn’t know, where the purchase was made from.
-     * If you display products using our [Paywalls](https://docs.adapty.io/v2.0.0/docs/paywall) or
-     * [A/B Tests](https://docs.adapty.io/v2.0.0/docs/ab-test), you can manually assign variation
+     * If you display products using our [Paywalls](https://adapty.io/docs/paywalls) or
+     * [A/B Tests](https://adapty.io/docs/ab-tests), you can manually assign variation
      * to the purchase. After doing this, you’ll be able to see metrics in Adapty Dashboard.
      *
      * Should not be called before [activate]
@@ -346,7 +355,7 @@ public object Adapty {
      *
      * @param[callback] A result containing the optional [AdaptyError].
      *
-     * @see <a href="https://docs.adapty.io/docs/android-observer-mode">Android - Observer Mode</a>
+     * @see <a href="https://adapty.io/docs/associate-paywalls-to-transactions">Associate paywalls to purchase transactions in Observer mode</a>
      */
     @JvmStatic
     public fun setVariationId(
@@ -430,7 +439,7 @@ public object Adapty {
      *
      * @param[callback] A result containing the optional [AdaptyError].
      *
-     * @see <a href="https://docs.adapty.io/docs/android-displaying-products#fallback-paywalls">Android - Fallback paywalls</a>
+     * @see <a href="https://adapty.io/docs/android-use-fallback-paywalls">Android - Use fallback paywalls</a>
      */
     @JvmStatic
     @JvmOverloads
@@ -455,7 +464,7 @@ public object Adapty {
      *
      * @param[callback] A result containing the optional [AdaptyError].
      *
-     * @see <a href="https://docs.adapty.io/docs/android-displaying-products#fallback-paywalls">Android - Fallback paywalls</a>
+     * @see <a href="https://adapty.io/docs/android-use-fallback-paywalls">Android - Use fallback paywalls</a>
      */
     @JvmStatic
     @JvmOverloads
@@ -479,7 +488,7 @@ public object Adapty {
      *
      * @param[callback] A result containing the optional [AdaptyError].
      *
-     * @see <a href="https://docs.adapty.io/docs/android-displaying-products#paywall-analytics">Android - Paywall analytics</a>
+     * @see <a href="https://adapty.io/docs/present-remote-config-paywalls#track-paywall-view-events">Track paywall view events</a>
      */
     @JvmStatic
     @JvmOverloads
@@ -523,7 +532,7 @@ public object Adapty {
      *
      * @param[callback] A result containing the optional [AdaptyError].
      *
-     * @see <a href="https://docs.adapty.io/docs/android-making-purchases">Android – Making Purchases</a>
+     * @see <a href="https://adapty.io/docs/onboarding-screens-tracking">Track onboarding screens</a>
      */
     @JvmStatic
     @JvmOverloads
@@ -538,6 +547,37 @@ public object Adapty {
         adaptyInternal.logShowOnboarding(name, screenName, screenOrder, callback)
     }
 
+    /**
+     * Fetches the paywall of the specified placement for the **All Users** audience.
+     *
+     * With Adapty, you can remotely configure the products and offers in your app by simply adding
+     * them to paywalls – no need for hardcoding them.
+     * The only thing you hardcode is the placement ID.
+     *
+     * This flexibility allows you to easily update paywalls, products, and offers,
+     * or run A/B tests, all without the need for a new app release.
+     *
+     * However, it’s crucial to understand that the recommended approach is to fetch the paywall
+     * through the placement ID by the [getPaywall] method.
+     * The `getPaywallForDefaultAudience` method should be a last resort due to its significant drawbacks.
+     * See [docs](https://adapty.io/docs/fetch-paywalls-and-products#speed-up-paywall-fetching-with-default-audience-paywall) for more details
+     *
+     * Should not be called before [activate]
+     *
+     * @param[placementId] The identifier of the desired placement. This is the value you specified when you
+     * created the placement in the Adapty Dashboard.
+     *
+     * @param[locale] This parameter is expected to be a language code composed of one or more subtags separated by the "-" character. The first subtag is for the language, the second one is for the region (The support for regions will be added later).
+     * Example: `"en"` means English, `"en-US"` represents US English.
+     * If the parameter is omitted, the paywall will be returned in the default locale.
+     *
+     * @param[fetchPolicy] By default SDK will try to load data from server and will return cached data in case of failure. Otherwise use [AdaptyPaywall.FetchPolicy.ReturnCacheDataElseLoad] to return cached data if it exists.
+     *
+     * @param[callback] A result containing the [AdaptyPaywall] object. This model contains the list
+     * of the products ids, paywall’s identifier, custom payload, and several other properties.
+     *
+     * @see <a href="https://adapty.io/docs/fetch-paywalls-and-products#speed-up-paywall-fetching-with-default-audience-paywall">Speed up paywall fetching with default audience paywall</a>
+     */
     @JvmStatic
     @JvmOverloads
     public fun getPaywallForDefaultAudience(

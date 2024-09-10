@@ -3,6 +3,7 @@ package com.adapty.internal.data.cache
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.*
 import com.adapty.internal.utils.FallbackPaywallRetriever
+import com.adapty.internal.utils.execute
 import com.adapty.internal.utils.extractLanguageCode
 import com.adapty.internal.utils.generateUuid
 import com.adapty.internal.utils.getLanguageCode
@@ -65,7 +66,9 @@ internal class CacheRepository(
 
     private suspend fun saveProfile(profile: ProfileDto) =
         profile.also {
-            currentProfile.emit(profile)
+            execute {
+                currentProfile.emit(profile)
+            }
             saveData(PROFILE, profile)
         }
 

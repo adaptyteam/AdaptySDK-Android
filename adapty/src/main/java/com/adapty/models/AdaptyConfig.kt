@@ -30,7 +30,7 @@ public class AdaptyConfig private constructor(
         }
 
         /**
-         * @param[observerMode] A boolean value controlling [Observer mode](https://docs.adapty.io/v2.0.0/docs/observer-vs-full-mode).
+         * @param[observerMode] A boolean value controlling [Observer mode](https://adapty.io/docs/observer-vs-full-mode).
          * Turn it on if you handle purchases and subscription status yourself and use Adapty for sending
          * subscription events and analytics.
          *
