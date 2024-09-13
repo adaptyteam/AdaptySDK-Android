@@ -111,7 +111,7 @@ internal class ProductMapper(
                                     amount = priceFromMicros(phase.priceAmountMicros),
                                     localizedString = priceFormatter.format(phase),
                                     currencyCode = phase.priceCurrencyCode,
-                                    currencySymbol = priceFormatter.formatCurrencySymbol(phase),
+                                    currencySymbol = currencySymbol,
                                 ),
                                 numberOfPeriods = numberOfPeriods,
                                 subscriptionPeriod = phaseSubscriptionPeriod,

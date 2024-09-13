@@ -31,14 +31,14 @@ public class PriceFormatter internal constructor(
     )
 
     public fun format(pricingPhase: PricingPhase): String {
-        return formatPriceMicros(
+        return formatPriceMicrosExcludingZero(
             pricingPhase.priceAmountMicros,
             pricingPhase.formattedPrice,
         )
     }
 
     public fun format(oneTimeOfferDetails: OneTimePurchaseOfferDetails): String {
-        return formatPriceMicros(
+        return formatPriceMicrosExcludingZero(
             oneTimeOfferDetails.priceAmountMicros,
             oneTimeOfferDetails.formattedPrice,
         )
@@ -82,6 +82,12 @@ public class PriceFormatter internal constructor(
                 .let(intNumberFormat::format)
 
         return replacePrice(formattedNumber, originalFormattedPrice)
+    }
+
+    private fun formatPriceMicrosExcludingZero(priceMicros: Long, originalFormattedPrice: String): String {
+        if (priceMicros == 0L)
+            return originalFormattedPrice
+        return formatPriceMicros(priceMicros, originalFormattedPrice)
     }
 
     private fun formatPriceMicros(priceMicros: Long, originalFormattedPrice: String): String {
