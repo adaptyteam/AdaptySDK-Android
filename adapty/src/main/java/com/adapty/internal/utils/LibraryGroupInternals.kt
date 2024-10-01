@@ -2,6 +2,7 @@ package com.adapty.internal.utils
 
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
+import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.models.AdaptyPaywall
 import com.adapty.utils.AdaptyLogLevel
 import com.adapty.utils.AdaptyResult
@@ -58,8 +59,8 @@ public val adaptySdkVersion: String get() = com.adapty.BuildConfig.VERSION_NAME
  * @suppress
  */
 @JvmSynthetic @InternalAdaptyApi
-public fun getOrderedOriginalProductIds(paywall: AdaptyPaywall): List<String> =
-    paywall.products.map { it.id }
+public fun getOrderedOriginalProductIdMappings(paywall: AdaptyPaywall): List<Pair<String, String>> =
+    paywall.products.map { it.id to it.vendorProductId }
 
 /**
  * @suppress
@@ -67,3 +68,16 @@ public fun getOrderedOriginalProductIds(paywall: AdaptyPaywall): List<String> =
 @JvmSynthetic @InternalAdaptyApi
 public fun errorCodeFromNetwork(responseCode: Int): AdaptyErrorCode =
     AdaptyErrorCode.fromNetwork(responseCode)
+
+/**
+ * @suppress
+ */
+@InternalAdaptyApi
+public class CacheRepositoryProxy internal constructor(private val cacheRepository: CacheRepository) {
+    public fun setLongValue(key: String, value: Long, isPersisted: Boolean) {
+        cacheRepository.setLongValue(key, value, isPersisted)
+    }
+    public fun getLongValue(key: String, isPersisted: Boolean): Long? {
+        return cacheRepository.getLongValue(key, isPersisted)
+    }
+}

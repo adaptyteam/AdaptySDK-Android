@@ -378,4 +378,19 @@ internal class CacheRepository(
     private companion object {
         private const val CURRENT_CACHED_PAYWALL_VERSION = 2
     }
+
+    fun setLongValue(key: String, value: Long, isPersisted: Boolean) {
+        cache[key] = value
+        if (isPersisted)
+            preferenceManager.saveLong(key, value)
+    }
+
+    fun getLongValue(key: String, isPersisted: Boolean): Long? {
+        return if (isPersisted)
+            cache.safeGetOrPut(
+                key,
+                { preferenceManager.getLong(key, null) }) as? Long
+        else
+            cache[key] as? Long
+    }
 }

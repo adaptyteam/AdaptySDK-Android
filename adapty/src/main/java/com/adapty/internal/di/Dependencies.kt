@@ -263,6 +263,10 @@ public object Dependencies {
                     )
                 }),
 
+                CacheRepositoryProxy::class to singleVariantDiObject({
+                    CacheRepositoryProxy(injectInternal())
+                }),
+
                 HttpClient::class to mapOf(
                     BASE to DIObject({
                         BaseHttpClient(
