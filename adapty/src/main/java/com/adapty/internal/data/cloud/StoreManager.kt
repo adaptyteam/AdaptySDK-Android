@@ -1,3 +1,5 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.internal.data.cloud
 
 import android.app.Activity
@@ -343,10 +345,9 @@ internal class StoreManager(
     private suspend fun BillingClient.startConnectionSync() {
         startConnectionSemaphore.acquire()
         return suspendCancellableCoroutine { continuation ->
-            var resumed = false
             startConnection(object : BillingClientStateListener {
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
-                    if (!resumed) {
+                    if (continuation.isActive) {
                         if (billingResult.responseCode == OK) {
                             continuation.resume(Unit) {}
                         } else {
@@ -357,20 +358,18 @@ internal class StoreManager(
                                 )
                             )
                         }
-                        resumed = true
                         startConnectionSemaphore.release()
                     }
                 }
 
                 override fun onBillingServiceDisconnected() {
-                    if (!resumed) {
+                    if (continuation.isActive) {
                         continuation.resumeWithException(
                             AdaptyError(
                                 message = "Play Market request failed: SERVICE_DISCONNECTED",
                                 adaptyErrorCode = AdaptyErrorCode.fromBilling(SERVICE_DISCONNECTED)
                             )
                         )
-                        resumed = true
                         startConnectionSemaphore.release()
                     }
                 }
@@ -540,11 +539,9 @@ private class StoreHelper(
 
     private suspend fun getBillingConfigSync(params: GetBillingConfigParams): Pair<BillingResult, BillingConfig?> {
         return suspendCancellableCoroutine { continuation ->
-            var resumed = false
             billingClient.getBillingConfigAsync(params) { billingResult, billingConfig ->
-                if (!resumed) {
+                if (continuation.isActive) {
                     continuation.resume(billingResult to billingConfig) {}
-                    resumed = true
                 }
             }
         }

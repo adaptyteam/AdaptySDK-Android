@@ -1,6 +1,9 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.models
 
 import com.adapty.internal.domain.models.BackendProduct
+import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.immutableWithInterop
 import com.adapty.utils.ImmutableList
 import com.adapty.utils.ImmutableMap

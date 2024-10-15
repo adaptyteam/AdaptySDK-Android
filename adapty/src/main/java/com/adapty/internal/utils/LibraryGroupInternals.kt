@@ -3,6 +3,7 @@ package com.adapty.internal.utils
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
+import com.adapty.internal.domain.models.BackendProduct
 import com.adapty.models.AdaptyPaywall
 import com.adapty.utils.AdaptyLogLevel
 import com.adapty.utils.AdaptyResult
@@ -59,8 +60,15 @@ public val adaptySdkVersion: String get() = com.adapty.BuildConfig.VERSION_NAME
  * @suppress
  */
 @JvmSynthetic @InternalAdaptyApi
+@Deprecated("obsolete")
 public fun getOrderedOriginalProductIdMappings(paywall: AdaptyPaywall): List<Pair<String, String>> =
     paywall.products.map { it.id to it.vendorProductId }
+
+/**
+ * @suppress
+ */
+@JvmSynthetic @InternalAdaptyApi
+public fun extractProducts(paywall: AdaptyPaywall): List<BackendProduct> = paywall.products
 
 /**
  * @suppress

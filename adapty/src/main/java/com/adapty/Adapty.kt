@@ -598,13 +598,22 @@ public object Adapty {
     private val adaptyInternal: AdaptyInternal by inject()
 
     private val lock = ReentrantReadWriteLock()
-    private var isActivated = false
+
+    /**
+     * Returns whether [activate] has been called.
+     *
+     * Can be called before [activate]
+     *
+     */
+    @JvmStatic
+    public var isActivated: Boolean = false
         get() = try {
             lock.readLock().lock()
             field
         } finally {
             lock.readLock().unlock()
         }
+        private set
 
     private val notInitializedError = AdaptyError(
         message = "Adapty was not initialized",

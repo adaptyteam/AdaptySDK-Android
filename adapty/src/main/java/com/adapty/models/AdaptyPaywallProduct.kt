@@ -1,6 +1,9 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.models
 
 import com.adapty.internal.domain.models.BackendProduct.SubscriptionData
+import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct.Price
 import com.android.billingclient.api.ProductDetails
 import java.math.BigDecimal

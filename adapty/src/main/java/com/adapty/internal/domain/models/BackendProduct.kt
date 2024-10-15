@@ -1,43 +1,52 @@
 package com.adapty.internal.domain.models
 
 import androidx.annotation.RestrictTo
+import com.adapty.internal.utils.InternalAdaptyApi
 import com.android.billingclient.api.BillingClient
 
+/**
+ * @suppress
+ */
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class BackendProduct(
-    val id: String,
-    val vendorProductId: String,
-    val timestamp: Long,
-    val type: ProductType,
+@InternalAdaptyApi
+public class BackendProduct internal constructor(
+    public val id: String,
+    public val vendorProductId: String,
+    public val timestamp: Long,
+    public val type: ProductType,
 ) {
-    class SubscriptionData(
-        val basePlanId: String,
-        val offerId: String?,
+    public class SubscriptionData(
+        public val basePlanId: String,
+        public val offerId: String?,
     )
 }
 
+/**
+ * @suppress
+ */
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal sealed class ProductType {
-    object Consumable: ProductType() {
+@InternalAdaptyApi
+public sealed class ProductType {
+    public object Consumable: ProductType() {
 
-        val NAME = "cons"
-
-        override fun toString(): String {
-            return NAME
-        }
-    }
-    object NonConsumable: ProductType() {
-
-        val NAME = "noncons"
+        internal val NAME = "cons"
 
         override fun toString(): String {
             return NAME
         }
     }
-    class Subscription(val subscriptionData: BackendProduct.SubscriptionData): ProductType() {
+    public object NonConsumable: ProductType() {
 
-        companion object {
-            val NAME = BillingClient.ProductType.SUBS
+        internal val NAME = "noncons"
+
+        override fun toString(): String {
+            return NAME
+        }
+    }
+    public class Subscription(public val subscriptionData: BackendProduct.SubscriptionData): ProductType() {
+
+        internal companion object {
+            internal val NAME = BillingClient.ProductType.SUBS
         }
 
         override fun toString(): String {
