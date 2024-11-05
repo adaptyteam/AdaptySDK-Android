@@ -1,2 +1,2 @@
-include ':app', ':adapty'
+include ':app', ':adapty', ':adapty-ui'
 rootProject.name='AdaptyExample'

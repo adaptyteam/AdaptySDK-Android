@@ -30,6 +30,14 @@ class MainFragment : Fragment(R.layout.fragment_main) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        view.onReceiveSystemBarsInsets { insets ->
+            view.setPadding(
+                view.paddingStart,
+                view.paddingTop + insets.top,
+                view.paddingEnd,
+                view.paddingBottom + insets.bottom,
+            )
+        }
 
         val lastResponseResult = view.findViewById<TextView>(R.id.last_response_result)
         val restorePurchases = view.findViewById<View>(R.id.restore_purchases)
@@ -83,7 +91,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                                     Adapty.logShowPaywall(paywall)
 
                                     (activity as? MainActivity)?.addFragment(
-                                        ProductListFragment.newInstance(productResult.value),
+                                        ProductListFragment.newInstance(paywall, productResult.value),
                                         true
                                     )
                                 }
