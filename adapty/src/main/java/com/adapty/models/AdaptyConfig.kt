@@ -1,10 +1,13 @@
 package com.adapty.models
 
+import com.adapty.internal.utils.InternalAdaptyApi
+
 public class AdaptyConfig private constructor(
     @get:JvmSynthetic internal val apiKey: String,
     @get:JvmSynthetic internal val observerMode: Boolean,
     @get:JvmSynthetic internal val customerUserId: String?,
     @get:JvmSynthetic internal val ipAddressCollectionDisabled: Boolean,
+    @get:JvmSynthetic internal val backendBaseUrl: String,
 ) {
 
     /**
@@ -18,6 +21,8 @@ public class AdaptyConfig private constructor(
         private var observerMode = false
 
         private var ipAddressCollectionDisabled = false
+
+        private var backendBaseUrl = ServerCluster.DEFAULT.url
 
         /**
          * @param[customerUserId] User identifier in your system.
@@ -46,13 +51,34 @@ public class AdaptyConfig private constructor(
             return this
         }
 
+        public fun withServerCluster(serverCluster: ServerCluster): Builder {
+            this.backendBaseUrl = serverCluster.url
+            return this
+        }
+
+        /**
+         * @suppress
+         */
+        @InternalAdaptyApi
+        public fun withBackendBaseUrl(url: String): Builder {
+            if (url.isNotEmpty())
+                this.backendBaseUrl = url
+            return this
+        }
+
         public fun build(): AdaptyConfig {
             return AdaptyConfig(
                 apiKey,
                 observerMode,
                 customerUserId,
                 ipAddressCollectionDisabled,
+                backendBaseUrl,
             )
         }
+    }
+
+    public enum class ServerCluster(@get:JvmSynthetic internal val url: String) {
+        DEFAULT("https://api.adapty.io/"),
+        EU("https://api-eu.adapty.io/"),
     }
 }

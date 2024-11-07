@@ -1,6 +1,7 @@
 package com.adapty.internal.utils
 
 import androidx.annotation.RestrictTo
+import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class AdaptyUiAccessor {
@@ -26,9 +27,10 @@ internal class AdaptyUiAccessor {
             getDeclaredFieldOrNull<Any>(adaptyUiClass, "INSTANCE", adaptyUiClass)?.let { adaptyUiInstance ->
                 invokeDeclaredMethodIfExists(
                     adaptyUiClass,
+                    listOf(Map::class.java),
                     "preloadMedia",
                     adaptyUiInstance,
-                    rawConfig,
+                    listOf(rawConfig),
                 )
             }
         } catch (e: Throwable) { }
@@ -39,9 +41,28 @@ internal class AdaptyUiAccessor {
             sourceClass?.getDeclaredField(name)?.apply { isAccessible = true }?.get(obj) as? T
         } catch (e: Exception) { null }
 
-    private fun invokeDeclaredMethodIfExists(sourceClass: Class<*>?, name: String, obj: Any?, vararg args: Any?) {
-        try {
-            sourceClass?.getDeclaredMethod(name, Map::class.java)?.apply { isAccessible = true }?.invoke(obj, *args)
-        } catch (e: Exception) { }
-    }
+    private inline fun <reified T> invokeDeclaredMethodIfExists(
+            sourceClass: Class<*>?,
+            parameterTypes: Collection<Class<*>>,
+            name: String,
+            obj: Any?,
+            args: Collection<Any?>,
+        ): T? {
+            return kotlin.runCatching {
+                invokeDeclaredMethod(sourceClass, parameterTypes, name, obj, args) as T
+            }.getOrElse { e ->
+                Logger.log(ERROR) { "couldn't invoke method '$name': (${e.localizedMessage})" }
+                return null
+            }
+        }
+
+    private fun invokeDeclaredMethod(
+        sourceClass: Class<*>?,
+        parameterTypes: Collection<Class<*>>,
+        name: String,
+        obj: Any?,
+        args: Collection<Any?>,
+    ) =
+        sourceClass?.getDeclaredMethod(name, *parameterTypes.toTypedArray())
+            ?.apply { isAccessible = true }?.invoke(obj, *args.toTypedArray())
 }

@@ -362,6 +362,7 @@ public object Dependencies {
                         injectInternal(named = BASE),
                         config.apiKey,
                         config.observerMode,
+                        config.backendBaseUrl,
                     )
                 }),
 

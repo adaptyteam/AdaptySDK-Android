@@ -348,29 +348,33 @@ internal class StoreManager(
             startConnection(object : BillingClientStateListener {
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     if (continuation.isActive) {
-                        if (billingResult.responseCode == OK) {
-                            continuation.resume(Unit) {}
-                        } else {
-                            continuation.resumeWithException(
-                                AdaptyError(
-                                    message = "Play Market request failed: ${billingResult.debugMessage}",
-                                    adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)
+                        runCatching {
+                            if (billingResult.responseCode == OK) {
+                                continuation.resume(Unit) {}
+                            } else {
+                                continuation.resumeWithException(
+                                    AdaptyError(
+                                        message = "Play Market request failed: ${billingResult.debugMessage}",
+                                        adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)
+                                    )
                                 )
-                            )
+                            }
+                            startConnectionSemaphore.release()
                         }
-                        startConnectionSemaphore.release()
                     }
                 }
 
                 override fun onBillingServiceDisconnected() {
                     if (continuation.isActive) {
-                        continuation.resumeWithException(
-                            AdaptyError(
-                                message = "Play Market request failed: SERVICE_DISCONNECTED",
-                                adaptyErrorCode = AdaptyErrorCode.fromBilling(SERVICE_DISCONNECTED)
+                        runCatching {
+                            continuation.resumeWithException(
+                                AdaptyError(
+                                    message = "Play Market request failed: SERVICE_DISCONNECTED",
+                                    adaptyErrorCode = AdaptyErrorCode.fromBilling(SERVICE_DISCONNECTED)
+                                )
                             )
-                        )
-                        startConnectionSemaphore.release()
+                            startConnectionSemaphore.release()
+                        }
                     }
                 }
             })

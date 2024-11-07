@@ -52,7 +52,8 @@ internal class Request internal constructor(val baseUrl: String) {
     @JvmField
     var systemLog: BackendAPIRequestData? = null
 
-    internal class Builder(private val baseRequest: Request = Request(baseUrl = "https://api.adapty.io/api/v1/sdk/")) {
+    internal class Builder(private val baseRequest: Request) {
+        constructor(baseUrl: String): this(Request("${baseUrl}api/v1/sdk/"))
 
         @get:JvmSynthetic
         @set:JvmSynthetic
@@ -142,6 +143,7 @@ internal class RequestFactory(
     private val gson: Gson,
     private val apiKey: String,
     private val isObserverMode: Boolean,
+    private val backendBaseUrl: String,
 ) {
 
     private val inappsEndpointPrefix = "in-apps"
@@ -359,7 +361,7 @@ internal class RequestFactory(
         if (cacheRepository.getProfile()?.isTestUser == true) "?disable_cache" else ""
 
     private inline fun buildRequest(action: Request.Builder.() -> Unit) =
-        Request.Builder().apply {
+        Request.Builder(backendBaseUrl).apply {
             action()
             if (method != GET)
                 headers += listOf(Request.Header("Content-type", "application/vnd.api+json"))
