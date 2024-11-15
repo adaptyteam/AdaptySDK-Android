@@ -1,7 +1,12 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.ui.internal.utils
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -10,7 +15,10 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyEligibility.ELIGIBLE
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProductDiscountPhase
+import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
+import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.utils.AdaptyLogLevel
+import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import java.util.concurrent.Executors
 
 internal fun Context.getCurrentLocale() =
@@ -47,9 +55,27 @@ internal fun getScreenWidthDp(): Float {
     }
 }
 
+internal fun Context.getActivityOrNull(): Activity? {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    log(ERROR) { "$LOG_PREFIX couldn't get Activity from $this" }
+    return null
+}
+
+@InternalAdaptyApi
+@Composable
+public fun Assets.getForCurrentSystemTheme(assetId: String): Asset? =
+    if (!isSystemInDarkTheme())
+        get(assetId)
+    else
+        get("${assetId}${DARK_THEME_ASSET_SUFFIX}") ?: get(assetId)
+
 private val logExecutor = Executors.newSingleThreadExecutor()
 
-@OptIn(InternalAdaptyApi::class)
-internal fun log(messageLogLevel: AdaptyLogLevel, msg: () -> String) {
+@InternalAdaptyApi
+public fun log(messageLogLevel: AdaptyLogLevel, msg: () -> String) {
     logExecutor.execute { com.adapty.internal.utils.log(messageLogLevel, msg) }
 }

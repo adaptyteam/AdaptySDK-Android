@@ -13,7 +13,7 @@ import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 internal class DefaultLogHandler : AdaptyLogHandler {
 
     private companion object {
-        private const val TAG = "Adapty_v${com.adapty.BuildConfig.VERSION_NAME}"
+        private const val TAG = "Adapty_v${VERSION_NAME}"
         private const val CHUNK_MAX_LENGTH = 4000
         private const val MAX_CHUNKS = 5
     }

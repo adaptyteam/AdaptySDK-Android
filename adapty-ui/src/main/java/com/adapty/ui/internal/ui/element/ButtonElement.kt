@@ -13,7 +13,6 @@ import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.toComposeShape
 import com.adapty.ui.internal.ui.clickIndication
-import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.utils.EventCallback
 import com.adapty.ui.internal.utils.getProductGroupKey
 
@@ -69,13 +68,12 @@ public class ButtonElement internal constructor(
                     eventCallback.onActions(actionsResolved)
                 }
         ) {
-            item.toComposable(
+            item.render(
                 resolveAssets,
                 resolveText,
                 resolveState,
                 eventCallback,
-                Modifier.fillWithBaseParams(item, resolveAssets),
-            ).invoke()
+            )
         }
     }
 }

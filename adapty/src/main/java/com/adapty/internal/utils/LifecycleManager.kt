@@ -43,20 +43,14 @@ internal class LifecycleManager(private val app: Application, cacheRepository: C
     private fun initInternal() {
         app.registerActivityLifecycleCallbacks(object: ActivityCallbacks() {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-                if (isFirstStart) {
-                    allowActivate()
-                    isFirstStart = false
-                }
+                allowActivateOnce()
             }
         })
 
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
 
-        if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-            if (isFirstStart) {
-                allowActivate()
-                isFirstStart = false
-            }
+        if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) {
+            allowActivateOnce()
         }
     }
 
@@ -77,6 +71,13 @@ internal class LifecycleManager(private val app: Application, cacheRepository: C
         isActivateAllowed
             .filter { it }
             .take(1)
+
+    private fun allowActivateOnce() {
+        if (isFirstStart) {
+            allowActivate()
+            isFirstStart = false
+        }
+    }
 
     private fun allowActivate() {
         isActivateAllowed.value = true

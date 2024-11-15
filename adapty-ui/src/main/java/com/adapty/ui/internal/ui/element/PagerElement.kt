@@ -54,10 +54,10 @@ import com.adapty.ui.internal.ui.attributes.toComposeAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.ui.attributes.toExactDp
 import com.adapty.ui.internal.ui.attributes.toPaddingValues
-import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.ui.marginsOrSkip
 import com.adapty.ui.internal.utils.EventCallback
 import com.adapty.ui.internal.utils.LOG_PREFIX
+import com.adapty.ui.internal.utils.getForCurrentSystemTheme
 import com.adapty.ui.internal.utils.log
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import kotlinx.coroutines.delay
@@ -270,22 +270,20 @@ public class PagerElement internal constructor(
             modifier = modifier,
         ) { i ->
             if (pageHeight == null)
-                pages[i].toComposable(
+                pages[i].render(
                     resolveAssets,
                     resolveText,
                     resolveState,
                     eventCallback,
-                    Modifier.fillWithBaseParams(pages[i], resolveAssets),
-                ).invoke()
+                )
             else
                 Box(Modifier.height(pageHeight)) {
-                    pages[i].toComposable(
+                    pages[i].render(
                         resolveAssets,
                         resolveText,
                         resolveState,
                         eventCallback,
-                        Modifier.fillWithBaseParams(pages[i], resolveAssets),
-                    ).invoke()
+                    )
                 }
         }
     }
@@ -360,7 +358,7 @@ public class PagerElement internal constructor(
             repeat(pagerState.pageCount) { i ->
                 RoundDot(
                     fill = (if (i == pagerState.currentPage) data.selectedColor else data.color)?.assetId?.let { assetId ->
-                        when (val filling = resolveAssets()[assetId]) {
+                        when (val filling = resolveAssets().getForCurrentSystemTheme(assetId)) {
                             is Asset.Color -> filling.toComposeFill()
                             is Asset.Gradient -> filling.toComposeFill()
                             else -> null

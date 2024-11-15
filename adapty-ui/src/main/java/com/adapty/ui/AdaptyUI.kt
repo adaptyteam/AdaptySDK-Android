@@ -42,6 +42,7 @@ import com.adapty.ui.internal.mapping.element.TextElementMapper
 import com.adapty.ui.internal.mapping.element.TimerElementMapper
 import com.adapty.ui.internal.mapping.element.ToggleElementMapper
 import com.adapty.ui.internal.mapping.element.UIElementFactory
+import com.adapty.ui.internal.mapping.element.UIElementMapper
 import com.adapty.ui.internal.mapping.element.VStackElementMapper
 import com.adapty.ui.internal.mapping.element.ZStackElementMapper
 import com.adapty.ui.internal.mapping.viewconfig.ViewConfigurationAssetMapper
@@ -50,6 +51,7 @@ import com.adapty.ui.internal.mapping.viewconfig.ViewConfigurationScreenMapper
 import com.adapty.ui.internal.mapping.viewconfig.ViewConfigurationTextMapper
 import com.adapty.ui.internal.ui.element.BoxElement
 import com.adapty.ui.internal.ui.element.UIElement
+import com.adapty.ui.internal.utils.AdaptyUiVideoAccessor
 import com.adapty.ui.internal.utils.ContentWrapper
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.log
@@ -252,6 +254,10 @@ public object AdaptyUI {
                 internal val preview: Image?,
             ): Filling()
 
+            public class Video internal constructor(
+                public val url: String,
+            ): Filling()
+
             public sealed class Filling: Asset() {
                 public sealed class Local: Filling()
             }
@@ -394,6 +400,7 @@ public object AdaptyUI {
     }
 
     private fun initAllDeps() {
+        val adaptyUiVideoAccessor = AdaptyUiVideoAccessor()
         Dependencies.contribute(
             setOf(
                 ViewConfigurationMapper::class to Dependencies.singleVariantDiObject({
@@ -405,7 +412,7 @@ public object AdaptyUI {
                         ViewConfigurationTextMapper(),
                         ViewConfigurationScreenMapper(
                             UIElementFactory(
-                                mutableListOf(
+                                mutableListOf<UIElementMapper>(
                                     BoxElementMapper(commonAttributeMapper),
                                     ButtonElementMapper(
                                         interactiveAttributeMapper,
@@ -436,6 +443,12 @@ public object AdaptyUI {
                                     VStackElementMapper(commonAttributeMapper),
                                     ZStackElementMapper(commonAttributeMapper),
                                 )
+                                    .apply {
+                                        adaptyUiVideoAccessor.createVideoElementMapperOrNull(commonAttributeMapper)
+                                            ?.let { videoElementMapper ->
+                                                add(videoElementMapper)
+                                            }
+                                    }
                             ),
                             commonAttributeMapper,
                         )
@@ -443,6 +456,9 @@ public object AdaptyUI {
                 }),
                 MediaCacheConfigManager::class to Dependencies.singleVariantDiObject({
                     MediaCacheConfigManager()
+                }),
+                AdaptyUiVideoAccessor::class to Dependencies.singleVariantDiObject({
+                    adaptyUiVideoAccessor
                 }),
             )
         )
@@ -485,6 +501,10 @@ public object AdaptyUI {
                 }),
             )
         )
+        val adaptyUiVideoAccessor = Dependencies.injectInternal<AdaptyUiVideoAccessor>()
+        adaptyUiVideoAccessor.provideDeps(appContext)?.let { deps ->
+            Dependencies.contribute(deps)
+        }
     }
 
     private val viewConfigMapper: ViewConfigurationMapper by inject()

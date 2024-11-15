@@ -2,7 +2,6 @@
 
 package com.adapty.ui.internal.ui
 
-import android.app.Activity
 import android.content.Context
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,11 +33,13 @@ import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.ui.element.Action
 import com.adapty.ui.internal.ui.element.SectionElement
 import com.adapty.ui.internal.ui.element.fillModifierWithScopedParams
+import com.adapty.ui.internal.ui.element.render
 import com.adapty.ui.internal.utils.EventCallback
 import com.adapty.ui.internal.utils.InsetWrapper
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LocalCustomInsets
 import com.adapty.ui.internal.utils.OPENED_ADDITIONAL_SCREEN_KEY
+import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.getInsets
 import com.adapty.ui.internal.utils.getProductGroupKey
 import com.adapty.ui.internal.utils.log
@@ -117,7 +118,7 @@ internal fun AdaptyPaywallInternal(viewModel: PaywallViewModel) {
                         viewModel.state.remove(OPENED_ADDITIONAL_SCREEN_KEY)
                     },
                 ) {
-                    currentBottomSheet.content.toComposable(
+                    currentBottomSheet.content.render(
                         resolveAssets,
                         resolveText,
                         resolveState,
@@ -126,7 +127,7 @@ internal fun AdaptyPaywallInternal(viewModel: PaywallViewModel) {
                             currentBottomSheet.content,
                             Modifier.fillWithBaseParams(currentBottomSheet.content, resolveAssets),
                         )
-                    ).invoke()
+                    )
                 }
             }
 
@@ -178,13 +179,15 @@ private fun createEventCallback(
                     is Action.SelectProduct -> {
                         val productGroupKey = getProductGroupKey(action.groupId)
                         viewModel.state[productGroupKey] = action.productId
+                        val product = viewModel.products[action.productId] ?: return
+                        eventListener.onProductSelected(product, localContext)
                     }
                     is Action.UnselectProduct -> {
                         val productGroupKey = getProductGroupKey(action.groupId)
                         viewModel.state.remove(productGroupKey)
                     }
                     is Action.PurchaseProduct -> {
-                        val activity = localContext as? Activity ?: return
+                        val activity = localContext.getActivityOrNull() ?: return
                         val product = viewModel.products[action.productId] ?: return
 
                         viewModel.onPurchaseInitiated(
@@ -197,7 +200,7 @@ private fun createEventCallback(
                         )
                     }
                     is Action.PurchaseSelectedProduct -> {
-                        val activity = localContext as? Activity ?: return
+                        val activity = localContext.getActivityOrNull() ?: return
                         val productGroupKey = getProductGroupKey(action.groupId)
                         val product = viewModel.state[productGroupKey]?.let { id ->
                             viewModel.products[id]

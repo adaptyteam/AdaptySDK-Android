@@ -12,7 +12,6 @@ import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.Align
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
-import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.utils.EventCallback
 
 @InternalAdaptyApi
@@ -38,13 +37,12 @@ public class BoxElement internal constructor(
             contentAlignment = align.toComposeAlignment(),
             modifier = localModifier.then(modifier),
         ) {
-            content.toComposable(
+            content.render(
                 resolveAssets,
                 resolveText,
                 resolveState,
                 eventCallback,
-                Modifier.fillWithBaseParams(content, resolveAssets),
-            ).invoke()
+            )
         }
     }
 }

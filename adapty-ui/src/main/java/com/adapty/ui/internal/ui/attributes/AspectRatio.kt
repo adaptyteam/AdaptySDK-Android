@@ -1,9 +1,13 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.ui.internal.ui.attributes
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.ContentScale
+import com.adapty.internal.utils.InternalAdaptyApi
 
-internal enum class AspectRatio {
+@InternalAdaptyApi
+public enum class AspectRatio {
     FIT, FILL, STRETCH
 }
 

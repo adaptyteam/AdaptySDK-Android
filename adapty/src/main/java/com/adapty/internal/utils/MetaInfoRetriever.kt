@@ -43,7 +43,7 @@ internal class MetaInfoRetriever(
             .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ENGLISH) else it.toString() }
 
     @JvmSynthetic
-    val adaptySdkVersion = com.adapty.BuildConfig.VERSION_NAME
+    val adaptySdkVersion = VERSION_NAME
 
     @get:JvmSynthetic
     val crossplatformNameAndVersion by lazy {

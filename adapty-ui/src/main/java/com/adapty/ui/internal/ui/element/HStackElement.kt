@@ -40,16 +40,18 @@ public class HStackElement internal constructor(
         ) {
             content.forEach { item ->
                 item.run {
-                    this@Row.toComposableInRow(
-                        resolveAssets,
-                        resolveText,
-                        resolveState,
-                        eventCallback,
-                        fillModifierWithScopedParams(
-                            item,
-                            Modifier.fillWithBaseParams(item, resolveAssets),
+                    render(
+                        this@Row.toComposableInRow(
+                            resolveAssets,
+                            resolveText,
+                            resolveState,
+                            eventCallback,
+                            fillModifierWithScopedParams(
+                                item,
+                                Modifier.fillWithBaseParams(item, resolveAssets),
+                            )
                         )
-                    ).invoke()
+                    )
                 }
             }
         }

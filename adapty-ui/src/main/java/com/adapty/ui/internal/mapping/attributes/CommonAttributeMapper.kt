@@ -17,9 +17,10 @@ import com.adapty.ui.internal.ui.attributes.Transition
 import com.adapty.ui.internal.ui.attributes.VerticalAlign
 import com.adapty.ui.internal.ui.attributes.plus
 
-internal class CommonAttributeMapper {
+@InternalAdaptyApi
+public class CommonAttributeMapper {
 
-    fun mapTransition(item: Map<*, *>): Transition? {
+    internal fun mapTransition(item: Map<*, *>): Transition? {
         val startDelay = (item["start_delay"] as? Number)?.toInt() ?: 0
         val duration = (item["duration"] as? Number)?.toInt() ?: 300
         val interpolatorName = (item["interpolator"] as? String) ?: "ease_in_out"
@@ -31,10 +32,10 @@ internal class CommonAttributeMapper {
         }
     }
 
-    fun mapAlign(item: Map<*, *>): Align =
+    internal fun mapAlign(item: Map<*, *>): Align =
         mapHorizontalAlign(item["h_align"]) + mapVerticalAlign(item["v_align"])
 
-    fun mapVerticalAlign(item: Any?, default: VerticalAlign = VerticalAlign.CENTER): VerticalAlign {
+    internal fun mapVerticalAlign(item: Any?, default: VerticalAlign = VerticalAlign.CENTER): VerticalAlign {
         return when (item) {
             "top" -> VerticalAlign.TOP
             "bottom" -> VerticalAlign.BOTTOM
@@ -43,7 +44,7 @@ internal class CommonAttributeMapper {
         }
     }
 
-    fun mapHorizontalAlign(item: Any?, default: HorizontalAlign = HorizontalAlign.CENTER): HorizontalAlign {
+    internal fun mapHorizontalAlign(item: Any?, default: HorizontalAlign = HorizontalAlign.CENTER): HorizontalAlign {
         return when (item) {
             "leading" -> HorizontalAlign.START
             "left" -> HorizontalAlign.LEFT
@@ -54,7 +55,7 @@ internal class CommonAttributeMapper {
         }
     }
 
-    fun mapDimUnit(item: Any): DimUnit {
+    internal fun mapDimUnit(item: Any): DimUnit {
         when (item) {
             is Number -> return DimUnit.Exact(item.toFloat())
             is Map<*, *> -> {
@@ -84,7 +85,7 @@ internal class CommonAttributeMapper {
         }
     }
 
-    fun mapDimSpec(item: Any, dimAxis: DimSpec.Axis): DimSpec {
+    internal fun mapDimSpec(item: Any, dimAxis: DimSpec.Axis): DimSpec {
         if (item !is Map<*, *>)
             return DimSpec.Specified(item.asDimUnit(), dimAxis)
         val min = item["min"]
@@ -99,7 +100,7 @@ internal class CommonAttributeMapper {
 
     private fun Any.asDimUnit() = mapDimUnit(this)
 
-    fun mapEdgeEntities(item: Any): EdgeEntities? {
+    internal fun mapEdgeEntities(item: Any): EdgeEntities? {
         when (item) {
             is Number -> return EdgeEntities(item.toFloat())
             is Map<*, *> -> {
@@ -131,7 +132,7 @@ internal class CommonAttributeMapper {
         }
     }
 
-    fun mapAspectRatio(item: Any?): AspectRatio {
+    public fun mapAspectRatio(item: Any?): AspectRatio {
         return when (item) {
             "fill" -> AspectRatio.FILL
             "stretch" -> AspectRatio.STRETCH
@@ -139,7 +140,7 @@ internal class CommonAttributeMapper {
         }
     }
 
-    fun mapOffset(item: Any): Offset? {
+    internal fun mapOffset(item: Any): Offset? {
         when (item) {
             is Number -> return Offset(item.toFloat(), 0f)
             is Map<*, *> -> {
@@ -170,7 +171,7 @@ internal class CommonAttributeMapper {
         }
     }
 
-    fun mapShape(item: Any): Shape? {
+    internal fun mapShape(item: Any): Shape? {
         return when(item) {
             is Map<*, *> -> mapShape(item)
             is String -> mapShape(mapOf("background" to item, "type" to "rect"))
@@ -178,7 +179,7 @@ internal class CommonAttributeMapper {
         }
     }
 
-    fun mapShape(item: Map<*, *>): Shape {
+    private fun mapShape(item: Map<*, *>): Shape {
         val shapeType = (item["type"] as? String).let { type ->
             when (type) {
                 "circle" -> Shape.Type.Circle
@@ -204,7 +205,7 @@ internal class CommonAttributeMapper {
         return Shape(filling, shapeType, border)
     }
 
-    fun mapCornerRadius(item: Any): Shape.CornerRadius {
+    internal fun mapCornerRadius(item: Any): Shape.CornerRadius {
         when (item) {
             is Number -> return Shape.CornerRadius(item.toFloat())
             is Map<*, *> -> {

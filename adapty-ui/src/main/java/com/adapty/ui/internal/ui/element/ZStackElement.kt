@@ -9,7 +9,6 @@ import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.Align
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
-import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.utils.EventCallback
 
 @InternalAdaptyApi
@@ -31,13 +30,12 @@ public class ZStackElement internal constructor(
             modifier = modifier,
         ) {
             content.forEach { item ->
-                item.toComposable(
+                item.render(
                     resolveAssets,
                     resolveText,
                     resolveState,
                     eventCallback,
-                    Modifier.fillWithBaseParams(item, resolveAssets)
-                ).invoke()
+                )
             }
         }
     }

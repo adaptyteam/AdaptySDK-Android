@@ -9,6 +9,7 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset.Image.Dimension
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset.Image.ScaleType
+import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 
 internal fun getBitmap(image: Asset.Image, boundsW: Int, boundsH: Int, scaleType: ScaleType): Bitmap? {
     val dim: Dimension
@@ -36,7 +37,10 @@ internal fun getBitmap(image: Asset.Image, reqDim: Int = 0, dim: Dimension = Dim
 
 private fun getBitmap(source: Asset.Image.Source.Base64Str, reqDim: Int, dim: Dimension) : Bitmap? {
     if (source.imageBase64 == null) return null
-    val byteArray = Base64.decode(source.imageBase64, Base64.DEFAULT)
+    val byteArray = runCatching { Base64.decode(source.imageBase64, Base64.DEFAULT) }.getOrElse { e ->
+        log(ERROR) { "$LOG_PREFIX base64 decoding error: ${e.localizedMessage}" }
+        return null
+    }
     if (reqDim <= 0) {
         return BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
     }

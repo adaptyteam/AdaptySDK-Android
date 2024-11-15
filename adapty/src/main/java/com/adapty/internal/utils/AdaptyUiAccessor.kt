@@ -1,3 +1,5 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.internal.utils
 
 import androidx.annotation.RestrictTo
@@ -6,8 +8,8 @@ import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class AdaptyUiAccessor {
 
-    private val buildConfigClass: Class<*>? by lazy {
-        getClassForNameOrNull("com.adapty.ui.BuildConfig")
+    private val adaptyUiConstClass: Class<*>? by lazy {
+        getClassForNameOrNull("com.adapty.ui.internal.utils.ConstsKt")
     }
 
     private val adaptyUiClass: Class<*>? by lazy {
@@ -16,11 +18,11 @@ internal class AdaptyUiAccessor {
 
     @get:JvmSynthetic
     val adaptyUiVersion: String?
-        get() = getDeclaredFieldOrNull<String>(buildConfigClass, "VERSION_NAME", buildConfigClass)
+        get() = getDeclaredFieldOrNull<String>(adaptyUiConstClass, "VERSION_NAME", adaptyUiConstClass)
 
     @get:JvmSynthetic
     val builderVersion: String
-        get() = getDeclaredFieldOrNull<String>(buildConfigClass, "BUILDER_VERSION", buildConfigClass) ?: "3"
+        get() = getDeclaredFieldOrNull<String>(adaptyUiConstClass, "BUILDER_VERSION", adaptyUiConstClass) ?: "3"
 
     fun preloadMedia(rawConfig: Map<String, Any>) {
         try {

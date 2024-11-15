@@ -16,6 +16,7 @@ import com.adapty.internal.utils.DEFAULT_PAYWALL_LOCALE
 import com.adapty.internal.utils.ID
 import com.adapty.internal.utils.MetaInfoRetriever
 import com.adapty.internal.utils.PayloadProvider
+import com.adapty.internal.utils.VERSION_NAME
 import com.adapty.internal.utils.extractLanguageCode
 import com.adapty.models.AdaptyProfileParameters
 import com.android.billingclient.api.Purchase
@@ -373,7 +374,7 @@ internal class RequestFactory(
             Request.Header("Accept-Encoding", "gzip"),
             Request.Header("adapty-sdk-profile-id", cacheRepository.getProfileId()),
             Request.Header("adapty-sdk-platform", "Android"),
-            Request.Header("adapty-sdk-version", com.adapty.BuildConfig.VERSION_NAME),
+            Request.Header("adapty-sdk-version", VERSION_NAME),
             Request.Header("adapty-sdk-session", cacheRepository.getSessionId()),
             Request.Header("adapty-sdk-device-id", metaInfoRetriever.installationMetaId),
             Request.Header("adapty-sdk-observer-mode-enabled", "$isObserverMode"),

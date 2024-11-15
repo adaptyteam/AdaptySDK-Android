@@ -40,16 +40,18 @@ public class ColumnElement internal constructor(
         ) {
             items.forEach { item ->
                 item.run {
-                    toComposableInColumn(
-                        resolveAssets,
-                        resolveText,
-                        resolveState,
-                        eventCallback,
-                        fillModifierWithScopedParams(
-                            item,
-                            Modifier.fillWithBaseParams(item, resolveAssets),
+                    render(
+                        toComposableInColumn(
+                            resolveAssets,
+                            resolveText,
+                            resolveState,
+                            eventCallback,
+                            fillModifierWithScopedParams(
+                                item,
+                                Modifier.fillWithBaseParams(item, resolveAssets),
+                            )
                         )
-                    ).invoke()
+                    )
                 }
             }
         }

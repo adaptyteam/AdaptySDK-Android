@@ -14,12 +14,13 @@ import com.adapty.ui.internal.ui.element.ReferenceElement
 import com.adapty.ui.internal.ui.element.SingleContainer
 import com.adapty.ui.internal.ui.element.UIElement
 
-internal abstract class BaseUIElementMapper(
+@InternalAdaptyApi
+public abstract class BaseUIElementMapper(
     private val elementTypeStr: String,
     protected val commonAttributeMapper: CommonAttributeMapper,
 ): UIElementMapper {
 
-    override fun canMap(config: Map<*, *>) = config["type"] == elementTypeStr
+    override fun canMap(config: Map<*, *>): Boolean = config["type"] == elementTypeStr
 
     protected fun Map<*, *>.extractBaseProps(): BaseProps {
         return BaseProps(
@@ -37,7 +38,7 @@ internal abstract class BaseUIElementMapper(
         )
     }
 
-    protected fun Any.toFloatOrNull() = (this as? Number)?.toFloat()
+    protected fun Any.toFloatOrNull(): Float? = (this as? Number)?.toFloat()
 
     protected fun Map<*, *>.extractSpacingOrNull(): Float? =
         this["spacing"]?.toFloatOrNull()?.takeIf { it > 0f }

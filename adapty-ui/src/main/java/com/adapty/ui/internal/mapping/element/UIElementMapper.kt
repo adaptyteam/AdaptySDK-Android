@@ -10,19 +10,21 @@ import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.ui.element.UnknownElement
 import com.adapty.ui.internal.utils.NO_SHRINK
 
-internal typealias Assets = Map<String, AdaptyUI.LocalizedViewConfiguration.Asset>
+public typealias Assets = Map<String, AdaptyUI.LocalizedViewConfiguration.Asset>
 internal typealias Texts = Map<String, AdaptyUI.LocalizedViewConfiguration.TextItem>
 internal typealias Products = Map<String, AdaptyPaywallProduct>
 internal typealias StateMap = MutableMap<String, Any>
 internal typealias ChildMapper = (item: Map<*, *>) -> UIElement?
 internal typealias ChildMapperShrinkable = (item: Map<*, *>, nextInheritShrink: Int) -> UIElement?
 
-internal interface UIElementMapper {
-    fun canMap(config: Map<*, *>): Boolean
+@InternalAdaptyApi
+public interface UIElementMapper {
+    public fun canMap(config: Map<*, *>): Boolean
 }
 
-internal interface UIPlainElementMapper: UIElementMapper {
-    fun map(config: Map<*, *>, assets: Assets, refBundles: ReferenceBundles): UIElement
+@InternalAdaptyApi
+public interface UIPlainElementMapper: UIElementMapper {
+    public fun map(config: Map<*, *>, assets: Assets, refBundles: ReferenceBundles): UIElement
 }
 
 internal interface UIComplexElementMapper: UIElementMapper {
@@ -70,11 +72,12 @@ internal class UIElementFactory(private val mappers: List<UIElementMapper>) {
     }
 }
 
-internal class ReferenceBundles(
-    val targetElements: MutableMap<String, UIElement>,
-    val awaitingElements: MutableMap<String, MutableList<Container<*>>>,
+@InternalAdaptyApi
+public class ReferenceBundles internal constructor(
+    internal val targetElements: MutableMap<String, UIElement>,
+    internal val awaitingElements: MutableMap<String, MutableList<Container<*>>>,
 ) {
-    companion object {
+    internal companion object {
         fun create() = ReferenceBundles(mutableMapOf(), mutableMapOf())
     }
 }

@@ -15,6 +15,7 @@ import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.utils.EventCallback
+import com.adapty.ui.internal.utils.getForCurrentSystemTheme
 import com.adapty.ui.internal.utils.getProductGroupKey
 
 @InternalAdaptyApi
@@ -34,7 +35,7 @@ public class ToggleElement internal constructor(
         modifier: Modifier,
     ): @Composable () -> Unit = {
         val state = resolveState()
-        val fill = color?.assetId?.let { assetId -> resolveAssets()[assetId] }
+        val fill = color?.assetId?.let { assetId -> resolveAssets().getForCurrentSystemTheme(assetId) }
         val colors = if (fill is Asset.Color)
             SwitchDefaults.colors(checkedTrackColor = fill .toComposeFill().color)
         else

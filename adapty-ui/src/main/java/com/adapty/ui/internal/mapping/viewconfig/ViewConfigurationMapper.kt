@@ -107,8 +107,9 @@ internal class ViewConfigurationMapper(
     private fun findMediaUrls(assets: JsonArray): Set<String> {
         val mediaUrls = mutableSetOf<String>()
         assets.forEach { asset ->
-            if (asset.getAs<String>(TYPE) == "image") {
-                asset.getAs<String>(URL)?.let { url -> mediaUrls.add(url) }
+            when (asset.getAs<String>(TYPE)) {
+                "image" -> asset.getAs<String>(URL)?.let { url -> mediaUrls.add(url) }
+                "video" -> asset.getAs<JsonObject>("image")?.getAs<String>(URL)?.let { url -> mediaUrls.add(url) }
             }
         }
         return mediaUrls

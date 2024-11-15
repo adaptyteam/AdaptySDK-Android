@@ -38,13 +38,12 @@ public class SectionElement internal constructor(
         return {
             renderSection(resolveState) { currentIndex ->
                 content[currentIndex].run {
-                    toComposable(
+                    render(
                         resolveAssets,
                         resolveText,
                         resolveState,
                         eventCallback,
-                        Modifier.fillWithBaseParams(this, resolveAssets)
-                    ).invoke()
+                    )
                 }
             }
         }
@@ -60,16 +59,18 @@ public class SectionElement internal constructor(
         return {
             renderSection(resolveState) { currentIndex ->
                 content[currentIndex].run {
-                    this@toComposableInColumn.toComposableInColumn(
-                        resolveAssets,
-                        resolveText,
-                        resolveState,
-                        eventCallback,
-                        fillModifierWithScopedParams(
-                            this,
-                            Modifier.fillWithBaseParams(this, resolveAssets),
-                        ),
-                    ).invoke()
+                    render(
+                        this@toComposableInColumn.toComposableInColumn(
+                            resolveAssets,
+                            resolveText,
+                            resolveState,
+                            eventCallback,
+                            fillModifierWithScopedParams(
+                                this,
+                                Modifier.fillWithBaseParams(this, resolveAssets),
+                            ),
+                        )
+                    )
                 }
             }
         }
@@ -85,16 +86,18 @@ public class SectionElement internal constructor(
         return {
             renderSection(resolveState) { currentIndex ->
                 content[currentIndex].run {
-                    this@toComposableInRow.toComposableInRow(
-                        resolveAssets,
-                        resolveText,
-                        resolveState,
-                        eventCallback,
-                        fillModifierWithScopedParams(
-                            this,
-                            Modifier.fillWithBaseParams(this, resolveAssets),
-                        ),
-                    ).invoke()
+                    render(
+                        this@toComposableInRow.toComposableInRow(
+                            resolveAssets,
+                            resolveText,
+                            resolveState,
+                            eventCallback,
+                            fillModifierWithScopedParams(
+                                this,
+                                Modifier.fillWithBaseParams(this, resolveAssets),
+                            ),
+                        )
+                    )
                 }
             }
         }

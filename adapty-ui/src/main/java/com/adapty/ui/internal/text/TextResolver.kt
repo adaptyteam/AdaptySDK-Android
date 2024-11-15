@@ -3,6 +3,7 @@
 package com.adapty.ui.internal.text
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.runtime.Composable
@@ -26,6 +27,7 @@ import com.adapty.ui.internal.mapping.element.Texts
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.utils.firstDiscountOfferOrNull
 import com.adapty.ui.internal.utils.getBitmap
+import com.adapty.ui.internal.utils.getForCurrentSystemTheme
 import com.adapty.ui.internal.utils.getProductGroupKey
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 
@@ -117,18 +119,19 @@ internal class TextResolver(
                     parts.add(StringWrapper.ComplexStr.ComplexStrPart.Text(processedItem))
                 }
                 is RichText.Item.Image -> {
-                    val imageAsset = assets[item.imageAssetId] as? Asset.Image
+                    val imageAsset = assets.getForCurrentSystemTheme(item.imageAssetId) as? Asset.Image
                         ?: return@forEach
-                    val imageBitmap = remember(imageAsset.source.javaClass) {
+                    val isSystemInDarkTheme = isSystemInDarkTheme()
+                    val imageBitmap = remember(imageAsset.source.javaClass, isSystemInDarkTheme) {
                         getBitmap(imageAsset)
                             ?.asImageBitmap()
                     } ?: return@forEach
 
                     val id = "image_${inlineContent.size}"
                     val tint = item.attrs?.imageTintAssetId?.let { assetId ->
-                        assets[assetId]
+                        assets.getForCurrentSystemTheme(assetId)
                     }
-                    val colorFilter = remember {
+                    val colorFilter = remember(isSystemInDarkTheme) {
                         (tint as? Asset.Color)?.toComposeFill()?.color?.let { color ->
                             ColorFilter.tint(color)
                         }

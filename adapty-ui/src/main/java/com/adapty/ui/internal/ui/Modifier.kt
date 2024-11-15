@@ -38,9 +38,11 @@ import com.adapty.ui.internal.ui.attributes.toComposeShape
 import com.adapty.ui.internal.ui.attributes.toExactDp
 import com.adapty.ui.internal.ui.attributes.verticalSumOrDefault
 import com.adapty.ui.internal.ui.element.UIElement
+import com.adapty.ui.internal.utils.getForCurrentSystemTheme
 
+@InternalAdaptyApi
 @Composable
-internal fun Modifier.fillWithBaseParams(element: UIElement, resolveAssets: () -> Assets): Modifier {
+public fun Modifier.fillWithBaseParams(element: UIElement, resolveAssets: () -> Assets): Modifier {
     return this
         .sizeAndMarginsOrSkip(element)
         .offsetOrSkip(element.baseProps.offset)
@@ -56,14 +58,14 @@ internal fun Modifier.backgroundOrSkip(
     var modifier = this
     val backgroundShape = decorator.type.toComposeShape()
     if (decorator.fill != null) {
-        val backgroundAsset = resolveAssets()[decorator.fill.assetId] as? Asset.Filling.Local
+        val backgroundAsset = resolveAssets().getForCurrentSystemTheme(decorator.fill.assetId) as? Asset.Filling.Local
         if (backgroundAsset != null)
             modifier = modifier.background(backgroundAsset, backgroundShape)
     }
     modifier = modifier.clip(backgroundShape)
 
     if (decorator.border != null) {
-        when (val borderAsset = resolveAssets()[decorator.border.color] as? Asset.Filling.Local) {
+        when (val borderAsset = resolveAssets().getForCurrentSystemTheme(decorator.border.color) as? Asset.Filling.Local) {
             is Asset.Color -> {
                 modifier = modifier.border(
                     decorator.border.thickness.dp,

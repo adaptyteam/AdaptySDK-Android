@@ -34,8 +34,11 @@ import kotlin.math.pow
 @JvmSynthetic
 internal fun generateUuid() = UUID.randomUUID().toString()
 
-@JvmSynthetic
-internal fun getClassForNameOrNull(className: String): Class<*>? =
+/**
+ * @suppress
+ */
+@InternalAdaptyApi
+public fun getClassForNameOrNull(className: String): Class<*>? =
     try {
         Class.forName(className)
     } catch (e: ClassNotFoundException) {
@@ -130,6 +133,8 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 
 @JvmSynthetic
 internal const val DEFAULT_PAYWALL_LOCALE = "en"
+
+internal const val VERSION_NAME = "3.1.0"
 
 /**
  * @suppress

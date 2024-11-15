@@ -22,11 +22,10 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.max
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Screen
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.ScreenBundle
@@ -37,9 +36,8 @@ import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
 import com.adapty.ui.internal.ui.attributes.toExactDp
+import com.adapty.ui.internal.ui.element.render
 import com.adapty.ui.internal.utils.EventCallback
-import com.adapty.ui.internal.utils.getInsets
-import kotlin.math.min
 
 @Composable
 internal fun renderDefaultScreen(
@@ -101,23 +99,20 @@ internal fun renderBasicTemplate(
             .clickable(enabled = false, onClick = {})
             .backgroundOrSkip(Shape.plain(defaultScreen.background), resolveAssets),
     ) {
-        defaultScreen.cover.toComposable(
+        defaultScreen.cover.render(
             resolveAssets,
             resolveText,
             resolveState,
             eventCallback,
-            Modifier.fillWithBaseParams(defaultScreen.cover, resolveAssets),
-        ).invoke()
-        val boxMaxHeight = maxHeight
+        )
+        val boxMaxHeightPx = constraints.maxHeight
         val contentWrapper = defaultScreen.contentWrapper
         val contentTopPadding = remember(coverHeight) {
             val contentOffsetY = (contentWrapper.offset?.y ?: 0f).dp
-            coverHeight + contentOffsetY
+            (coverHeight + contentOffsetY).coerceAtLeast(0.dp)
         }
         contentWrapper.offset?.consumed = true
-        val configuration = LocalConfiguration.current
         val density = LocalDensity.current
-        val windowInsets = getInsets()
 
         CompositionLocalProvider(
             LocalOverscrollConfiguration provides null,
@@ -135,10 +130,11 @@ internal fun renderBasicTemplate(
                         val measuredContentHeightPx = measuredContentHeightPxState.intValue
                         if (measuredContentHeightPx == 0) return@run this
                         with(density) {
-                            val maxScreenHeight = configuration.screenHeightDp.dp.toPx() + (windowInsets.getBottom(this) + windowInsets.getTop(this))
-                            val footerOverlap = (min(contentTopPadding.toPx() + measuredContentHeightPx.toFloat(), maxScreenHeight) + measuredFooterHeightPx - maxScreenHeight)
-                                .coerceAtLeast(0f)
-                            val contentHeight = max(boxMaxHeight, measuredContentHeightPx.toDp()) + footerOverlap.toDp()
+                            val contentHeight = calculateAdjustedContentHeightPx(
+                                contentTopPadding.toPx() + measuredContentHeightPx.toFloat(),
+                                measuredFooterHeightPx.toFloat(),
+                                boxMaxHeightPx.toFloat(),
+                            ).toDp()
                             height(contentHeight)
                                 .also { adjustedContentHeightState.value = contentHeight }
                         }
@@ -149,7 +145,7 @@ internal fun renderBasicTemplate(
                     .offsetOrSkip(contentWrapper.offset)
                     .backgroundOrSkip(contentWrapper.background, resolveAssets)
             ) {
-                contentWrapper.content.toComposable(
+                contentWrapper.content.render(
                     resolveAssets,
                     resolveText,
                     resolveState,
@@ -161,12 +157,12 @@ internal fun renderBasicTemplate(
                             measuredContentHeightPxState.intValue = size.height
                         }
                         .fillWithBaseParams(contentWrapper.content, resolveAssets),
-                ).invoke()
+                )
             }
         }
 
         defaultScreen.footer?.let { footer ->
-            footer.toComposable(
+            footer.render(
                 resolveAssets,
                 resolveText,
                 resolveState,
@@ -179,17 +175,14 @@ internal fun renderBasicTemplate(
                         measuredFooterHeightPxState.intValue = size.height
                     }
                     .fillWithBaseParams(footer, resolveAssets),
-            ).invoke()
+            )
         }
-        defaultScreen.overlay?.let { overlay ->
-            overlay.toComposable(
-                resolveAssets,
-                resolveText,
-                resolveState,
-                eventCallback,
-                Modifier.fillWithBaseParams(overlay, resolveAssets),
-            ).invoke()
-        }
+        defaultScreen.overlay?.render(
+            resolveAssets,
+            resolveText,
+            resolveState,
+            eventCallback,
+        )
     }
 }
 
@@ -215,19 +208,14 @@ internal fun renderFlatTemplate(
             .clickable(enabled = false, onClick = {})
             .backgroundOrSkip(Shape.plain(defaultScreen.background), resolveAssets),
     ) {
-        defaultScreen.cover?.let { cover ->
-            cover.toComposable(
-                resolveAssets,
-                resolveText,
-                resolveState,
-                eventCallback,
-                Modifier.fillWithBaseParams(cover, resolveAssets)
-            ).invoke()
-        }
-        val boxMaxHeight = maxHeight
-        val configuration = LocalConfiguration.current
+        defaultScreen.cover?.render(
+            resolveAssets,
+            resolveText,
+            resolveState,
+            eventCallback,
+        )
+        val boxMaxHeightPx = constraints.maxHeight
         val density = LocalDensity.current
-        val windowInsets = getInsets()
         val contentWrapper = defaultScreen.contentWrapper
 
         CompositionLocalProvider(
@@ -246,17 +234,18 @@ internal fun renderFlatTemplate(
                         val measuredContentHeightPx = measuredContentHeightPxState.intValue
                         if (measuredContentHeightPx == 0) return@run this
                         with(density) {
-                            val maxScreenHeight = configuration.screenHeightDp.dp.toPx() + (windowInsets.getBottom(this) + windowInsets.getTop(this))
-                            val footerOverlap = (min(measuredContentHeightPx.toFloat(), maxScreenHeight) + measuredFooterHeightPx - maxScreenHeight)
-                                .coerceAtLeast(0f)
-                            val contentHeight = max(boxMaxHeight, measuredContentHeightPx.toDp()) + footerOverlap.toDp()
+                            val contentHeight = calculateAdjustedContentHeightPx(
+                                measuredContentHeightPx.toFloat(),
+                                measuredFooterHeightPx.toFloat(),
+                                boxMaxHeightPx.toFloat(),
+                            ).toDp()
                             height(contentHeight)
                                 .also { adjustedContentHeightState.value = contentHeight }
                         }
                     }
                     .backgroundOrSkip(contentWrapper.background, resolveAssets)
             ) {
-                contentWrapper.content.toComposable(
+                contentWrapper.content.render(
                     resolveAssets,
                     resolveText,
                     resolveState,
@@ -268,12 +257,12 @@ internal fun renderFlatTemplate(
                             measuredContentHeightPxState.intValue = size.height
                         }
                         .fillWithBaseParams(contentWrapper.content, resolveAssets),
-                ).invoke()
+                )
             }
         }
 
         defaultScreen.footer?.let { footer ->
-            footer.toComposable(
+            footer.render(
                 resolveAssets,
                 resolveText,
                 resolveState,
@@ -286,17 +275,14 @@ internal fun renderFlatTemplate(
                         measuredFooterHeightPxState.intValue = size.height
                     }
                     .fillWithBaseParams(footer, resolveAssets),
-            ).invoke()
+            )
         }
-        defaultScreen.overlay?.let { overlay ->
-            overlay.toComposable(
-                resolveAssets,
-                resolveText,
-                resolveState,
-                eventCallback,
-                Modifier.fillWithBaseParams(overlay, resolveAssets),
-            ).invoke()
-        }
+        defaultScreen.overlay?.render(
+            resolveAssets,
+            resolveText,
+            resolveState,
+            eventCallback,
+        )
     }
 }
 
@@ -315,18 +301,17 @@ internal fun renderTransparentTemplate(
             .clickable(enabled = false, onClick = {})
             .backgroundOrSkip(Shape.plain(defaultScreen.background), resolveAssets),
     ) {
-        defaultScreen.content.toComposable(
+        defaultScreen.content.render(
             resolveAssets,
             resolveText,
             resolveState,
             eventCallback,
-            Modifier.fillWithBaseParams(defaultScreen.content, resolveAssets),
-        ).invoke()
+        )
         defaultScreen.footer?.let { footer ->
             CompositionLocalProvider(
                 LocalOverscrollConfiguration provides null,
             ) {
-                footer.toComposable(
+                footer.render(
                     resolveAssets,
                     resolveText,
                     resolveState,
@@ -335,17 +320,23 @@ internal fun renderTransparentTemplate(
                         .verticalScroll(rememberScrollState(), reverseScrolling = true)
                         .height(IntrinsicSize.Max)
                         .fillWithBaseParams(footer, resolveAssets)
-                ).invoke()
+                )
             }
         }
-        defaultScreen.overlay?.let { overlay ->
-            overlay.toComposable(
-                resolveAssets,
-                resolveText,
-                resolveState,
-                eventCallback,
-                Modifier.fillWithBaseParams(overlay, resolveAssets),
-            ).invoke()
-        }
+        defaultScreen.overlay?.render(
+            resolveAssets,
+            resolveText,
+            resolveState,
+            eventCallback,
+        )
     }
+}
+
+private fun calculateAdjustedContentHeightPx(
+    initialContentHeightPx: Float,
+    footerHeightPx: Float,
+    containerHeightPx: Float,
+): Float {
+    val footerOverlapPx = footerHeightPx - (containerHeightPx - initialContentHeightPx).coerceAtLeast(0f)
+    return initialContentHeightPx.coerceAtLeast(containerHeightPx) + footerOverlapPx
 }

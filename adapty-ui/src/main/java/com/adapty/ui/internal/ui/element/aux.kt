@@ -2,9 +2,15 @@
 
 package com.adapty.ui.internal.ui.element
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.mapping.element.Assets
@@ -17,10 +23,13 @@ import com.adapty.ui.internal.ui.attributes.EdgeEntities
 import com.adapty.ui.internal.ui.attributes.Offset
 import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.Transition
+import com.adapty.ui.internal.ui.attributes.easing
+import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.utils.EventCallback
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.log
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
+import kotlinx.coroutines.delay
 
 public object UnknownElement: UIElement {
     override val baseProps: BaseProps = BaseProps.EMPTY
@@ -76,8 +85,9 @@ public data class BaseProps internal constructor(
     }
 }
 
-internal interface Container<T> {
-    var content: T
+@InternalAdaptyApi
+public interface Container<T> {
+    public var content: T
 }
 internal interface SingleContainer: Container<UIElement>
 internal interface MultiContainer: Container<List<UIElement>>
@@ -139,3 +149,79 @@ internal fun ColumnScope.fillModifierWithScopedParams(element: UIElement, modifi
         modifier = modifier.weight(weight)
     return modifier
 }
+
+@Composable
+internal fun UIElement.render(
+    resolveAssets: () -> Assets,
+    resolveText: @Composable (StringId) -> StringWrapper?,
+    resolveState: () -> Map<String, Any>,
+    eventCallback: EventCallback,
+) {
+    render(
+        resolveAssets,
+        resolveText,
+        resolveState,
+        eventCallback,
+        Modifier.fillWithBaseParams(this, resolveAssets)
+    )
+}
+
+@Composable
+internal fun UIElement.render(
+    resolveAssets: () -> Assets,
+    resolveText: @Composable (StringId) -> StringWrapper?,
+    resolveState: () -> Map<String, Any>,
+    eventCallback: EventCallback,
+    modifier: Modifier,
+) {
+    render(
+        toComposable(
+            resolveAssets,
+            resolveText,
+            resolveState,
+            eventCallback,
+            modifier,
+        )
+    )
+}
+
+@Composable
+internal fun UIElement.render(
+    toComposable: @Composable () -> Unit,
+) {
+    toComposable
+        .withTransitions(transitions)
+        .invoke()
+}
+
+@Composable
+internal fun (@Composable () -> Unit).withTransitions(transitions: Transitions): @Composable () -> Unit  = {
+    val (transitionsIn) = transitions
+    val transitionIn = transitionsIn?.firstOrNull { it is Transition.Fade }
+    if (transitionIn != null) {
+        val visibilityState = remember {
+            mutableStateOf(false)
+        }
+        LaunchedEffect(Unit) {
+            if (transitionIn.startDelayMillis > 0)
+                delay(transitionIn.startDelayMillis.toLong())
+            visibilityState.value = true
+        }
+        AnimatedVisibility(
+            visible = visibilityState.value,
+            enter = fadeIn(
+                animationSpec = tween(durationMillis = transitionIn.durationMillis, easing = transitionIn.easing)
+            )
+        ) {
+            this@withTransitions()
+        }
+    } else {
+        this()
+    }
+}
+
+internal val UIElement.transitions get() = Transitions(baseProps.transitionIn)
+
+internal data class Transitions(
+    val transitionIn: List<Transition>?,
+)

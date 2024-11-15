@@ -40,16 +40,18 @@ public class VStackElement internal constructor(
         ) {
             content.forEach { item ->
                 item.run {
-                    this@Column.toComposableInColumn(
-                        resolveAssets,
-                        resolveText,
-                        resolveState,
-                        eventCallback,
-                        fillModifierWithScopedParams(
-                            item,
-                            Modifier.fillWithBaseParams(item, resolveAssets),
-                        ),
-                    ).invoke()
+                    render(
+                        this@Column.toComposableInColumn(
+                            resolveAssets,
+                            resolveText,
+                            resolveState,
+                            eventCallback,
+                            fillModifierWithScopedParams(
+                                item,
+                                Modifier.fillWithBaseParams(item, resolveAssets),
+                            ),
+                        )
+                    )
                 }
             }
         }

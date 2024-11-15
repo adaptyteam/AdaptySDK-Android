@@ -1,0 +1,65 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    compileSdk 31
+
+    defaultConfig {
+        minSdk 21
+        targetSdk 31
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildFeatures {
+        compose = true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.4.1"
+    }
+    kotlinOptions {
+        freeCompilerArgs += ['-Xexplicit-api=strict', '-Xopt-in=kotlin.RequiresOptIn']
+        freeCompilerArgs += ['-Xopt-in=kotlin.RequiresOptIn']
+    }
+    namespace 'com.adapty.ui.video'
+}
+
+def composeBom = '2024.09.02'
+
+def exoplayerVersion = '1.4.1'
+
+dependencies {
+
+    compileOnly project(':adapty')
+    compileOnly project(':adapty-ui')
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+
+    implementation platform("androidx.compose:compose-bom:$composeBom")
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.material3:material3'
+
+    debugCompileOnly 'androidx.compose.ui:ui-tooling'
+    debugCompileOnly 'androidx.compose.ui:ui-test-manifest'
+
+    implementation ("androidx.media3:media3-exoplayer:$exoplayerVersion")
+    implementation ("androidx.media3:media3-exoplayer-hls:$exoplayerVersion")
+    implementation ("androidx.media3:media3-ui:$exoplayerVersion")
+    implementation ("androidx.media3:media3-common:$exoplayerVersion")
+
+    implementation 'androidx.lifecycle:lifecycle-process:2.4.0'
+}

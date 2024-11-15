@@ -1,3 +1,5 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.ui.listeners
 
 import android.app.Activity
@@ -5,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import com.adapty.errors.AdaptyError
+import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
 import com.adapty.models.AdaptyPurchasedInfo

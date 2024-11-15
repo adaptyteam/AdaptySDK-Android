@@ -44,13 +44,12 @@ public class GridItem internal constructor(
             contentAlignment = align.toComposeAlignment(),
             modifier = modifier.fillMaxSize(),
         ) {
-            content.toComposable(
+            content.render(
                 resolveAssets,
                 resolveText,
                 resolveState,
                 eventCallback,
-                Modifier.fillWithBaseParams(content, resolveAssets),
-            ).invoke()
+            )
         }
     }
 
@@ -66,16 +65,18 @@ public class GridItem internal constructor(
             modifier = modifier.fillMaxWidth(),
         ) {
             content.run {
-                this@toComposableInColumn.toComposableInColumn(
-                    resolveAssets,
-                    resolveText,
-                    resolveState,
-                    eventCallback,
-                    this@toComposableInColumn.fillModifierWithScopedParams(
-                        content,
-                        Modifier.fillWithBaseParams(content, resolveAssets)
-                    ),
-                ).invoke()
+                render(
+                    this@toComposableInColumn.toComposableInColumn(
+                        resolveAssets,
+                        resolveText,
+                        resolveState,
+                        eventCallback,
+                        this@toComposableInColumn.fillModifierWithScopedParams(
+                            content,
+                            Modifier.fillWithBaseParams(content, resolveAssets)
+                        ),
+                    )
+                )
             }
         }
     }
@@ -92,16 +93,18 @@ public class GridItem internal constructor(
             modifier = modifier.fillMaxHeight(),
         ) {
             content.run {
-                this@toComposableInRow.toComposableInRow(
-                    resolveAssets,
-                    resolveText,
-                    resolveState,
-                    eventCallback,
-                    this@toComposableInRow.fillModifierWithScopedParams(
-                        content,
-                        Modifier.fillWithBaseParams(content, resolveAssets)
-                    ),
-                ).invoke()
+                render(
+                    this@toComposableInRow.toComposableInRow(
+                        resolveAssets,
+                        resolveText,
+                        resolveState,
+                        eventCallback,
+                        this@toComposableInRow.fillModifierWithScopedParams(
+                            content,
+                            Modifier.fillWithBaseParams(content, resolveAssets)
+                        ),
+                    )
+                )
             }
         }
     }

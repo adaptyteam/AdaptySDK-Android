@@ -1,6 +1,9 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.ui.internal.cache
 
 import androidx.annotation.RestrictTo
+import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.log
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR

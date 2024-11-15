@@ -54,7 +54,7 @@ public fun log(messageLogLevel: AdaptyLogLevel, msg: () -> String) {
  * @suppress
  */
 @get:JvmSynthetic @InternalAdaptyApi
-public val adaptySdkVersion: String get() = com.adapty.BuildConfig.VERSION_NAME
+public val adaptySdkVersion: String get() = VERSION_NAME
 
 /**
  * @suppress
