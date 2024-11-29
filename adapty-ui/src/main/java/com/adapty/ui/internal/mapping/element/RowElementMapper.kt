@@ -21,14 +21,17 @@ internal class RowElementMapper(
         childMapper: ChildMapper,
     ): UIElement {
         val referenceIds = mutableSetOf<String>()
+        val baseProps = config.extractBaseProps()
         return RowElement(
             content = (config["items"] as? List<*>)?.mapNotNull { item ->
                 processContentItem((item as? Map<*, *>)?.asGridItem(DimSpec.Axis.X, refBundles, childMapper), referenceIds, refBundles.targetElements)
-            }
-                ?.takeIf { it.isNotEmpty() }
-                ?: return SkippedElement,
+            }.let { content ->
+                if (shouldSkipContainer(content, baseProps))
+                    return SkippedElement
+                content.orEmpty()
+            },
             spacing = config.extractSpacingOrNull(),
-            baseProps = config.extractBaseProps(),
+            baseProps = baseProps,
         )
             .also { container ->
                 addToAwaitingReferencesIfNeeded(referenceIds, container, refBundles.awaitingElements)

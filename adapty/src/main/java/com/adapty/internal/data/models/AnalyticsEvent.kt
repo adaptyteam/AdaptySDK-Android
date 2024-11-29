@@ -518,6 +518,7 @@ internal class AnalyticsEvent(
         val apiRequestId: String,
         eventName: String,
         flowId: String?,
+        val headers: Map<String, String>?,
         val success: Boolean,
         val error: String?,
     ) : CustomData(eventName, flowId) {
@@ -525,6 +526,21 @@ internal class AnalyticsEvent(
         companion object {
             fun create(
                 apiRequestId: String,
+                headers: Map<String?, List<String>?>?,
+                paired: BackendAPIRequestData,
+            ) =
+                create(apiRequestId, headers, paired, null)
+
+            fun create(
+                apiRequestId: String,
+                paired: BackendAPIRequestData,
+                error: Throwable,
+            ) =
+                create(apiRequestId, null, paired, error)
+
+            private fun create(
+                apiRequestId: String,
+                headers: Map<String?, List<String>?>?,
                 paired: BackendAPIRequestData,
                 error: Throwable? = null,
             ) =
@@ -532,6 +548,15 @@ internal class AnalyticsEvent(
                     apiRequestId,
                     paired.eventName.replace(API_REQUEST_PREFIX, API_RESPONSE_PREFIX),
                     paired.sdkFlowId,
+                    mutableMapOf<String, String>().apply {
+                        headers?.forEach { (k, v) ->
+                            val key = k?.takeIf { it.endsWith("Cache-Status", true) }
+                                ?: return@forEach
+                            val value = v?.firstOrNull()
+                                ?: return@forEach
+                            put(key, value)
+                        }
+                    }.takeIf { it.isNotEmpty() },
                     error == null,
                     error?.message ?: error?.localizedMessage,
                 )

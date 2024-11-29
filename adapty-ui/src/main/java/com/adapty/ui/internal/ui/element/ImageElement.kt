@@ -17,6 +17,7 @@ import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.AspectRatio
+import com.adapty.ui.internal.ui.attributes.LocalContentAlignment
 import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.evaluateComposeImageAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeContentScale
@@ -67,7 +68,7 @@ public class ImageElement internal constructor(
             Image(
                 bitmap = imageBitmap,
                 contentDescription = null,
-                alignment = aspectRatio.evaluateComposeImageAlignment(),
+                alignment = aspectRatio.evaluateComposeImageAlignment(LocalContentAlignment.current),
                 contentScale = aspectRatio.toComposeContentScale(),
                 colorFilter = colorFilter,
                 modifier = modifier

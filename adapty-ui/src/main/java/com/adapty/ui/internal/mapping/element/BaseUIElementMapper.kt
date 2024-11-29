@@ -7,6 +7,8 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.adaptyError
 import com.adapty.ui.internal.mapping.attributes.CommonAttributeMapper
 import com.adapty.ui.internal.ui.attributes.DimSpec
+import com.adapty.ui.internal.ui.attributes.DimUnit
+import com.adapty.ui.internal.ui.attributes.EdgeEntities
 import com.adapty.ui.internal.ui.element.BaseProps
 import com.adapty.ui.internal.ui.element.Container
 import com.adapty.ui.internal.ui.element.MultiContainer
@@ -42,6 +44,22 @@ public abstract class BaseUIElementMapper(
 
     protected fun Map<*, *>.extractSpacingOrNull(): Float? =
         this["spacing"]?.toFloatOrNull()?.takeIf { it > 0f }
+
+    protected fun shouldSkipContainer(content: Collection<UIElement>?, baseProps: BaseProps): Boolean =
+        content.isNullOrEmpty()
+                && baseProps.padding.isNullOrEmpty()
+                && baseProps.widthSpec.isNullOrEmpty()
+                && baseProps.heightSpec.isNullOrEmpty()
+
+    private fun EdgeEntities?.isNullOrEmpty(): Boolean {
+        if (this == null) return true
+        return listOf(start, top, end, bottom).all { (it as? DimUnit.Exact)?.value == 0f }
+    }
+
+    private fun DimSpec?.isNullOrEmpty(): Boolean {
+        if (this !is DimSpec.Specified) return true
+        return (value as? DimUnit.Exact)?.value == 0f
+    }
 
     protected fun addToReferenceTargetsIfNeeded(
         rawElement: Map<*, *>,

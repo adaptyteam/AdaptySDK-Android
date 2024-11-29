@@ -70,7 +70,7 @@ internal class DefaultHttpResponseManager(
             }
             Logger.log(VERBOSE) { "Request is successful. ${connection.url} Response: $responseStr" }
             request.systemLog?.let { customData ->
-                analyticsTracker.trackSystemEvent(BackendAPIResponseData.create(requestId, customData))
+                analyticsTracker.trackSystemEvent(BackendAPIResponseData.create(requestId, connection.headerFields, customData))
             }
             return Response.Success(bodyConverter.convert(responseStr, typeOfT))
 

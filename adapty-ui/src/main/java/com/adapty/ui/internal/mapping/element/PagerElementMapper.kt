@@ -23,6 +23,7 @@ internal class PagerElementMapper(
         childMapper: ChildMapper,
     ): UIElement {
         val referenceIds = mutableSetOf<String>()
+        val baseProps = config.extractBaseProps()
         return PagerElement(
             pagerAttributeMapper.mapPageSize(config["page_width"]),
             pagerAttributeMapper.mapPageSize(config["page_height"]),
@@ -34,12 +35,15 @@ internal class PagerElementMapper(
                     referenceIds,
                     refBundles.targetElements,
                 )
-            }?.takeIf { it.isNotEmpty() }
-                ?: return SkippedElement,
+            }.let { content ->
+                if (shouldSkipContainer(content, baseProps))
+                    return SkippedElement
+                content.orEmpty()
+            },
             (config["page_control"] as? Map<*, *>)?.let(pagerAttributeMapper::mapPagerIndicator),
             (config["animation"] as? Map<*, *>)?.let(pagerAttributeMapper::mapPagerAnimation),
             pagerAttributeMapper.mapInteractionBehavior(config["interaction"]),
-            config.extractBaseProps(),
+            baseProps,
         )
             .also { container ->
                 addToAwaitingReferencesIfNeeded(referenceIds, container, refBundles.awaitingElements)

@@ -30,8 +30,11 @@ internal class ZStackElementMapper(
                         referenceIds,
                         refBundles.targetElements,
                     )
-                }?.takeIf { it.isNotEmpty() }
-                    ?: return SkippedElement,
+                }.let { content ->
+                    if (shouldSkipContainer(content, baseProps))
+                        return SkippedElement
+                    content.orEmpty()
+                },
                 align = commonAttributeMapper.mapAlign(config),
                 baseProps = baseProps,
             )

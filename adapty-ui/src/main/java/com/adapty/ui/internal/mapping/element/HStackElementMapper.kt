@@ -30,8 +30,11 @@ internal class HStackElementMapper(
                     referenceIds,
                     refBundles.targetElements,
                 )
-            }?.takeIf { it.isNotEmpty() }
-                ?: return SkippedElement,
+            }.let { content ->
+                if (shouldSkipContainer(content, baseProps))
+                    return SkippedElement
+                content.orEmpty()
+            },
             align = commonAttributeMapper.mapVerticalAlign(config["v_align"]),
             spacing = config.extractSpacingOrNull(),
             baseProps = baseProps,

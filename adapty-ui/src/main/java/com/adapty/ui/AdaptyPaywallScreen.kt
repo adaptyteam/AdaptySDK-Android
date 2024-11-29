@@ -79,6 +79,7 @@ public fun AdaptyPaywallScreen(
     } ?: return
 
     val viewModel: PaywallViewModel = viewModel(
+        key = viewConfiguration.id,
         factory = PaywallViewModelFactory(vmArgs)
     )
     AdaptyPaywallInternal(viewModel)

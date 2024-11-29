@@ -2,6 +2,7 @@
 
 package com.adapty.ui.internal.ui.attributes
 
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import com.adapty.errors.AdaptyErrorCode
@@ -97,3 +98,5 @@ internal fun Align.toComposeAlignment(): Alignment {
         Align.BOTTOM_RIGHT -> AbsoluteAlignment.BottomRight
     }
 }
+
+internal val LocalContentAlignment = compositionLocalOf { Alignment.Center }

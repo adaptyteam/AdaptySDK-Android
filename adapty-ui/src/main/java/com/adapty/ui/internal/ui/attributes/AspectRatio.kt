@@ -18,8 +18,9 @@ internal fun AspectRatio.toComposeContentScale() =
         else -> ContentScale.Fit
     }
 
-internal fun AspectRatio.evaluateComposeImageAlignment() =
+internal fun AspectRatio.evaluateComposeImageAlignment(parentContentAlignment: Alignment) =
     when (this) {
         AspectRatio.FILL -> Alignment.TopCenter
+        AspectRatio.FIT -> parentContentAlignment
         else -> Alignment.Center
     }
