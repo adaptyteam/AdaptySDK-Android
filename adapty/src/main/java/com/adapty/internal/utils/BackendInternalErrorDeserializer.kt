@@ -12,6 +12,7 @@ internal class BackendInternalErrorDeserializer : JsonDeserializer<Set<BackendEr
     private companion object {
         const val ERRORS = "errors"
         const val CODE = "code"
+        const val ERROR_CODE = "error_code"
     }
 
     override fun deserialize(
@@ -21,6 +22,9 @@ internal class BackendInternalErrorDeserializer : JsonDeserializer<Set<BackendEr
     ): Set<BackendError.InternalError> {
         when (jsonElement) {
             is JsonObject -> {
+                kotlin.runCatching { jsonElement.getAsJsonPrimitive(ERROR_CODE).asString }.getOrNull()
+                    ?.let { code -> return setOf(BackendError.InternalError(code)) }
+
                 val errors = runCatching { jsonElement.getAsJsonArray(ERRORS) }.getOrNull() ?: return emptySet()
 
                 return errors.mapNotNullTo(mutableSetOf()) { error ->

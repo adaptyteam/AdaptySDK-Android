@@ -2,7 +2,6 @@ package com.adapty.internal.data.models
 
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
-import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
@@ -10,6 +9,7 @@ import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
+import java.util.Locale
 import java.util.UUID
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -162,19 +162,28 @@ internal class AnalyticsEvent(
 
         class UpdateAttribution private constructor(
             val source: String,
-            val hasNetworkUserId: Boolean,
             methodName: String
         ) : SDKMethodRequestData(methodName) {
 
             companion object {
-                fun create(
-                    source: String,
-                    networkUserId: String?,
-                ) =
+                fun create(source: String) =
                     UpdateAttribution(
                         source,
-                        networkUserId != null,
                         "update_attribution",
+                    )
+            }
+        }
+
+        class SetIntegrationId private constructor(
+            val data: Map<String, String>,
+            methodName: String
+        ) : SDKMethodRequestData(methodName) {
+
+            companion object {
+                fun create(key: String, value: String) =
+                    SetIntegrationId(
+                        mapOf(key to value),
+                        "set_integration_identifier",
                     )
             }
         }
@@ -487,7 +496,6 @@ internal class AnalyticsEvent(
 
         class SetAttribution private constructor(
             val source: String,
-            val networkUserId: String?,
             methodName: String,
         ) : BackendAPIRequestData(methodName) {
 
@@ -495,8 +503,21 @@ internal class AnalyticsEvent(
                 fun create(attributionData: AttributionData) =
                     SetAttribution(
                         attributionData.source,
-                        attributionData.networkUserId,
                         "set_attribution",
+                    )
+            }
+        }
+
+        class SetIntegrationId private constructor(
+            val data: Map<String, String>,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(key: String, value: String) =
+                    SetIntegrationId(
+                        mapOf(key to value),
+                        "set_integration_identifier",
                     )
             }
         }
@@ -828,34 +849,33 @@ internal class AnalyticsEvent(
             companion object {
                 fun create(
                     paired: GoogleAPIRequestData.MakePurchase,
-                    error: AdaptyError?,
-                    purchaseProductId: String? = null,
+                    purchaseResult: PurchaseResult,
                 ): MakePurchase {
                     val state: String
                     val success: Boolean
                     val errorStr: String?
+                    val purchaseProductId: String?
 
-                    when (error?.adaptyErrorCode) {
-                        AdaptyErrorCode.USER_CANCELED -> {
+                    when (purchaseResult) {
+                        is PurchaseResult.Canceled -> {
                             state = "canceled"
                             success = true
                             errorStr = null
+                            purchaseProductId = null
                         }
-                        AdaptyErrorCode.PENDING_PURCHASE -> {
-                            state = "pending"
+                        is PurchaseResult.Success -> {
+                            state = purchaseResult.state.name.lowercase(Locale.ENGLISH)
                             success = true
                             errorStr = null
+                            purchaseProductId = purchaseResult.productId
                         }
-                        null -> {
-                            state = "purchased"
-                            success = true
-                            errorStr = null
-                        }
-                        else -> {
+                        is PurchaseResult.Error -> {
                             state = "failed"
                             success = false
+                            val error = purchaseResult.error
                             errorStr = error.message.takeIf { !it.isNullOrEmpty() }
                                 ?: error.originalError?.localizedMessage
+                            purchaseProductId = null
                         }
                     }
                     return MakePurchase(

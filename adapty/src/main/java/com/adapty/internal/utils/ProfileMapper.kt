@@ -100,6 +100,7 @@ internal class ProfileMapper {
                     cancellationReason = sub.cancellationReason
                 )
             }.orEmpty().immutableWithInterop(),
-            customAttributes = dto.customAttributes.orEmpty().immutableWithInterop()
+            customAttributes = dto.customAttributes.orEmpty().immutableWithInterop(),
+            isTestUser = dto.isTestUser ?: false,
         )
 }

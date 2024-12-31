@@ -211,6 +211,16 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
+    fun setIntegrationId(key: String, value: String) {
+        val request = requestFactory.setIntegrationIdRequest(key, value)
+        val response = httpClient.newCall<Any>(
+            request,
+            Any::class.java
+        )
+        processEmptyResponse(response)
+    }
+
+    @JvmSynthetic
     fun setVariationId(transactionId: String, variationId: String) {
         val response = httpClient.newCall<Any>(
             requestFactory.setVariationIdRequest(transactionId, variationId),

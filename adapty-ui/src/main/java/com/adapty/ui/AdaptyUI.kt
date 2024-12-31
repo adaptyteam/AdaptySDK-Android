@@ -337,7 +337,7 @@ public object AdaptyUI {
 
     @JvmStatic
     public fun configureMediaCache(config: MediaCacheConfiguration) {
-        log(VERBOSE) { "$LOG_PREFIX #AdaptyMediaCache# configure: diskStorageSizeLimit = ${config.diskStorageSizeLimit}, discCacheValidityTime = ${config.discCacheValidityTime}" }
+        log(VERBOSE) { "$LOG_PREFIX #AdaptyMediaCache# configure: diskStorageSizeLimit = ${config.diskStorageSizeLimit}, diskCacheValidityTime = ${config.diskCacheValidityTime}" }
         val cacheConfigManager = runCatching { Dependencies.injectInternal<MediaCacheConfigManager>() }.getOrNull() ?: run {
             log(ERROR) { "$LOG_PREFIX #AdaptyMediaCache# couldn't be configured. Adapty was not initialized" }
             return
@@ -347,7 +347,7 @@ public object AdaptyUI {
 
     public class MediaCacheConfiguration private constructor(
         public val diskStorageSizeLimit: Long,
-        public val discCacheValidityTime: TimeInterval,
+        public val diskCacheValidityTime: TimeInterval,
     ) {
 
         private companion object {
@@ -359,7 +359,7 @@ public object AdaptyUI {
 
             private var diskStorageSizeLimit: Long = DEFAULT_DISK_STORAGE_SIZE_LIMIT_BYTES
 
-            private var discCacheValidityTime: TimeInterval = DEFAULT_DISK_CACHE_VALIDITY_TIME
+            private var diskCacheValidityTime: TimeInterval = DEFAULT_DISK_CACHE_VALIDITY_TIME
 
             public fun overrideDiskStorageSizeLimit(limitInBytes: Long): Builder {
                 diskStorageSizeLimit = limitInBytes
@@ -367,12 +367,12 @@ public object AdaptyUI {
             }
 
             public fun overrideDiskCacheValidityTime(time: TimeInterval): Builder {
-                discCacheValidityTime = time
+                diskCacheValidityTime = time
                 return this
             }
 
             public fun build(): MediaCacheConfiguration =
-                MediaCacheConfiguration(diskStorageSizeLimit, discCacheValidityTime)
+                MediaCacheConfiguration(diskStorageSizeLimit, diskCacheValidityTime)
         }
     }
 
@@ -407,6 +407,8 @@ public object AdaptyUI {
                     val commonAttributeMapper = CommonAttributeMapper()
                     val textAttributeMapper = TextAttributeMapper()
                     val interactiveAttributeMapper = InteractiveAttributeMapper()
+                    val videoElementMapper =
+                        adaptyUiVideoAccessor.createVideoElementMapperOrNull(commonAttributeMapper)
                     ViewConfigurationMapper(
                         ViewConfigurationAssetMapper(),
                         ViewConfigurationTextMapper(),
@@ -420,7 +422,10 @@ public object AdaptyUI {
                                     ),
                                     ColumnElementMapper(commonAttributeMapper),
                                     HStackElementMapper(commonAttributeMapper),
-                                    IfElementMapper(commonAttributeMapper),
+                                    IfElementMapper(
+                                        commonAttributeMapper,
+                                        videoElementMapper != null,
+                                    ),
                                     ImageElementMapper(commonAttributeMapper),
                                     PagerElementMapper(
                                         PagerAttributeMapper(commonAttributeMapper),
@@ -444,10 +449,8 @@ public object AdaptyUI {
                                     ZStackElementMapper(commonAttributeMapper),
                                 )
                                     .apply {
-                                        adaptyUiVideoAccessor.createVideoElementMapperOrNull(commonAttributeMapper)
-                                            ?.let { videoElementMapper ->
-                                                add(videoElementMapper)
-                                            }
+                                        if (videoElementMapper != null)
+                                            add(videoElementMapper)
                                     }
                             ),
                             commonAttributeMapper,

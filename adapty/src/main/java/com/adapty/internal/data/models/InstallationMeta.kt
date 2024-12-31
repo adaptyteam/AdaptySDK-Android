@@ -26,9 +26,9 @@ internal class InstallationMeta(
     @SerializedName("user_agent")
     private val userAgent: String?,
     @SerializedName("advertising_id")
-    private val advertisingId: String,
+    private val advertisingId: String?,
     @SerializedName("android_app_set_id")
-    private val appSetId: String,
+    private val appSetId: String?,
     @SerializedName("android_id")
     private val androidId: String,
     @SerializedName("store_country")

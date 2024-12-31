@@ -98,8 +98,12 @@ public object Dependencies {
                         val snapshotAtKey = "snapshot_at"
 
                         val attributesObjectExtractor = ResponseDataExtractor { jsonElement ->
-                            ((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)
-                                ?.get(attributesKey) as? JsonObject
+                            ((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)?.let { data ->
+                                if (data.has(attributesKey) && data.has("id") && data.has("type"))
+                                    data.get(attributesKey) as? JsonObject
+                                else
+                                    data
+                            }
                         }
                         val dataArrayExtractor = ResponseDataExtractor { jsonElement ->
                             (jsonElement as? JsonObject)?.get(dataKey) as? JsonArray
@@ -389,7 +393,7 @@ public object Dependencies {
                 }),
 
                 AdIdRetriever::class to singleVariantDiObject({
-                    AdIdRetriever(appContext, injectInternal())
+                    AdIdRetriever(config.adIdCollectionDisabled, appContext, injectInternal())
                 }),
 
                 AppSetIdRetriever::class to singleVariantDiObject({
@@ -420,7 +424,9 @@ public object Dependencies {
                     VariationPicker(injectInternal())
                 }),
 
-                AttributionHelper::class to singleVariantDiObject({ AttributionHelper() }),
+                AttributionHelper::class to singleVariantDiObject({
+                    AttributionHelper(injectInternal(named = BASE))
+                }),
 
                 PriceFormatter::class to singleVariantDiObject({
                     PriceFormatter(

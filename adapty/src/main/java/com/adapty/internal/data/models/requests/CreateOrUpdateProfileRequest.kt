@@ -28,8 +28,6 @@ internal class CreateOrUpdateProfileRequest(
             private val email: String?,
             @SerializedName("phone_number")
             private val phoneNumber: String?,
-            @SerializedName("facebook_anonymous_id")
-            private val facebookAnonymousId: String?,
             @SerializedName("first_name")
             private val firstName: String?,
             @SerializedName("last_name")
@@ -38,26 +36,6 @@ internal class CreateOrUpdateProfileRequest(
             private val gender: String?,
             @SerializedName("birthday")
             private val birthday: String?,
-            @SerializedName("amplitude_user_id")
-            private val amplitudeUserId: String?,
-            @SerializedName("amplitude_device_id")
-            private val amplitudeDeviceId: String?,
-            @SerializedName("appmetrica_profile_id")
-            private val appmetricaProfileId: String?,
-            @SerializedName("appmetrica_device_id")
-            private val appmetricaDeviceId: String?,
-            @SerializedName("mixpanel_user_id")
-            private val mixpanelUserId: String?,
-            @SerializedName("one_signal_player_id")
-            private val oneSignalPlayerId: String?,
-            @SerializedName("one_signal_subscription_id")
-            private val oneSignalSubscriptionId: String?,
-            @SerializedName("pushwoosh_hwid")
-            private val pushwooshHwid: String?,
-            @SerializedName("firebase_app_instance_id")
-            private val firebaseAppInstanceId: String?,
-            @SerializedName("airbridge_device_id")
-            private val airbridgeDeviceId: String?,
             @SerializedName("analytics_disabled")
             private val analyticsDisabled: Boolean?,
             @SerializedName("ip_v4_address")
@@ -77,17 +55,6 @@ internal class CreateOrUpdateProfileRequest(
                     customerUserId = customerUserId,
                     email = updateProfileParams?.email,
                     phoneNumber = updateProfileParams?.phoneNumber,
-                    facebookAnonymousId = updateProfileParams?.facebookAnonymousId,
-                    mixpanelUserId = updateProfileParams?.mixpanelUserId,
-                    amplitudeUserId = updateProfileParams?.amplitudeUserId,
-                    amplitudeDeviceId = updateProfileParams?.amplitudeDeviceId,
-                    appmetricaProfileId = updateProfileParams?.appmetricaProfileId,
-                    appmetricaDeviceId = updateProfileParams?.appmetricaDeviceId,
-                    oneSignalPlayerId = updateProfileParams?.oneSignalPlayerId,
-                    oneSignalSubscriptionId = updateProfileParams?.oneSignalSubscriptionId,
-                    pushwooshHwid = updateProfileParams?.pushwooshHwid,
-                    firebaseAppInstanceId = updateProfileParams?.firebaseAppInstanceId,
-                    airbridgeDeviceId = updateProfileParams?.airbridgeDeviceId,
                     firstName = updateProfileParams?.firstName,
                     lastName = updateProfileParams?.lastName,
                     gender = updateProfileParams?.gender,

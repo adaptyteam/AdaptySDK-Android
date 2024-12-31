@@ -7,18 +7,22 @@ import com.adapty.errors.AdaptyErrorCode.*
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.StoreManager
+import com.adapty.internal.data.models.PurchaseResult
+import com.adapty.internal.data.models.PurchaseResult.Success.State
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
-import com.adapty.models.AdaptyPurchasedInfo
+import com.adapty.models.AdaptyPurchaseResult
+import com.adapty.models.AdaptyPurchaseResult.Pending
+import com.adapty.models.AdaptyPurchaseResult.Success
+import com.adapty.models.AdaptyPurchaseResult.UserCanceled
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.utils.AdaptyLogLevel.Companion.INFO
 import com.android.billingclient.api.Purchase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
-import kotlin.coroutines.resumeWithException
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class PurchasesInteractor(
@@ -50,7 +54,7 @@ internal class PurchasesInteractor(
         product: AdaptyPaywallProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
         isOfferPersonalized: Boolean,
-    ) : Flow<AdaptyPurchasedInfo?> {
+    ) : Flow<AdaptyPurchaseResult> {
         return storeManager.queryInfoForProduct(product.vendorProductId, product.payloadData.type)
             .flatMapConcat { productDetails ->
                 val purchaseableProduct = productMapper.mapToPurchaseableProduct(
@@ -67,27 +71,36 @@ internal class PurchasesInteractor(
                         )
                     )
                 }
-                    .flatMapConcat { purchase ->
-                        if (purchase != null) {
-                            validatePurchase(purchase, purchaseableProduct)
-                        } else {
-                            flowOf(null)
-                        }
-                    }
-                    .catch { error ->
-                        if (error is AdaptyError && error.adaptyErrorCode == ITEM_ALREADY_OWNED) {
-                            emitAll(
-                                storeManager.findActivePurchaseForProduct(
-                                    product.vendorProductId,
-                                    product.payloadData.type,
-                                ).flatMapConcat { purchase ->
-                                    if (purchase == null) throw error
-
-                                    validatePurchase(purchase, purchaseableProduct)
+                    .flatMapConcat { purchaseResult ->
+                        when(purchaseResult) {
+                            is PurchaseResult.Success -> {
+                                when {
+                                    purchaseResult.state == State.PENDING -> flowOf(Pending)
+                                    purchaseResult.purchase != null -> {
+                                        validatePurchase(purchaseResult.purchase, purchaseableProduct)
+                                    }
+                                    else -> {
+                                        profileInteractor.getProfile()
+                                            .map { profile -> Success(profile, null) }
+                                    }
                                 }
-                            )
-                        } else {
-                            throw error
+                            }
+                            is PurchaseResult.Canceled -> flowOf(UserCanceled)
+                            is PurchaseResult.Error -> {
+                                val error = purchaseResult.error
+                                if (error.adaptyErrorCode == ITEM_ALREADY_OWNED) {
+                                    storeManager.findActivePurchaseForProduct(
+                                        product.vendorProductId,
+                                        product.payloadData.type,
+                                    ).flatMapConcat { purchase ->
+                                        if (purchase == null) throw error
+
+                                        validatePurchase(purchase, purchaseableProduct)
+                                    }
+                                } else {
+                                    throw error
+                                }
+                            }
                         }
                     }
             }
@@ -96,7 +109,7 @@ internal class PurchasesInteractor(
     private fun validatePurchase(
         purchase: Purchase,
         product: PurchaseableProduct,
-    ): Flow<AdaptyPurchasedInfo> =
+    ): Flow<AdaptyPurchaseResult> =
         authInteractor.runWhenAuthDataSynced {
             cloudRepository.validatePurchase(purchase, product)
         }
@@ -111,7 +124,7 @@ internal class PurchasesInteractor(
                     profile,
                     currentDataWhenRequestSent?.profileId,
                 ).let { profile ->
-                    AdaptyPurchasedInfo(profileMapper.map(profile), purchase)
+                    Success(profileMapper.map(profile), purchase)
                 }
             }
 
@@ -119,17 +132,13 @@ internal class PurchasesInteractor(
         activity: Activity,
         purchaseableProduct: PurchaseableProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
-    ) = suspendCancellableCoroutine<Purchase?> { continuation ->
+    ) = suspendCancellableCoroutine<PurchaseResult> { continuation ->
         storeManager.makePurchase(
             activity,
             purchaseableProduct,
             subscriptionUpdateParams,
-        ) { purchase, error ->
-            if (error == null) {
-                continuation.resume(purchase) {}
-            } else {
-                continuation.resumeWithException(error)
-            }
+        ) { purchaseResult ->
+            continuation.resume(purchaseResult) {}
         }
     }
 

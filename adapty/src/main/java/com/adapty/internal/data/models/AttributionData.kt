@@ -7,8 +7,8 @@ import com.google.gson.annotations.SerializedName
 internal class AttributionData(
     @SerializedName("source")
     val source: String,
-    @SerializedName("attribution")
-    val attribution: Any,
-    @SerializedName("network_user_id")
-    val networkUserId: String?
+    @SerializedName("attribution_json")
+    val attribution: String,
+    @SerializedName("profile_id")
+    val profileId: String?
 )

@@ -71,7 +71,7 @@ internal class ViewConfigurationTextMapper {
             ?: getAs<JsonObject>(key)?.let(::mapRichText)
             ?: getAs<String>(key)?.let { item -> RichText(mapRichTextItem(item)) }
 
-    private fun mapRichText(rawRichText: Iterable<*>): RichText? {
+    private fun mapRichText(rawRichText: Iterable<*>): RichText {
         val richTextItems = rawRichText.mapNotNull { item ->
             when(item) {
                 is String -> mapRichTextItem(item)
@@ -79,8 +79,6 @@ internal class ViewConfigurationTextMapper {
                 else -> null
             }
         }
-            .takeIf { it.isNotEmpty() }
-            ?: return null
         return RichText(richTextItems)
     }
 

@@ -10,11 +10,12 @@ import com.adapty.errors.AdaptyError
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
-import com.adapty.models.AdaptyPurchasedInfo
-import com.adapty.models.AdaptySubscriptionUpdateParameters
+import com.adapty.models.AdaptyPurchaseResult
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
+import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.log
+import com.adapty.ui.listeners.AdaptyUiEventListener.SubscriptionUpdateParamsCallback
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 
 public open class AdaptyUiDefaultEventListener : AdaptyUiEventListener {
@@ -37,11 +38,12 @@ public open class AdaptyUiDefaultEventListener : AdaptyUiEventListener {
     override fun onAwaitingSubscriptionUpdateParams(
         product: AdaptyPaywallProduct,
         context: Context,
-    ): AdaptySubscriptionUpdateParameters? {
-        return null
+        onSubscriptionUpdateParamsReceived: SubscriptionUpdateParamsCallback,
+    ) {
+        onSubscriptionUpdateParamsReceived(null)
     }
 
-    public override fun onLoadingProductsFailure(
+    override fun onLoadingProductsFailure(
         error: AdaptyError,
         context: Context,
     ): Boolean = false
@@ -51,12 +53,7 @@ public open class AdaptyUiDefaultEventListener : AdaptyUiEventListener {
         context: Context,
     ) {}
 
-    public override fun onPurchaseCanceled(
-        product: AdaptyPaywallProduct,
-        context: Context,
-    ) {}
-
-    public override fun onPurchaseFailure(
+    override fun onPurchaseFailure(
         error: AdaptyError,
         product: AdaptyPaywallProduct,
         context: Context,
@@ -67,27 +64,28 @@ public open class AdaptyUiDefaultEventListener : AdaptyUiEventListener {
         context: Context,
     ) {}
 
-    public override fun onPurchaseSuccess(
-        purchasedInfo: AdaptyPurchasedInfo?,
+    override fun onPurchaseFinished(
+        purchaseResult: AdaptyPurchaseResult,
         product: AdaptyPaywallProduct,
         context: Context,
     ) {
-        (context as? Activity)?.onBackPressed()
+        if (purchaseResult !is AdaptyPurchaseResult.UserCanceled)
+            context.getActivityOrNull()?.onBackPressed()
     }
 
-    public override fun onRenderingError(
+    override fun onRenderingError(
         error: AdaptyError,
         context: Context,
     ) {}
 
-    public override fun onRestoreFailure(
+    override fun onRestoreFailure(
         error: AdaptyError,
         context: Context,
     ) {}
 
     override fun onRestoreStarted(context: Context)  {}
 
-    public override fun onRestoreSuccess(
+    override fun onRestoreSuccess(
         profile: AdaptyProfile,
         context: Context,
     ) {}

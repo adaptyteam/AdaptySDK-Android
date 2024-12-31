@@ -14,8 +14,8 @@ internal class InstallationMetaCreator(
         return InstallationMeta(
             deviceId = metaInfoRetriever.installationMetaId,
             adaptySdkVersion = metaInfoRetriever.adaptySdkVersion,
-            advertisingId = adId,
-            appSetId = appSetId,
+            advertisingId = adId.takeIf(String::isNotEmpty),
+            appSetId = appSetId.takeIf(String::isNotEmpty),
             androidId = metaInfoRetriever.androidId,
             appBuild = appBuild,
             appVersion = appVersion,

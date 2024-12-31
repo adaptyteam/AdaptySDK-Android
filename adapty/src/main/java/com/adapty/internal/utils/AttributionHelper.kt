@@ -4,21 +4,23 @@ package com.adapty.internal.utils
 
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.AttributionData
-import com.adapty.models.AdaptyAttributionSource
+import com.google.gson.Gson
 import org.json.JSONObject
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class AttributionHelper {
+internal class AttributionHelper(
+    private val gson: Gson,
+) {
 
     @JvmSynthetic
     fun createAttributionData(
         attribution: Any,
-        source: AdaptyAttributionSource,
-        networkUserId: String?
+        source: String,
+        profileId: String,
     ) = AttributionData(
-        source.toString(),
+        source,
         convertAttribution(attribution),
-        networkUserId
+        profileId
     )
 
     private fun convertAttribution(attribution: Any) = when {
@@ -35,7 +37,7 @@ internal class AttributionHelper {
         else -> {
             attribution
         }
-    }
+    }.let(gson::toJson)
 
     private val adjustAttributionClass: Class<*>? by lazy {
         getClassForNameOrNull("com.adjust.sdk.AdjustAttribution")

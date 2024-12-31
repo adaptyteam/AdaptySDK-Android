@@ -10,6 +10,8 @@ import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.AnalyticsEvent.GoogleAPIRequestData
 import com.adapty.internal.data.models.AnalyticsEvent.GoogleAPIResponseData
 import com.adapty.internal.data.models.PurchaseRecordModel
+import com.adapty.internal.data.models.PurchaseResult
+import com.adapty.internal.data.models.PurchaseResult.Success.State
 import com.adapty.internal.domain.models.ProductType.Consumable
 import com.adapty.internal.domain.models.ProductType.Subscription
 import com.adapty.internal.domain.models.PurchaseableProduct
@@ -129,9 +131,11 @@ internal class StoreManager(
         val message = storeHelper.errorMessageFromBillingResult(billingResult, "on purchases updated")
         Logger.log(ERROR) { message }
         callback?.invoke(
-            null, AdaptyError(
-                message = message,
-                adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)
+            PurchaseResult.Error(
+                AdaptyError(
+                    message = message,
+                    adaptyErrorCode = AdaptyErrorCode.fromBilling(billingResult.responseCode)
+                )
             )
         )
     }
@@ -143,11 +147,12 @@ internal class StoreManager(
         val message = error.message ?: error.localizedMessage ?: "Unknown billing error occured"
         Logger.log(ERROR) { message }
         callback?.invoke(
-            null,
-            (error as? AdaptyError) ?: AdaptyError(
-                originalError = error,
-                message = message,
-                adaptyErrorCode = AdaptyErrorCode.UNKNOWN
+            PurchaseResult.Error(
+                (error as? AdaptyError) ?: AdaptyError(
+                    originalError = error,
+                    message = message,
+                    adaptyErrorCode = AdaptyErrorCode.UNKNOWN
+                )
             )
         )
     }
@@ -159,28 +164,20 @@ internal class StoreManager(
         when (billingResult.responseCode) {
             OK -> {
                 if (purchases == null) {
-                    makePurchaseCallback?.invoke(null, null)
+                    makePurchaseCallback?.invoke(PurchaseResult.Success())
                     return
                 }
 
                 for (purchase in purchases) {
                     if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                        makePurchaseCallback?.invoke(purchase, null)
+                        makePurchaseCallback?.invoke(PurchaseResult.Success(purchase))
                     } else {
-                        makePurchaseCallback?.invoke(purchase, AdaptyError(
-                            message = "Purchase: PENDING_PURCHASE",
-                            adaptyErrorCode = AdaptyErrorCode.PENDING_PURCHASE
-                        ))
+                        makePurchaseCallback?.invoke(PurchaseResult.Success(purchase, State.PENDING))
                     }
                 }
             }
             USER_CANCELED -> {
-                makePurchaseCallback?.invoke(
-                    null, AdaptyError(
-                        message = "Purchase: USER_CANCELED",
-                        adaptyErrorCode = AdaptyErrorCode.USER_CANCELED
-                    )
-                )
+                makePurchaseCallback?.invoke(PurchaseResult.Canceled)
             }
             else -> {
                 onError(billingResult, makePurchaseCallback)
@@ -224,7 +221,7 @@ internal class StoreManager(
                 flowOf(purchaseableProduct.productDetails to null)
             }
                 .catch { error ->
-                    analyticsTracker.trackSystemEvent(GoogleAPIResponseData.MakePurchase.create(requestEvent, error.asAdaptyError()))
+                    analyticsTracker.trackSystemEvent(GoogleAPIResponseData.MakePurchase.create(requestEvent, PurchaseResult.Error(error.asAdaptyError())))
                     onError(error, callback)
                 }
                 .onEach { (productDetails, billingFlowSubUpdateParams) ->
@@ -566,7 +563,7 @@ private class StoreHelper(
     }
 }
 
-private typealias MakePurchaseCallback = (purchase: Purchase?, error: AdaptyError?) -> Unit
+private typealias MakePurchaseCallback = (PurchaseResult) -> Unit
 
 private class MakePurchaseCallbackWrapper(
     private val productId: String,
@@ -578,12 +575,20 @@ private class MakePurchaseCallbackWrapper(
 
     private val wasInvoked = AtomicBoolean(false)
 
-    override operator fun invoke(purchase: Purchase?, error: AdaptyError?) {
-        val purchaseProductId = purchase?.products?.firstOrNull()
-        if (purchaseProductId == null || listOfNotNull(productId, oldSubProductId).contains(purchaseProductId)) {
-            if (wasInvoked.compareAndSet(false, true)) {
-                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.MakePurchase.create(requestEvent, error, purchaseProductId))
-                callback.invoke(if (error == null && productId == purchaseProductId) purchase else null, error)
+    override operator fun invoke(purchaseResult: PurchaseResult) {
+        if (wasInvoked.compareAndSet(false, true)) {
+            when(purchaseResult) {
+                is PurchaseResult.Success -> {
+                    val purchaseProductId = purchaseResult.productId
+                    if (purchaseProductId != null && !listOfNotNull(productId, oldSubProductId).contains(purchaseProductId))
+                        return
+                    analyticsTracker.trackSystemEvent(GoogleAPIResponseData.MakePurchase.create(requestEvent, purchaseResult))
+                    callback.invoke(purchaseResult)
+                }
+                is PurchaseResult.Error, is PurchaseResult.Canceled -> {
+                    analyticsTracker.trackSystemEvent(GoogleAPIResponseData.MakePurchase.create(requestEvent, purchaseResult))
+                    callback.invoke(purchaseResult)
+                }
             }
         }
     }

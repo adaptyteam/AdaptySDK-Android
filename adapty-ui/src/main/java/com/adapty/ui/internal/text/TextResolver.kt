@@ -89,6 +89,8 @@ internal class TextResolver(
         ignoreMissingCustomTag: Boolean,
         productId: String?,
     ): StringWrapper {
+        if (items.isEmpty())
+            return StringWrapper.EMPTY
         if (items.size == 1) {
             val item = items.first()
             if (item is RichText.Item.Text)

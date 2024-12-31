@@ -58,7 +58,7 @@ internal class ViewConfigurationMapper(
         config.getAs<JsonObject>("products")?.getAs<JsonObject>("selected")?.forEach { (k, v) ->
             if (v == null)
                 throw adaptyError(
-                    message = "styles in ViewConfiguration should not be null",
+                    message = "selected product should not be null",
                     adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                 )
             screenStateMap[getProductGroupKey(k)] = v

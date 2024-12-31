@@ -63,6 +63,6 @@ internal fun providePlayerDeps(context: Context): Iterable<Pair<KClass<*>, Map<S
     )
 }
 
-internal const val VERSION_NAME = "3.1.0"
+internal const val VERSION_NAME = "3.3.0"
 internal const val LOG_PREFIX = "UI (video) v${VERSION_NAME}:"
 internal const val LOG_PREFIX_ERROR = "UI (video) v${VERSION_NAME} error:"

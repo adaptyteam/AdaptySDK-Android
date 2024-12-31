@@ -12,6 +12,7 @@ import kotlinx.coroutines.sync.Semaphore
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class AdIdRetriever(
+    private val disabled: Boolean,
     private val appContext: Context,
     private val cacheRepository: CacheRepository,
 ) {
@@ -27,6 +28,10 @@ internal class AdIdRetriever(
 
     fun getAdIdIfAvailable(): Flow<String> =
         flow {
+            if (disabled) {
+                emit("")
+                return@flow
+            }
             if (cacheRepository.getExternalAnalyticsEnabled() == false) {
                 emit("")
                 return@flow
@@ -48,12 +53,10 @@ internal class AdIdRetriever(
                 return@flow
             }
 
-            val adId = try {
+            val adId = kotlin.runCatching {
                 AdvertisingIdClient.getAdvertisingIdInfo(appContext)
                     .takeIf { !it.isLimitAdTrackingEnabled }?.id
-            } catch (e: Exception) {
-                null
-            }
+            }.getOrNull()
 
             cachedAdvertisingId = adId
             adIdSemaphore.release()

@@ -26,8 +26,7 @@ import com.adapty.errors.AdaptyError
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
-import com.adapty.models.AdaptyPurchasedInfo
-import com.adapty.models.AdaptySubscriptionUpdateParameters
+import com.adapty.models.AdaptyPurchaseResult
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.ui.element.Action
@@ -44,6 +43,7 @@ import com.adapty.ui.internal.utils.getInsets
 import com.adapty.ui.internal.utils.getProductGroupKey
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.internal.utils.wrap
+import com.adapty.ui.listeners.AdaptyUiEventListener.SubscriptionUpdateParamsCallback
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -244,12 +244,15 @@ private fun createEventCallback(
             return timerResolver.timerEndAtDate(timerId)
         }
 
-        override fun onAwaitingSubscriptionUpdateParams(product: AdaptyPaywallProduct): AdaptySubscriptionUpdateParameters? {
-            return eventListener.onAwaitingSubscriptionUpdateParams(product, localContext)
-        }
-
-        override fun onPurchaseCanceled(product: AdaptyPaywallProduct) {
-            eventListener.onPurchaseCanceled(product, localContext)
+        override fun onAwaitingSubscriptionUpdateParams(
+            product: AdaptyPaywallProduct,
+            onSubscriptionUpdateParamsReceived: SubscriptionUpdateParamsCallback,
+        ) {
+            eventListener.onAwaitingSubscriptionUpdateParams(
+                product,
+                localContext,
+                onSubscriptionUpdateParamsReceived,
+            )
         }
 
         override fun onPurchaseFailure(error: AdaptyError, product: AdaptyPaywallProduct) {
@@ -260,11 +263,11 @@ private fun createEventCallback(
             eventListener.onPurchaseStarted(product, localContext)
         }
 
-        override fun onPurchaseSuccess(
-            purchasedInfo: AdaptyPurchasedInfo?,
+        override fun onPurchaseFinished(
+            purchaseResult: AdaptyPurchaseResult,
             product: AdaptyPaywallProduct
         ) {
-            eventListener.onPurchaseSuccess(purchasedInfo, product, localContext)
+            eventListener.onPurchaseFinished(purchaseResult, product, localContext)
         }
 
         override fun onRestoreFailure(error: AdaptyError) {

@@ -8,7 +8,6 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.adapty.Adapty
 import com.adapty.listeners.OnProfileUpdatedListener
-import com.adapty.models.AdaptyAttributionSource
 import com.adapty.models.AdaptyProfile
 import com.adapty.models.AdaptyProfileParameters
 import com.adapty.utils.AdaptyResult
@@ -140,7 +139,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 "ad_set" to "adapty ad_set",
                 "creative" to "12312312312312"
             )
-            Adapty.updateAttribution(attribution, AdaptyAttributionSource.CUSTOM) { error ->
+            Adapty.updateAttribution(attribution, "custom") { error ->
                 lastResponseResult.text = error?.message ?: "success"
             }
         }

@@ -6,17 +6,6 @@ import com.adapty.utils.ImmutableMap
 public class AdaptyProfileParameters private constructor(
     public val email: String?,
     public val phoneNumber: String?,
-    public val facebookAnonymousId: String?,
-    public val mixpanelUserId: String?,
-    public val amplitudeUserId: String?,
-    public val amplitudeDeviceId: String?,
-    public val appmetricaProfileId: String?,
-    public val appmetricaDeviceId: String?,
-    public val oneSignalPlayerId: String?,
-    public val oneSignalSubscriptionId: String?,
-    public val pushwooshHwid: String?,
-    public val firebaseAppInstanceId: String?,
-    public val airbridgeDeviceId: String?,
     public val firstName: String?,
     public val lastName: String?,
     public val gender: String?,
@@ -30,17 +19,6 @@ public class AdaptyProfileParameters private constructor(
     public class Builder private constructor(
         private var email: String? = null,
         private var phoneNumber: String? = null,
-        private var facebookAnonymousId: String? = null,
-        private var mixpanelUserId: String? = null,
-        private var amplitudeUserId: String? = null,
-        private var amplitudeDeviceId: String? = null,
-        private var appmetricaProfileId: String? = null,
-        private var appmetricaDeviceId: String? = null,
-        private var oneSignalPlayerId: String? = null,
-        private var oneSignalSubscriptionId: String? = null,
-        private var pushwooshHwid: String? = null,
-        private var firebaseAppInstanceId: String? = null,
-        private var airbridgeDeviceId: String? = null,
         private var firstName: String? = null,
         private var lastName: String? = null,
         private var gender: String? = null,
@@ -58,61 +36,6 @@ public class AdaptyProfileParameters private constructor(
 
         public fun withPhoneNumber(phoneNumber: String?): Builder {
             this.phoneNumber = phoneNumber
-            return this
-        }
-
-        public fun withFacebookAnonymousId(facebookAnonymousId: String?): Builder {
-            this.facebookAnonymousId = facebookAnonymousId
-            return this
-        }
-
-        public fun withMixpanelUserId(mixpanelUserId: String?): Builder {
-            this.mixpanelUserId = mixpanelUserId
-            return this
-        }
-
-        public fun withAmplitudeUserId(amplitudeUserId: String?): Builder {
-            this.amplitudeUserId = amplitudeUserId
-            return this
-        }
-
-        public fun withAmplitudeDeviceId(amplitudeDeviceId: String?): Builder {
-            this.amplitudeDeviceId = amplitudeDeviceId
-            return this
-        }
-
-        public fun withAppmetricaProfileId(appmetricaProfileId: String?): Builder {
-            this.appmetricaProfileId = appmetricaProfileId
-            return this
-        }
-
-        public fun withAppmetricaDeviceId(appmetricaDeviceId: String?): Builder {
-            this.appmetricaDeviceId = appmetricaDeviceId
-            return this
-        }
-
-        public fun withOneSignalPlayerId(oneSignalPlayerId: String?): Builder {
-            this.oneSignalPlayerId = oneSignalPlayerId
-            return this
-        }
-
-        public fun withOneSignalSubscriptionId(oneSignalSubscriptionId: String?): Builder {
-            this.oneSignalSubscriptionId = oneSignalSubscriptionId
-            return this
-        }
-
-        public fun withPushwooshHwid(pushwooshHwid: String?): Builder {
-            this.pushwooshHwid = pushwooshHwid
-            return this
-        }
-
-        public fun withFirebaseAppInstanceId(firebaseAppInstanceId: String?): Builder {
-            this.firebaseAppInstanceId = firebaseAppInstanceId
-            return this
-        }
-
-        public fun withAirbridgeDeviceId(airbridgeDeviceId: String?): Builder {
-            this.airbridgeDeviceId = airbridgeDeviceId
             return this
         }
 
@@ -160,17 +83,6 @@ public class AdaptyProfileParameters private constructor(
             return AdaptyProfileParameters(
                 this.email,
                 this.phoneNumber,
-                this.facebookAnonymousId,
-                this.mixpanelUserId,
-                this.amplitudeUserId,
-                this.amplitudeDeviceId,
-                this.appmetricaProfileId,
-                this.appmetricaDeviceId,
-                this.oneSignalPlayerId,
-                this.oneSignalSubscriptionId,
-                this.pushwooshHwid,
-                this.firebaseAppInstanceId,
-                this.airbridgeDeviceId,
                 this.firstName,
                 this.lastName,
                 this.gender,
@@ -185,17 +97,6 @@ public class AdaptyProfileParameters private constructor(
             fun from(params: AdaptyProfileParameters) = Builder(
                 params.email,
                 params.phoneNumber,
-                params.facebookAnonymousId,
-                params.mixpanelUserId,
-                params.amplitudeUserId,
-                params.amplitudeDeviceId,
-                params.appmetricaProfileId,
-                params.appmetricaDeviceId,
-                params.oneSignalPlayerId,
-                params.oneSignalSubscriptionId,
-                params.pushwooshHwid,
-                params.firebaseAppInstanceId,
-                params.airbridgeDeviceId,
                 params.firstName,
                 params.lastName,
                 params.gender,

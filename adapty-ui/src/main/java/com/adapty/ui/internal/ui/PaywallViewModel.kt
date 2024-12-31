@@ -11,7 +11,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.adapty.Adapty
-import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.di.DIObject
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.di.Dependencies.OBSERVER_MODE
@@ -235,28 +234,24 @@ internal class PaywallViewModel(
     ) {
         toggleLoading(true)
         log(VERBOSE) { "$LOG_PREFIX $flowKey makePurchase begin" }
-        val subscriptionUpdateParams =
-            eventListener.onAwaitingSubscriptionUpdateParams(product)
         val isOfferPersonalized = personalizedOfferResolver.resolve(product)
-        eventListener.onPurchaseStarted(product)
-        Adapty.makePurchase(activity, product, subscriptionUpdateParams, isOfferPersonalized) { result ->
-            toggleLoading(false)
-            when (result) {
-                is AdaptyResult.Success -> {
-                    log(VERBOSE) { "$LOG_PREFIX $flowKey makePurchase success" }
-                    eventListener.onPurchaseSuccess(
-                        result.value,
-                        product,
-                    )
-                }
-                is AdaptyResult.Error -> {
-                    val error = result.error
-                    log(ERROR) { "$LOG_PREFIX_ERROR $flowKey makePurchase error: ${error.message}" }
-                    when (error.adaptyErrorCode) {
-                        AdaptyErrorCode.USER_CANCELED -> {
-                            eventListener.onPurchaseCanceled(product)
+        eventListener.onAwaitingSubscriptionUpdateParams(product) { subscriptionUpdateParams ->
+            log(VERBOSE) { "$LOG_PREFIX $flowKey makePurchase onSubscriptionUpdateParamsReceived called" }
+            activity.runOnUiThread {
+                eventListener.onPurchaseStarted(product)
+                Adapty.makePurchase(activity, product, subscriptionUpdateParams, isOfferPersonalized) { result ->
+                    toggleLoading(false)
+                    when (result) {
+                        is AdaptyResult.Success -> {
+                            log(VERBOSE) { "$LOG_PREFIX $flowKey makePurchase success" }
+                            eventListener.onPurchaseFinished(
+                                result.value,
+                                product,
+                            )
                         }
-                        else -> {
+                        is AdaptyResult.Error -> {
+                            val error = result.error
+                            log(ERROR) { "$LOG_PREFIX_ERROR $flowKey makePurchase error: ${error.message}" }
                             eventListener.onPurchaseFailure(
                                 result.error,
                                 product,

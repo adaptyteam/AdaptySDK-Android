@@ -110,7 +110,7 @@ public class PagerElement internal constructor(
         val wasInterrupted = remember { mutableStateOf(false) }
         val wasFinishedForever = remember { mutableStateOf(false) }
 
-        if (animation != null) {
+        if (animation != null && pages.size > 1) {
             val shouldAnimate = !isDragged.value && (interactionBehavior != CANCEL_ANIMATION || !wasInterrupted.value) && !wasFinishedForever.value
             LaunchedEffect(shouldAnimate) {
                 if (isDragged.value) wasInterrupted.value = true

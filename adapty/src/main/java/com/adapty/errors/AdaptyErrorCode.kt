@@ -4,12 +4,10 @@ import com.android.billingclient.api.BillingClient.BillingResponseCode
 
 public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
     UNKNOWN(0),
-    USER_CANCELED(2),
     ITEM_UNAVAILABLE(5),
     ADAPTY_NOT_INITIALIZED(20),
     PRODUCT_NOT_FOUND(22),
     CURRENT_SUBSCRIPTION_TO_UPDATE_NOT_FOUND_IN_HISTORY(24),
-    PENDING_PURCHASE(25),
     BILLING_SERVICE_TIMEOUT(97),
     FEATURE_NOT_SUPPORTED(98),
     BILLING_SERVICE_DISCONNECTED(99),
@@ -51,7 +49,6 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
             BILLING_SERVICE_TIMEOUT,
             FEATURE_NOT_SUPPORTED,
             BILLING_SERVICE_DISCONNECTED,
-            USER_CANCELED,
             BILLING_SERVICE_UNAVAILABLE,
             BILLING_UNAVAILABLE,
             ITEM_UNAVAILABLE,
@@ -64,7 +61,6 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
 
         @JvmSynthetic
         internal fun fromBilling(value: Int): AdaptyErrorCode = when (value) {
-            BillingResponseCode.USER_CANCELED -> USER_CANCELED
             BillingResponseCode.ITEM_UNAVAILABLE -> ITEM_UNAVAILABLE
             else -> {
                 val value = value + 100

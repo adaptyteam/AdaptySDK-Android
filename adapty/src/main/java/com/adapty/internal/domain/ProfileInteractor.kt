@@ -2,15 +2,12 @@ package com.adapty.internal.domain
 
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
-import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.models.ProfileDto
 import com.adapty.internal.utils.*
-import com.adapty.models.AdaptyAttributionSource
 import com.adapty.models.AdaptyProfileParameters
 import kotlinx.coroutines.flow.*
-import java.io.IOException
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class ProfileInteractor(
@@ -101,10 +98,10 @@ internal class ProfileInteractor(
         updateProfile(params = null, INFINITE_RETRY)
 
     @JvmSynthetic
-    fun updateAttribution(attribution: Any, source: AdaptyAttributionSource, networkUserId: String?) =
+    fun updateAttribution(attribution: Any, source: String) =
         authInteractor.runWhenAuthDataSynced {
             cloudRepository.updateAttribution(
-                attributionHelper.createAttributionData(attribution, source, networkUserId)
+                attributionHelper.createAttributionData(attribution, source, cacheRepository.getProfileId())
             )
         }
             .map { (profile, currentDataWhenRequestSent) ->
@@ -114,6 +111,12 @@ internal class ProfileInteractor(
                 )
                 Unit
             }
+
+    @JvmSynthetic
+    fun setIntegrationId(key: String, value: String) =
+        authInteractor.runWhenAuthDataSynced {
+            cloudRepository.setIntegrationId(key, value)
+        }
 
     @JvmSynthetic
     fun subscribeOnProfileChanges() =

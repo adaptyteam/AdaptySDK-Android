@@ -117,7 +117,20 @@ internal class Request internal constructor(val baseUrl: String) {
         GET, POST, PATCH
     }
 
-    internal class Header(val key: String, val value: String?)
+    internal class Header(val key: String, val value: String?) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as Header
+
+            return key == other.key
+        }
+
+        override fun hashCode(): Int {
+            return key.hashCode()
+        }
+    }
 
     internal class CurrentDataWhenSent private constructor(profileId: ID<String>, customerUserId: ID<String?>) {
 
@@ -185,6 +198,20 @@ internal class RequestFactory(
                 addResponseCacheKeys(responseCacheKeyProvider.forGetProfile())
                 currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
                 systemLog = BackendAPIRequestData.UpdateProfile.create()
+            }
+        }
+
+    @JvmSynthetic
+    fun setIntegrationIdRequest(key: String, value: String) =
+        cacheRepository.getProfileId().let { profileId ->
+            buildRequest {
+                method = POST
+                body = gson.toJson(
+                    SetIntegrationIdRequest.create(profileId, key, value)
+                )
+                endPoint = "integration/profile/set/integration-identifiers/"
+                headers += listOf(Request.Header("Content-type", "application/json"))
+                systemLog = BackendAPIRequestData.SetIntegrationId.create(key, value)
             }
         }
 
@@ -317,10 +344,9 @@ internal class RequestFactory(
     ) = cacheRepository.getProfileId().let { profileId ->
         buildRequest {
             method = POST
-            endPoint = "${getEndpointForProfileRequests(profileId)}attribution/"
-            body = gson.toJson(
-                UpdateAttributionRequest.create(attributionData)
-            )
+            endPoint = "attribution/profile/set/data/"
+            body = gson.toJson(attributionData)
+            headers += listOf(Request.Header("Content-type", "application/json"))
             currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
             systemLog = BackendAPIRequestData.SetAttribution.create(attributionData)
         }

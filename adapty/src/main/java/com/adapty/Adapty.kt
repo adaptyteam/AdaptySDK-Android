@@ -7,7 +7,6 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.Uri
 import androidx.annotation.IntRange
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
@@ -274,9 +273,8 @@ public object Adapty {
      *
      * @param[isOfferPersonalized] Indicates whether the price is personalized, [read more](https://developer.android.com/google/play/billing/integrate#personalized-price).
      *
-     * @param[callback] A result containing the [AdaptyPurchasedInfo] object (is null if and only if it was
-     * a subscription change with the [DEFERRED][AdaptySubscriptionUpdateParameters.ReplacementMode.DEFERRED]
-     * replacement mode). This model contains information about the purchase and the user's profile.
+     * @param[callback] The result includes an [AdaptyPurchaseResult] object, which provides details about the purchase.
+     * If the result is [AdaptyPurchaseResult.Success], it also includes the user's profile.
      * The profile, in turn, includes details about access levels, subscriptions, and non-subscription
      * purchases. Generally, you have to check only access level status to determine whether the user
      * has premium access to the app.
@@ -290,7 +288,7 @@ public object Adapty {
         product: AdaptyPaywallProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters? = null,
         isOfferPersonalized: Boolean = false,
-        callback: ResultCallback<AdaptyPurchasedInfo?>,
+        callback: ResultCallback<AdaptyPurchaseResult>,
     ) {
         Logger.log(VERBOSE) { "makePurchase(vendorProductId = ${product.vendorProductId}${product.subscriptionDetails?.let { "; basePlanId = ${it.basePlanId}${it.offerId?.let { offerId -> "; offerId = $offerId" }.orEmpty()}" }.orEmpty()}${subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; replacementMode = ${it.replacementMode}" }.orEmpty()})" }
         if (!isActivated) {
@@ -324,19 +322,21 @@ public object Adapty {
     }
 
     @JvmStatic
-    @JvmOverloads
     public fun updateAttribution(
         attribution: Any,
-        source: AdaptyAttributionSource,
-        networkUserId: String? = null,
+        source: String,
         callback: ErrorCallback,
     ) {
         Logger.log(VERBOSE) { "updateAttribution(source = $source)" }
-        if (BuildConfig.DEBUG && source == AdaptyAttributionSource.APPSFLYER) {
-            require(networkUserId != null) { "networkUserId is required for AppsFlyer attribution, otherwise we won't be able to send specific events." }
-        }
         if (!checkActivated(callback)) return
-        adaptyInternal.updateAttribution(attribution, source, networkUserId, callback)
+        adaptyInternal.updateAttribution(attribution, source, callback)
+    }
+
+    @JvmStatic
+    public fun setIntegrationIdentifier(key: String, value: String, callback: ErrorCallback) {
+        Logger.log(VERBOSE) { "setIntegrationIdentifier(key = $key)" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.setIntegrationId(key, value, callback)
     }
 
     /**
@@ -447,29 +447,6 @@ public object Adapty {
         Logger.log(VERBOSE) { "setFallbackPaywalls()" }
         if (!checkActivated(callback)) return
         adaptyInternal.setFallbackPaywalls(location, callback)
-    }
-
-    /**
-     * To set fallback paywalls, use this method. You should pass exactly the same payload you’re
-     * getting from Adapty backend. You can copy it from Adapty Dashboard.
-     *
-     * Adapty allows you to provide fallback paywalls that will be used when a user opens the app
-     * and there's no connection with Adapty backend (e.g. no internet connection or in the rare case
-     * when backend is down) and there's no cache on the device.
-     *
-     * Should not be called before [activate]
-     *
-     * @param[fileUri] A [uri][android.net.Uri] of a file with JSON representation of your paywalls/products list
-     * in the exact same format as provided by Adapty backend.
-     *
-     * @param[callback] A result containing the optional [AdaptyError].
-     *
-     * @see <a href="https://adapty.io/docs/android-use-fallback-paywalls">Android - Use fallback paywalls</a>
-     */
-    @JvmStatic
-    @JvmOverloads
-    public fun setFallbackPaywalls(fileUri: Uri, callback: ErrorCallback? = null) {
-        setFallbackPaywalls(FileLocation.Uri(fileUri), callback)
     }
 
     /**

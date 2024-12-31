@@ -11,6 +11,7 @@ import com.adapty.ui.internal.utils.CONFIGURATION_FORMAT_VERSION
 
 internal class IfElementMapper(
     commonAttributeMapper: CommonAttributeMapper,
+    private val hasVideoSupport: Boolean,
 ) : BaseUIComplexElementMapper("if", commonAttributeMapper), UIComplexShrinkableElementMapper {
     override fun map(
         config: Map<*, *>,
@@ -21,7 +22,11 @@ internal class IfElementMapper(
         childMapper: ChildMapperShrinkable,
     ): UIElement {
         val key = when {
-            config["platform"] == "android" || config["version"] == CONFIGURATION_FORMAT_VERSION -> "then"
+            config["platform"] == "android" || config["version"] == CONFIGURATION_FORMAT_VERSION -> {
+                setOf("then", "else").firstOrNull { key ->
+                    hasVideoSupport || (config[key] as? Map<*, *>)?.get("type") != "video"
+                } ?: "then"
+            }
             else -> "else"
         }
         return (config[key] as? Map<*, *>)?.let { item -> childMapper(item, inheritShrink) }

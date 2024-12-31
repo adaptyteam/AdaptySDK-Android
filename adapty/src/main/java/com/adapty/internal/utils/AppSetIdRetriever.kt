@@ -38,11 +38,9 @@ internal class AppSetIdRetriever(
                 return@flow
             }
 
-            val appSetId = try {
+            val appSetId = kotlin.runCatching {
                 Tasks.await(AppSet.getClient(appContext).appSetIdInfo).id
-            } catch (e: Exception) {
-                null
-            }
+            }.getOrNull()
 
             cachedAppSetId = appSetId
             semaphore.release()

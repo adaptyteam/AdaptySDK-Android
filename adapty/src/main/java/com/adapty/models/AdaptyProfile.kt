@@ -20,6 +20,7 @@ public class AdaptyProfile(
     public val subscriptions: ImmutableMap<String, Subscription>,
     public val nonSubscriptions: ImmutableMap<String, ImmutableList<NonSubscription>>,
     public val customAttributes: ImmutableMap<String, Any>,
+    private val isTestUser: Boolean,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -28,5 +28,9 @@ public sealed class FileLocation {
                 else
                     relativePath
             )
+
+        @JvmStatic
+        public fun fromFileUri(fileUri: android.net.Uri): FileLocation =
+            Uri(fileUri)
     }
 }

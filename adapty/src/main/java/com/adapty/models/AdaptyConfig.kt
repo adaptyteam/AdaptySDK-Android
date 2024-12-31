@@ -7,6 +7,7 @@ public class AdaptyConfig private constructor(
     @get:JvmSynthetic internal val observerMode: Boolean,
     @get:JvmSynthetic internal val customerUserId: String?,
     @get:JvmSynthetic internal val ipAddressCollectionDisabled: Boolean,
+    @get:JvmSynthetic internal val adIdCollectionDisabled: Boolean,
     @get:JvmSynthetic internal val backendBaseUrl: String,
 ) {
 
@@ -21,6 +22,8 @@ public class AdaptyConfig private constructor(
         private var observerMode = false
 
         private var ipAddressCollectionDisabled = false
+
+        private var adIdCollectionDisabled = false
 
         private var backendBaseUrl = ServerCluster.DEFAULT.url
 
@@ -51,6 +54,11 @@ public class AdaptyConfig private constructor(
             return this
         }
 
+        public fun withAdIdCollectionDisabled(disabled: Boolean): Builder {
+            this.adIdCollectionDisabled = disabled
+            return this
+        }
+
         public fun withServerCluster(serverCluster: ServerCluster): Builder {
             this.backendBaseUrl = serverCluster.url
             return this
@@ -72,6 +80,7 @@ public class AdaptyConfig private constructor(
                 observerMode,
                 customerUserId,
                 ipAddressCollectionDisabled,
+                adIdCollectionDisabled,
                 backendBaseUrl,
             )
         }

@@ -178,7 +178,7 @@ internal class AdaptyInternal(
         product: AdaptyPaywallProduct,
         subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
         isOfferPersonalized: Boolean,
-        callback: ResultCallback<AdaptyPurchasedInfo?>
+        callback: ResultCallback<AdaptyPurchaseResult>
     ) {
         val requestEvent = SDKMethodRequestData.MakePurchase.create(product)
         analyticsTracker.trackSystemEvent(requestEvent)
@@ -396,15 +396,31 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun updateAttribution(
         attribution: Any,
-        source: AdaptyAttributionSource,
-        networkUserId: String?,
+        source: String,
         callback: ErrorCallback
     ) {
-        val requestEvent = SDKMethodRequestData.UpdateAttribution.create(source.toString(), networkUserId)
+        val requestEvent = SDKMethodRequestData.UpdateAttribution.create(source)
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             profileInteractor
-                .updateAttribution(attribution, source, networkUserId)
+                .updateAttribution(attribution, source)
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result.errorOrNull())
+                }
+                .collect()
+        }
+    }
+
+    @JvmSynthetic
+    fun setIntegrationId(key: String, value: String, callback: ErrorCallback) {
+        val requestEvent = SDKMethodRequestData.SetIntegrationId.create(key, value)
+        analyticsTracker.trackSystemEvent(requestEvent)
+        execute {
+            profileInteractor
+                .setIntegrationId(key, value)
                 .onSingleResult { result ->
                     analyticsTracker.trackSystemEvent(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())

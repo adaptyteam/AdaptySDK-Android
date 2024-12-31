@@ -5,7 +5,7 @@ import android.content.Context
 import com.adapty.errors.AdaptyError
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
-import com.adapty.models.AdaptyPurchasedInfo
+import com.adapty.models.AdaptyPurchaseResult
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.ui.AdaptyPaywallView
 import com.adapty.ui.AdaptyUI
@@ -46,13 +46,17 @@ public interface AdaptyUiEventListener {
      *
      * @param[context] A UI [Context] within which the event occurred.
      *
-     * @return An [AdaptySubscriptionUpdateParameters] object, used when
-     * you need a subscription to be replaced with another one, otherwise `null`, [read more](https://adapty.io/docs/making-purchases#change-subscription-when-making-a-purchase).
+     * @param[onSubscriptionUpdateParamsReceived] If a new subscription is purchased while another is still active,
+     * call `onSubscriptionUpdateParamsReceived(...)` either with [AdaptySubscriptionUpdateParameters]
+     * instance if the new subscription should replace a currently active subscription
+     * or with `null` if the active subscription should remain active and the new one should be added separately.
+     * [Read more](https://adapty.io/docs/making-purchases#change-subscription-when-making-a-purchase).
      */
     public fun onAwaitingSubscriptionUpdateParams(
         product: AdaptyPaywallProduct,
         context: Context,
-    ): AdaptySubscriptionUpdateParameters?
+        onSubscriptionUpdateParamsReceived: SubscriptionUpdateParamsCallback,
+    )
 
     /**
      * This callback is invoked in case of errors during the products loading process.
@@ -82,15 +86,6 @@ public interface AdaptyUiEventListener {
     )
 
     /**
-     * This callback is invoked when user cancels the purchase manually.
-     *
-     * @param[product] An [AdaptyPaywallProduct] of the purchase.
-     *
-     * @param[context] A UI [Context] within which the event occurred.
-     */
-    public fun onPurchaseCanceled(product: AdaptyPaywallProduct, context: Context)
-
-    /**
      * This callback is invoked when the purchase process fails.
      *
      * @param[error] An [AdaptyError] object representing the error.
@@ -118,21 +113,21 @@ public interface AdaptyUiEventListener {
     )
 
     /**
-     * This callback is invoked when a successful purchase is made.
+     * This callback is invoked to inform on a canceled, successful, and pending purchase.
      *
-     * The [default][AdaptyUiDefaultEventListener.onPurchaseSuccess] implementation is simply
+     * The [default][AdaptyUiDefaultEventListener.onPurchaseFinished] implementation is simply
      * calling [onBackPressed][Activity.onBackPressed] method of
      * the [Activity] the [AdaptyPaywallView] is attached to.
      *
-     * @param[purchasedInfo] An [AdaptyPurchasedInfo] object containing up to date information
-     * about the purchase and the user's profile.
+     * @param[purchaseResult] An [AdaptyPurchaseResult] object containing details about the purchase.
+     * If the result is [AdaptyPurchaseResult.Success], it also includes the user's profile.
      *
      * @param[product] An [AdaptyPaywallProduct] of the purchase.
      *
      * @param[context] A UI [Context] within which the event occurred.
      */
-    public fun onPurchaseSuccess(
-        purchasedInfo: AdaptyPurchasedInfo?,
+    public fun onPurchaseFinished(
+        purchaseResult: AdaptyPurchaseResult,
         product: AdaptyPaywallProduct,
         context: Context,
     )
@@ -184,4 +179,8 @@ public interface AdaptyUiEventListener {
         profile: AdaptyProfile,
         context: Context,
     )
+
+    public fun interface SubscriptionUpdateParamsCallback {
+        public operator fun invoke(subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?)
+    }
 }

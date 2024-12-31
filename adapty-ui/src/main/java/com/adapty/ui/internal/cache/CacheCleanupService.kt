@@ -32,7 +32,7 @@ internal class CacheCleanupService(
                     val exists = file?.exists() ?: return@forEach
                     val expired =
                         if (!cacheFileManager.isTemp(file))
-                            cacheFileManager.isOlderThan(currentCacheConfig.discCacheValidityTime, file)
+                            cacheFileManager.isOlderThan(currentCacheConfig.diskCacheValidityTime, file)
                         else
                             cacheFileManager.isOlderThan(TEMP_FILE_VALIDITY_TIME, file)
 
