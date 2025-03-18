@@ -18,7 +18,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
@@ -29,22 +28,22 @@ import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Screen
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.ScreenBundle
-import com.adapty.ui.internal.mapping.element.Assets
-import com.adapty.ui.internal.text.StringId
-import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
 import com.adapty.ui.internal.ui.attributes.toExactDp
+import com.adapty.ui.internal.ui.element.ResolveAssets
+import com.adapty.ui.internal.ui.element.ResolveState
+import com.adapty.ui.internal.ui.element.ResolveText
 import com.adapty.ui.internal.ui.element.render
 import com.adapty.ui.internal.utils.EventCallback
 
 @Composable
 internal fun renderDefaultScreen(
     screenBundle: ScreenBundle,
-    resolveAssets: () -> Assets,
-    resolveText: @Composable (StringId) -> StringWrapper?,
-    resolveState: () -> SnapshotStateMap<String, Any>,
+    resolveAssets: ResolveAssets,
+    resolveText: ResolveText,
+    resolveState: ResolveState,
     eventCallback: EventCallback,
 ) {
     when (val defaultScreen = screenBundle.defaultScreen) {
@@ -76,9 +75,9 @@ internal fun renderDefaultScreen(
 @Composable
 internal fun renderBasicTemplate(
     defaultScreen: Screen.Default.Basic,
-    resolveAssets: () -> Assets,
-    resolveText: @Composable (StringId) -> StringWrapper?,
-    resolveState: () -> SnapshotStateMap<String, Any>,
+    resolveAssets: ResolveAssets,
+    resolveText: ResolveText,
+    resolveState: ResolveState,
     eventCallback: EventCallback,
 ) {
     val measuredContentHeightPxState = remember { mutableIntStateOf(0) }
@@ -190,9 +189,9 @@ internal fun renderBasicTemplate(
 @Composable
 internal fun renderFlatTemplate(
     defaultScreen: Screen.Default.Flat,
-    resolveAssets: () -> Assets,
-    resolveText: @Composable (StringId) -> StringWrapper?,
-    resolveState: () -> SnapshotStateMap<String, Any>,
+    resolveAssets: ResolveAssets,
+    resolveText: ResolveText,
+    resolveState: ResolveState,
     eventCallback: EventCallback,
 ) {
     val measuredContentHeightPxState = remember { mutableIntStateOf(0) }
@@ -290,9 +289,9 @@ internal fun renderFlatTemplate(
 @Composable
 internal fun renderTransparentTemplate(
     defaultScreen: Screen.Default.Transparent,
-    resolveAssets: () -> Assets,
-    resolveText: @Composable (StringId) -> StringWrapper?,
-    resolveState: () -> SnapshotStateMap<String, Any>,
+    resolveAssets: ResolveAssets,
+    resolveText: ResolveText,
+    resolveState: ResolveState,
     eventCallback: EventCallback,
 ) {
     Box(

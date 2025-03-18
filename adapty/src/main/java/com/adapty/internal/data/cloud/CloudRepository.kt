@@ -7,6 +7,7 @@ import com.adapty.internal.data.models.*
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.internal.utils.DEFAULT_PAYWALL_LOCALE
 import com.adapty.models.AdaptyProfileParameters
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.*
@@ -227,6 +228,34 @@ internal class CloudRepository(
             Any::class.java
         )
         processEmptyResponse(response)
+    }
+
+    @JvmSynthetic
+    fun reportTransactionWithVariation(
+        transactionId: String,
+        variationId: String,
+        purchase: Purchase,
+        product: ProductDetails,
+    ): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
+        val request = requestFactory.reportTransactionWithVariationRequest(transactionId, variationId, purchase, product)
+        val response = httpClient.newCall<ValidationResult>(
+            request,
+            ValidationResult::class.java
+        )
+        when (response) {
+            is Response.Success -> {
+                val result = response.body
+                val error = result.errors.firstOrNull()
+                if (error != null) {
+                    throw AdaptyError(
+                        message = error.message.orEmpty(),
+                        adaptyErrorCode = AdaptyErrorCode.BAD_REQUEST,
+                    )
+                }
+                return result.profile to request.currentDataWhenSent
+            }
+            is Response.Error -> throw response.error
+        }
     }
 
     @JvmSynthetic

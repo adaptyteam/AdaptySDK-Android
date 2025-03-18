@@ -347,25 +347,30 @@ public object Adapty {
      *
      * Should not be called before [activate]
      *
+     * @param[transactionInfo] A [TransactionInfo] instance, containing either a string identifier (`purchase.getOrderId()`) of the purchase,
+     * or an instance of the billing library [Purchase](https://developer.android.com/reference/com/android/billingclient/api/Purchase) class.
+     *
      * @param[variationId] A string identifier of variation. You can get it using
      * [variationId][AdaptyPaywall.variationId] property of [AdaptyPaywall].
      *
-     * @param[forTransactionId] A string identifier (`purchase.getOrderId()`) of the purchase,
-     * where the purchase is an instance of the billing library [Purchase](https://developer.android.com/reference/com/android/billingclient/api/Purchase) class.
-     *
      * @param[callback] A result containing the optional [AdaptyError].
      *
-     * @see <a href="https://adapty.io/docs/associate-paywalls-to-transactions">Associate paywalls to purchase transactions in Observer mode</a>
+     * @see <a href="https://adapty.io/docs/report-transactions-observer-mode">Report transactions in Observer mode</a>
      */
+    @JvmOverloads
     @JvmStatic
-    public fun setVariationId(
-        forTransactionId: String,
-        variationId: String,
-        callback: ErrorCallback,
+    public fun reportTransaction(
+        transactionInfo: TransactionInfo,
+        variationId: String? = null,
+        callback: ResultCallback<AdaptyProfile>,
     ) {
-        Logger.log(VERBOSE) { "setVariationId(variationId = $variationId for transactionId = $forTransactionId)" }
-        if (!checkActivated(callback)) return
-        adaptyInternal.setVariationId(forTransactionId, variationId, callback)
+        Logger.log(VERBOSE) { "reportTransaction(transactionInfo = $transactionInfo${variationId?.let { ", variationId = $variationId" }.orEmpty()})" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.reportTransaction(transactionInfo, variationId, callback)
     }
 
     /**

@@ -15,20 +15,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
-import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.EdgeEntities
 import com.adapty.ui.internal.ui.attributes.Offset
@@ -37,12 +42,13 @@ import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.ui.attributes.toComposeShape
 import com.adapty.ui.internal.ui.attributes.toExactDp
 import com.adapty.ui.internal.ui.attributes.verticalSumOrDefault
+import com.adapty.ui.internal.ui.element.ResolveAssets
 import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.utils.getForCurrentSystemTheme
 
 @InternalAdaptyApi
 @Composable
-public fun Modifier.fillWithBaseParams(element: UIElement, resolveAssets: () -> Assets): Modifier {
+public fun Modifier.fillWithBaseParams(element: UIElement, resolveAssets: ResolveAssets): Modifier {
     return this
         .sizeAndMarginsOrSkip(element)
         .offsetOrSkip(element.baseProps.offset)
@@ -52,17 +58,17 @@ public fun Modifier.fillWithBaseParams(element: UIElement, resolveAssets: () -> 
 @Composable
 internal fun Modifier.backgroundOrSkip(
     decorator: com.adapty.ui.internal.ui.attributes.Shape?,
-    resolveAssets: () -> Assets,
+    resolveAssets: ResolveAssets,
 ): Modifier {
     val decorator = decorator ?: return this
     var modifier = this
     val backgroundShape = decorator.type.toComposeShape()
+    modifier = modifier.clipToShape(backgroundShape)
     if (decorator.fill != null) {
         val backgroundAsset = resolveAssets().getForCurrentSystemTheme(decorator.fill.assetId) as? Asset.Filling.Local
         if (backgroundAsset != null)
             modifier = modifier.background(backgroundAsset, backgroundShape)
     }
-    modifier = modifier.clip(backgroundShape)
 
     if (decorator.border != null) {
         when (val borderAsset = resolveAssets().getForCurrentSystemTheme(decorator.border.color) as? Asset.Filling.Local) {
@@ -84,6 +90,32 @@ internal fun Modifier.backgroundOrSkip(
         }
     }
     return modifier
+}
+
+private fun Modifier.clipToShape(
+    shape: Shape,
+) = composed {
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+
+    val useCustomClip = remember(shape) {
+        shape.createOutline(Size(100f, 100f), layoutDirection, density) is Outline.Generic
+    }
+
+    if (useCustomClip) {
+        drawWithContent {
+            val outline = shape.createOutline(size, layoutDirection, density)
+            val path = (outline as Outline.Generic).path
+
+            val canvas = drawContext.canvas
+            canvas.save()
+            canvas.clipPath(path)
+            drawContent()
+            canvas.restore()
+        }
+    } else {
+        clip(shape)
+    }
 }
 
 private fun Modifier.background(

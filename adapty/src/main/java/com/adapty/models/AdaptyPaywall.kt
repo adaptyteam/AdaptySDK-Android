@@ -10,6 +10,7 @@ import com.adapty.utils.ImmutableMap
 
 /**
  * @property[abTestName] Parent A/B test name.
+ * @property[audienceName] An audience name.
  * @property[hasViewConfiguration] If `true`, it is possible to fetch the [AdaptyUI.LocalizedViewConfiguration][com.adapty.ui.AdaptyUI.LocalizedViewConfiguration] object and use it with [AdaptyUI](https://search.maven.org/artifact/io.adapty/android-ui) library.
  * @property[placementId] An identifier of a placement, configured in Adapty Dashboard.
  * @property[name] A paywall name.
@@ -22,6 +23,7 @@ public class AdaptyPaywall internal constructor(
     public val placementId: String,
     public val name: String,
     public val abTestName: String,
+    public val audienceName: String,
     public val revision: Int,
     public val variationId: String,
     public val remoteConfig: RemoteConfig?,
@@ -53,6 +55,7 @@ public class AdaptyPaywall internal constructor(
         if (placementId != other.placementId) return false
         if (name != other.name) return false
         if (abTestName != other.abTestName) return false
+        if (audienceName != other.audienceName) return false
         if (revision != other.revision) return false
         if (variationId != other.variationId) return false
         if (vendorProductIds != other.vendorProductIds) return false
@@ -65,6 +68,7 @@ public class AdaptyPaywall internal constructor(
         var result = placementId.hashCode()
         result = 31 * result + name.hashCode()
         result = 31 * result + abTestName.hashCode()
+        result = 31 * result + audienceName.hashCode()
         result = 31 * result + revision
         result = 31 * result + variationId.hashCode()
         result = 31 * result + vendorProductIds.hashCode()
@@ -73,7 +77,7 @@ public class AdaptyPaywall internal constructor(
     }
 
     override fun toString(): String {
-        return "AdaptyPaywall(placementId=$placementId, name=$name, abTestName=$abTestName, revision=$revision, variationId=$variationId, vendorProductIds=$vendorProductIds, remoteConfig=$remoteConfig)"
+        return "AdaptyPaywall(placementId=$placementId, name=$name, abTestName=$abTestName, audienceName=$audienceName, revision=$revision, variationId=$variationId, vendorProductIds=$vendorProductIds, remoteConfig=$remoteConfig)"
     }
 
     /**

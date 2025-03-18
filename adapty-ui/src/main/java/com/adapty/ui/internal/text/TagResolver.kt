@@ -14,6 +14,7 @@ import com.adapty.models.AdaptyPeriodUnit.YEAR
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.RichText
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.mapping.element.Products
+import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.utils.firstDiscountOfferOrNull
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 import java.math.RoundingMode
@@ -28,6 +29,7 @@ internal class TagResolver(
     fun tryResolveProductTag(
         item: RichText.Item.Tag,
         productId: String?,
+        textElementAttrs: Attributes?,
         assets: Assets,
         products: Products,
     ): StringWrapper.Str? {
@@ -51,7 +53,7 @@ internal class TagResolver(
                 }
             }
         }.orEmpty()
-        return StringWrapper.Str(text, item.attrs?.let { ComposeTextAttrs.from(it, assets) })
+        return StringWrapper.Str(text, item.attrs?.let { ComposeTextAttrs.from(it, textElementAttrs, assets) })
     }
 
     private fun createPricePerPeriodText(product: AdaptyPaywallProduct, targetUnit: AdaptyPeriodUnit): String? {
@@ -83,6 +85,7 @@ internal class TagResolver(
     @Composable
     fun tryResolveTimerTag(
         item: RichText.Item.Tag,
+        textElementAttrs: Attributes?,
         assets: Assets,
     ): StringWrapper.TimerSegmentStr? {
         val tag = item.tag
@@ -96,7 +99,7 @@ internal class TagResolver(
                 return StringWrapper.TimerSegmentStr(
                     "%0${numberOfDigits}d",
                     timeUnit,
-                    item.attrs?.let { ComposeTextAttrs.from(it, assets) },
+                    item.attrs?.let { ComposeTextAttrs.from(it, textElementAttrs, assets) },
                 )
             }
         }
@@ -110,7 +113,7 @@ internal class TagResolver(
         return StringWrapper.TimerSegmentStr(
             "%0${numberOfDigits}d",
             timeUnit,
-            item.attrs?.let { ComposeTextAttrs.from(it, assets) },
+            item.attrs?.let { ComposeTextAttrs.from(it, textElementAttrs, assets) },
         )
     }
 
@@ -130,6 +133,7 @@ internal class TagResolver(
     @Composable
     fun tryResolveCustomTag(
         item: RichText.Item.Tag,
+        textElementAttrs: Attributes?,
         assets: Assets,
         ignoreMissingCustomTag: Boolean,
     ): StringWrapper.Str {
@@ -138,7 +142,7 @@ internal class TagResolver(
                 return StringWrapper.CUSTOM_TAG_NOT_FOUND
             item.tag
         }
-        return StringWrapper.Str(text, item.attrs?.let { ComposeTextAttrs.from(it, assets) })
+        return StringWrapper.Str(text, item.attrs?.let { ComposeTextAttrs.from(it, textElementAttrs, assets) })
     }
 }
 

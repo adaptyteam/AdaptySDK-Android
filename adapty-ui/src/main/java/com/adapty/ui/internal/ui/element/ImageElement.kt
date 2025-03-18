@@ -13,9 +13,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset.Image.ScaleType
-import com.adapty.ui.internal.mapping.element.Assets
-import com.adapty.ui.internal.text.StringId
-import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.AspectRatio
 import com.adapty.ui.internal.ui.attributes.LocalContentAlignment
 import com.adapty.ui.internal.ui.attributes.Shape
@@ -41,9 +38,9 @@ public class ImageElement internal constructor(
     ): this(assetId, aspectRatio, null, baseProps)
 
     override fun toComposable(
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier,
     ): @Composable () -> Unit = {

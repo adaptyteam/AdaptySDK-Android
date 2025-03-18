@@ -6,6 +6,7 @@ import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptySubscriptionUpdateParameters
+import com.adapty.utils.TransactionInfo
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
@@ -210,21 +211,24 @@ internal class AnalyticsEvent(
             }
         }
 
-        class SetVariationId private constructor(
+        class ReportTransaction private constructor(
             val transactionId: String,
-            val variationId: String,
+            val variationId: String?,
             methodName: String
         ) : SDKMethodRequestData(methodName) {
 
             companion object {
                 fun create(
-                    transactionId: String,
-                    variationId: String,
+                    transactionInfo: TransactionInfo,
+                    variationId: String?,
                 ) =
-                    SetVariationId(
-                        transactionId,
+                    ReportTransaction(
+                        when (transactionInfo) {
+                            is TransactionInfo.Id -> transactionInfo.transactionId
+                            is TransactionInfo.Purchase -> transactionInfo.purchase.orderId.orEmpty()
+                        },
                         variationId,
-                        "set_variation_id",
+                        "report_transaction",
                     )
             }
         }
@@ -490,6 +494,22 @@ internal class AnalyticsEvent(
                         transactionId,
                         variationId,
                         "set_variation_id",
+                    )
+            }
+        }
+
+        class ReportTransaction private constructor(
+            val transaction: String,
+            val variationId: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(transactionId: String, variationId: String) =
+                    ReportTransaction(
+                        transactionId,
+                        variationId,
+                        "report_transaction",
                     )
             }
         }

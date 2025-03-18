@@ -11,6 +11,8 @@ internal data class PaywallDto(
     val name: String?,
     @SerializedName("ab_test_name")
     val abTestName: String?,
+    @SerializedName("audience_name")
+    val audienceName: String?,
     @SerializedName("revision")
     val revision: Int?,
     @SerializedName("variation_id")

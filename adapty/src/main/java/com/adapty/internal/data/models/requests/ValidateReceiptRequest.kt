@@ -2,6 +2,8 @@ package com.adapty.internal.data.models.requests
 
 import androidx.annotation.RestrictTo
 import com.adapty.internal.domain.models.PurchaseableProduct
+import com.android.billingclient.api.BillingClient.ProductType
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.google.gson.annotations.SerializedName
 
@@ -37,49 +39,99 @@ internal class ValidateReceiptRequest(
 
     internal companion object {
         fun create(
-            id: String,
+            profileId: String,
             purchase: Purchase,
             product: PurchaseableProduct,
         ): ValidateReceiptRequest {
+            val productId = purchase.products.firstOrNull().orEmpty()
             val offerDetails = product.currentOfferDetails
-            return ValidateReceiptRequest(
-                Data(
-                    id = id,
-                    attributes = Data.Attributes(
-                        profileId = id,
-                        productId = purchase.products.firstOrNull().orEmpty(),
-                        purchaseToken = purchase.purchaseToken,
-                        isSubscription = product.isSubscription,
-                        variationId = product.variationId,
-                        productDetails = when {
-                            offerDetails == null -> PurchasedProductDetails(
-                                productId = purchase.products.firstOrNull().orEmpty(),
-                                oneTimePurchaseOfferDetails = PurchasedProductDetails.OneTime(
-                                    product.priceAmountMicros,
-                                    product.currencyCode,
-                                ),
-                                subscriptionOfferDetails = null,
-                            )
-                            else -> PurchasedProductDetails(
-                                productId = purchase.products.firstOrNull().orEmpty(),
-                                oneTimePurchaseOfferDetails = null,
-                                subscriptionOfferDetails = listOf(
-                                    PurchasedProductDetails.Sub(
-                                        offerDetails.basePlanId,
-                                        offerDetails.offerId,
-                                        offerDetails.pricingPhases.pricingPhaseList.map { pricingPhase ->
-                                            PurchasedProductDetails.Sub.PricingPhase(
-                                                pricingPhase.priceAmountMicros,
-                                                pricingPhase.priceCurrencyCode,
-                                                pricingPhase.billingPeriod,
-                                                pricingPhase.recurrenceMode,
-                                                pricingPhase.billingCycleCount,
-                                            )
-                                        }
-                                    )
-                                ),
+            val productDetails = when {
+                offerDetails == null -> PurchasedProductDetails(
+                    productId = productId,
+                    oneTimePurchaseOfferDetails = PurchasedProductDetails.OneTime(
+                        product.priceAmountMicros,
+                        product.currencyCode,
+                    ),
+                    subscriptionOfferDetails = null,
+                )
+                else -> PurchasedProductDetails(
+                    productId = productId,
+                    oneTimePurchaseOfferDetails = null,
+                    subscriptionOfferDetails = listOf(
+                        PurchasedProductDetails.Sub(
+                            offerDetails.basePlanId,
+                            offerDetails.offerId,
+                            offerDetails.pricingPhases.pricingPhaseList.map { pricingPhase ->
+                                PurchasedProductDetails.Sub.PricingPhase(
+                                    pricingPhase.priceAmountMicros,
+                                    pricingPhase.priceCurrencyCode,
+                                    pricingPhase.billingPeriod,
+                                    pricingPhase.recurrenceMode,
+                                    pricingPhase.billingCycleCount,
+                                )
+                            }
+                        )
+                    ),
+                )
+            }
+            val variationId = product.variationId
+            val isSubscription = product.isSubscription
+            return create(profileId, productId, variationId, isSubscription, purchase, productDetails)
+        }
+
+        fun create(
+            profileId: String,
+            variationId: String,
+            purchase: Purchase,
+            product: ProductDetails,
+        ): ValidateReceiptRequest {
+            val productId = product.productId
+            val isSubscription = product.productType == ProductType.SUBS
+            val productDetails = PurchasedProductDetails(
+                productId = productId,
+                oneTimePurchaseOfferDetails = product.oneTimePurchaseOfferDetails?.let { offerDetails ->
+                    PurchasedProductDetails.OneTime(
+                        offerDetails.priceAmountMicros,
+                        offerDetails.priceCurrencyCode,
+                    )
+                },
+                subscriptionOfferDetails = product.subscriptionOfferDetails?.map { offerDetails ->
+                    PurchasedProductDetails.Sub(
+                        offerDetails.basePlanId,
+                        offerDetails.offerId,
+                        offerDetails.pricingPhases.pricingPhaseList.map { pricingPhase ->
+                            PurchasedProductDetails.Sub.PricingPhase(
+                                pricingPhase.priceAmountMicros,
+                                pricingPhase.priceCurrencyCode,
+                                pricingPhase.billingPeriod,
+                                pricingPhase.recurrenceMode,
+                                pricingPhase.billingCycleCount,
                             )
                         }
+                    )
+                },
+            )
+            return create(profileId, productId, variationId, isSubscription, purchase, productDetails)
+        }
+
+        private fun create(
+            profileId: String,
+            productId: String,
+            variationId: String,
+            isSubscription: Boolean,
+            purchase: Purchase,
+            productDetails: PurchasedProductDetails,
+        ): ValidateReceiptRequest {
+            return ValidateReceiptRequest(
+                Data(
+                    id = profileId,
+                    attributes = Data.Attributes(
+                        profileId = profileId,
+                        productId = productId,
+                        purchaseToken = purchase.purchaseToken,
+                        isSubscription = isSubscription,
+                        variationId = variationId,
+                        productDetails = productDetails,
                     )
                 )
             )

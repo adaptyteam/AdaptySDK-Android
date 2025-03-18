@@ -30,9 +30,6 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
-import com.adapty.ui.internal.mapping.element.Assets
-import com.adapty.ui.internal.text.StringId
-import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.AspectRatio
 import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.utils.EventCallback
@@ -56,9 +53,9 @@ public class VideoElement internal constructor(
 
     @UnstableApi
     override fun toComposable(
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier,
     ): @Composable () -> Unit = renderVideo@{

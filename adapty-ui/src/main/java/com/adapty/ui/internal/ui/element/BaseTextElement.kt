@@ -22,7 +22,6 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.text.ComposeTextAttrs
 import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.Shape
@@ -56,7 +55,7 @@ public abstract class BaseTextElement(
         maxLines: Int?,
         onOverflow: OnOverflowMode?,
         modifier: Modifier,
-        resolveAssets: () -> Assets,
+        resolveAssets: ResolveAssets,
         resolveText: @Composable () -> StringWrapper?,
     ) {
         val readyToDraw = remember {

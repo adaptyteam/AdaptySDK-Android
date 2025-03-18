@@ -87,7 +87,7 @@ public class AdaptyConfig private constructor(
     }
 
     public enum class ServerCluster(@get:JvmSynthetic internal val url: String) {
-        DEFAULT("https://api.adapty.io/"),
-        EU("https://api-eu.adapty.io/"),
+        DEFAULT("https://api.adapty.io/api/v1"),
+        EU("https://api-eu.adapty.io/api/v1"),
     }
 }

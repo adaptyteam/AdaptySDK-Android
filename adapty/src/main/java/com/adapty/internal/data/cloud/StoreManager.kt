@@ -57,6 +57,44 @@ internal class StoreManager(
                     .map { inAppHistoryList -> concatResults(subsHistoryList, inAppHistoryList) }
             }
 
+    fun findPurchaseForTransactionId(transactionId: String, maxAttemptCount: Long): Flow<Purchase?> =
+        queryActivePurchasesForType(SUBS, maxAttemptCount)
+            .flatMapConcat { subsList ->
+                val sub = subsList.firstOrNull { it.orderId == transactionId }
+                if (sub == null) {
+                    queryActivePurchasesForType(INAPP, maxAttemptCount)
+                        .map { inAppList -> inAppList.firstOrNull { it.orderId == transactionId } }
+                } else {
+                    flowOf(sub)
+                }
+            }
+
+    fun findProductDetailsForPurchase(
+        purchase: Purchase,
+        maxAttemptCount: Long,
+    ): Flow<ProductDetails?> {
+        val productList = purchase.products
+        val productId = productList.firstOrNull() ?: return flowOf(null)
+        return queryProductDetailsForType(
+            productList,
+            SUBS,
+            maxAttemptCount
+        )
+            .flatMapConcat { subsList ->
+                val sub = subsList.firstOrNull { it.productId == productId }
+                if (sub == null) {
+                    queryProductDetailsForType(
+                        productList,
+                        INAPP,
+                        maxAttemptCount
+                    )
+                        .map { inAppList -> inAppList.firstOrNull { it.productId == productId } }
+                } else {
+                    flowOf(sub)
+                }
+            }
+    }
+
     private fun getPurchaseHistoryDataToRestoreForType(
         @BillingClient.ProductType type: String,
         maxAttemptCount: Long,

@@ -13,7 +13,7 @@ import com.adapty.utils.ImmutableMap
  * @property[profileId] An identifier of a user in Adapty.
  * @property[subscriptions] The keys are product ids from a store. The values are information about subscriptions.
  */
-public class AdaptyProfile(
+public class AdaptyProfile internal constructor(
     public val profileId: String,
     public val customerUserId: String?,
     public val accessLevels: ImmutableMap<String, AccessLevel>,

@@ -30,6 +30,7 @@ import com.adapty.models.AdaptyPurchaseResult
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.ui.element.Action
+import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.ui.element.SectionElement
 import com.adapty.ui.internal.ui.element.fillModifierWithScopedParams
 import com.adapty.ui.internal.ui.element.render
@@ -89,7 +90,7 @@ internal fun AdaptyPaywallInternal(viewModel: PaywallViewModel) {
             }
             val context = LocalContext.current
             val resolveAssets = { viewModel.assets }
-            val resolveText = @Composable { stringId: StringId -> viewModel.resolveText(stringId) }
+            val resolveText = @Composable { stringId: StringId, textAttrs: Attributes? -> viewModel.resolveText(stringId, textAttrs) }
             val resolveState = { viewModel.state }
             val sheetState = rememberBottomSheetState()
             val scope = rememberCoroutineScope()

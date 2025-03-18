@@ -18,7 +18,10 @@ import com.adapty.models.AdaptyPurchaseResult.Pending
 import com.adapty.models.AdaptyPurchaseResult.Success
 import com.adapty.models.AdaptyPurchaseResult.UserCanceled
 import com.adapty.models.AdaptySubscriptionUpdateParameters
+import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.INFO
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
+import com.adapty.utils.TransactionInfo
 import com.android.billingclient.api.Purchase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -235,8 +238,70 @@ internal class PurchasesInteractor(
     }
 
     @JvmSynthetic
-    fun setVariationId(transactionId: String, variationId: String) =
-        authInteractor.runWhenAuthDataSynced {
-            cloudRepository.setVariationId(transactionId, variationId)
+    fun reportTransaction(transactionInfo: TransactionInfo, variationId: String?) =
+        if (variationId != null) {
+            (when (transactionInfo) {
+                is TransactionInfo.Purchase -> flowOf(transactionInfo.purchase)
+                is TransactionInfo.Id -> {
+                    val transactionId = transactionInfo.transactionId
+                    storeManager.findPurchaseForTransactionId(transactionId, DEFAULT_RETRY_COUNT)
+                }
+            })
+                .flatMapConcat findPurchase@{ purchase ->
+                    val transactionId =
+                        (transactionInfo as? TransactionInfo.Id)?.transactionId ?: purchase?.orderId
+                    if (transactionId == null) {
+                        val errorMessage = "orderId in Purchase should not be null"
+                        Logger.log(ERROR) { errorMessage }
+                        throw AdaptyError(
+                            message = errorMessage,
+                            adaptyErrorCode = WRONG_PARAMETER
+                        )
+                    }
+
+                    if (purchase == null) {
+                        Logger.log(WARN) { "Purchase $transactionId was not found in active purchases" }
+                        return@findPurchase restorePurchases()
+                            .map { profile ->
+                                cloudRepository.setVariationId(transactionId, variationId)
+                                profile
+                            }
+                    }
+
+                    storeManager.findProductDetailsForPurchase(
+                        purchase,
+                        DEFAULT_RETRY_COUNT,
+                    )
+                        .flatMapConcat findProduct@{ product ->
+                            if (product == null) {
+                                Logger.log(WARN) { "Product was not found for purchase (${purchase.products})" }
+                                return@findProduct restorePurchases()
+                                    .map { profile ->
+                                        cloudRepository.setVariationId(
+                                            transactionId,
+                                            variationId
+                                        )
+                                        profile
+                                    }
+                            }
+
+                            authInteractor.runWhenAuthDataSynced {
+                                cloudRepository.reportTransactionWithVariation(
+                                    transactionId,
+                                    variationId,
+                                    purchase,
+                                    product,
+                                )
+                            }
+                                .map { (profile, currentDataWhenRequestSent) ->
+                                    cacheRepository.updateOnProfileReceived(
+                                        profile,
+                                        currentDataWhenRequestSent?.profileId,
+                                    ).let(profileMapper::map)
+                                }
+                        }
+                }
+        } else {
+            restorePurchases()
         }
 }

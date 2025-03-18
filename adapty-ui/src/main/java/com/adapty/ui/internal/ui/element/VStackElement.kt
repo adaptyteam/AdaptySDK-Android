@@ -6,9 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.ui.internal.mapping.element.Assets
-import com.adapty.ui.internal.text.StringId
-import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.HorizontalAlign
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
 import com.adapty.ui.internal.ui.fillWithBaseParams
@@ -23,9 +20,9 @@ public class VStackElement internal constructor(
 ) : UIElement, MultiContainer {
 
     override fun toComposable(
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier,
     ): @Composable () -> Unit = {

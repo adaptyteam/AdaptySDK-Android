@@ -30,6 +30,7 @@ import com.adapty.ui.internal.text.PriceConverter
 import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.text.TagResolver
 import com.adapty.ui.internal.text.TextResolver
+import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.utils.EventCallback
 import com.adapty.ui.internal.utils.LOADING_PRODUCTS_RETRY_DELAY
 import com.adapty.ui.internal.utils.LOG_PREFIX
@@ -339,8 +340,8 @@ internal class PaywallViewModel(
     }
 
     @Composable
-    fun resolveText(stringId: StringId) =
-        textResolver.resolve(stringId, texts, products, assets, state)
+    fun resolveText(stringId: StringId, textAttrs: Attributes?) =
+        textResolver.resolve(stringId, textAttrs, texts, products, assets, state)
 
     fun getTimerStartTimestamp(placementId: String, timerId: String, isPersisted: Boolean): Long? {
         return cacheRepository.getLongValue(getTimerStartTimestampId(placementId, timerId), isPersisted)

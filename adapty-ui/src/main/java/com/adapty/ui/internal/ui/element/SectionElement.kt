@@ -8,9 +8,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.ui.internal.mapping.element.Assets
-import com.adapty.ui.internal.text.StringId
-import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.utils.EventCallback
 
@@ -29,9 +26,9 @@ public class SectionElement internal constructor(
     }
 
     override fun toComposable(
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier,
     ): @Composable () -> Unit {
@@ -50,9 +47,9 @@ public class SectionElement internal constructor(
     }
 
     override fun ColumnScope.toComposableInColumn(
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier
     ): @Composable () -> Unit {
@@ -77,9 +74,9 @@ public class SectionElement internal constructor(
     }
 
     override fun RowScope.toComposableInRow(
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier,
     ): @Composable () -> Unit {
@@ -105,7 +102,7 @@ public class SectionElement internal constructor(
 
     @Composable
     private fun renderSection(
-        resolveState: () -> Map<String, Any>,
+        resolveState: ResolveState,
         renderChild: @Composable (currentIndex: Int) -> Unit,
     ) {
         val state = resolveState()

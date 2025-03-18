@@ -24,6 +24,7 @@ import com.adapty.ui.internal.ui.attributes.Offset
 import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.Transition
 import com.adapty.ui.internal.ui.attributes.easing
+import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.utils.EventCallback
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
@@ -35,9 +36,9 @@ public object UnknownElement: UIElement {
     override val baseProps: BaseProps = BaseProps.EMPTY
 
     override fun toComposable(
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier,
     ): @Composable () -> Unit = {}
@@ -48,9 +49,9 @@ public class ReferenceElement internal constructor(internal val id: String): UIE
     override val baseProps: BaseProps = BaseProps.EMPTY
 
     override fun toComposable(
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier,
     ): @Composable () -> Unit = {}
@@ -61,9 +62,9 @@ public object SkippedElement: UIElement {
     override val baseProps: BaseProps = BaseProps.EMPTY
 
     override fun toComposable(
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier,
     ): @Composable () -> Unit = {}
@@ -115,13 +116,13 @@ public sealed class Action {
     public object Unknown: Action()
 
     @Composable
-    internal fun resolve(resolveText: @Composable (StringId) -> StringWrapper?): Action? {
+    internal fun resolve(resolveText: ResolveText): Action? {
         return when(this) {
             is OpenUrl -> {
                 val actualUrl = kotlin.runCatching { url.toStringId() }.getOrElse { e ->
                     log(ERROR) { "$LOG_PREFIX_ERROR couldn't extract value for${url}: ${e.localizedMessage})" }
                     null
-                }?.let { resolveText(it) }?.toPlainString()
+                }?.let { resolveText(it, null) }?.toPlainString()
                 return if (actualUrl != null)
                     OpenUrl(actualUrl)
                 else {
@@ -152,9 +153,9 @@ internal fun ColumnScope.fillModifierWithScopedParams(element: UIElement, modifi
 
 @Composable
 internal fun UIElement.render(
-    resolveAssets: () -> Assets,
-    resolveText: @Composable (StringId) -> StringWrapper?,
-    resolveState: () -> Map<String, Any>,
+    resolveAssets: ResolveAssets,
+    resolveText: ResolveText,
+    resolveState: ResolveState,
     eventCallback: EventCallback,
 ) {
     render(
@@ -168,9 +169,9 @@ internal fun UIElement.render(
 
 @Composable
 internal fun UIElement.render(
-    resolveAssets: () -> Assets,
-    resolveText: @Composable (StringId) -> StringWrapper?,
-    resolveState: () -> Map<String, Any>,
+    resolveAssets: ResolveAssets,
+    resolveText: ResolveText,
+    resolveState: ResolveState,
     eventCallback: EventCallback,
     modifier: Modifier,
 ) {
@@ -225,3 +226,8 @@ internal val UIElement.transitions get() = Transitions(baseProps.transitionIn)
 internal data class Transitions(
     val transitionIn: List<Transition>?,
 )
+
+public typealias ResolveAssets = () -> Assets
+public typealias ResolveText = @Composable (stringId: StringId, textAttrs: Attributes?) -> StringWrapper?
+public typealias ResolveState = () -> Map<String, Any>
+

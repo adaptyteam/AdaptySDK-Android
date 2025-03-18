@@ -25,14 +25,20 @@ internal class ComposeTextAttrs(
 ) {
     companion object {
         @Composable
-        fun from(attrs: RichText.Attributes, assets: Assets): ComposeTextAttrs {
+        fun from(
+            richTextAttrs: RichText.Attributes,
+            textElementAttrs: BaseTextElement.Attributes?,
+            assets: Assets,
+        ): ComposeTextAttrs {
             return from(
-                textColorAssetId = attrs.textColorAssetId,
-                backgroundColorAssetId = attrs.backgroundAssetId,
-                fontAssetId = attrs.fontAssetId,
-                fontSize = attrs.size,
-                underline = attrs.underline,
-                strikethrough = attrs.strikethrough,
+                textColorAssetId = richTextAttrs.textColorAssetId
+                    ?: textElementAttrs?.textColor?.assetId,
+                backgroundColorAssetId = richTextAttrs.backgroundAssetId,
+                fontAssetId = richTextAttrs.fontAssetId,
+                fontSize = richTextAttrs.size
+                    ?: Float.NaN,
+                underline = richTextAttrs.underline,
+                strikethrough = richTextAttrs.strikethrough,
                 assets = assets,
             )
         }
@@ -65,7 +71,7 @@ internal class ComposeTextAttrs(
             return ComposeTextAttrs(
                 resolveColorAsset(textColorAssetId, assets) ?: resolveColor(fontAsset?.color),
                 resolveColorAsset(backgroundColorAssetId, assets),
-                fontSize ?: fontAsset?.size,
+                (fontSize ?: fontAsset?.size)?.takeIf { !it.isNaN() },
                 resolveTextDecoration(underline, strikethrough),
                 resolveFontFamily(fontAsset, context),
             )

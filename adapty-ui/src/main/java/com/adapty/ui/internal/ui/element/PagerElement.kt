@@ -33,9 +33,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
-import com.adapty.ui.internal.mapping.element.Assets
-import com.adapty.ui.internal.text.StringId
-import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.ComposeFill
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.EdgeEntities
@@ -76,9 +73,9 @@ public class PagerElement internal constructor(
 ) : UIElement, MultiContainer {
 
     override fun toComposable(
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier,
     ): @Composable () -> Unit = {
@@ -97,9 +94,9 @@ public class PagerElement internal constructor(
 
     @Composable
     private fun renderPagerInternal(
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier,
     ) {
@@ -238,9 +235,9 @@ public class PagerElement internal constructor(
         maxAvailableHeight: Dp,
         pagerState: PagerState,
         interactionBehavior: InteractionBehavior,
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier,
         pages: List<UIElement>
@@ -346,7 +343,7 @@ public class PagerElement internal constructor(
     private fun renderHorizontalPagerIndicator(
         pagerState: PagerState,
         data: PagerIndicator,
-        resolveAssets: () -> Assets,
+        resolveAssets: ResolveAssets,
         modifier: Modifier = Modifier,
     ) {
         val spacing = data.spacing.dp

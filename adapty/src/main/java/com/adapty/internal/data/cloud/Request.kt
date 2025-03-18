@@ -19,6 +19,7 @@ import com.adapty.internal.utils.PayloadProvider
 import com.adapty.internal.utils.VERSION_NAME
 import com.adapty.internal.utils.extractLanguageCode
 import com.adapty.models.AdaptyProfileParameters
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.google.gson.Gson
 
@@ -54,7 +55,7 @@ internal class Request internal constructor(val baseUrl: String) {
     var systemLog: BackendAPIRequestData? = null
 
     internal class Builder(private val baseRequest: Request) {
-        constructor(baseUrl: String): this(Request("${baseUrl}api/v1/sdk/"))
+        constructor(baseUrl: String): this(Request(if (baseUrl.endsWith(".adapty.io/")) "${baseUrl}api/v1" else baseUrl))
 
         @get:JvmSynthetic
         @set:JvmSynthetic
@@ -160,13 +161,18 @@ internal class RequestFactory(
     private val backendBaseUrl: String,
 ) {
 
-    private val inappsEndpointPrefix = "in-apps"
-    private val profilesEndpointPrefix = "analytics/profiles"
+    private val sdkPrefix = "/sdk"
+    private val inappsPrefix = "$sdkPrefix/in-apps"
+    private val profilesPrefix = "$sdkPrefix/analytics/profiles"
+    private val integrationPrefix = "$sdkPrefix/integration"
+    private val attributionPrefix = "$sdkPrefix/attribution"
+    private val purchasePrefix = "$sdkPrefix/purchase"
+    private val eventsPrefix = "$sdkPrefix/events"
 
     private val apiKeyPrefix = apiKey.split(".").getOrNull(0).orEmpty()
 
     private fun getEndpointForProfileRequests(profileId: String): String {
-        return "$profilesEndpointPrefix/$profileId/"
+        return "$profilesPrefix/$profileId/"
     }
 
     @JvmSynthetic
@@ -209,7 +215,7 @@ internal class RequestFactory(
                 body = gson.toJson(
                     SetIntegrationIdRequest.create(profileId, key, value)
                 )
-                endPoint = "integration/profile/set/integration-identifiers/"
+                endPoint = "$integrationPrefix/profile/set/integration-identifiers/"
                 headers += listOf(Request.Header("Content-type", "application/json"))
                 systemLog = BackendAPIRequestData.SetIntegrationId.create(key, value)
             }
@@ -244,12 +250,30 @@ internal class RequestFactory(
     ) = cacheRepository.getProfileId().let { profileId ->
         buildRequest {
             method = POST
-            endPoint = "purchase/play-store/token/v2/validate/"
+            endPoint = "$purchasePrefix/play-store/token/v2/validate/"
             body = gson.toJson(
                 ValidateReceiptRequest.create(profileId, purchase, product)
             )
             currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
             systemLog = BackendAPIRequestData.Validate.create(product, purchase)
+        }
+    }
+
+    @JvmSynthetic
+    fun reportTransactionWithVariationRequest(
+        transactionId: String,
+        variationId: String,
+        purchase: Purchase,
+        product: ProductDetails,
+    ) = cacheRepository.getProfileId().let { profileId ->
+        buildRequest {
+            method = POST
+            endPoint = "$purchasePrefix/play-store/token/v2/validate/"
+            body = gson.toJson(
+                ValidateReceiptRequest.create(profileId, variationId, purchase, product)
+            )
+            currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
+            systemLog = BackendAPIRequestData.ReportTransaction.create(transactionId, variationId)
         }
     }
 
@@ -261,7 +285,7 @@ internal class RequestFactory(
                 body = gson.toJson(
                     RestoreReceiptRequest.create(profileId, purchases)
                 )
-                endPoint = "purchase/play-store/token/v2/restore/"
+                endPoint = "$purchasePrefix/play-store/token/v2/restore/"
                 currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId, cacheRepository.getCustomerUserId()?.takeIf(String::isNotBlank))
                 systemLog = BackendAPIRequestData.Restore.create(purchases)
             }
@@ -270,7 +294,7 @@ internal class RequestFactory(
     @JvmSynthetic
     fun getProductIdsRequest() = buildRequest {
         method = GET
-        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/products-ids/${metaInfoRetriever.store}/${getDisableCacheQueryParamOrEmpty()}"
+        endPoint = "$inappsPrefix/$apiKeyPrefix/products-ids/${metaInfoRetriever.store}/${getDisableCacheQueryParamOrEmpty()}"
         addResponseCacheKeys(responseCacheKeyProvider.forGetProductIds())
         systemLog = BackendAPIRequestData.GetProductIds.create()
     }
@@ -282,7 +306,7 @@ internal class RequestFactory(
                 method = GET
                 val builderVersion = metaInfoRetriever.builderVersion
                 val payloadHash = payloadProvider.getPayloadHashForPaywallRequest(locale, segmentId, builderVersion)
-                endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/variations/$id/$payloadHash/${getDisableCacheQueryParamOrEmpty()}"
+                endPoint = "$inappsPrefix/$apiKeyPrefix/paywall/variations/$id/$payloadHash/${getDisableCacheQueryParamOrEmpty()}"
                 headers += listOfNotNull(
                     Request.Header("adapty-paywall-locale", locale),
                     Request.Header("adapty-paywall-builder-version", builderVersion),
@@ -297,20 +321,20 @@ internal class RequestFactory(
         }
 
     @JvmSynthetic
-    fun getPaywallVariationsFallbackRequest(id: String, locale: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1/sdk/")).apply {
+    fun getPaywallVariationsFallbackRequest(id: String, locale: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1")).apply {
         method = GET
         val languageCode = extractLanguageCode(locale) ?: DEFAULT_PAYWALL_LOCALE
         val builderVersion = metaInfoRetriever.builderVersion
-        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/variations/$id/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json${getDisableCacheQueryParamOrEmpty()}"
+        endPoint = "$inappsPrefix/$apiKeyPrefix/paywall/variations/$id/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json${getDisableCacheQueryParamOrEmpty()}"
         systemLog = BackendAPIRequestData.GetFallbackPaywall.create(apiKeyPrefix, id, languageCode)
     }.build()
 
     @JvmSynthetic
-    fun getPaywallVariationsUntargetedRequest(id: String, locale: String) = Request.Builder(baseRequest = Request("https://configs-cdn.adapty.io/api/v1/sdk/")).apply {
+    fun getPaywallVariationsUntargetedRequest(id: String, locale: String) = Request.Builder(baseRequest = Request("https://configs-cdn.adapty.io/api/v1")).apply {
         method = GET
         val languageCode = extractLanguageCode(locale) ?: DEFAULT_PAYWALL_LOCALE
         val builderVersion = metaInfoRetriever.builderVersion
-        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall/variations/$id/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json"
+        endPoint = "$inappsPrefix/$apiKeyPrefix/paywall/variations/$id/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json"
         systemLog = BackendAPIRequestData.GetUntargetedPaywall.create(apiKeyPrefix, id, languageCode)
     }.build()
 
@@ -320,7 +344,7 @@ internal class RequestFactory(
         val adaptyUiVersion = metaInfoRetriever.adaptyUiVersion
         val builderVersion = metaInfoRetriever.builderVersion
         val payloadHash = payloadProvider.getPayloadHashForPaywallBuilderRequest(locale, builderVersion)
-        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$variationId/$payloadHash/${getDisableCacheQueryParamOrEmpty()}"
+        endPoint = "$inappsPrefix/$apiKeyPrefix/paywall-builder/$variationId/$payloadHash/${getDisableCacheQueryParamOrEmpty()}"
         headers += listOf(
             Request.Header("adapty-paywall-builder-locale", locale),
             Request.Header("adapty-paywall-builder-version", builderVersion),
@@ -330,11 +354,11 @@ internal class RequestFactory(
     }
 
     @JvmSynthetic
-    fun getViewConfigurationFallbackRequest(paywallId: String, locale: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1/sdk/")).apply {
+    fun getViewConfigurationFallbackRequest(paywallId: String, locale: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1")).apply {
         method = GET
         val builderVersion = metaInfoRetriever.builderVersion
         val languageCode = extractLanguageCode(locale) ?: DEFAULT_PAYWALL_LOCALE
-        endPoint = "$inappsEndpointPrefix/$apiKeyPrefix/paywall-builder/$paywallId/$builderVersion/$languageCode/fallback.json${getDisableCacheQueryParamOrEmpty()}"
+        endPoint = "$inappsPrefix/$apiKeyPrefix/paywall-builder/$paywallId/$builderVersion/$languageCode/fallback.json${getDisableCacheQueryParamOrEmpty()}"
         systemLog = BackendAPIRequestData.GetFallbackPaywallBuilder.create(apiKeyPrefix, paywallId, builderVersion, languageCode)
     }.build()
 
@@ -344,7 +368,7 @@ internal class RequestFactory(
     ) = cacheRepository.getProfileId().let { profileId ->
         buildRequest {
             method = POST
-            endPoint = "attribution/profile/set/data/"
+            endPoint = "$attributionPrefix/profile/set/data/"
             body = gson.toJson(attributionData)
             headers += listOf(Request.Header("Content-type", "application/json"))
             currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
@@ -356,7 +380,7 @@ internal class RequestFactory(
     fun setVariationIdRequest(transactionId: String, variationId: String) =
         buildRequest {
             method = POST
-            endPoint = "purchase/transaction/variation-id/set/"
+            endPoint = "$purchasePrefix/transaction/variation-id/set/"
             body = gson.toJson(
                 SetVariationIdRequest.create(transactionId, variationId)
             )
@@ -372,7 +396,7 @@ internal class RequestFactory(
     fun sendAnalyticsEventsRequest(events: List<AnalyticsEvent>) =
         buildRequest {
             method = POST
-            endPoint = "events/"
+            endPoint = "$eventsPrefix/"
             body = gson.toJson(SendEventRequest.create(events))
         }
 
@@ -380,7 +404,7 @@ internal class RequestFactory(
     fun getAnalyticsConfig() =
         buildRequest {
             method = GET
-            endPoint = "events/blacklist/"
+            endPoint = "$eventsPrefix/blacklist/"
             systemLog = BackendAPIRequestData.GetAnalyticsConfig.create()
         }
 

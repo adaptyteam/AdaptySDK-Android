@@ -22,6 +22,7 @@ import com.adapty.utils.TimeInterval
 import com.adapty.utils.ErrorCallback
 import com.adapty.utils.FileLocation
 import com.adapty.utils.ResultCallback
+import com.adapty.utils.TransactionInfo
 import kotlinx.coroutines.flow.*
 import java.util.Locale
 
@@ -432,21 +433,34 @@ internal class AdaptyInternal(
     }
 
     @JvmSynthetic
-    fun setVariationId(
-        transactionId: String,
-        variationId: String,
-        callback: ErrorCallback
+    fun reportTransaction(
+        transactionInfo: TransactionInfo,
+        variationId: String?,
+        callback: ResultCallback<AdaptyProfile>,
     ) {
-        val requestEvent = SDKMethodRequestData.SetVariationId.create(transactionId, variationId)
+        val requestEvent = SDKMethodRequestData.ReportTransaction.create(transactionInfo, variationId)
         analyticsTracker.trackSystemEvent(requestEvent)
+        if (transactionInfo is TransactionInfo.Purchase && transactionInfo.purchase.orderId == null) {
+            val errorMessage = "orderId in Purchase should not be null"
+            Logger.log(ERROR) { errorMessage }
+            val e = AdaptyError(
+                message = errorMessage,
+                adaptyErrorCode = WRONG_PARAMETER
+            )
+            analyticsTracker.trackSystemEvent(
+                SDKMethodResponseData.create(requestEvent, e)
+            )
+            callback.onResult(AdaptyResult.Error(e))
+            return
+        }
         execute {
             purchasesInteractor
-                .setVariationId(transactionId, variationId)
+                .reportTransaction(transactionInfo, variationId)
                 .onSingleResult { result ->
                     analyticsTracker.trackSystemEvent(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())
                     )
-                    callback.onResult(result.errorOrNull())
+                    callback.onResult(result)
                 }
                 .collect()
         }

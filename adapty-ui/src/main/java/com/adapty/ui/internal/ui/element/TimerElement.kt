@@ -12,7 +12,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.text.TimerSegment
@@ -55,14 +54,14 @@ public class TimerElement internal constructor(
     internal class FormatItem(val fromSeconds: Long, val stringId: StringId)
 
     override fun toComposable(
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
-        resolveState: () -> Map<String, Any>,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
+        resolveState: ResolveState,
         eventCallback: EventCallback,
         modifier: Modifier,
     ): @Composable () -> Unit = lambda@{
         val timerFormatStrs = format.formatItemsDesc
-            .map { it.fromSeconds to resolveText(it.stringId) }
+            .map { it.fromSeconds to resolveText(it.stringId, attributes) }
             .takeIf { it.isNotEmpty() }
             ?: return@lambda
 
@@ -105,8 +104,8 @@ public class TimerElement internal constructor(
     internal fun renderTimerInternal(
         timerFormat: StringWrapper,
         callback: EventCallback,
-        resolveAssets: () -> Assets,
-        resolveText: @Composable (StringId) -> StringWrapper?,
+        resolveAssets: ResolveAssets,
+        resolveText: ResolveText,
         modifier: Modifier,
         onInitialSecondsLeft: (secondsLeft: Long) -> Unit,
         onTick: (secondsLeft: Long) -> Unit,

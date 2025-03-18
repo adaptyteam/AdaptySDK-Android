@@ -49,6 +49,24 @@ internal class RectWithArcShape(private val arcHeight: Float, private val segmen
             path.lineTo(x, y)
         }
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as RectWithArcShape
+
+        if (arcHeight != other.arcHeight) return false
+        if (segments != other.segments) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = arcHeight.hashCode()
+        result = 31 * result + segments
+        return result
+    }
 }
 
 internal object CircleShape : Shape {

@@ -25,6 +25,7 @@ import com.adapty.ui.internal.mapping.element.Products
 import com.adapty.ui.internal.mapping.element.StateMap
 import com.adapty.ui.internal.mapping.element.Texts
 import com.adapty.ui.internal.ui.attributes.toComposeFill
+import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.utils.firstDiscountOfferOrNull
 import com.adapty.ui.internal.utils.getBitmap
 import com.adapty.ui.internal.utils.getForCurrentSystemTheme
@@ -38,13 +39,14 @@ internal class TextResolver(
     @Composable
     fun resolve(
         stringId: StringId,
+        textElementAttrs: Attributes?,
         texts: Texts,
         products: Products,
         assets: Assets,
         state: StateMap,
     ): StringWrapper? {
         when (stringId) {
-            is StringId.Str -> return texts[stringId.value]?.toComposeString(assets, products)
+            is StringId.Str -> return texts[stringId.value]?.toComposeString(textElementAttrs, assets, products)
             is StringId.Product -> {
                 val desiredProductId = stringId.productId?.takeIf { it.isNotEmpty() }
                     ?: state[getProductGroupKey(stringId.productGroupId)] as? String
@@ -63,7 +65,7 @@ internal class TextResolver(
                 } else {
                     texts[listOfNotNull("PRODUCT_not_selected", stringId.suffix).joinToString(separator = "_")]
                 }
-                return desiredLocalText?.toComposeString(assets, products, desiredProductId)
+                return desiredLocalText?.toComposeString(textElementAttrs, assets, products, desiredProductId)
             }
         }
     }
@@ -73,10 +75,10 @@ internal class TextResolver(
     }
 
     @Composable
-    private fun TextItem.toComposeString(assets: Assets, products: Products, productId: String? = null): StringWrapper? {
-        return value.toComposeString(assets, products, fallback == null, productId).let { actualStr ->
+    private fun TextItem.toComposeString(textElementAttrs: Attributes?, assets: Assets, products: Products, productId: String? = null): StringWrapper? {
+        return value.toComposeString(textElementAttrs, assets, products, fallback == null, productId).let { actualStr ->
             if (actualStr === StringWrapper.CUSTOM_TAG_NOT_FOUND)
-                fallback?.toComposeString(assets, products, true, productId)
+                fallback?.toComposeString(textElementAttrs, assets, products, true, productId)
             else
                 actualStr
         }
@@ -84,6 +86,7 @@ internal class TextResolver(
 
     @Composable
     private fun RichText.toComposeString(
+        textElementAttrs: Attributes?,
         assets: Assets,
         products: Products,
         ignoreMissingCustomTag: Boolean,
@@ -94,22 +97,30 @@ internal class TextResolver(
         if (items.size == 1) {
             val item = items.first()
             if (item is RichText.Item.Text)
-                return processRichTextItemText(item, assets)
+                return processRichTextItemText(item, textElementAttrs, assets)
             if (item is RichText.Item.Tag)
-                return processRichTextItemTag(item, productId, ignoreMissingCustomTag, assets, products)
+                return processRichTextItemTag(
+                    item,
+                    productId,
+                    textElementAttrs,
+                    ignoreMissingCustomTag,
+                    assets,
+                    products,
+                )
         }
         val inlineContent = mutableMapOf<String, InlineTextContent>()
         val parts = mutableListOf<StringWrapper.ComplexStr.ComplexStrPart>()
         items.forEach { item ->
             when (item) {
                 is RichText.Item.Text -> {
-                    val processedItem = processRichTextItemText(item, assets)
+                    val processedItem = processRichTextItemText(item, textElementAttrs, assets)
                     parts.add(StringWrapper.ComplexStr.ComplexStrPart.Text(processedItem))
                 }
                 is RichText.Item.Tag -> {
                     val processedItem = processRichTextItemTag(
                         item,
                         productId,
+                        textElementAttrs,
                         ignoreMissingCustomTag,
                         assets,
                         products,
@@ -159,21 +170,23 @@ internal class TextResolver(
     @Composable
     private fun processRichTextItemText(
         item: RichText.Item.Text,
+        textElementAttrs: Attributes?,
         assets: Assets,
     ): StringWrapper.Str {
-        return StringWrapper.Str(item.text, item.attrs?.let { ComposeTextAttrs.from(it, assets) })
+        return StringWrapper.Str(item.text, item.attrs?.let { ComposeTextAttrs.from(it, textElementAttrs, assets) })
     }
 
     @Composable
     private fun processRichTextItemTag(
         item: RichText.Item.Tag,
         productId: String?,
+        textElementAttrs: Attributes?,
         ignoreMissingCustomTag: Boolean,
         assets: Assets,
         products: Products,
     ): StringWrapper.Single {
-        return tagResolver.tryResolveProductTag(item, productId, assets, products)
-            ?: tagResolver.tryResolveTimerTag(item, assets)
-            ?: tagResolver.tryResolveCustomTag(item, assets, ignoreMissingCustomTag)
+        return tagResolver.tryResolveProductTag(item, productId, textElementAttrs, assets, products)
+            ?: tagResolver.tryResolveTimerTag(item, textElementAttrs, assets)
+            ?: tagResolver.tryResolveCustomTag(item, textElementAttrs, assets, ignoreMissingCustomTag)
     }
 }
