@@ -11,8 +11,14 @@ internal class PayloadProvider(
     private val metaInfoRetriever: MetaInfoRetriever,
 ) {
 
-    fun getPayloadHashForPaywallRequest(locale: String, segmentId: String, builderVersion: String): String {
-        val payload = "{\"builder_version\":\"$builderVersion\",\"locale\":\"${locale.lowercase(Locale.ENGLISH)}\",\"segment_hash\":\"$segmentId\",\"store\":\"${metaInfoRetriever.store}\"}"
+    fun getPayloadHashForPaywallRequest(
+        locale: String,
+        segmentId: String,
+        builderVersion: String,
+        crossPlacementEligibility: Boolean,
+    ): String {
+        val payload =
+            "{\"builder_version\":\"$builderVersion\",\"locale\":\"${locale.lowercase(Locale.ENGLISH)}\",\"segment_hash\":\"$segmentId\",\"store\":\"${metaInfoRetriever.store}\"${if (crossPlacementEligibility) ",\"cross_placement_eligibility\":$crossPlacementEligibility" else ""}}"
         return hashingHelper.md5(payload)
     }
 

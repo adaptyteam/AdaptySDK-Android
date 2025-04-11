@@ -1,13 +1,18 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.internal.data.cache
 
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.*
 import com.adapty.internal.utils.FallbackPaywallRetriever
+import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.internal.utils.ProfileStateChange
 import com.adapty.internal.utils.execute
 import com.adapty.internal.utils.extractLanguageCode
 import com.adapty.internal.utils.generateUuid
 import com.adapty.internal.utils.getLanguageCode
 import com.adapty.internal.utils.orDefault
+import com.adapty.internal.utils.unlockQuietly
 import com.adapty.utils.FileLocation
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -19,6 +24,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 internal class CacheRepository(
     private val preferenceManager: PreferenceManager,
     private val fallbackPaywallRetriever: FallbackPaywallRetriever,
+    private val crossPlacementInfoLock: ReentrantReadWriteLock,
 ) {
 
     private val currentProfile = MutableSharedFlow<ProfileDto>()
@@ -29,15 +35,14 @@ internal class CacheRepository(
     suspend fun updateDataOnCreateProfile(
         profile: ProfileDto,
         installationMeta: InstallationMeta,
-    ): Boolean {
-        if (profile.timestamp.orDefault() < getProfile()?.timestamp.orDefault())
-            return false
-        var profileIdHasChanged = false
-        (profile.profileId ?: (cache[UNSYNCED_PROFILE_ID] as? String))?.let { profileId ->
-            profileIdHasChanged = profileId != preferenceManager.getString(PROFILE_ID)
-
-            if (profileIdHasChanged) onNewProfileIdReceived(profileId)
-        }
+        profileStateChange: ProfileStateChange,
+    ) {
+        if (profileStateChange == ProfileStateChange.OUTDATED)
+            return
+        val profileIdHasChanged =
+            profileStateChange in listOf(ProfileStateChange.NEW, ProfileStateChange.IDENTIFIED_TO_ANOTHER)
+        if (profileIdHasChanged)
+            onNewProfileIdReceived(profile.profileId)
         if (profileIdHasChanged || (getCustomerUserId() != profile.customerUserId)) {
             clearSyncedPurchases()
         }
@@ -49,7 +54,6 @@ internal class CacheRepository(
         if (!currentUnsyncedCUIdDiffers)
             cache.remove(UNSYNCED_CUSTOMER_USER_ID)
         saveLastSentInstallationMeta(installationMeta)
-        return profileIdHasChanged
     }
 
     @JvmSynthetic
@@ -219,6 +223,26 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
+    fun getLastRequestedCrossPlacementInfoTime() =
+        cache.safeGetOrPut(
+            CROSSPLACEMENT_INFO_REQUESTED_TIME,
+            { preferenceManager.getLong(CROSSPLACEMENT_INFO_REQUESTED_TIME, 0L) }) as? Long ?: 0L
+
+    @JvmSynthetic
+    fun saveLastRequestedCrossPlacementInfoTime(timeMillis: Long) {
+        cache[CROSSPLACEMENT_INFO_REQUESTED_TIME] = timeMillis
+        preferenceManager.saveLong(CROSSPLACEMENT_INFO_REQUESTED_TIME, timeMillis)
+    }
+
+    @JvmSynthetic
+    fun clearLastRequestedCrossPlacementInfoTime() {
+        clearData(
+            containsKeys = setOf(CROSSPLACEMENT_INFO_REQUESTED_TIME),
+            startsWithKeys = setOf(),
+        )
+    }
+
+    @JvmSynthetic
     fun getProfile() =
         getData(PROFILE, ProfileDto::class.java)
 
@@ -285,6 +309,45 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
+    fun getCrossPlacementInfo() =
+        try {
+            crossPlacementInfoLock.readLock().lock()
+            getCrossPlacementInfoInternal()
+        } finally {
+            crossPlacementInfoLock.readLock().unlockQuietly()
+        }
+
+    private fun getCrossPlacementInfoInternal() =
+        getData<CacheEntity<CrossPlacementInfo>>(CROSS_PLACEMENT_INFO)?.value
+
+    fun saveCrossPlacementInfo(crossPlacementInfo: CrossPlacementInfo) {
+        try {
+            crossPlacementInfoLock.writeLock().lock()
+            val oldVersion = getCrossPlacementInfoInternal()?.version ?: -1
+            if (crossPlacementInfo.version > oldVersion)
+                saveData(CROSS_PLACEMENT_INFO, CacheEntity(crossPlacementInfo))
+        } finally {
+            crossPlacementInfoLock.writeLock().unlockQuietly()
+        }
+    }
+
+    fun saveCrossPlacementInfoFromPaywall(crossPlacementInfo: CrossPlacementInfo) {
+        try {
+            crossPlacementInfoLock.writeLock().lock()
+            saveData(
+                CROSS_PLACEMENT_INFO,
+                CacheEntity(
+                    getCrossPlacementInfoInternal()
+                        ?.copy(placementWithVariationMap = crossPlacementInfo.placementWithVariationMap)
+                        ?: crossPlacementInfo
+                )
+            )
+        } finally {
+            crossPlacementInfoLock.writeLock().unlockQuietly()
+        }
+    }
+
+    @JvmSynthetic
     fun clearOnLogout() {
         clearData(
             containsKeys = setOf(
@@ -294,10 +357,12 @@ internal class CacheRepository(
                 SYNCED_PURCHASES,
                 PURCHASES_HAVE_BEEN_SYNCED,
                 APP_OPENED_TIME,
+                CROSSPLACEMENT_INFO_REQUESTED_TIME,
                 PRODUCT_RESPONSE,
                 PRODUCT_RESPONSE_HASH,
                 PROFILE_RESPONSE,
                 PROFILE_RESPONSE_HASH,
+                CROSS_PLACEMENT_INFO,
             ),
             startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART),
         )
@@ -324,12 +389,14 @@ internal class CacheRepository(
                 SYNCED_PURCHASES,
                 PURCHASES_HAVE_BEEN_SYNCED,
                 APP_OPENED_TIME,
+                CROSSPLACEMENT_INFO_REQUESTED_TIME,
                 PRODUCT_RESPONSE,
                 PRODUCT_RESPONSE_HASH,
                 PRODUCT_IDS_RESPONSE,
                 PRODUCT_IDS_RESPONSE_HASH,
                 PROFILE_RESPONSE,
                 PROFILE_RESPONSE_HASH,
+                CROSS_PLACEMENT_INFO,
                 ANALYTICS_DATA,
                 YET_UNPROCESSED_VALIDATE_PRODUCT_INFO,
                 EXTERNAL_ANALYTICS_ENABLED,

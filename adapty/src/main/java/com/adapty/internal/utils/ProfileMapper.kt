@@ -12,7 +12,7 @@ internal class ProfileMapper {
     @JvmSynthetic
     fun map(dto: ProfileDto) =
         AdaptyProfile(
-            profileId = dto.profileId.orEmpty(),
+            profileId = dto.profileId,
             customerUserId = dto.customerUserId,
             nonSubscriptions = dto.nonSubscriptions?.mapValues { entry ->
                 entry.value.map { nonSub ->

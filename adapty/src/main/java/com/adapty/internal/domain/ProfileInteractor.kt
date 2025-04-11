@@ -119,6 +119,15 @@ internal class ProfileInteractor(
         }
 
     @JvmSynthetic
+    fun syncCrossPlacementInfo(replacementProfileId: String? = null) =
+        authInteractor.runWhenAuthDataSynced {
+            cloudRepository.getCrossPlacementInfo(replacementProfileId)
+        }
+            .map { crossPlacementInfo ->
+                cacheRepository.saveCrossPlacementInfo(crossPlacementInfo)
+            }
+
+    @JvmSynthetic
     fun subscribeOnProfileChanges() =
         cacheRepository.subscribeOnProfileChanges()
             .map(profileMapper::map)

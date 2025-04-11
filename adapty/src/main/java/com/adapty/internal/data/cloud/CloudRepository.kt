@@ -44,10 +44,22 @@ internal class CloudRepository(
         }
     }
 
-    fun getPaywallVariations(id: String, locale: String, segmentId: String): Variations {
+    fun getPaywallVariations(id: String, locale: String, segmentId: String): Pair<Variations, Request.CurrentDataWhenSent?> {
+        val request = requestFactory.getPaywallVariationsRequest(id, locale, segmentId)
         val response = httpClient.newCall<Variations>(
-            requestFactory.getPaywallVariationsRequest(id, locale, segmentId),
+            request,
             Variations::class.java,
+        )
+        when (response) {
+            is Response.Success -> return response.body to request.currentDataWhenSent
+            is Response.Error -> throw response.error
+        }
+    }
+
+    fun getPaywallByVariationId(id: String, locale: String, segmentId: String, variationId: String): PaywallDto {
+        val response = httpClient.newCall<PaywallDto>(
+            requestFactory.getPaywallByVariationIdRequest(id, locale, segmentId, variationId),
+            PaywallDto::class.java,
         )
         when (response) {
             is Response.Success -> return response.body
@@ -68,6 +80,25 @@ internal class CloudRepository(
                 when {
                     error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PAYWALL_LOCALE ->
                         return getPaywallVariationsFallback(id, DEFAULT_PAYWALL_LOCALE)
+                    else -> throw response.error
+                }
+            }
+        }
+    }
+
+    @JvmSynthetic
+    fun getPaywallByVariationIdFallback(id: String, locale: String, variationId: String): PaywallDto {
+        val response = httpClient.newCall<PaywallDto>(
+            requestFactory.getPaywallByVariationIdFallbackRequest(id, locale, variationId),
+            PaywallDto::class.java,
+        )
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> {
+                val error = response.error
+                when {
+                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PAYWALL_LOCALE ->
+                        return getPaywallByVariationIdFallback(id, DEFAULT_PAYWALL_LOCALE, variationId)
                     else -> throw response.error
                 }
             }
@@ -228,6 +259,19 @@ internal class CloudRepository(
             Any::class.java
         )
         processEmptyResponse(response)
+    }
+
+    @JvmSynthetic
+    fun getCrossPlacementInfo(replacementProfileId: String?): CrossPlacementInfo {
+        val response = httpClient.newCall<CrossPlacementInfo>(
+            requestFactory.getCrossPlacementInfoRequest(replacementProfileId),
+            CrossPlacementInfo::class.java
+        )
+
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> throw response.error
+        }
     }
 
     @JvmSynthetic

@@ -26,7 +26,9 @@ internal class LifecycleAwareRequestRunner(
 
     private val PERIODIC_REQUEST_INTERVAL = (60 * 1000).toLong()
 
-    private val APP_OPENED_EVENT_MIN_INTERVAL = 3_600_000L
+    private val APP_OPENED_EVENT_MIN_INTERVAL = 60_000L
+
+    private val CROSSPLACEMENT_INFO_REQUEST_MIN_INTERVAL = 60_000L
 
     private var scheduleGetProfileJob: Job? = null
 
@@ -44,6 +46,7 @@ internal class LifecycleAwareRequestRunner(
         areRequestsAllowed.set(true)
         if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
             handleAppOpenedEvent()
+            handleRequestCrossPlacementInfo()
             scheduleGetProfileRequest(initialDelayMillis = PERIODIC_REQUEST_INTERVAL)
         }
     }
@@ -52,6 +55,7 @@ internal class LifecycleAwareRequestRunner(
     override fun onGoForeground() {
         if (areRequestsAllowed.get()) {
             handleAppOpenedEvent()
+            handleRequestCrossPlacementInfo()
             scheduleGetProfileRequest(initialDelayMillis = 0)
         }
     }
@@ -78,6 +82,20 @@ internal class LifecycleAwareRequestRunner(
                     }
                 }
             })
+        }
+    }
+
+    private fun handleRequestCrossPlacementInfo() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - cacheRepository.getLastRequestedCrossPlacementInfoTime() !in 0L..CROSSPLACEMENT_INFO_REQUEST_MIN_INTERVAL) {
+            execute {
+                cacheRepository.saveLastRequestedCrossPlacementInfoTime(now)
+                profileInteractor
+                    .syncCrossPlacementInfo()
+                    .catch {
+                        cacheRepository.clearLastRequestedCrossPlacementInfoTime()
+                    }
+            }
         }
     }
 

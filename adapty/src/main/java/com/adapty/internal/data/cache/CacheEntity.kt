@@ -8,7 +8,7 @@ internal class CacheEntity<T>(
     @SerializedName("value")
     val value: T,
     @SerializedName("version")
-    val version: Int,
+    val version: Int = 1,
     @SerializedName("cached_at")
     val cachedAt: Long = System.currentTimeMillis(),
 ) {

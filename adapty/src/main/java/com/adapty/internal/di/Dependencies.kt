@@ -22,6 +22,7 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.sync.Semaphore
 import java.math.BigDecimal
 import java.util.*
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.LazyThreadSafetyMode.NONE
 import kotlin.reflect.KClass
 
@@ -63,6 +64,7 @@ public object Dependencies {
     private const val RECORD_ONLY = "record_only"
     private const val LOCAL = "local"
     private const val REMOTE = "remote"
+    private const val CROSS_PLACEMENT_INFO = "cross_placement_info"
     public const val OBSERVER_MODE: String = "observer_mode"
 
     public fun <T> singleVariantDiObject(
@@ -89,13 +91,8 @@ public object Dependencies {
                     BASE to DIObject({
                         val dataKey = "data"
                         val attributesKey = "attributes"
-                        val metaKey = "meta"
-                        val placementIdKey = "placement_id"
-                        val versionKey = "version"
                         val profileKey = "profile"
                         val errorsKey = "errors"
-                        val responseCreatedAtKey = "response_created_at"
-                        val snapshotAtKey = "snapshot_at"
 
                         val attributesObjectExtractor = ResponseDataExtractor { jsonElement ->
                             ((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)?.let { data ->
@@ -111,49 +108,7 @@ public object Dependencies {
                         val dataObjectExtractor = ResponseDataExtractor { jsonElement ->
                             (jsonElement as? JsonObject)?.get(dataKey) as? JsonObject
                         }
-                        val variationsExtractor = ResponseDataExtractor { jsonElement ->
-                            val variations = JsonArray()
 
-                            ((jsonElement as? JsonObject)?.get(dataKey) as? JsonArray)
-                                ?.forEach { element ->
-                                    ((element as? JsonObject)?.get(attributesKey) as? JsonObject)
-                                        ?.let(variations::add)
-                                }
-
-                            val meta = (jsonElement as? JsonObject)?.get(metaKey) as? JsonObject
-
-                            val snapshotAt = (meta?.get(responseCreatedAtKey) as? JsonPrimitive) ?: JsonPrimitive(0)
-
-                            val version = (meta?.get(versionKey) as? JsonPrimitive) ?: JsonPrimitive(0)
-
-                            JsonObject().apply {
-                                add(dataKey, variations)
-                                add(snapshotAtKey, snapshotAt)
-                                add(versionKey, version)
-                            }
-                        }
-                        val fallbackVariationsExtractor = ResponseDataExtractor { jsonElement ->
-                            val jsonObject = jsonElement.asJsonObject
-                            jsonObject.remove(metaKey)
-
-                            val variations = JsonArray()
-
-                            jsonObject.getAsJsonObject(dataKey).entrySet()
-                                .first { (key, value) ->
-                                    val desiredArray = (value as? JsonArray)?.isEmpty == false
-                                    desiredArray.also {
-                                        if (desiredArray) jsonObject.addProperty(placementIdKey, key)
-                                    }
-                                }
-                                .value.asJsonArray
-                                .forEach { element ->
-                                    ((element as? JsonObject)?.get(attributesKey) as? JsonObject)
-                                        ?.let(variations::add)
-                                }
-
-                            jsonObject.add(dataKey, variations)
-                            jsonObject
-                        }
                         val validationResultExtractor = ResponseDataExtractor { jsonElement ->
                             (((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)
                                 ?.get(attributesKey) as? JsonObject)?.let { result ->
@@ -167,11 +122,13 @@ public object Dependencies {
                             }
                         }
 
+                        val singlePaywallExtractHelper = SinglePaywallExtractHelper()
+
                         GsonBuilder()
                             .registerTypeAdapterFactory(
                                 AdaptyResponseTypeAdapterFactory(
                                     TypeToken.get(Variations::class.java),
-                                    variationsExtractor,
+                                    VariationsExtractor(singlePaywallExtractHelper),
                                 )
                             )
                             .registerTypeAdapterFactory(
@@ -183,7 +140,19 @@ public object Dependencies {
                             .registerTypeAdapterFactory(
                                 AdaptyResponseTypeAdapterFactory(
                                     TypeToken.get(ProfileDto::class.java),
-                                    attributesObjectExtractor,
+                                    ProfileExtractor(),
+                                )
+                            )
+                            .registerTypeAdapterFactory(
+                                AdaptyResponseTypeAdapterFactory(
+                                    TypeToken.get(CrossPlacementInfo::class.java),
+                                    dataObjectExtractor,
+                                )
+                            )
+                            .registerTypeAdapterFactory(
+                                AdaptyResponseTypeAdapterFactory(
+                                    TypeToken.get(PaywallDto::class.java),
+                                    SinglePaywallExtractor(singlePaywallExtractHelper),
                                 )
                             )
                             .registerTypeAdapterFactory(
@@ -201,7 +170,7 @@ public object Dependencies {
                             .registerTypeAdapterFactory(
                                 AdaptyResponseTypeAdapterFactory(
                                     TypeToken.get(FallbackVariations::class.java),
-                                    fallbackVariationsExtractor,
+                                    FallbackVariationsExtractor(singlePaywallExtractHelper),
                                 )
                             )
                             .registerTypeAdapterFactory(
@@ -219,6 +188,10 @@ public object Dependencies {
                             .registerTypeAdapter(
                                 object : TypeToken<Set<BackendError.InternalError>>() {}.type,
                                 BackendInternalErrorDeserializer()
+                            )
+                            .registerTypeAdapter(
+                                RemoteConfigDto::class.java,
+                                RemoteConfigDtoDeserializer()
                             )
                             .registerTypeAdapter(
                                 SendEventRequest::class.java,
@@ -264,6 +237,7 @@ public object Dependencies {
                     CacheRepository(
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(named = CROSS_PLACEMENT_INFO),
                     )
                 }),
 
@@ -436,8 +410,15 @@ public object Dependencies {
 
                 HashingHelper::class to singleVariantDiObject({ HashingHelper() }),
 
+                ProfileStateChangeChecker::class to singleVariantDiObject({
+                    ProfileStateChangeChecker(
+                        injectInternal(),
+                        injectInternal(),
+                    )
+                }),
+
                 PaywallMapper::class to singleVariantDiObject({
-                    PaywallMapper(injectInternal(named = BASE))
+                    PaywallMapper()
                 }),
 
                 ProductMapper::class to singleVariantDiObject({
@@ -472,6 +453,12 @@ public object Dependencies {
                     LifecycleManager(appContext as Application, injectInternal())
                 }),
 
+                ReentrantReadWriteLock::class to mapOf(
+                    CROSS_PLACEMENT_INFO to DIObject({
+                        ReentrantReadWriteLock()
+                    }),
+                ),
+
                 ProductsInteractor::class to singleVariantDiObject({
                     ProductsInteractor(
                         injectInternal(),
@@ -484,6 +471,7 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(named = BASE),
+                        injectInternal(named = CROSS_PLACEMENT_INFO),
                     )
                 }),
 
@@ -520,7 +508,8 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
-                        injectInternal()
+                        injectInternal(),
+                        injectInternal(),
                     )
                 }),
 

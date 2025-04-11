@@ -5,11 +5,13 @@ package com.adapty.internal.domain
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
+import com.adapty.internal.data.models.CrossPlacementInfo
 import com.adapty.internal.domain.models.ProfileRequestResult
 import com.adapty.internal.domain.models.ProfileRequestResult.*
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyProfileParameters
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Semaphore
 
@@ -23,6 +25,7 @@ internal class AuthInteractor(
     private val appSetIdRetriever: AppSetIdRetriever,
     private val storeCountryRetriever: StoreCountryRetriever,
     private val hashingHelper: HashingHelper,
+    private val profileStateChangeChecker: ProfileStateChangeChecker,
 ) {
 
     @JvmSynthetic
@@ -53,13 +56,38 @@ internal class AuthInteractor(
                     }
                     cloudRepository.createProfile(newCustomerUserId, installationMeta, params)
                         .map { profile ->
-                            val profileIdHasChanged =
-                                cacheRepository.updateDataOnCreateProfile(profile, installationMeta)
-                            if (profileIdHasChanged) ProfileIdChanged else ProfileIdSame
+                            val profileStateChange = profileStateChangeChecker.getProfileStateChange(profile)
+                            when (profileStateChange) {
+                                ProfileStateChange.NEW -> {
+                                    cacheRepository.updateDataOnCreateProfile(profile, installationMeta, profileStateChange)
+                                    cacheRepository.saveCrossPlacementInfo(CrossPlacementInfo.forNewProfile())
+                                    ProfileIdChanged
+                                }
+                                ProfileStateChange.IDENTIFIED_TO_ANOTHER -> {
+                                    val crossPlacementInfo = syncCrossPlacementInfoOnProfileChange(profile.profileId)
+                                    cacheRepository.updateDataOnCreateProfile(profile, installationMeta, profileStateChange)
+                                    cacheRepository.saveCrossPlacementInfo(crossPlacementInfo)
+                                    ProfileIdChanged
+                                }
+                                ProfileStateChange.IDENTIFIED_TO_SELF -> {
+                                    cacheRepository.updateDataOnCreateProfile(profile, installationMeta, profileStateChange)
+                                    ProfileIdSame
+                                }
+                                ProfileStateChange.OUTDATED -> ProfileIdSame
+                            }
                         }
                         .onEach { authSemaphore.release() }
                         .catch { error -> authSemaphore.release(); throw error }
                 }
+        }
+    }
+
+    private suspend fun syncCrossPlacementInfoOnProfileChange(newProfileId: String): CrossPlacementInfo {
+        try {
+            return cloudRepository.getCrossPlacementInfo(newProfileId)
+        } catch (error: Throwable) {
+            delay(500L)
+            return syncCrossPlacementInfoOnProfileChange(newProfileId)
         }
     }
 

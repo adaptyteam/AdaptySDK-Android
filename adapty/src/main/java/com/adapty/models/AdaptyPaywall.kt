@@ -10,7 +10,7 @@ import com.adapty.utils.ImmutableMap
 
 /**
  * @property[abTestName] Parent A/B test name.
- * @property[audienceName] An audience name.
+ * @property[audienceName] A name of an audience to which the paywall belongs.
  * @property[hasViewConfiguration] If `true`, it is possible to fetch the [AdaptyUI.LocalizedViewConfiguration][com.adapty.ui.AdaptyUI.LocalizedViewConfiguration] object and use it with [AdaptyUI](https://search.maven.org/artifact/io.adapty/android-ui) library.
  * @property[placementId] An identifier of a placement, configured in Adapty Dashboard.
  * @property[name] A paywall name.

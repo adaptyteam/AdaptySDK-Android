@@ -6,28 +6,31 @@ import com.google.gson.annotations.SerializedName
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal data class PaywallDto(
     @SerializedName("developer_id")
-    val developerId: String?,
+    val developerId: String,
     @SerializedName("paywall_name")
-    val name: String?,
+    val name: String,
     @SerializedName("ab_test_name")
-    val abTestName: String?,
+    val abTestName: String,
     @SerializedName("audience_name")
     val audienceName: String?,
     @SerializedName("revision")
-    val revision: Int?,
+    val revision: Int,
     @SerializedName("variation_id")
-    val variationId: String?,
+    val variationId: String,
     @SerializedName("paywall_id")
-    val paywallId: String?,
+    val paywallId: String,
     @SerializedName("products")
     val products: ArrayList<ProductDto>,
     @SerializedName("remote_config")
     val remoteConfig: RemoteConfigDto?,
     @SerializedName("placement_audience_version_id")
-    val placementAudienceVersionId: String?,
+    val placementAudienceVersionId: String,
     @SerializedName("weight")
-    val weight: Int?,
+    val weight: Int,
     @SerializedName("paywall_builder")
     val paywallBuilder: Map<String, Any>?,
-    val snapshotAt: Long?,
+    @SerializedName("cross_placement_info")
+    val crossPlacementInfo: CrossPlacementInfo?,
+    @SerializedName("snapshot_at")
+    val snapshotAt: Long,
 )

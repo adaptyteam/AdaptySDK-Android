@@ -3,8 +3,6 @@
 package com.adapty.internal.utils
 
 import androidx.annotation.RestrictTo
-import com.adapty.errors.AdaptyError
-import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.PaywallDto
 import java.math.BigInteger
 
@@ -19,10 +17,7 @@ internal class VariationPicker(
         profileId: String,
     ): PaywallDto? {
         val sortedVariations = variations.sortedWith(compareBy(PaywallDto::weight, PaywallDto::variationId))
-        val placementAudienceVersionId = sortedVariations.first().placementAudienceVersionId ?: throw AdaptyError(
-            message = "placementAudienceVersionId in Paywall should not be null",
-            adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
-        )
+        val placementAudienceVersionId = sortedVariations.first().placementAudienceVersionId
         val desiredWeight = "$placementAudienceVersionId-$profileId".let { str ->
             val bytes = hashingHelper.hashBytes(str, HashingHelper.MD5).takeLast(8).toByteArray()
             val hexStr = hashingHelper.toHexString(bytes)
@@ -31,10 +26,7 @@ internal class VariationPicker(
         var desiredVariation: PaywallDto? = null
         var cumulativeWeight = 0
         for (variation in sortedVariations) {
-            val weight = variation.weight?.takeIf { it in 1..100 } ?: throw AdaptyError(
-                message = "weight in Paywall should be between 1 and 100. Currently, it is ${variation.weight}",
-                adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
-            )
+            val weight = variation.weight
             cumulativeWeight += weight
             if (cumulativeWeight >= desiredWeight) {
                 desiredVariation = variation
