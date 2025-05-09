@@ -22,12 +22,13 @@ internal class IfElementMapper(
         childMapper: ChildMapperShrinkable,
     ): UIElement {
         val key = when {
-            config["platform"] == "android" || config["version"] == CONFIGURATION_FORMAT_VERSION -> {
+            (config["platform"] != null && config["platform"] != "android")
+                    || (config["version"] != null && config["version"] != CONFIGURATION_FORMAT_VERSION) -> "else"
+            else -> {
                 setOf("then", "else").firstOrNull { key ->
                     hasVideoSupport || (config[key] as? Map<*, *>)?.get("type") != "video"
                 } ?: "then"
             }
-            else -> "else"
         }
         return (config[key] as? Map<*, *>)?.let { item -> childMapper(item, inheritShrink) }
             ?: throw adaptyError(

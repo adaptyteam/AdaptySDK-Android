@@ -134,7 +134,7 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 @JvmSynthetic
 internal const val DEFAULT_PAYWALL_LOCALE = "en"
 
-internal const val VERSION_NAME = "3.6.0"
+internal const val VERSION_NAME = "3.6.1"
 
 /**
  * @suppress
