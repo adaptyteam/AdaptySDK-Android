@@ -48,6 +48,10 @@ public open class AdaptyUiDefaultEventListener : AdaptyUiEventListener {
         context: Context,
     ): Boolean = false
 
+    override fun onPaywallClosed() {}
+
+    override fun onPaywallShown(context: Context) {}
+
     override fun onProductSelected(
         product: AdaptyPaywallProduct,
         context: Context,

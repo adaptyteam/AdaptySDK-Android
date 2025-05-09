@@ -74,6 +74,18 @@ public interface AdaptyUiEventListener {
     ): Boolean
 
     /**
+     * This callback is invoked when the paywall view was dismissed.
+     */
+    public fun onPaywallClosed()
+
+    /**
+     * This callback is invoked when the paywall view was presented.
+     *
+     * @param[context] A UI [Context] within which the event occurred.
+     */
+    public fun onPaywallShown(context: Context)
+
+    /**
      * This callback is invoked when a product was selected for purchase (by user or by system).
      *
      * @param[product] An [AdaptyPaywallProduct] of the purchase.

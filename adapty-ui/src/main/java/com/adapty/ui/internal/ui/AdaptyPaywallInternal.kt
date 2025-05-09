@@ -8,7 +8,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +22,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.adapty.errors.AdaptyError
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
@@ -135,23 +138,46 @@ internal fun AdaptyPaywallInternal(viewModel: PaywallViewModel) {
             if (viewModel.isLoading.value)
                 Loading()
 
-            LaunchedEffectSaveable(Unit) {
-                viewModel.logShowPaywall(viewConfig)
-            }
+            OnScreenLifecycle(
+                key = Unit,
+                onEnter = { viewModel.logShowPaywall(viewConfig); eventCallback.onPaywallShown() },
+                onExit = { eventCallback.onPaywallClosed() },
+            )
         }
     }
 }
 
 @Composable
-internal fun LaunchedEffectSaveable(
+internal fun OnScreenLifecycle(
     key: Any?,
-    effect: suspend CoroutineScope.() -> Unit
+    onEnter: () -> Unit,
+    onExit: () -> Unit
 ) {
-    val hasExecuted = rememberSaveable(key) { mutableStateOf(false) }
-    LaunchedEffect(key) {
-        if (!hasExecuted.value) {
-            hasExecuted.value = true
-            effect()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
+    val hasAppeared = rememberSaveable(key) { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (!hasAppeared.value) {
+                        hasAppeared.value = true
+                        onEnter()
+                    }
+                }
+                else -> {}
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            val isChangingConfig = context.getActivityOrNull()?.isChangingConfigurations ?: false
+            if (!isChangingConfig) {
+                onExit()
+            }
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 }
@@ -281,6 +307,14 @@ private fun createEventCallback(
 
         override fun onRestoreSuccess(profile: AdaptyProfile) {
             eventListener.onRestoreSuccess(profile, localContext)
+        }
+
+        override fun onPaywallShown() {
+            eventListener.onPaywallShown(localContext)
+        }
+
+        override fun onPaywallClosed() {
+            eventListener.onPaywallClosed()
         }
     }
 }

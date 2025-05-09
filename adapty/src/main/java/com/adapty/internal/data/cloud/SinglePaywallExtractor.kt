@@ -31,7 +31,6 @@ internal class SinglePaywallExtractor(
         jsonObject.requires("variation_id") { "variationId in Paywall should not be null" }
         jsonObject.requires("paywall_id") { "paywallId in Paywall should not be null" }
         jsonObject.requires("placement_audience_version_id") { "placementAudienceVersionId in Paywall should not be null" }
-        jsonObject.requires("paywall_id") { "paywallId in Paywall should not be null" }
         jsonObject.requires("revision") { "revision in Paywall should not be null" }
         jsonObject.requires("ab_test_name") { "abTestName in Paywall should not be null" }
         jsonObject.requires("paywall_name") { "name in Paywall should not be null" }
@@ -43,6 +42,19 @@ internal class SinglePaywallExtractor(
                 message = "weight in Paywall should be between 1 and 100. Currently, it is $weight",
                 adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED,
             )
+
+        val products = runCatching { jsonObject.getAsJsonArray("products") }.getOrNull()
+            ?: throw AdaptyError(
+                message = "products in Paywall should not be null",
+                adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED,
+            )
+
+        products.forEachIndexed { index, jsonElement ->
+            (jsonElement as? JsonObject)?.let { product ->
+                if (!product.has("paywall_product_index"))
+                    product.addProperty("paywall_product_index", index)
+            }
+        }
 
         return jsonObject
     }

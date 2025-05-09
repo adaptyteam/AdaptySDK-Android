@@ -12,6 +12,7 @@ import com.android.billingclient.api.BillingClient
 public class BackendProduct internal constructor(
     public val id: String,
     public val vendorProductId: String,
+    public val paywallProductIndex: Int,
     public val timestamp: Long,
     public val type: ProductType,
 ) {

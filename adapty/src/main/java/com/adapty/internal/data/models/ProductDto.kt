@@ -9,6 +9,8 @@ internal class ProductDto(
     val id: String?,
     @SerializedName("vendor_product_id")
     val vendorProductId: String?,
+    @SerializedName("paywall_product_index")
+    val paywallProductIndex: Int,
     @SerializedName("is_consumable")
     val isConsumable: Boolean?,
     @SerializedName("base_plan_id")

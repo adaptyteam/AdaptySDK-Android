@@ -107,5 +107,5 @@ public class AdaptyPaywallProduct internal constructor(
         }
     }
 
-    internal class Payload internal constructor(@get:JvmSynthetic val priceAmountMicros: Long, @get:JvmSynthetic val currencyCode: String, @get:JvmSynthetic val type: String, @get:JvmSynthetic val subscriptionData: SubscriptionData?)
+    internal class Payload internal constructor(val priceAmountMicros: Long, val currencyCode: String, val type: String, val subscriptionData: SubscriptionData?, val paywallProductIndex: Int, val adaptyProductId: String)
 }

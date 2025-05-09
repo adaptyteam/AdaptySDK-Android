@@ -32,4 +32,6 @@ public interface EventCallback {
     public fun getTimerStartTimestamp(timerId: String, isPersisted: Boolean): Long?
     public fun setTimerStartTimestamp(timerId: String, value: Long, isPersisted: Boolean)
     public fun timerEndAtDate(timerId: String): Date
+    public fun onPaywallShown()
+    public fun onPaywallClosed()
 }
