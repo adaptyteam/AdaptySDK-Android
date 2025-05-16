@@ -10,9 +10,7 @@ import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.Cache
-import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.ExoPlayer
@@ -31,14 +29,9 @@ internal fun createPlayer(context: Context): ExoPlayer? {
         log(ERROR) { "$LOG_PREFIX_ERROR couldn't retrieve player cache: (${e.localizedMessage})" }
         return null
     }
-    val upstreamFactory = DefaultHttpDataSource.Factory()
-        .setAllowCrossProtocolRedirects(true)
-    val cacheDataSourceFactory = CacheDataSource.Factory()
-        .setCache(cache)
-        .setUpstreamDataSourceFactory(upstreamFactory)
-        .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+    val dataSourceFactory = SmartDataSourceFactory(context, cache)
     return ExoPlayer.Builder(context)
-        .setMediaSourceFactory(DefaultMediaSourceFactory(cacheDataSourceFactory))
+        .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
         .build()
 }
 
@@ -63,6 +56,6 @@ internal fun providePlayerDeps(context: Context): Iterable<Pair<KClass<*>, Map<S
     )
 }
 
-internal const val VERSION_NAME = "3.4.0"
+internal const val VERSION_NAME = "3.7.0"
 internal const val LOG_PREFIX = "UI (video) v${VERSION_NAME}:"
 internal const val LOG_PREFIX_ERROR = "UI (video) v${VERSION_NAME} error:"

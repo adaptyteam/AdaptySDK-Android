@@ -54,7 +54,7 @@ import com.adapty.ui.internal.ui.attributes.toPaddingValues
 import com.adapty.ui.internal.ui.marginsOrSkip
 import com.adapty.ui.internal.utils.EventCallback
 import com.adapty.ui.internal.utils.LOG_PREFIX
-import com.adapty.ui.internal.utils.getForCurrentSystemTheme
+import com.adapty.ui.internal.utils.getAsset
 import com.adapty.ui.internal.utils.log
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import kotlinx.coroutines.delay
@@ -355,9 +355,10 @@ public class PagerElement internal constructor(
             repeat(pagerState.pageCount) { i ->
                 RoundDot(
                     fill = (if (i == pagerState.currentPage) data.selectedColor else data.color)?.assetId?.let { assetId ->
-                        when (val filling = resolveAssets().getForCurrentSystemTheme(assetId)) {
-                            is Asset.Color -> filling.toComposeFill()
-                            is Asset.Gradient -> filling.toComposeFill()
+                        val filling = resolveAssets().getAsset<Asset.Filling.Local>(assetId)
+                        when (filling?.main) {
+                            is Asset.Color -> filling.cast<Asset.Color>().toComposeFill()
+                            is Asset.Gradient -> filling.cast<Asset.Gradient>().toComposeFill()
                             else -> null
                         }
                     },

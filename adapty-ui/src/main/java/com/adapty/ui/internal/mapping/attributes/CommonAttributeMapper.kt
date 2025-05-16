@@ -89,11 +89,12 @@ public class CommonAttributeMapper {
         if (item !is Map<*, *>)
             return DimSpec.Specified(item.asDimUnit(), dimAxis)
         val min = item["min"]
+        val max = item["max"]
         val shrink = item["shrink"]
         return when {
             item["fill_max"] == true -> DimSpec.FillMax(dimAxis)
-            min != null -> DimSpec.Min(min.asDimUnit(), dimAxis)
-            shrink != null -> DimSpec.Shrink(shrink.asDimUnit(), dimAxis)
+            min != null -> DimSpec.Min(min.asDimUnit(), max?.asDimUnit(), dimAxis)
+            shrink != null -> DimSpec.Shrink(shrink.asDimUnit(), max?.asDimUnit(), dimAxis)
             else -> DimSpec.Specified(item.asDimUnit(), dimAxis)
         }
     }

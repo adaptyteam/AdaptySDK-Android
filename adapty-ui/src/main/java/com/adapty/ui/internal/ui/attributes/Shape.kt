@@ -2,6 +2,7 @@
 
 package com.adapty.ui.internal.ui.attributes
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.Paint
@@ -11,7 +12,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.LinearGradientShader
+import androidx.compose.ui.graphics.RadialGradientShader
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shader
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.SweepGradientShader
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
@@ -75,30 +81,65 @@ internal sealed class ComposeFill {
     class Image(val image: Bitmap, val matrix: Matrix, val paint: Paint): ComposeFill()
 }
 
-internal fun Asset.Color.toComposeFill(): ComposeFill.Color {
-    return ComposeFill.Color(Color(this.value))
+internal fun Asset.Composite<Asset.Color>.toComposeFill(): ComposeFill.Color {
+    return ComposeFill.Color(Color(this.main.value))
 }
 
-internal fun Asset.Gradient.toComposeFill(): ComposeFill.Gradient {
-    val colorStops = this.values.map { (point, color) -> point to Color(color.value) }.toTypedArray()
-    val (x0, y0, x1, y1) = this.points
-    val shader = when (this.type) {
-        Asset.Gradient.Type.LINEAR -> Brush.linearGradient(
-            colorStops = *colorStops,
-            start = Offset(x = x0, y = y0),
-            end = Offset(x = x1, y = y1),
-        )
-        Asset.Gradient.Type.RADIAL -> Brush.radialGradient(*colorStops)
-        Asset.Gradient.Type.CONIC -> Brush.sweepGradient(*colorStops)
+internal fun Asset.Composite<Asset.Gradient>.toComposeFill(): ComposeFill.Gradient {
+    val gradient = this.main
+    val colorStops = gradient.values.map { (point, color) -> point to Color(color.value) }.toTypedArray()
+    val (x0, y0, x1, y1) = gradient.points
+    val shader = when (gradient.type) {
+        Asset.Gradient.Type.LINEAR -> {
+            object : ShaderBrush() {
+                override fun createShader(size: Size): Shader {
+                    val from = Offset(size.width * x0, size.height * y0)
+                    val to = Offset(size.width * x1, size.height * y1)
+
+                    return LinearGradientShader(
+                        from = from,
+                        to = to,
+                        colorStops = colorStops.map { it.first },
+                        colors = colorStops.map { it.second },
+                    )
+                }
+            }
+        }
+        Asset.Gradient.Type.RADIAL -> {
+            object : ShaderBrush() {
+                override fun createShader(size: Size): Shader {
+                    val center = Offset(size.width * x0, size.height * y0)
+                    val radius = (Offset(size.width * x1, size.height * y1) - center).getDistance()
+                    return RadialGradientShader(
+                        center = center,
+                        radius = radius,
+                        colorStops = colorStops.map { it.first },
+                        colors = colorStops.map { it.second },
+                    )
+                }
+            }
+        }
+        Asset.Gradient.Type.CONIC -> {
+            object : ShaderBrush() {
+                override fun createShader(size: Size): Shader {
+                    val center = Offset(size.width * x0, size.height * y0)
+                    return SweepGradientShader(
+                        center = center,
+                        colorStops = colorStops.map { it.first },
+                        colors = colorStops.map { it.second },
+                    )
+                }
+            }
+        }
     }
     return ComposeFill.Gradient(shader)
 }
 
-internal fun Asset.Image.toComposeFill(size: Size): ComposeFill.Image? {
+internal fun Asset.Composite<Asset.Image>.toComposeFill(context: Context, size: Size): ComposeFill.Image? {
     if (!(size.width > 0 && size.height > 0))
         return null
 
-    val image = getBitmap(this, size.width.roundToInt(), size.height.roundToInt(), Asset.Image.ScaleType.FIT_MAX)
+    val image = getBitmap(context, this, size.width.roundToInt(), size.height.roundToInt(), Asset.Image.ScaleType.FIT_MAX)
         ?: return null
 
     if (!(image.width > 0 && image.height > 0))

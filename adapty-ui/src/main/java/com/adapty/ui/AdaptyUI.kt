@@ -94,6 +94,8 @@ public object AdaptyUI {
      * you can implement [AdaptyUiPersonalizedOfferResolver] and pass your own logic
      * that maps [AdaptyPaywallProduct] to `true`, if the price of the product is personalized, otherwise `false`.
      *
+     * @param[customAssets] If you are going to use custom assets functionality, pass [AdaptyCustomAssets] here.
+     *
      * @param[tagResolver] If you are going to use custom tags functionality, pass the resolver function here.
      *
      * @param[timerResolver] If you are going to use custom timer functionality, pass the resolver function here.
@@ -113,6 +115,7 @@ public object AdaptyUI {
         eventListener: AdaptyUiEventListener,
         insets: AdaptyPaywallInsets = AdaptyPaywallInsets.UNSPECIFIED,
         personalizedOfferResolver: AdaptyUiPersonalizedOfferResolver = AdaptyUiPersonalizedOfferResolver.DEFAULT,
+        customAssets: AdaptyCustomAssets = AdaptyCustomAssets.Empty,
         tagResolver: AdaptyUiTagResolver = AdaptyUiTagResolver.DEFAULT,
         timerResolver: AdaptyUiTimerResolver = AdaptyUiTimerResolver.DEFAULT,
         observerModeHandler: AdaptyUiObserverModeHandler? = null,
@@ -126,6 +129,7 @@ public object AdaptyUI {
                 eventListener,
                 insets,
                 personalizedOfferResolver,
+                customAssets,
                 tagResolver,
                 timerResolver,
                 observerModeHandler,
@@ -187,18 +191,26 @@ public object AdaptyUI {
         /**
          * @suppress
          */
-        @InternalAdaptyApi
-        public sealed class Asset {
+        public sealed class Asset(internal val customId: String?) {
+
+            public class Composite<T: Asset>(
+                public val main: T,
+                public val fallback: T? = null,
+            ) {
+                internal inline fun <reified T: Asset> cast(): Composite<T> = this as Composite<T>
+            }
 
             public class Color internal constructor(
                 @ColorInt internal val value: Int,
-            ): Filling.Local()
+                customId: String? = null,
+            ): Filling.Local(customId)
 
             public class Gradient internal constructor(
                 internal val type: Type,
                 internal val values: List<Value>,
                 internal val points: Points,
-            ): Filling.Local() {
+                customId: String? = null,
+            ): Filling.Local(customId) {
 
                 internal enum class Type { LINEAR, RADIAL, CONIC }
 
@@ -216,13 +228,10 @@ public object AdaptyUI {
                     val x1: Float,
                     val y1: Float,
                 ) {
-                    operator fun component1(): Float = x0.asComposeGradientPoint()
-                    operator fun component2(): Float = y0.asComposeGradientPoint()
-                    operator fun component3(): Float = x1.asComposeGradientPoint()
-                    operator fun component4(): Float = y1.asComposeGradientPoint()
-
-                    private fun Float.asComposeGradientPoint() =
-                        if (this == 0f) this else Float.POSITIVE_INFINITY * this
+                    operator fun component1(): Float = x0
+                    operator fun component2(): Float = y0
+                    operator fun component3(): Float = x1
+                    operator fun component4(): Float = y1
                 }
             }
 
@@ -233,15 +242,19 @@ public object AdaptyUI {
                 internal val isItalic: Boolean,
                 internal val size: Float,
                 @ColorInt internal val color: Int?,
-            ): Asset()
+                customId: String? = null,
+            ): Asset(customId)
 
             public class Image internal constructor(
                 internal val source: Source,
-            ): Filling.Local() {
+                customId: String? = null,
+            ): Filling.Local(customId) {
 
                 public sealed class Source {
-                    public class File internal constructor(internal val file: java.io.File): Source()
+                    public class Uri internal constructor(internal val uri: android.net.Uri): Source()
                     public class Base64Str internal constructor(internal val imageBase64: String?): Source()
+                    public class AndroidAsset internal constructor(internal val path: String): Source()
+                    public class Bitmap internal constructor(internal val bitmap: android.graphics.Bitmap): Source()
                 }
 
                 internal enum class Dimension { WIDTH, HEIGHT }
@@ -252,14 +265,47 @@ public object AdaptyUI {
             public class RemoteImage internal constructor(
                 internal val url: String,
                 internal val preview: Image?,
-            ): Filling()
+                customId: String? = null,
+            ): Filling(customId)
 
             public class Video internal constructor(
-                public val url: String,
-            ): Filling()
+                public val source: Source,
+                customId: String? = null,
+            ): Filling(customId) {
+                public sealed class Source {
+                    public class Uri internal constructor(public val uri: android.net.Uri): Source() {
+                        override fun equals(other: Any?): Boolean {
+                            if (this === other) return true
+                            if (javaClass != other?.javaClass) return false
 
-            public sealed class Filling: Asset() {
-                public sealed class Local: Filling()
+                            other as Uri
+
+                            return uri == other.uri
+                        }
+
+                        override fun hashCode(): Int {
+                            return uri.hashCode()
+                        }
+                    }
+                    public class AndroidAsset(public val path: String): Source() {
+                        override fun equals(other: Any?): Boolean {
+                            if (this === other) return true
+                            if (javaClass != other?.javaClass) return false
+
+                            other as AndroidAsset
+
+                            return path == other.path
+                        }
+
+                        override fun hashCode(): Int {
+                            return path.hashCode()
+                        }
+                    }
+                }
+            }
+
+            public sealed class Filling(customId: String?): Asset(customId) {
+                public sealed class Local(customId: String?): Filling(customId)
             }
         }
 

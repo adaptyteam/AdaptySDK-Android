@@ -1,3 +1,5 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.internal.utils
 
 import android.content.Context

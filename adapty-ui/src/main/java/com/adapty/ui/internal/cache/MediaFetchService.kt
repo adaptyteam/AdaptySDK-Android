@@ -2,6 +2,7 @@
 
 package com.adapty.ui.internal.cache
 
+import android.net.Uri
 import androidx.annotation.RestrictTo
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI
@@ -39,7 +40,7 @@ internal class MediaFetchService(
         handler.loadMedia(
             onResult = { result ->
                 result.mapCatching { file ->
-                    handleResult?.invoke(Image(source = Image.Source.File(file)))
+                    handleResult?.invoke(Image(source = Image.Source.Uri(Uri.fromFile(file))))
                 }
             },
         )

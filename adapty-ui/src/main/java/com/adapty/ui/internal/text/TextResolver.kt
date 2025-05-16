@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.unit.em
@@ -27,8 +28,8 @@ import com.adapty.ui.internal.mapping.element.Texts
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.utils.firstDiscountOfferOrNull
+import com.adapty.ui.internal.utils.getAsset
 import com.adapty.ui.internal.utils.getBitmap
-import com.adapty.ui.internal.utils.getForCurrentSystemTheme
 import com.adapty.ui.internal.utils.getProductGroupKey
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 
@@ -132,20 +133,21 @@ internal class TextResolver(
                     parts.add(StringWrapper.ComplexStr.ComplexStrPart.Text(processedItem))
                 }
                 is RichText.Item.Image -> {
-                    val imageAsset = assets.getForCurrentSystemTheme(item.imageAssetId) as? Asset.Image
+                    val imageAsset = assets.getAsset<Asset.Image>(item.imageAssetId)
                         ?: return@forEach
                     val isSystemInDarkTheme = isSystemInDarkTheme()
-                    val imageBitmap = remember(imageAsset.source.javaClass, isSystemInDarkTheme) {
-                        getBitmap(imageAsset)
+                    val context = LocalContext.current
+                    val imageBitmap = remember(imageAsset.main.source.javaClass, isSystemInDarkTheme) {
+                        getBitmap(context, imageAsset)
                             ?.asImageBitmap()
                     } ?: return@forEach
 
                     val id = "image_${inlineContent.size}"
                     val tint = item.attrs?.imageTintAssetId?.let { assetId ->
-                        assets.getForCurrentSystemTheme(assetId)
+                        assets.getAsset<Asset.Color>(assetId)
                     }
                     val colorFilter = remember(isSystemInDarkTheme) {
-                        (tint as? Asset.Color)?.toComposeFill()?.color?.let { color ->
+                        tint?.toComposeFill()?.color?.let { color ->
                             ColorFilter.tint(color)
                         }
                     }

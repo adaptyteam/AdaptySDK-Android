@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -28,6 +27,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
@@ -44,10 +44,9 @@ import com.adapty.ui.internal.ui.attributes.toExactDp
 import com.adapty.ui.internal.ui.attributes.verticalSumOrDefault
 import com.adapty.ui.internal.ui.element.ResolveAssets
 import com.adapty.ui.internal.ui.element.UIElement
-import com.adapty.ui.internal.utils.getForCurrentSystemTheme
+import com.adapty.ui.internal.utils.getAsset
 
 @InternalAdaptyApi
-@Composable
 public fun Modifier.fillWithBaseParams(element: UIElement, resolveAssets: ResolveAssets): Modifier {
     return this
         .sizeAndMarginsOrSkip(element)
@@ -55,41 +54,41 @@ public fun Modifier.fillWithBaseParams(element: UIElement, resolveAssets: Resolv
         .backgroundOrSkip(element.baseProps.shape, resolveAssets)
 }
 
-@Composable
 internal fun Modifier.backgroundOrSkip(
     decorator: com.adapty.ui.internal.ui.attributes.Shape?,
     resolveAssets: ResolveAssets,
-): Modifier {
-    val decorator = decorator ?: return this
+): Modifier = composed {
+    val decorator = decorator ?: return@composed this
     var modifier = this
     val backgroundShape = decorator.type.toComposeShape()
     modifier = modifier.clipToShape(backgroundShape)
     if (decorator.fill != null) {
-        val backgroundAsset = resolveAssets().getForCurrentSystemTheme(decorator.fill.assetId) as? Asset.Filling.Local
-        if (backgroundAsset != null)
-            modifier = modifier.background(backgroundAsset, backgroundShape)
+        val background = resolveAssets().getAsset<Asset.Filling.Local>(decorator.fill.assetId)
+        if (background != null)
+            modifier = modifier.background(background, backgroundShape)
     }
 
     if (decorator.border != null) {
-        when (val borderAsset = resolveAssets().getForCurrentSystemTheme(decorator.border.color) as? Asset.Filling.Local) {
+        val border = resolveAssets().getAsset<Asset.Filling.Local>(decorator.border.color)
+        when (border?.main) {
             is Asset.Color -> {
                 modifier = modifier.border(
                     decorator.border.thickness.dp,
-                    borderAsset.toComposeFill().color,
+                    border.cast<Asset.Color>().toComposeFill().color,
                     decorator.border.shapeType.toComposeShape(),
                 )
             }
             is Asset.Gradient -> {
                 modifier = modifier.border(
                     decorator.border.thickness.dp,
-                    borderAsset.toComposeFill().shader,
+                    border.cast<Asset.Gradient>().toComposeFill().shader,
                     decorator.border.shapeType.toComposeShape(),
                 )
             }
             else -> Unit
         }
     }
-    return modifier
+    modifier
 }
 
 private fun Modifier.clipToShape(
@@ -119,40 +118,43 @@ private fun Modifier.clipToShape(
 }
 
 private fun Modifier.background(
-    asset: Asset.Filling.Local,
+    background: Asset.Composite<Asset.Filling.Local>,
     shape: Shape,
-): Modifier =
-    when (asset) {
+): Modifier = composed {
+    when (background.main) {
         is Asset.Color -> {
-            val fill = asset.toComposeFill()
+            val fill = background.cast<Asset.Color>().toComposeFill()
             background(color = fill.color, shape = shape)
         }
         is Asset.Gradient -> {
-            val fill = asset.toComposeFill()
+            val fill = background.cast<Asset.Gradient>().toComposeFill()
             background(brush = fill.shader, shape = shape)
         }
-        is Asset.Image -> drawBehind {
-            val fill = asset.toComposeFill(size) ?: return@drawBehind
-            drawIntoCanvas { canvas ->
-                canvas.save()
-                if (shape != RectangleShape) {
-                    val path = Path()
-                    shape.createOutline(size, layoutDirection, this).let { outline ->
-                        when (outline) {
-                            is Outline.Rectangle -> path.addRect(outline.rect)
-                            is Outline.Rounded -> path.addRoundRect(outline.roundRect)
-                            is Outline.Generic -> path.addPath(outline.path)
+        is Asset.Image -> {
+            val context = LocalContext.current
+            drawBehind {
+                val fill = background.cast<Asset.Image>().toComposeFill(context, size) ?: return@drawBehind
+                drawIntoCanvas { canvas ->
+                    canvas.save()
+                    if (shape != RectangleShape) {
+                        val path = Path()
+                        shape.createOutline(size, layoutDirection, this).let { outline ->
+                            when (outline) {
+                                is Outline.Rectangle -> path.addRect(outline.rect)
+                                is Outline.Rounded -> path.addRoundRect(outline.roundRect)
+                                is Outline.Generic -> path.addPath(outline.path)
+                            }
                         }
+                        canvas.clipPath(path)
                     }
-                    canvas.clipPath(path)
+                    canvas.nativeCanvas.drawBitmap(fill.image, fill.matrix, fill.paint)
+                    canvas.restore()
                 }
-                canvas.nativeCanvas.drawBitmap(fill.image, fill.matrix, fill.paint)
-                canvas.restore()
             }
         }
     }
+}
 
-@Composable
 internal fun Modifier.sizeAndMarginsOrSkip(element: UIElement): Modifier {
     val baseProps = element.baseProps
     val margins = baseProps.padding
@@ -162,17 +164,24 @@ internal fun Modifier.sizeAndMarginsOrSkip(element: UIElement): Modifier {
         .marginsOrSkip(margins)
 }
 
-@Composable
-internal fun Modifier.sideDimensionOrSkip(sideDimension: DimSpec?, margins: EdgeEntities?): Modifier {
-    return when (sideDimension) {
+internal fun Modifier.sideDimensionOrSkip(sideDimension: DimSpec?, margins: EdgeEntities?): Modifier = composed {
+    when (sideDimension) {
         null -> this
         is DimSpec.FillMax -> when (sideDimension.axis) {
             DimSpec.Axis.X -> this.fillMaxWidth()
             DimSpec.Axis.Y -> this.fillMaxHeight()
         }
         is DimSpec.Min -> when (val axis = sideDimension.axis) {
-            DimSpec.Axis.X -> this.widthIn(min = sideDimension.value.toExactDp(axis) + margins.horizontalSumOrDefault)
-            DimSpec.Axis.Y -> this.heightIn(min = sideDimension.value.toExactDp(axis) + margins.verticalSumOrDefault)
+            DimSpec.Axis.X -> this.widthIn(
+                min = sideDimension.value.toExactDp(axis) + margins.horizontalSumOrDefault,
+                max = sideDimension.maxValue?.let { maxValue -> maxValue.toExactDp(axis) + margins.horizontalSumOrDefault }
+                    ?.takeIf { it > 0.dp } ?: Dp.Unspecified,
+            )
+            DimSpec.Axis.Y -> this.heightIn(
+                min = sideDimension.value.toExactDp(axis) + margins.verticalSumOrDefault,
+                max = sideDimension.maxValue?.let { maxValue -> maxValue.toExactDp(axis) + margins.verticalSumOrDefault }
+                    ?.takeIf { it > 0.dp } ?: Dp.Unspecified,
+            )
         }
         is DimSpec.Specified -> when (val axis = sideDimension.axis) {
             DimSpec.Axis.X -> this.width(sideDimension.value.toExactDp(axis) + margins.horizontalSumOrDefault)
@@ -180,28 +189,35 @@ internal fun Modifier.sideDimensionOrSkip(sideDimension: DimSpec?, margins: Edge
         }
         is DimSpec.Shrink -> when (val axis = sideDimension.axis) {
             DimSpec.Axis.X -> this
-                .widthIn(min = (sideDimension.min.toExactDp(axis) + margins.horizontalSumOrDefault).takeIf { it > 0.dp }
-                    ?: Dp.Unspecified)
+                .widthIn(
+                    min = (sideDimension.min.toExactDp(axis) + margins.horizontalSumOrDefault)
+                        .takeIf { it > 0.dp } ?: Dp.Unspecified,
+                    max = sideDimension.maxValue?.let { maxValue -> maxValue.toExactDp(axis) + margins.horizontalSumOrDefault }
+                        ?.takeIf { it > 0.dp } ?: Dp.Unspecified,
+                )
                 .width(IntrinsicSize.Min)
             DimSpec.Axis.Y -> this
-                .heightIn(min = (sideDimension.min.toExactDp(axis) + margins.verticalSumOrDefault).takeIf { it > 0.dp }
-                    ?: Dp.Unspecified)
+                .heightIn(
+                    min = (sideDimension.min.toExactDp(axis) + margins.verticalSumOrDefault)
+                        .takeIf { it > 0.dp } ?: Dp.Unspecified,
+                    max = sideDimension.maxValue?.let { maxValue -> maxValue.toExactDp(axis) + margins.verticalSumOrDefault }
+                        ?.takeIf { it > 0.dp } ?: Dp.Unspecified,
+                )
                 .height(IntrinsicSize.Min)
         }
     }
 }
 
-@Composable
-internal fun Modifier.marginsOrSkip(margins: EdgeEntities?): Modifier {
+internal fun Modifier.marginsOrSkip(margins: EdgeEntities?): Modifier = composed {
     if (margins == null)
-        return this
+        return@composed this
     val (start, top, end, bottom) = margins
     val paddingValues = listOf(start, top, end, bottom).mapIndexed { i, dimUnit ->
         dimUnit.toExactDp(if (i % 2 == 0) DimSpec.Axis.X else DimSpec.Axis.Y)
     }.let { values ->
         PaddingValues(values[0], values[1], values[2], values[3])
     }
-    return this
+    this
         .padding(paddingValues)
 }
 

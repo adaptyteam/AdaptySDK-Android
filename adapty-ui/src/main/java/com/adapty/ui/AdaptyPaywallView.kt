@@ -76,6 +76,8 @@ public class AdaptyPaywallView @JvmOverloads constructor(
      * you can implement [AdaptyUiPersonalizedOfferResolver] and pass your own logic
      * that maps [AdaptyPaywallProduct] to `true`, if the price of the product is personalized, otherwise `false`.
      *
+     * @param[customAssets] If you are going to use custom assets functionality, pass [AdaptyCustomAssets] here.
+     *
      * @param[tagResolver] If you are going to use custom tags functionality, pass the resolver function here.
      *
      * @param[timerResolver] If you are going to use custom timer functionality, pass the resolver function here.
@@ -90,6 +92,7 @@ public class AdaptyPaywallView @JvmOverloads constructor(
         eventListener: AdaptyUiEventListener,
         insets: AdaptyPaywallInsets = AdaptyPaywallInsets.UNSPECIFIED,
         personalizedOfferResolver: AdaptyUiPersonalizedOfferResolver = AdaptyUiPersonalizedOfferResolver.DEFAULT,
+        customAssets: AdaptyCustomAssets = AdaptyCustomAssets.Empty,
         tagResolver: AdaptyUiTagResolver = AdaptyUiTagResolver.DEFAULT,
         timerResolver: AdaptyUiTimerResolver = AdaptyUiTimerResolver.DEFAULT,
         observerModeHandler: AdaptyUiObserverModeHandler? = null,
@@ -101,6 +104,7 @@ public class AdaptyPaywallView @JvmOverloads constructor(
                     eventListener,
                     insets,
                     personalizedOfferResolver,
+                    customAssets,
                     tagResolver,
                     timerResolver,
                     observerModeHandler,

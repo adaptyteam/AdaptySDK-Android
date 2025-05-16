@@ -67,11 +67,28 @@ internal fun Context.getActivityOrNull(): Activity? {
 
 @InternalAdaptyApi
 @Composable
-public fun Assets.getForCurrentSystemTheme(assetId: String): Asset? =
-    if (!isSystemInDarkTheme())
-        get(assetId)
-    else
-        get("${assetId}${DARK_THEME_ASSET_SUFFIX}") ?: get(assetId)
+public inline fun <reified T: Asset> Assets.getAsset(assetId: String): Asset.Composite<T>? {
+    val customAsset = getAsset(assetId, true)?.let { it as? T }
+    val defaultAsset = getAsset(assetId, false)?.let { it as? T }
+
+    return when {
+        customAsset != null && defaultAsset != null -> Asset.Composite(customAsset, defaultAsset)
+        defaultAsset != null -> Asset.Composite(defaultAsset)
+        else -> null
+    }
+}
+
+@PublishedApi
+@Composable
+internal fun Assets.getAsset(assetId: String, isCustom: Boolean): Asset? {
+    if (!isCustom) {
+        return if (!isSystemInDarkTheme())
+            get(assetId)
+        else
+            get("${assetId}${DARK_THEME_ASSET_SUFFIX}") ?: get(assetId)
+    }
+    return getAsset("${assetId}${CUSTOM_ASSET_SUFFIX}", false)
+}
 
 private val logExecutor = Executors.newSingleThreadExecutor()
 
