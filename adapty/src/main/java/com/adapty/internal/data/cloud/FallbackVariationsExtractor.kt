@@ -1,13 +1,13 @@
 package com.adapty.internal.data.cloud
 
-import com.adapty.internal.utils.SinglePaywallExtractHelper
+import com.adapty.internal.utils.SingleVariationExtractHelper
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 
 internal class FallbackVariationsExtractor(
-    private val singlePaywallExtractHelper: SinglePaywallExtractHelper,
+    private val singleVariationExtractHelper: SingleVariationExtractHelper,
 ): ResponseDataExtractor {
 
     override fun extract(jsonElement: JsonElement): JsonElement? {
@@ -20,17 +20,21 @@ internal class FallbackVariationsExtractor(
 
         jsonObject.getAsJsonObject(dataKey).entrySet()
             .first { (key, value) ->
-                val desiredArray = (value as? JsonArray)?.isEmpty == false
-                desiredArray.also {
-                    if (desiredArray) jsonObject.addProperty(placementIdKey, key)
+                val desiredPlacement = (value as? JsonObject)?.isEmpty == false
+                desiredPlacement.also {
+                    if (desiredPlacement) jsonObject.addProperty(placementIdKey, key)
                 }
             }
-            .value.asJsonArray
-            .forEach { element ->
-                ((element as? JsonObject)?.get(attributesKey) as? JsonObject)
-                    ?.let { paywall ->
-                        singlePaywallExtractHelper.addSnapshotAtIfMissing(paywall, snapshotAt)
-                        variations.add(paywall)
+            .value.asJsonObject
+            .let { value ->
+                val placement = value.getAsJsonObject(metaKey).getAsJsonObject(placementKey)
+                value.getAsJsonArray(dataKey)
+                    .forEach { element ->
+                        if (element !is JsonObject) return@forEach
+                        val variation = element.get(attributesKey) as? JsonObject ?: element
+                        singleVariationExtractHelper.addSnapshotAtIfMissing(variation, snapshotAt)
+                        singleVariationExtractHelper.addPlacementIfMissing(variation, placement)
+                        variations.add(variation)
                     }
             }
 
@@ -43,6 +47,7 @@ internal class FallbackVariationsExtractor(
         const val attributesKey = "attributes"
         const val metaKey = "meta"
         const val placementIdKey = "placement_id"
+        const val placementKey = "placement"
         const val responseCreatedAtKey = "response_created_at"
     }
 }

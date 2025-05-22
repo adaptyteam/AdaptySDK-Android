@@ -8,26 +8,20 @@ import com.adapty.internal.domain.models.BackendProduct
 import com.adapty.models.AdaptyPaywall
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class PaywallMapper {
+internal class PaywallMapper(
+    private val placementMapper: PlacementMapper,
+    private val remoteConfigMapper: RemoteConfigMapper,
+) {
 
     @JvmSynthetic
     fun map(paywallDto: PaywallDto, products: List<BackendProduct>) = AdaptyPaywall(
-        placementId = paywallDto.developerId,
         name = paywallDto.name,
-        abTestName = paywallDto.abTestName,
-        audienceName = paywallDto.audienceName.orEmpty(),
-        revision = paywallDto.revision,
         variationId = paywallDto.variationId,
-        remoteConfig = paywallDto.remoteConfig?.let { remoteConfig ->
-            AdaptyPaywall.RemoteConfig(
-                locale = remoteConfig.lang,
-                jsonString = remoteConfig.data,
-                dataMap = remoteConfig.dataMap.immutableWithInterop(),
-            )
-        },
+        remoteConfig = paywallDto.remoteConfig?.let(remoteConfigMapper::map),
         products = products,
-        paywallId = paywallDto.paywallId,
+        id = paywallDto.id,
         snapshotAt = paywallDto.snapshotAt,
         viewConfig = paywallDto.paywallBuilder,
+        placement = placementMapper.map(paywallDto.placement),
     )
 }

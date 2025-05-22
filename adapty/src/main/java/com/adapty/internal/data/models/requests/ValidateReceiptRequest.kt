@@ -32,6 +32,8 @@ internal class ValidateReceiptRequest(
             private val isSubscription: Boolean,
             @SerializedName("variation_id")
             private val variationId: String,
+            @SerializedName("onboarding_variation_id")
+            private val onboardingVariationId: String?,
             @SerializedName("product_details")
             private val productDetails: PurchasedProductDetails,
         )
@@ -42,6 +44,7 @@ internal class ValidateReceiptRequest(
             profileId: String,
             purchase: Purchase,
             product: PurchaseableProduct,
+            onboardingVariationId: String?,
         ): ValidateReceiptRequest {
             val productId = purchase.products.firstOrNull().orEmpty()
             val offerDetails = product.currentOfferDetails
@@ -76,12 +79,13 @@ internal class ValidateReceiptRequest(
             }
             val variationId = product.variationId
             val isSubscription = product.isSubscription
-            return create(profileId, productId, variationId, isSubscription, purchase, productDetails)
+            return create(profileId, productId, variationId, onboardingVariationId, isSubscription, purchase, productDetails)
         }
 
         fun create(
             profileId: String,
             variationId: String,
+            onboardingVariationId: String?,
             purchase: Purchase,
             product: ProductDetails,
         ): ValidateReceiptRequest {
@@ -111,13 +115,14 @@ internal class ValidateReceiptRequest(
                     )
                 },
             )
-            return create(profileId, productId, variationId, isSubscription, purchase, productDetails)
+            return create(profileId, productId, variationId, onboardingVariationId, isSubscription, purchase, productDetails)
         }
 
         private fun create(
             profileId: String,
             productId: String,
             variationId: String,
+            onboardingVariationId: String?,
             isSubscription: Boolean,
             purchase: Purchase,
             productDetails: PurchasedProductDetails,
@@ -131,6 +136,7 @@ internal class ValidateReceiptRequest(
                         purchaseToken = purchase.purchaseToken,
                         isSubscription = isSubscription,
                         variationId = variationId,
+                        onboardingVariationId = onboardingVariationId,
                         productDetails = productDetails,
                     )
                 )

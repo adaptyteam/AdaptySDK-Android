@@ -12,13 +12,17 @@ import com.adapty.internal.data.cloud.*
 import com.adapty.internal.data.models.*
 import com.adapty.internal.data.models.requests.SendEventRequest
 import com.adapty.internal.domain.AuthInteractor
-import com.adapty.internal.domain.ProductsInteractor
+import com.adapty.internal.domain.BasePlacementFetcher
+import com.adapty.internal.domain.OnboardingInteractor
+import com.adapty.internal.domain.PaywallInteractor
 import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.domain.PurchasesInteractor
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyConfig
 import com.google.gson.*
 import com.google.gson.reflect.TypeToken
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonWriter
 import kotlinx.coroutines.sync.Semaphore
 import java.math.BigDecimal
 import java.util.*
@@ -94,14 +98,6 @@ public object Dependencies {
                         val profileKey = "profile"
                         val errorsKey = "errors"
 
-                        val attributesObjectExtractor = ResponseDataExtractor { jsonElement ->
-                            ((jsonElement as? JsonObject)?.get(dataKey) as? JsonObject)?.let { data ->
-                                if (data.has(attributesKey) && data.has("id") && data.has("type"))
-                                    data.get(attributesKey) as? JsonObject
-                                else
-                                    data
-                            }
-                        }
                         val dataArrayExtractor = ResponseDataExtractor { jsonElement ->
                             (jsonElement as? JsonObject)?.get(dataKey) as? JsonArray
                         }
@@ -122,13 +118,15 @@ public object Dependencies {
                             }
                         }
 
-                        val singlePaywallExtractHelper = SinglePaywallExtractHelper()
+                        val singleVariationExtractHelper = SingleVariationExtractHelper()
+                        val variationsExtractor = VariationsExtractor(singleVariationExtractHelper)
+                        val singleVariationExtractor = SingleVariationExtractor(singleVariationExtractHelper)
 
                         GsonBuilder()
                             .registerTypeAdapterFactory(
                                 AdaptyResponseTypeAdapterFactory(
                                     TypeToken.get(Variations::class.java),
-                                    VariationsExtractor(singlePaywallExtractHelper),
+                                    variationsExtractor,
                                 )
                             )
                             .registerTypeAdapterFactory(
@@ -151,8 +149,39 @@ public object Dependencies {
                             )
                             .registerTypeAdapterFactory(
                                 AdaptyResponseTypeAdapterFactory(
-                                    TypeToken.get(PaywallDto::class.java),
-                                    SinglePaywallExtractor(singlePaywallExtractHelper),
+                                    TypeToken.get(Variation::class.java),
+                                    { typeToken, gson, typeAdapterFactory ->
+                                        val paywallAdapter =
+                                            gson.getDelegateAdapter(typeAdapterFactory, TypeToken.get(PaywallDto::class.java))
+
+                                        val onboardingAdapter =
+                                            gson.getDelegateAdapter(typeAdapterFactory, TypeToken.get(Onboarding::class.java))
+
+                                        val elementAdapter = gson.getAdapter(JsonElement::class.java)
+
+                                        val result = object : TypeAdapter<Variation>() {
+
+                                            override fun write(out: JsonWriter, value: Variation) {
+                                                when (value) {
+                                                    is PaywallDto -> paywallAdapter.write(out, value)
+                                                    is Onboarding -> onboardingAdapter.write(out, value)
+                                                }
+                                            }
+
+                                            override fun read(`in`: JsonReader): Variation? {
+                                                val jsonElement = elementAdapter.read(`in`)?.let { element ->
+                                                    singleVariationExtractor.extract(element) ?: element
+                                                }
+                                                val delegateAdapter = when  {
+                                                    (jsonElement as? JsonObject)?.has("onboarding_id") == true -> onboardingAdapter
+                                                    else -> paywallAdapter
+                                                }
+                                                return delegateAdapter.fromJsonTree(jsonElement)
+                                            }
+                                        }.nullSafe()
+
+                                        result
+                                    },
                                 )
                             )
                             .registerTypeAdapterFactory(
@@ -170,7 +199,7 @@ public object Dependencies {
                             .registerTypeAdapterFactory(
                                 AdaptyResponseTypeAdapterFactory(
                                     TypeToken.get(FallbackVariations::class.java),
-                                    FallbackVariationsExtractor(singlePaywallExtractHelper),
+                                    FallbackVariationsExtractor(singleVariationExtractHelper),
                                 )
                             )
                             .registerTypeAdapterFactory(
@@ -417,8 +446,16 @@ public object Dependencies {
                     )
                 }),
 
+                RemoteConfigMapper::class to singleVariantDiObject({
+                    RemoteConfigMapper()
+                }),
+
+                PlacementMapper::class to singleVariantDiObject({
+                    PlacementMapper()
+                }),
+
                 PaywallMapper::class to singleVariantDiObject({
-                    PaywallMapper()
+                    PaywallMapper(injectInternal(), injectInternal())
                 }),
 
                 ProductMapper::class to singleVariantDiObject({
@@ -426,6 +463,10 @@ public object Dependencies {
                         appContext,
                         injectInternal(),
                     )
+                }),
+
+                OnboardingMapper::class to singleVariantDiObject({
+                    OnboardingMapper(injectInternal(), injectInternal())
                 }),
 
                 ReplacementModeMapper::class to singleVariantDiObject({ ReplacementModeMapper() }),
@@ -459,11 +500,8 @@ public object Dependencies {
                     }),
                 ),
 
-                ProductsInteractor::class to singleVariantDiObject({
-                    ProductsInteractor(
-                        injectInternal(),
-                        injectInternal(),
-                        injectInternal(),
+                BasePlacementFetcher::class to singleVariantDiObject({
+                    BasePlacementFetcher(
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
@@ -472,6 +510,28 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(named = BASE),
                         injectInternal(named = CROSS_PLACEMENT_INFO),
+                    )
+                }),
+
+                PaywallInteractor::class to singleVariantDiObject({
+                    PaywallInteractor(
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                    )
+                }),
+
+                OnboardingInteractor::class to singleVariantDiObject({
+                    OnboardingInteractor(
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(named = BASE),
+                        injectInternal(),
                     )
                 }),
 
@@ -515,6 +575,7 @@ public object Dependencies {
 
                 AdaptyInternal::class to singleVariantDiObject({
                     AdaptyInternal(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),

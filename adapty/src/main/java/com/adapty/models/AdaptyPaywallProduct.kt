@@ -11,7 +11,7 @@ import java.math.BigDecimal
 /**
  * @property[localizedDescription] A description of the product.
  * @property[localizedTitle] The name of the product.
- * @property[paywallABTestName] Same as [abTestName][AdaptyPaywall.abTestName] property of the parent [AdaptyPaywall].
+ * @property[paywallABTestName] Same as [abTestName][AdaptyPlacement.abTestName] property of the parent paywall's [AdaptyPlacement].
  * @property[paywallName] Same as [name][AdaptyPaywall.name] property of the parent [AdaptyPaywall].
  * @property[price] The [price][Price] of the product in the local currency.
  * @property[productDetails] Underlying system representation of the product.

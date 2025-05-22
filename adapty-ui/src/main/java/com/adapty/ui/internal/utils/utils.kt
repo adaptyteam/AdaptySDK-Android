@@ -6,16 +6,19 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.os.Build
+import android.util.TypedValue
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.core.content.ContextCompat
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyEligibility.ELIGIBLE
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProductDiscountPhase
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
+import com.adapty.ui.R
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.utils.AdaptyLogLevel
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
@@ -63,6 +66,21 @@ internal fun Context.getActivityOrNull(): Activity? {
     }
     log(ERROR) { "$LOG_PREFIX couldn't get Activity from $this" }
     return null
+}
+
+internal fun Context.getProgressCustomColorOrNull(): Int? {
+    val typedValue = TypedValue()
+    if (!theme.resolveAttribute(R.attr.adapty_progressIndicatorColor, typedValue, true))
+        return null
+    return when (typedValue.type) {
+        in TypedValue.TYPE_FIRST_COLOR_INT..TypedValue.TYPE_LAST_COLOR_INT ->
+            typedValue.data
+        TypedValue.TYPE_REFERENCE ->
+            kotlin.runCatching {
+                ContextCompat.getColor(this, typedValue.resourceId)
+            }.getOrNull()
+        else -> null
+    }
 }
 
 @InternalAdaptyApi

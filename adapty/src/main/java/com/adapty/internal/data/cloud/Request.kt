@@ -12,7 +12,7 @@ import com.adapty.internal.data.models.InstallationMeta
 import com.adapty.internal.data.models.RestoreProductInfo
 import com.adapty.internal.data.models.requests.*
 import com.adapty.internal.domain.models.PurchaseableProduct
-import com.adapty.internal.utils.DEFAULT_PAYWALL_LOCALE
+import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
 import com.adapty.internal.utils.ID
 import com.adapty.internal.utils.MetaInfoRetriever
 import com.adapty.internal.utils.PayloadProvider
@@ -252,7 +252,12 @@ internal class RequestFactory(
             method = POST
             endPoint = "$purchasePrefix/play-store/token/v2/validate/"
             body = gson.toJson(
-                ValidateReceiptRequest.create(profileId, purchase, product)
+                ValidateReceiptRequest.create(
+                    profileId,
+                    purchase,
+                    product,
+                    cacheRepository.getOnboardingVariationId(),
+                )
             )
             currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
             systemLog = BackendAPIRequestData.Validate.create(product, purchase)
@@ -270,7 +275,13 @@ internal class RequestFactory(
             method = POST
             endPoint = "$purchasePrefix/play-store/token/v2/validate/"
             body = gson.toJson(
-                ValidateReceiptRequest.create(profileId, variationId, purchase, product)
+                ValidateReceiptRequest.create(
+                    profileId,
+                    variationId,
+                    cacheRepository.getOnboardingVariationId(),
+                    purchase,
+                    product
+                )
             )
             currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
             systemLog = BackendAPIRequestData.ReportTransaction.create(transactionId, variationId)
@@ -329,6 +340,29 @@ internal class RequestFactory(
         }
 
     @JvmSynthetic
+    fun getOnboardingVariationsRequest(id: String, locale: String, segmentId: String) =
+        cacheRepository.getProfileId().let { profileId ->
+            buildRequest {
+                method = GET
+                val crossPlacementEligibility =
+                    cacheRepository.getCrossPlacementInfo()?.placementWithVariationMap?.isEmpty() ?: false
+                val payloadHash = payloadProvider.getPayloadHashForOnboardingRequest(
+                    locale,
+                    segmentId,
+                    crossPlacementEligibility,
+                )
+                endPoint = "$inappsPrefix/$apiKeyPrefix/onboarding/variations/$id/$payloadHash/${getDisableCacheQueryParamOrEmpty()}"
+                headers += listOfNotNull(
+                    Request.Header("adapty-profile-segment-hash", segmentId),
+                    Request.Header("adapty-cross-placement-eligibility", "$crossPlacementEligibility"),
+                    Request.Header("adapty-onboarding-locale", locale),
+                )
+                currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
+                systemLog = BackendAPIRequestData.GetOnboardingVariations.create(apiKeyPrefix, id, locale, segmentId, payloadHash)
+            }
+        }
+
+    @JvmSynthetic
     fun getPaywallByVariationIdRequest(id: String, locale: String, segmentId: String, variationId: String) =
         cacheRepository.getProfileId().let { profileId ->
             buildRequest {
@@ -356,30 +390,75 @@ internal class RequestFactory(
         }
 
     @JvmSynthetic
+    fun getOnboardingByVariationIdRequest(id: String, locale: String, segmentId: String, variationId: String) =
+        cacheRepository.getProfileId().let { profileId ->
+            buildRequest {
+                method = GET
+                val crossPlacementEligibility =
+                    cacheRepository.getCrossPlacementInfo()?.placementWithVariationMap?.isEmpty() ?: false
+                val payloadHash = payloadProvider.getPayloadHashForOnboardingRequest(
+                    locale,
+                    segmentId,
+                    crossPlacementEligibility,
+                )
+                endPoint = "$inappsPrefix/$apiKeyPrefix/onboarding/variations/$id/$payloadHash/$variationId/${getDisableCacheQueryParamOrEmpty()}"
+                headers += listOfNotNull(
+                    Request.Header("adapty-paywall-locale", locale),
+                )
+                currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
+                systemLog = BackendAPIRequestData.GetOnboarding.create(apiKeyPrefix, id, locale, variationId)
+            }
+        }
+
+    @JvmSynthetic
     fun getPaywallVariationsFallbackRequest(id: String, locale: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1")).apply {
         method = GET
-        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PAYWALL_LOCALE
+        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PLACEMENT_LOCALE
         val builderVersion = metaInfoRetriever.builderVersion
         endPoint = "$inappsPrefix/$apiKeyPrefix/paywall/variations/$id/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json${getDisableCacheQueryParamOrEmpty()}"
         systemLog = BackendAPIRequestData.GetFallbackPaywallVariations.create(apiKeyPrefix, id, languageCode)
     }.build()
 
     @JvmSynthetic
+    fun getOnboardingVariationsFallbackRequest(id: String, locale: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1")).apply {
+        method = GET
+        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PLACEMENT_LOCALE
+        endPoint = "$inappsPrefix/$apiKeyPrefix/onboarding/variations/$id/$languageCode/fallback.json${getDisableCacheQueryParamOrEmpty()}"
+        systemLog = BackendAPIRequestData.GetFallbackOnboardingVariations.create(apiKeyPrefix, id, languageCode)
+    }.build()
+
+    @JvmSynthetic
     fun getPaywallByVariationIdFallbackRequest(id: String, locale: String, variationId: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1")).apply {
         method = GET
-        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PAYWALL_LOCALE
+        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PLACEMENT_LOCALE
         val builderVersion = metaInfoRetriever.builderVersion
         endPoint = "$inappsPrefix/$apiKeyPrefix/paywall/variations/$id/${variationId}/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json${getDisableCacheQueryParamOrEmpty()}"
         systemLog = BackendAPIRequestData.GetFallbackPaywall.create(apiKeyPrefix, id, languageCode, variationId)
     }.build()
 
     @JvmSynthetic
+    fun getOnboardingByVariationIdFallbackRequest(id: String, locale: String, variationId: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1")).apply {
+        method = GET
+        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PLACEMENT_LOCALE
+        endPoint = "$inappsPrefix/$apiKeyPrefix/onboarding/variations/$id/${variationId}/$languageCode/fallback.json${getDisableCacheQueryParamOrEmpty()}"
+        systemLog = BackendAPIRequestData.GetFallbackOnboarding.create(apiKeyPrefix, id, languageCode, variationId)
+    }.build()
+
+    @JvmSynthetic
     fun getPaywallVariationsUntargetedRequest(id: String, locale: String) = Request.Builder(baseRequest = Request("https://configs-cdn.adapty.io/api/v1")).apply {
         method = GET
-        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PAYWALL_LOCALE
+        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PLACEMENT_LOCALE
         val builderVersion = metaInfoRetriever.builderVersion
         endPoint = "$inappsPrefix/$apiKeyPrefix/paywall/variations/$id/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json"
         systemLog = BackendAPIRequestData.GetUntargetedPaywallVariations.create(apiKeyPrefix, id, languageCode)
+    }.build()
+
+    @JvmSynthetic
+    fun getOnboardingVariationsUntargetedRequest(id: String, locale: String) = Request.Builder(baseRequest = Request("https://configs-cdn.adapty.io/api/v1")).apply {
+        method = GET
+        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PLACEMENT_LOCALE
+        endPoint = "$inappsPrefix/$apiKeyPrefix/onboarding/variations/$id/$languageCode/fallback.json"
+        systemLog = BackendAPIRequestData.GetUntargetedOnboardingVariations.create(apiKeyPrefix, id, languageCode)
     }.build()
 
     @JvmSynthetic
@@ -401,7 +480,7 @@ internal class RequestFactory(
     fun getViewConfigurationFallbackRequest(paywallId: String, locale: String) = Request.Builder(baseRequest = Request("https://fallback.adapty.io/api/v1")).apply {
         method = GET
         val builderVersion = metaInfoRetriever.builderVersion
-        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PAYWALL_LOCALE
+        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PLACEMENT_LOCALE
         endPoint = "$inappsPrefix/$apiKeyPrefix/paywall-builder/$paywallId/$builderVersion/$languageCode/fallback.json${getDisableCacheQueryParamOrEmpty()}"
         systemLog = BackendAPIRequestData.GetFallbackPaywallBuilder.create(apiKeyPrefix, paywallId, builderVersion, languageCode)
     }.build()

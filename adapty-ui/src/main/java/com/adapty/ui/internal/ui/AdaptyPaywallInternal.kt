@@ -260,11 +260,11 @@ private fun createEventCallback(
         }
 
         override fun getTimerStartTimestamp(timerId: String, isPersisted: Boolean): Long? {
-            return viewModel.getTimerStartTimestamp(viewConfig.paywall.placementId, timerId, isPersisted)
+            return viewModel.getTimerStartTimestamp(viewConfig.paywall.placement.id, timerId, isPersisted)
         }
 
         override fun setTimerStartTimestamp(timerId: String, value: Long, isPersisted: Boolean) {
-            viewModel.setTimerStartTimestamp(viewConfig.paywall.placementId, timerId, value, isPersisted)
+            viewModel.setTimerStartTimestamp(viewConfig.paywall.placement.id, timerId, value, isPersisted)
         }
 
         override fun timerEndAtDate(timerId: String): Date {

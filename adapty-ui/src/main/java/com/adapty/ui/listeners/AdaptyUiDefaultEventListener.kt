@@ -22,7 +22,7 @@ public open class AdaptyUiDefaultEventListener : AdaptyUiEventListener {
 
     override fun onActionPerformed(action: AdaptyUI.Action, context: Context) {
         when (action) {
-            AdaptyUI.Action.Close -> (context as? Activity)?.onBackPressed()
+            AdaptyUI.Action.Close -> context.getActivityOrNull()?.onBackPressed()
             is AdaptyUI.Action.OpenUrl -> {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(action.url))
                 try {

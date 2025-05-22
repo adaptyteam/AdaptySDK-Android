@@ -5,40 +5,33 @@ package com.adapty.internal.domain
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
-import com.adapty.errors.AdaptyErrorCode.NO_PRODUCT_IDS_FOUND
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.AnalyticsTracker
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.Request
-import com.adapty.internal.data.cloud.StoreManager
 import com.adapty.internal.data.models.BackendError.Companion.INCORRECT_SEGMENT_HASH_ERROR
+import com.adapty.internal.data.models.Onboarding
 import com.adapty.internal.data.models.PaywallDto
+import com.adapty.internal.data.models.Variation
 import com.adapty.internal.data.models.Variations
-import com.adapty.internal.domain.models.BackendProduct
-import com.adapty.internal.utils.DEFAULT_PAYWALL_LOCALE
+import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
 import com.adapty.internal.utils.DEFAULT_RETRY_COUNT
-import com.adapty.internal.utils.INFINITE_RETRY
 import com.adapty.internal.utils.INF_PAYWALL_TIMEOUT_MILLIS
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.LifecycleManager
 import com.adapty.internal.utils.Logger
 import com.adapty.internal.utils.PAYWALL_TIMEOUT_MILLIS_SHIFT
-import com.adapty.internal.utils.PaywallMapper
-import com.adapty.internal.utils.ProductMapper
 import com.adapty.internal.utils.VariationPicker
 import com.adapty.internal.utils.generateUuid
-import com.adapty.internal.utils.getLocale
 import com.adapty.internal.utils.orDefault
 import com.adapty.internal.utils.retryIfNecessary
 import com.adapty.internal.utils.timeout
 import com.adapty.internal.utils.unlockQuietly
-import com.adapty.models.AdaptyPaywall
-import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.models.AdaptyPlacementFetchPolicy
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
-import com.adapty.utils.FileLocation
-import com.android.billingclient.api.ProductDetails
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.flattenConcat
 import kotlinx.coroutines.flow.flow
@@ -49,51 +42,83 @@ import java.io.IOException
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class ProductsInteractor(
+internal class BasePlacementFetcher(
     private val authInteractor: AuthInteractor,
     private val purchasesInteractor: PurchasesInteractor,
     private val cloudRepository: CloudRepository,
     private val cacheRepository: CacheRepository,
     private val lifecycleManager: LifecycleManager,
-    private val storeManager: StoreManager,
-    private val paywallMapper: PaywallMapper,
-    private val productMapper: ProductMapper,
     private val variationPicker: VariationPicker,
     private val analyticsTracker: AnalyticsTracker,
     private val crossPlacementInfoLock: ReentrantReadWriteLock,
 ) {
 
-    @JvmSynthetic
-    fun getPaywall(id: String, locale: String, fetchPolicy: AdaptyPaywall.FetchPolicy, loadTimeout: Int): Flow<AdaptyPaywall> {
+    fun fetchPaywall(id: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy, loadTimeout: Int): Flow<PaywallDto> {
+        val variationType = VariationType.Paywall
         return getPaywallInternal(
             fetchPolicy = fetchPolicy,
-            fetchFromCloud = { getPaywallFromCloud(id, locale, loadTimeout, generateUuid()) },
+            fetchFromCloud = { getPaywallFromCloud(id, locale, loadTimeout, generateUuid(), variationType) },
             fetchFromCache = {
-                val maxAgeMillis = (fetchPolicy as? AdaptyPaywall.FetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
-                getPaywallFromCache(id, locale, maxAgeMillis)
+                val maxAgeMillis = (fetchPolicy as? AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
+                getPaywallFromCache(id, locale, variationType, maxAgeMillis)
             }
-        )
+        ).filterVariationByTypeOrError { "current variation is not a paywall" }
     }
 
-    @JvmSynthetic
-    fun getPaywallUntargeted(id: String, locale: String, fetchPolicy: AdaptyPaywall.FetchPolicy): Flow<AdaptyPaywall> {
+    fun fetchPaywallUntargeted(id: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy): Flow<PaywallDto> {
+        val variationType = VariationType.Paywall
         return getPaywallInternal(
             fetchPolicy = fetchPolicy,
-            fetchFromCloud = { getPaywallUntargetedFromCloud(id, locale) },
+            fetchFromCloud = { getPaywallUntargetedFromCloud(id, locale, variationType) },
             fetchFromCache = {
-                val maxAgeMillis = (fetchPolicy as? AdaptyPaywall.FetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
-                getPaywallFromCache(id, locale, maxAgeMillis)
+                val maxAgeMillis = (fetchPolicy as? AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
+                getPaywallFromCache(id, locale, variationType, maxAgeMillis)
             }
         )
+            .filterVariationByTypeOrError { "current variation is not a paywall" }
     }
+
+    fun fetchOnboarding(id: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy, loadTimeout: Int): Flow<Onboarding> {
+        val variationType = VariationType.Onboarding
+        return getPaywallInternal(
+            fetchPolicy = fetchPolicy,
+            fetchFromCloud = { getPaywallFromCloud(id, locale, loadTimeout, generateUuid(), variationType) },
+            fetchFromCache = {
+                val maxAgeMillis = (fetchPolicy as? AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
+                getPaywallFromCache(id, locale, variationType, maxAgeMillis)
+            }
+        ).filterVariationByTypeOrError { "current variation is not an onboarding" }
+    }
+
+    fun fetchOnboardingUntargeted(id: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy): Flow<Onboarding> {
+        val variationType = VariationType.Onboarding
+        return getPaywallInternal(
+            fetchPolicy = fetchPolicy,
+            fetchFromCloud = { getPaywallUntargetedFromCloud(id, locale, variationType) },
+            fetchFromCache = {
+                val maxAgeMillis = (fetchPolicy as? AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
+                getPaywallFromCache(id, locale, variationType, maxAgeMillis)
+            }
+        )
+            .filterVariationByTypeOrError { "current variation is not an onboarding" }
+    }
+
+    private inline fun <reified T: Variation> Flow<Variation>.filterVariationByTypeOrError(crossinline errorMessage: () -> String): Flow<T> =
+        map { variation ->
+            variation as? T ?: throw AdaptyError(
+                message = errorMessage(),
+                adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED,
+            )
+        }
+            .filterIsInstance()
 
     private fun getPaywallInternal(
-        fetchPolicy: AdaptyPaywall.FetchPolicy,
-        fetchFromCloud: () -> Flow<AdaptyPaywall>,
-        fetchFromCache: () -> Flow<AdaptyPaywall?>,
-    ): Flow<AdaptyPaywall> {
+        fetchPolicy: AdaptyPlacementFetchPolicy,
+        fetchFromCloud: () -> Flow<Variation>,
+        fetchFromCache: () -> Flow<Variation?>,
+    ): Flow<Variation> {
         return when (fetchPolicy) {
-            is AdaptyPaywall.FetchPolicy.ReloadRevalidatingCacheData -> fetchFromCloud()
+            is AdaptyPlacementFetchPolicy.ReloadRevalidatingCacheData -> fetchFromCloud()
             else -> {
                 fetchFromCache()
                     .flatMapConcat { paywall ->
@@ -107,22 +132,21 @@ internal class ProductsInteractor(
         }
     }
 
-    private fun getPaywallFromCloud(placementId: String, locale: String, loadTimeout: Int, placementRequestId: String): Flow<AdaptyPaywall> {
+    private fun getPaywallFromCloud(placementId: String, locale: String, loadTimeout: Int, placementRequestId: String, variationType: VariationType): Flow<Variation> {
         val placementCloudSource = PlacementCloudSource.Regular(placementRequestId)
 
         val baseFlow = authInteractor.runWhenAuthDataSynced(
             call = {
                 syncPurchasesIfNeeded()
                     .map {
-                        getPaywallOrVariationsFromCloud(placementId, locale, placementCloudSource)
+                        getPaywallOrVariationsFromCloud(placementId, locale, placementCloudSource, variationType)
                     }
             },
             switchIfProfileCreationFailed = {
-                cacheRepository.getPaywallVariationsFallback(placementId)?.let { variations ->
+                getLocalFallbackEntities(placementId)?.let { entities ->
                     val profileId = cacheRepository.getProfileId()
-                    runCatching { extractSingleVariation(variations.data, profileId, placementId, locale, PlacementCloudSource.Fallback) }.getOrNull()?.let { fallbackPaywall ->
-                        flowOf(fallbackPaywall)
-                    }
+                    runCatching { extractSingleVariation(entities, profileId, placementId, locale, PlacementCloudSource.Fallback, variationType) }.getOrNull()
+                        ?.let { fallbackPaywall -> flowOf(fallbackPaywall) }
                 }
             }
         ).flattenConcat()
@@ -135,30 +159,30 @@ internal class ProductsInteractor(
                     result ?: kotlin.run {
                         val prevCheckpoint = checkpointHolder.getAndUpdate(placementCloudSource.placementRequestId, CheckPoint.TimeOut)
                         if (prevCheckpoint is CheckPoint.VariationAssigned)
-                            cloudRepository.getPaywallByVariationIdFallback(placementId, locale, prevCheckpoint.variationId)
-                                .also { paywall -> cacheRepository.savePaywall(placementId, paywall) }
+                            getRemoteFallbackEntityByVariationId(placementId, locale, prevCheckpoint.variationId, variationType)
+                                .also { paywall -> saveEntityToCache(placementId, paywall) }
                         else
-                            getPaywallOrVariationsFallbackFromCloud(placementId, locale)
+                            getPaywallOrVariationsFallbackFromCloud(placementId, locale, variationType)
                     }
                 }
         }
-            .map { paywall -> paywallMapper.map(paywall, productMapper.map(paywall.products)) }
-            .handleFetchPaywallError(placementId, locale, placementCloudSource)
+            .handleFetchPaywallError(placementId, locale, placementCloudSource, variationType)
     }
 
     private fun getPaywallOrVariationsFromCloud(
         placementId: String,
         locale: String,
         placementCloudSource: PlacementCloudSource.Regular,
-    ): PaywallDto {
+        variationType: VariationType,
+    ): Variation {
         val crossPlacementVariationId =
             cacheRepository.getCrossPlacementInfo()?.placementWithVariationMap?.get(placementId)
         if (crossPlacementVariationId != null) {
             checkpointHolder.getAndUpdate(placementCloudSource.placementRequestId, CheckPoint.VariationAssigned(crossPlacementVariationId))
-            return getPaywallByVariationId(placementId, locale, crossPlacementVariationId)
+            return getPaywallByVariationId(placementId, locale, crossPlacementVariationId, variationType)
                 .also { paywall ->
-                    cacheRepository.savePaywall(placementId, paywall)
-                    sendVariationAssignedEvent(paywall)
+                    saveEntityToCache(placementId, paywall)
+                    sendVariationAssignedEvent(paywall, variationType)
                 }
         }
 
@@ -166,7 +190,7 @@ internal class ProductsInteractor(
         val responseData: Pair<Variations, Request.CurrentDataWhenSent?>
         val segmentId = profile.segmentId
         try {
-            responseData = cloudRepository.getPaywallVariations(placementId, locale, segmentId)
+            responseData = cloudRepository.getVariations(placementId, locale, segmentId, variationType)
         } catch (error: Throwable) {
             val isIncorrectSegmentHash = error is AdaptyError && error.backendError != null
                     && error.backendError.containsErrorCode(INCORRECT_SEGMENT_HASH_ERROR)
@@ -174,11 +198,11 @@ internal class ProductsInteractor(
                 throw error
             val cachedProfile = cacheRepository.getProfile()
             if (cachedProfile != null && segmentId != cachedProfile.segmentId)
-                return getPaywallOrVariationsFromCloud(placementId, locale, placementCloudSource)
+                return getPaywallOrVariationsFromCloud(placementId, locale, placementCloudSource, variationType)
             profile = cloudRepository.getProfile().first
             if (segmentId == profile.segmentId)
                 throw error
-            return getPaywallOrVariationsFromCloud(placementId, locale, placementCloudSource)
+            return getPaywallOrVariationsFromCloud(placementId, locale, placementCloudSource, variationType)
         }
 
         val (variations, requestDataWhenSent) = responseData
@@ -189,7 +213,7 @@ internal class ProductsInteractor(
                 adaptyErrorCode = AdaptyErrorCode.PROFILE_WAS_CHANGED
             )
 
-        val cachedPaywall = cacheRepository.getPaywall(placementId, locale)
+        val cachedPaywall = getEntityFromCache(placementId, locale, variationType)
         return if (cachedPaywall != null && variations.snapshotAt < cachedPaywall.snapshotAt) {
             cachedPaywall
         } else {
@@ -199,26 +223,28 @@ internal class ProductsInteractor(
                 placementId,
                 locale,
                 placementCloudSource,
+                variationType,
             )
 
             variation
-                .also { paywall -> cacheRepository.savePaywall(placementId, paywall) }
+                .also { paywall -> saveEntityToCache(placementId, paywall) }
         }
     }
 
     private fun getPaywallOrVariationsFallbackFromCloud(
         placementId: String,
         locale: String,
-    ): PaywallDto {
-        val variations = cloudRepository.getPaywallVariationsFallback(placementId, locale)
-        val cachedPaywall = cacheRepository.getPaywall(placementId, locale)
+        variationType: VariationType,
+    ): Variation {
+        val variations = cloudRepository.getVariationsFallback(placementId, locale, variationType)
+        val cachedPaywall = getEntityFromCache(placementId, locale, variationType)
         return if (cachedPaywall != null && variations.snapshotAt < cachedPaywall.snapshotAt) {
             cachedPaywall
         } else {
             val profileId = cacheRepository.getProfileId()
-            val variation = extractSingleVariation(variations.data, profileId, placementId, locale, PlacementCloudSource.Fallback)
+            val variation = extractSingleVariation(variations.data, profileId, placementId, locale, PlacementCloudSource.Fallback, variationType)
             variation
-                .also { paywall -> cacheRepository.savePaywall(placementId, paywall) }
+                .also { paywall -> saveEntityToCache(placementId, paywall) }
         }
     }
 
@@ -226,11 +252,12 @@ internal class ProductsInteractor(
         placementId: String,
         locale: String,
         variationId: String,
-    ): PaywallDto {
+        variationType: VariationType,
+    ): Variation {
         var profile = cacheRepository.getProfile() ?: cloudRepository.getProfile().first
         val segmentId = profile.segmentId
         try {
-            return cloudRepository.getPaywallByVariationId(placementId, locale, segmentId, variationId)
+            return cloudRepository.getVariationById(placementId, locale, segmentId, variationId, variationType)
         } catch (error: Throwable) {
             val isIncorrectSegmentHash = error is AdaptyError && error.backendError != null
                     && error.backendError.containsErrorCode(INCORRECT_SEGMENT_HASH_ERROR)
@@ -238,21 +265,33 @@ internal class ProductsInteractor(
                 throw error
             val cachedProfile = cacheRepository.getProfile()
             if (cachedProfile != null && segmentId != cachedProfile.segmentId)
-                return getPaywallByVariationId(placementId, locale, variationId)
+                return getPaywallByVariationId(placementId, locale, variationId, variationType)
             profile = cloudRepository.getProfile().first
             if (segmentId == profile.segmentId)
                 throw error
-            return getPaywallByVariationId(placementId, locale, variationId)
+            return getPaywallByVariationId(placementId, locale, variationId, variationType)
         }
     }
 
+    private fun getRemoteFallbackEntityByVariationId(placementId: String, locale: String, variationId: String, variationType: VariationType): Variation {
+        return cloudRepository.getVariationByIdFallback(placementId, locale, variationId, variationType)
+    }
+
+    private fun pickVariation(
+        variations: Collection<Variation>,
+        profileId: String,
+    ): Variation? {
+        return variationPicker.pick(variations, profileId)
+    }
+
     private fun extractSingleVariation(
-        paywalls: Collection<PaywallDto>,
+        paywalls: Collection<Variation>,
         profileId: String,
         placementId: String,
         locale: String,
         placementCloudSource: PlacementCloudSource,
-    ): PaywallDto {
+        variationType: VariationType,
+    ): Variation {
         if (paywalls.isEmpty()) {
             val message = "Paywall couldn't be found: empty list"
             Logger.log(ERROR) { message }
@@ -268,14 +307,14 @@ internal class ProductsInteractor(
             if (paywalls.size == 1) {
                 return paywalls.first()
                     .also { paywall ->
-                        sendVariationAssignedEvent(paywall)
+                        sendVariationAssignedEvent(paywall, variationType)
                     }
             }
 
-            val paywall = variationPicker.pick(paywalls, profileId)
+            val paywall = pickVariation(paywalls, profileId)
 
             if (paywall != null) {
-                sendVariationAssignedEvent(paywall)
+                sendVariationAssignedEvent(paywall, variationType)
                 return paywall
             } else {
                 val message = "Paywall couldn't be found"
@@ -294,11 +333,11 @@ internal class ProductsInteractor(
             val paywall = paywalls.firstOrNull { it.variationId == crossPlacementVariationId }
                 ?: kotlin.run {
                     when (placementCloudSource) {
-                        is PlacementCloudSource.Regular -> getPaywallByVariationId(placementId, locale, crossPlacementVariationId)
-                        else -> cloudRepository.getPaywallByVariationIdFallback(placementId, locale, crossPlacementVariationId)
+                        is PlacementCloudSource.Regular -> getPaywallByVariationId(placementId, locale, crossPlacementVariationId, variationType)
+                        else -> getRemoteFallbackEntityByVariationId(placementId, locale, crossPlacementVariationId, variationType)
                     }
                 }
-            sendVariationAssignedEvent(paywall)
+            sendVariationAssignedEvent(paywall, variationType)
             return paywall
         } else {
             crossPlacementInfoLock.writeLock().lock()
@@ -312,24 +351,25 @@ internal class ProductsInteractor(
                 val paywall = paywalls.firstOrNull { it.variationId == crossPlacementVariationId }
                     ?: kotlin.run {
                         when (placementCloudSource) {
-                            is PlacementCloudSource.Regular -> getPaywallByVariationId(placementId, locale, crossPlacementVariationId)
-                            else -> cloudRepository.getPaywallByVariationIdFallback(placementId, locale, crossPlacementVariationId)
+                            is PlacementCloudSource.Regular -> getPaywallByVariationId(placementId, locale, crossPlacementVariationId, variationType)
+                            else -> getRemoteFallbackEntityByVariationId(placementId, locale, crossPlacementVariationId, variationType)
                         }
                     }
-                sendVariationAssignedEvent(paywall)
+                sendVariationAssignedEvent(paywall, variationType)
                 return paywall
             } else {
-                val paywall = if (paywalls.size == 1) paywalls.first() else variationPicker.pick(paywalls, profileId)
+                val paywall = if (paywalls.size == 1) paywalls.first() else pickVariation(paywalls, profileId)
                 if (paywall != null) {
-                    paywall.crossPlacementInfo?.placementWithVariationMap?.takeIf { it.isNotEmpty() }?.let { paywallCrossPlacementInfo ->
+                    val crossPlacementInfoFroPaywall = paywall.crossPlacementInfo
+                    crossPlacementInfoFroPaywall?.placementWithVariationMap?.takeIf { it.isNotEmpty() }?.let { paywallCrossPlacementInfo ->
                         if (cachedCrossPlacementInfo != null && cachedCrossPlacementInfo.placementWithVariationMap.isEmpty())
-                            cacheRepository.saveCrossPlacementInfoFromPaywall(paywall.crossPlacementInfo.copy(version = cachedCrossPlacementInfo.version))
+                            cacheRepository.saveCrossPlacementInfoFromPaywall(crossPlacementInfoFroPaywall.copy(version = cachedCrossPlacementInfo.version))
                     }
                     val placementRequestId = (placementCloudSource as? PlacementCloudSource.Regular)?.placementRequestId
                     if (placementRequestId != null)
                         checkpointHolder.getAndUpdate(placementRequestId, CheckPoint.VariationAssigned(paywall.variationId))
                     crossPlacementInfoLock.writeLock().unlockQuietly()
-                    sendVariationAssignedEvent(paywall)
+                    sendVariationAssignedEvent(paywall, variationType)
                     return paywall
                 } else {
                     crossPlacementInfoLock.writeLock().unlockQuietly()
@@ -344,25 +384,28 @@ internal class ProductsInteractor(
         }
     }
 
-    private fun sendVariationAssignedEvent(paywall: PaywallDto) {
+    private fun sendVariationAssignedEvent(paywall: Variation, variationType: VariationType) {
         analyticsTracker.trackEvent(
-            "paywall_variation_assigned",
+            when (variationType) {
+                VariationType.Paywall -> "paywall_variation_assigned"
+                VariationType.Onboarding -> "onboarding_variation_assigned"
+            },
             mutableMapOf<String, Any>(
-                "placement_audience_version_id" to paywall.placementAudienceVersionId,
+                "placement_audience_version_id" to paywall.placement.placementAudienceVersionId,
                 "variation_id" to paywall.variationId,
             ),
         )
     }
 
-    private fun Flow<AdaptyPaywall>.handleFetchPaywallError(id: String, locale: String, placementCloudSource: PlacementCloudSource) =
+    private fun Flow<Variation>.handleFetchPaywallError(id: String, locale: String, placementCloudSource: PlacementCloudSource, variationType: VariationType) =
         catch { error ->
             if (error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
-                val cachedPaywall = cacheRepository.getPaywall(id, setOf(locale, DEFAULT_PAYWALL_LOCALE))
+                val cachedPaywall = getEntityFromCache(id, setOf(locale, DEFAULT_PLACEMENT_LOCALE), variationType)
                 val chosenPaywall =
                     if (cachedPaywall == null) {
-                        val fallbackVariations = cacheRepository.getPaywallVariationsFallback(id) ?: throw error
+                        val fallbackEntities = getLocalFallbackEntities(id) ?: throw error
                         val profileId = cacheRepository.getProfileId()
-                        runCatching { extractSingleVariation(fallbackVariations.data, profileId, id, locale, placementCloudSource) }.getOrNull()
+                        runCatching { extractSingleVariation(fallbackEntities, profileId, id, locale, placementCloudSource, variationType) }.getOrNull()
                     } else {
                         val desiredVariationIdIfExists = (placementCloudSource as? PlacementCloudSource.Regular)?.placementRequestId?.let { placementRequestId ->
                             (checkpointHolder.get(placementRequestId) as? CheckPoint.VariationAssigned)?.variationId
@@ -374,17 +417,17 @@ internal class ProductsInteractor(
                             cachedPaywall
                         else {
                             if (desiredVariationIdIfExists != null) {
-                                val fallbackVariations = cacheRepository.getPaywallVariationsFallback(id)
+                                val fallbackEntities = getLocalFallbackEntities(id)
 
-                                val desiredFallbackVariation = fallbackVariations?.data?.firstOrNull { it.variationId == desiredVariationIdIfExists }
+                                val desiredFallbackVariation = fallbackEntities?.firstOrNull { it.variationId == desiredVariationIdIfExists }
 
                                 if (desiredFallbackVariation != null) {
                                     desiredFallbackVariation
                                 } else {
-                                    val fallbackPaywall = fallbackVariations
-                                        ?.let { variations ->
+                                    val fallbackPaywall = fallbackEntities
+                                        ?.let { entities ->
                                             val profileId = cacheRepository.getProfileId()
-                                            runCatching { extractSingleVariation(variations.data, profileId, id, locale, placementCloudSource) }.getOrNull()
+                                            runCatching { extractSingleVariation(entities, profileId, id, locale, placementCloudSource, variationType) }.getOrNull()
                                         }
 
                                     when {
@@ -393,133 +436,65 @@ internal class ProductsInteractor(
                                     }
                                 }
                             } else {
-                                val fallbackPaywall = cacheRepository.getPaywallVariationsFallback(id)
-                                    ?.let { variations ->
+                                val fallbackPaywall = getLocalFallbackEntities(id)
+                                    ?.let { entities ->
                                         val profileId = cacheRepository.getProfileId()
-                                        runCatching { extractSingleVariation(variations.data, profileId, id, locale, placementCloudSource) }.getOrNull()
+                                        runCatching { extractSingleVariation(entities, profileId, id, locale, placementCloudSource, variationType) }.getOrNull()
                                     }
 
                                 fallbackPaywall ?: cachedPaywall
                             }
                         }
                     } ?: throw error
-                emit(paywallMapper.map(chosenPaywall, productMapper.map(chosenPaywall.products)))
+                emit(chosenPaywall)
             } else {
                 throw error
             }
         }
 
-    private fun getPaywallUntargetedFromCloud(id: String, locale: String): Flow<AdaptyPaywall> =
+    private fun getLocalFallbackEntities(placementId: String): List<Variation>? {
+        return cacheRepository.getPaywallVariationsFallback(placementId)?.data
+    }
+
+    private fun getPaywallUntargetedFromCloud(id: String, locale: String, variationType: VariationType): Flow<Variation> =
         lifecycleManager
             .onActivateAllowed()
             .mapLatest {
-                val variations = cloudRepository.getPaywallVariationsUntargeted(id, locale)
-                val cachedPaywall = cacheRepository.getPaywall(id, locale)
+                val variations = cloudRepository.getVariationsUntargeted(id, locale, variationType)
+                val cachedPaywall = getEntityFromCache(id, locale, variationType)
                 val paywall = if (cachedPaywall != null && variations.snapshotAt < cachedPaywall.snapshotAt) {
                     cachedPaywall
                 } else {
                     val profileId = cacheRepository.getProfileId()
-                    val variation = extractSingleVariation(variations.data, profileId, id, locale, PlacementCloudSource.Untargeted)
+                    val variation = extractSingleVariation(variations.data, profileId, id, locale, PlacementCloudSource.Untargeted, variationType)
                     variation
-                        .also { paywall -> cacheRepository.savePaywall(id, paywall) }
+                        .also { paywall -> saveEntityToCache(id, paywall) }
                 }
-                paywallMapper.map(paywall, productMapper.map(paywall.products))
+                paywall
             }
             .retryIfNecessary(DEFAULT_RETRY_COUNT)
-            .handleFetchPaywallError(id, locale, PlacementCloudSource.Untargeted)
+            .handleFetchPaywallError(id, locale, PlacementCloudSource.Untargeted, variationType)
 
-    private fun getPaywallFromCache(id: String, locale: String, maxAgeMillis: Long?) =
+    private fun getPaywallFromCache(placementId: String, locale: String, variationType: VariationType, maxAgeMillis: Long?) =
         flow {
-            val cachedPaywall = cacheRepository.getPaywall(id, setOf(locale, DEFAULT_PAYWALL_LOCALE), maxAgeMillis)
-            emit(
-                cachedPaywall?.let { paywall ->
-                    val products = productMapper.map(paywall.products)
-                    paywallMapper.map(paywall, products)
-                }
-            )
+            val cachedPaywall = getEntityFromCache(placementId, setOf(locale, DEFAULT_PLACEMENT_LOCALE), variationType, maxAgeMillis)
+            emit(cachedPaywall)
         }
 
-    @JvmSynthetic
-    fun getViewConfiguration(paywall: AdaptyPaywall, loadTimeout: Int) : Flow<Map<String, Any>> {
-        val locale = paywall.getLocale()
-        val localViewConfig = (paywall.viewConfig?.takeIf { config -> config["paywall_builder_config"] != null })
-            ?: (cacheRepository.getPaywall(paywall.placementId, locale)
-                ?.takeIf { cachedPaywall ->
-                    cachedPaywall.variationId == paywall.variationId
-                            && cachedPaywall.paywallId == paywall.paywallId
-                            && cachedPaywall.revision == paywall.revision
-                            && cachedPaywall.snapshotAt == paywall.snapshotAt
-                }?.paywallBuilder)
-        if (localViewConfig != null)
-            return flowOf(localViewConfig)
-
-        val baseFlow = authInteractor.runWhenAuthDataSynced {
-            cloudRepository.getViewConfiguration(paywall.variationId, locale)
-        }
-
-        return if (loadTimeout == INF_PAYWALL_TIMEOUT_MILLIS) {
-            baseFlow
-        } else {
-            timeout(baseFlow, loadTimeout - PAYWALL_TIMEOUT_MILLIS_SHIFT)
-        }
-            .map { viewConfig ->
-                viewConfig ?: cloudRepository.getViewConfigurationFallback(paywall.paywallId, locale)
-            }
+    private fun saveEntityToCache(placementId: String, entity: Variation) {
+        cacheRepository.saveVariation(placementId, entity)
     }
-
-    @JvmSynthetic
-    fun getPaywallProducts(paywall: AdaptyPaywall) : Flow<List<AdaptyPaywallProduct>> =
-        flow {
-            emit(paywall.products)
-        }.flatMapConcat { products ->
-            getBillingInfo(products, maxAttemptCount = DEFAULT_RETRY_COUNT)
-                .map { billingInfo ->
-                    productMapper.map(products, billingInfo, paywall)
-                }
-        }
-
-    @JvmSynthetic
-    fun getProductsOnStart() =
-        lifecycleManager.onActivateAllowed()
-            .mapLatest { cloudRepository.getProductIds() }
-            .retryIfNecessary(INFINITE_RETRY)
-            .flatMapConcat { productIds -> storeManager.queryProductDetails(productIds, INFINITE_RETRY) }
-
-    @JvmSynthetic
-    fun setFallbackPaywalls(source: FileLocation) =
-        flow {
-            emit(cacheRepository.saveFallbackPaywalls(source))
-        }
-
-    private fun getBillingInfo(
-        products: List<BackendProduct>,
-        maxAttemptCount: Long,
-    ) : Flow<Map<String, ProductDetails>> {
-        if (products.isEmpty())
-            throwNoProductIdsFoundError()
-        val productIds = products.map { it.vendorProductId }.distinct()
-        return storeManager.queryProductDetails(productIds, maxAttemptCount)
-            .map { productDetailsList ->
-                if (productDetailsList.isEmpty())
-                    throwNoProductIdsFoundError()
-                productDetailsList.associateBy { productDetails -> productDetails.productId }
-            }
+    private fun getEntityFromCache(placementId: String, locales: Set<String>, variationType: VariationType, maxAgeMillis: Long? = null): Variation? {
+        return cacheRepository.getVariation(placementId, locales, variationType, maxAgeMillis)
     }
+    private fun getEntityFromCache(placementId: String, locale: String, variationType: VariationType, maxAgeMillis: Long? = null): Variation? =
+        getEntityFromCache(placementId, setOf(locale), variationType, maxAgeMillis)
 
     private suspend fun syncPurchasesIfNeeded() =
         purchasesInteractor
             .syncPurchasesIfNeeded()
             .map { true }
             .catch { emit(false) }
-
-    private fun throwNoProductIdsFoundError(): Nothing {
-        val message = "No In-App Purchase product identifiers were found."
-        Logger.log(ERROR) { message }
-        throw AdaptyError(
-            message = message,
-            adaptyErrorCode = NO_PRODUCT_IDS_FOUND
-        )
-    }
 
     private val checkpointHolder = FetchPaywallCheckpointHolder()
 }
@@ -564,4 +539,8 @@ private sealed class PlacementCloudSource {
     class Regular(val placementRequestId: String): PlacementCloudSource()
     object Fallback: PlacementCloudSource()
     object Untargeted: PlacementCloudSource()
+}
+
+internal enum class VariationType {
+    Paywall, Onboarding
 }

@@ -7,7 +7,10 @@ import android.os.Looper
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyError.RetryType
 import com.adapty.errors.AdaptyErrorCode
+import com.adapty.internal.data.models.Onboarding
+import com.adapty.internal.data.models.OnboardingBuilder
 import com.adapty.internal.data.models.PaywallDto
+import com.adapty.internal.data.models.Variation
 import com.adapty.models.AdaptyPaywall
 import com.adapty.utils.TimeInterval
 import com.adapty.utils.seconds
@@ -132,9 +135,9 @@ internal const val INFINITE_RETRY = -1L
 internal const val DEFAULT_RETRY_COUNT = 3L
 
 @JvmSynthetic
-internal const val DEFAULT_PAYWALL_LOCALE = "en"
+internal const val DEFAULT_PLACEMENT_LOCALE = "en"
 
-internal const val VERSION_NAME = "3.7.0"
+internal const val VERSION_NAME = "3.8.0"
 
 /**
  * @suppress
@@ -155,21 +158,27 @@ internal const val INF_PAYWALL_TIMEOUT_MILLIS = Int.MAX_VALUE
 internal val noLetterRegex by lazy { Pattern.compile("[^\\p{L}]") }
 
 @JvmSynthetic
-internal fun PaywallDto.getLanguageCode() =
-    setOfNotNull(remoteConfig?.lang, getLocaleFromViewConfig(paywallBuilder))
+internal fun Variation.getLanguageCode() =
+    (when (this) {
+        is PaywallDto -> listOfNotNull(remoteConfig?.lang, getLocaleFromViewConfig(paywallBuilder))
+        is Onboarding -> listOfNotNull(remoteConfig?.lang, getLocaleFromOnboardingConfig(viewConfig))
+    })
         .firstNotNullOfOrNull { locale ->
-            extractLanguageCode(locale)?.takeIf { it != DEFAULT_PAYWALL_LOCALE }
-        } ?: DEFAULT_PAYWALL_LOCALE
+            extractLanguageCode(locale)?.takeIf { it != DEFAULT_PLACEMENT_LOCALE }
+        } ?: DEFAULT_PLACEMENT_LOCALE
 
 @JvmSynthetic
 internal fun getLocaleFromViewConfig(viewConfig: Map<String, Any>?) =
     viewConfig?.get("lang") as? String
 
+internal fun getLocaleFromOnboardingConfig(viewConfig: OnboardingBuilder) =
+    viewConfig.lang
+
 @JvmSynthetic
 internal fun AdaptyPaywall.getLocale() =
     setOfNotNull(remoteConfig?.locale, getLocaleFromViewConfig(viewConfig))
-        .firstOrNull { it != DEFAULT_PAYWALL_LOCALE }
-        ?: DEFAULT_PAYWALL_LOCALE
+        .firstOrNull { it != DEFAULT_PLACEMENT_LOCALE }
+        ?: DEFAULT_PLACEMENT_LOCALE
 
 @JvmSynthetic
 internal fun extractLanguageCode(locale: String) =

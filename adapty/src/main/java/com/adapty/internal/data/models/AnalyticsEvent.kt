@@ -3,8 +3,8 @@ package com.adapty.internal.data.models
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.internal.domain.models.PurchaseableProduct
-import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.models.AdaptyPlacementFetchPolicy
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.utils.TransactionInfo
 import com.android.billingclient.api.ProductDetails
@@ -105,16 +105,16 @@ internal class AnalyticsEvent(
                 fun create(
                     placementId: String,
                     locale: String?,
-                    fetchPolicy: AdaptyPaywall.FetchPolicy,
+                    fetchPolicy: AdaptyPlacementFetchPolicy,
                     loadTimeoutMillis: Int,
                 ) =
                     GetPaywall(
                         placementId,
                         locale,
                         when (fetchPolicy) {
-                            is AdaptyPaywall.FetchPolicy.ReloadRevalidatingCacheData -> mapOf("type" to "reload_revalidating_cache_data")
-                            is AdaptyPaywall.FetchPolicy.ReturnCacheDataElseLoad -> mapOf("type" to "return_cache_data_else_load")
-                            is AdaptyPaywall.FetchPolicy.ReturnCacheDataIfNotExpiredElseLoad -> mapOf(
+                            is AdaptyPlacementFetchPolicy.ReloadRevalidatingCacheData -> mapOf("type" to "reload_revalidating_cache_data")
+                            is AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad -> mapOf("type" to "return_cache_data_else_load")
+                            is AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad -> mapOf(
                                 "type" to "return_cache_data_else_load",
                                 "max_age" to fetchPolicy.maxAgeMillis / 1000.0,
                             )
@@ -137,6 +137,38 @@ internal class AnalyticsEvent(
                     GetPaywallProducts(
                         placementId,
                         "get_paywall_products",
+                    )
+            }
+        }
+
+        class GetOnboarding private constructor(
+            val placementId: String,
+            val locale: String?,
+            val fetchPolicy: Map<String, Any>,
+            val loadTimeout: Double,
+            methodName: String
+        ) : SDKMethodRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    placementId: String,
+                    locale: String?,
+                    fetchPolicy: AdaptyPlacementFetchPolicy,
+                    loadTimeoutMillis: Int,
+                ) =
+                    GetOnboarding(
+                        placementId,
+                        locale,
+                        when (fetchPolicy) {
+                            is AdaptyPlacementFetchPolicy.ReloadRevalidatingCacheData -> mapOf("type" to "reload_revalidating_cache_data")
+                            is AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad -> mapOf("type" to "return_cache_data_else_load")
+                            is AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad -> mapOf(
+                                "type" to "return_cache_data_else_load",
+                                "max_age" to fetchPolicy.maxAgeMillis / 1000.0,
+                            )
+                        },
+                        loadTimeoutMillis / 1000.0,
+                        "get_onboarding",
                     )
             }
         }
@@ -244,20 +276,49 @@ internal class AnalyticsEvent(
                 fun create(
                     placementId: String,
                     locale: String?,
-                    fetchPolicy: AdaptyPaywall.FetchPolicy,
+                    fetchPolicy: AdaptyPlacementFetchPolicy,
                 ) =
                     GetUntargetedPaywall(
                         placementId,
                         locale,
                         when (fetchPolicy) {
-                            is AdaptyPaywall.FetchPolicy.ReloadRevalidatingCacheData -> mapOf("type" to "reload_revalidating_cache_data")
-                            is AdaptyPaywall.FetchPolicy.ReturnCacheDataElseLoad -> mapOf("type" to "return_cache_data_else_load")
-                            is AdaptyPaywall.FetchPolicy.ReturnCacheDataIfNotExpiredElseLoad -> mapOf(
+                            is AdaptyPlacementFetchPolicy.ReloadRevalidatingCacheData -> mapOf("type" to "reload_revalidating_cache_data")
+                            is AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad -> mapOf("type" to "return_cache_data_else_load")
+                            is AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad -> mapOf(
                                 "type" to "return_cache_data_else_load",
                                 "max_age" to fetchPolicy.maxAgeMillis / 1000.0,
                             )
                         },
                         "get_untargeted_paywall",
+                    )
+            }
+        }
+
+        class GetUntargetedOnboarding private constructor(
+            val placementId: String,
+            val locale: String?,
+            val fetchPolicy: Map<String, Any>,
+            methodName: String
+        ) : SDKMethodRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    placementId: String,
+                    locale: String?,
+                    fetchPolicy: AdaptyPlacementFetchPolicy,
+                ) =
+                    GetUntargetedOnboarding(
+                        placementId,
+                        locale,
+                        when (fetchPolicy) {
+                            is AdaptyPlacementFetchPolicy.ReloadRevalidatingCacheData -> mapOf("type" to "reload_revalidating_cache_data")
+                            is AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad -> mapOf("type" to "return_cache_data_else_load")
+                            is AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad -> mapOf(
+                                "type" to "return_cache_data_else_load",
+                                "max_age" to fetchPolicy.maxAgeMillis / 1000.0,
+                            )
+                        },
+                        "get_untargeted_onboarding",
                     )
             }
         }
@@ -443,6 +504,53 @@ internal class AnalyticsEvent(
             }
         }
 
+        class GetFallbackOnboarding private constructor(
+            val apiPrefix: String,
+            val placementId: String,
+            val languageCode: String,
+            val variationId: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    apiPrefix: String,
+                    placementId: String,
+                    languageCode: String,
+                    variationId: String,
+                ) =
+                    GetFallbackOnboarding(
+                        apiPrefix,
+                        placementId,
+                        languageCode,
+                        variationId,
+                        "get_fallback_onboarding",
+                    )
+            }
+        }
+
+        class GetFallbackOnboardingVariations private constructor(
+            val apiPrefix: String,
+            val placementId: String,
+            val languageCode: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    apiPrefix: String,
+                    placementId: String,
+                    languageCode: String,
+                ) =
+                    GetFallbackOnboardingVariations(
+                        apiPrefix,
+                        placementId,
+                        languageCode,
+                        "get_fallback_onboarding_variations",
+                    )
+            }
+        }
+
         class GetUntargetedPaywallVariations private constructor(
             val apiPrefix: String,
             val placementId: String,
@@ -528,6 +636,81 @@ internal class AnalyticsEvent(
                     GetPaywallBuilder(
                         variationId,
                         "get_paywall_builder",
+                    )
+            }
+        }
+
+        class GetUntargetedOnboardingVariations private constructor(
+            val apiPrefix: String,
+            val placementId: String,
+            val languageCode: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    apiPrefix: String,
+                    placementId: String,
+                    languageCode: String,
+                ) =
+                    GetUntargetedOnboardingVariations(
+                        apiPrefix,
+                        placementId,
+                        languageCode,
+                        "get_untargeted_onboarding_variations",
+                    )
+            }
+        }
+
+        class GetOnboarding private constructor(
+            val apiPrefix: String,
+            val placementId: String,
+            val locale: String,
+            val variationId: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    apiPrefix: String,
+                    placementId: String,
+                    locale: String,
+                    variationId: String,
+                ) =
+                    GetOnboarding(
+                        apiPrefix,
+                        placementId,
+                        locale,
+                        variationId,
+                        "get_onboarding",
+                    )
+            }
+        }
+
+        class GetOnboardingVariations private constructor(
+            val apiPrefix: String,
+            val placementId: String,
+            val locale: String,
+            val segmentId: String,
+            val md5: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    apiPrefix: String,
+                    placementId: String,
+                    locale: String,
+                    segmentId: String,
+                    md5: String,
+                ) =
+                    GetOnboardingVariations(
+                        apiPrefix,
+                        placementId,
+                        locale,
+                        segmentId,
+                        md5,
+                        "get_onboarding_variations",
                     )
             }
         }

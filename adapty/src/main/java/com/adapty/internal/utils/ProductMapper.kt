@@ -149,7 +149,7 @@ internal class ProductMapper(
             localizedTitle = productDetails.name,
             localizedDescription = productDetails.description,
             paywallName = paywall.name,
-            paywallABTestName = paywall.abTestName,
+            paywallABTestName = paywall.placement.abTestName,
             variationId = paywall.variationId,
             price = AdaptyPaywallProduct.Price(
                 amount = priceFromMicros(priceAmountMicros),

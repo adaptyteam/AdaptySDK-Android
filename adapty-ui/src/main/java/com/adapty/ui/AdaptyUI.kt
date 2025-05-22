@@ -14,6 +14,7 @@ import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.DEFAULT_PAYWALL_TIMEOUT
 import com.adapty.internal.utils.HashingHelper
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.models.AdaptyOnboarding
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.internal.cache.CacheCleanupService
@@ -61,6 +62,16 @@ import com.adapty.ui.listeners.AdaptyUiObserverModeHandler
 import com.adapty.ui.listeners.AdaptyUiPersonalizedOfferResolver
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.adapty.ui.listeners.AdaptyUiTimerResolver
+import com.adapty.ui.onboardings.AdaptyOnboardingConfiguration
+import com.adapty.ui.onboardings.AdaptyOnboardingView
+import com.adapty.ui.onboardings.internal.serialization.MetaParamsParser
+import com.adapty.ui.onboardings.internal.serialization.OnboardingActionsParser
+import com.adapty.ui.onboardings.internal.serialization.OnboardingCommonDeserializer
+import com.adapty.ui.onboardings.internal.serialization.OnboardingCommonEventParser
+import com.adapty.ui.onboardings.internal.serialization.OnboardingEventsParser
+import com.adapty.ui.onboardings.internal.serialization.OnboardingLoadedEventParser
+import com.adapty.ui.onboardings.internal.serialization.OnboardingStateUpdatedParamsParser
+import com.adapty.ui.onboardings.listeners.AdaptyOnboardingEventListener
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import com.adapty.utils.ResultCallback
@@ -137,6 +148,20 @@ public object AdaptyUI {
         }
     }
 
+    @JvmStatic
+    @UiThread
+    public fun getOnboardingView(
+        activity: Activity,
+        viewConfig: AdaptyOnboardingConfiguration,
+        eventListener: AdaptyOnboardingEventListener,
+    ): AdaptyOnboardingView {
+        return AdaptyOnboardingView(activity).apply {
+            id = View.generateViewId()
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            show(viewConfig, eventListener)
+        }
+    }
+
     /**
      * If you are using the [Paywall Builder](https://adapty.io/docs/adapty-paywall-builder),
      * you can use this method to get a configuration object for your paywall.
@@ -164,6 +189,11 @@ public object AdaptyUI {
                 viewConfigMapper.map(rawConfig, paywall)
             })
         }
+    }
+
+    @JvmStatic
+    public fun getOnboardingConfiguration(onboarding: AdaptyOnboarding): AdaptyOnboardingConfiguration {
+        return AdaptyOnboardingConfiguration(onboarding)
     }
 
     private fun preloadMedia(rawConfig: Map<String, Any>) {
@@ -508,6 +538,17 @@ public object AdaptyUI {
                 }),
                 AdaptyUiVideoAccessor::class to Dependencies.singleVariantDiObject({
                     adaptyUiVideoAccessor
+                }),
+                OnboardingCommonDeserializer::class to Dependencies.singleVariantDiObject({
+                    val metaParamsParser = MetaParamsParser()
+                    val onboardingStateUpdatedParamsParser = OnboardingStateUpdatedParamsParser()
+                    val onboardingEventsParser = OnboardingEventsParser(metaParamsParser)
+                    val onboardingActionsParser = OnboardingActionsParser(metaParamsParser, onboardingStateUpdatedParamsParser)
+                    val onboardingLoadedEventParser = OnboardingLoadedEventParser(metaParamsParser)
+                    val onboardingCommonEventParser = OnboardingCommonEventParser(onboardingEventsParser, onboardingLoadedEventParser)
+                    OnboardingCommonDeserializer(
+                        onboardingActionsParser, onboardingCommonEventParser,
+                    )
                 }),
             )
         )

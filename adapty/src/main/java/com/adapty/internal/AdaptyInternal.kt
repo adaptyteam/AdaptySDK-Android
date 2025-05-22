@@ -12,7 +12,8 @@ import com.adapty.internal.data.cloud.AnalyticsTracker
 import com.adapty.internal.data.models.AnalyticsEvent.SDKMethodRequestData
 import com.adapty.internal.data.models.AnalyticsEvent.SDKMethodResponseData
 import com.adapty.internal.domain.AuthInteractor
-import com.adapty.internal.domain.ProductsInteractor
+import com.adapty.internal.domain.OnboardingInteractor
+import com.adapty.internal.domain.PaywallInteractor
 import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.domain.PurchasesInteractor
 import com.adapty.internal.utils.*
@@ -33,7 +34,8 @@ internal class AdaptyInternal(
     private val authInteractor: AuthInteractor,
     private val profileInteractor: ProfileInteractor,
     private val purchasesInteractor: PurchasesInteractor,
-    private val productsInteractor: ProductsInteractor,
+    private val paywallInteractor: PaywallInteractor,
+    private val onboardingInteractor: OnboardingInteractor,
     private val analyticsTracker: AnalyticsTracker,
     private val lifecycleAwareRequestRunner: LifecycleAwareRequestRunner,
     private val lifecycleManager: LifecycleManager,
@@ -127,7 +129,7 @@ internal class AdaptyInternal(
                 }
                 .collect()
         }
-        execute { productsInteractor.getProductsOnStart().catch { }.collect() }
+        execute { paywallInteractor.getProductsOnStart().catch { }.collect() }
     }
 
     @JvmSynthetic
@@ -218,14 +220,14 @@ internal class AdaptyInternal(
     fun getPaywall(
         id: String,
         locale: String,
-        fetchPolicy: AdaptyPaywall.FetchPolicy,
+        fetchPolicy: AdaptyPlacementFetchPolicy,
         loadTimeout: TimeInterval,
         callback: ResultCallback<AdaptyPaywall>
     ) {
         val requestEvent = SDKMethodRequestData.GetPaywall.create(id, locale, fetchPolicy, loadTimeout.toMillis())
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
-            productsInteractor
+            paywallInteractor
                 .getPaywall(id, locale, fetchPolicy, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT).toMillis())
                 .onSingleResult { result ->
                     if (result is AdaptyResult.Success) {
@@ -244,13 +246,13 @@ internal class AdaptyInternal(
     fun getPaywallForDefaultAudience(
         id: String,
         locale: String,
-        fetchPolicy: AdaptyPaywall.FetchPolicy,
+        fetchPolicy: AdaptyPlacementFetchPolicy,
         callback: ResultCallback<AdaptyPaywall>
     ) {
         val requestEvent = SDKMethodRequestData.GetUntargetedPaywall.create(id, locale, fetchPolicy)
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
-            productsInteractor
+            paywallInteractor
                 .getPaywallUntargeted(id, locale, fetchPolicy)
                 .onSingleResult { result ->
                     if (result is AdaptyResult.Success) {
@@ -287,7 +289,7 @@ internal class AdaptyInternal(
             return
         }
         execute {
-            productsInteractor
+            paywallInteractor
                 .getViewConfiguration(paywall, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT).toMillis())
                 .onSingleResult { result ->
                     analyticsTracker.trackSystemEvent(
@@ -304,10 +306,10 @@ internal class AdaptyInternal(
         paywall: AdaptyPaywall,
         callback: ResultCallback<List<AdaptyPaywallProduct>>
     ) {
-        val requestEvent = SDKMethodRequestData.GetPaywallProducts.create(paywall.placementId)
+        val requestEvent = SDKMethodRequestData.GetPaywallProducts.create(paywall.placement.id)
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
-            productsInteractor
+            paywallInteractor
                 .getPaywallProducts(paywall)
                 .onSingleResult { result ->
                     analyticsTracker.trackSystemEvent(
@@ -320,13 +322,58 @@ internal class AdaptyInternal(
     }
 
     @JvmSynthetic
-    fun setFallbackPaywalls(source: FileLocation, callback: ErrorCallback?) {
-        val requestEvent = SDKMethodRequestData.create("set_fallback_paywalls")
+    fun getOnboarding(
+        id: String,
+        locale: String,
+        fetchPolicy: AdaptyPlacementFetchPolicy,
+        loadTimeout: TimeInterval,
+        callback: ResultCallback<AdaptyOnboarding>
+    ) {
+        val requestEvent = SDKMethodRequestData.GetOnboarding.create(id, locale, fetchPolicy, loadTimeout.toMillis())
+        analyticsTracker.trackSystemEvent(requestEvent)
+        execute {
+            onboardingInteractor
+                .getOnboarding(id, locale, fetchPolicy, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT).toMillis())
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result)
+                }
+                .collect()
+        }
+    }
+
+    @JvmSynthetic
+    fun getOnboardingForDefaultAudience(
+        id: String,
+        locale: String,
+        fetchPolicy: AdaptyPlacementFetchPolicy,
+        callback: ResultCallback<AdaptyOnboarding>
+    ) {
+        val requestEvent = SDKMethodRequestData.GetUntargetedOnboarding.create(id, locale, fetchPolicy)
+        analyticsTracker.trackSystemEvent(requestEvent)
+        execute {
+            onboardingInteractor
+                .getOnboardingUntargeted(id, locale, fetchPolicy)
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result)
+                }
+                .collect()
+        }
+    }
+
+    @JvmSynthetic
+    fun setFallback(source: FileLocation, callback: ErrorCallback?) {
+        val requestEvent = SDKMethodRequestData.create("set_fallback")
         analyticsTracker.trackSystemEvent(requestEvent)
         if (source is FileLocation.Uri) {
             val scheme = source.uri.scheme?.lowercase(Locale.ENGLISH)
             if (scheme.orEmpty() !in setOf(ContentResolver.SCHEME_ANDROID_RESOURCE, ContentResolver.SCHEME_CONTENT, ContentResolver.SCHEME_FILE)) {
-                val errorMessage = "The fallback paywalls' URI has an unsupported scheme: $scheme"
+                val errorMessage = "The fallback file URI has an unsupported scheme: $scheme"
                 Logger.log(ERROR) { errorMessage }
                 val e = AdaptyError(
                     message = errorMessage,
@@ -340,8 +387,8 @@ internal class AdaptyInternal(
             }
         }
         execute {
-            productsInteractor
-                .setFallbackPaywalls(source)
+            paywallInteractor
+                .setFallback(source)
                 .onSingleResult { result ->
                     val error = result.errorOrNull()
                     analyticsTracker.trackSystemEvent(
@@ -394,6 +441,15 @@ internal class AdaptyInternal(
                 },
             completion = callback,
         )
+    }
+
+    fun logShowOnboardingInternal(
+        onboarding: AdaptyOnboarding,
+        screenName: String?,
+        screenOrder: Int,
+        isLastScreen: Boolean,
+    ) {
+        onboardingInteractor.logShowOnboardingInternal(onboarding, screenName, screenOrder, isLastScreen)
     }
 
     @JvmSynthetic

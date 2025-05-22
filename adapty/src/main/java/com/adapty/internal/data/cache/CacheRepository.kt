@@ -4,6 +4,7 @@ package com.adapty.internal.data.cache
 
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.*
+import com.adapty.internal.domain.VariationType
 import com.adapty.internal.utils.FallbackPaywallRetriever
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.ProfileStateChange
@@ -257,7 +258,7 @@ internal class CacheRepository(
     fun getFallbackPaywallsSnapshotAt() =
         getFallbackPaywallsMetaInfo()?.meta?.snapshotAt
 
-    private fun getFallbackPaywallsMetaInfo() = cache[FALLBACK_PAYWALLS] as? FallbackPaywallsInfo
+    private fun getFallbackPaywallsMetaInfo() = cache[FALLBACK_FILE] as? FallbackPaywallsInfo
 
     @JvmSynthetic
     fun getSyncedPurchases() =
@@ -284,28 +285,66 @@ internal class CacheRepository(
     var analyticsConfig = AnalyticsConfig.DEFAULT
 
     fun getPaywall(id: String, locale: String, maxAgeMillis: Long? = null) =
-        getPaywall(id, setOf(locale), maxAgeMillis)
+        getVariation(id, setOf(locale), VariationType.Paywall, maxAgeMillis) as? PaywallDto
 
-    fun getPaywall(id: String, locales: Set<String>, maxAgeMillis: Long? = null): PaywallDto? {
-        return getData<CacheEntity<PaywallDto>>(getPaywallCacheKey(id))?.let { (paywall, version, cachedAt) ->
-            if (version < CURRENT_CACHED_PAYWALL_VERSION) return@let null
+    fun getVariation(id: String, locales: Set<String>, variationType: VariationType, maxAgeMillis: Long? = null): Variation? {
+        val cacheKey: String
+        val cacheVersion: Int
+
+        when (variationType) {
+            VariationType.Paywall -> {
+                cacheKey = getPaywallCacheKey(id)
+                cacheVersion = CURRENT_CACHED_PAYWALL_VERSION
+            }
+            VariationType.Onboarding -> {
+                cacheKey = getOnboardingCacheKey(id)
+                cacheVersion = CURRENT_CACHED_ONBOARDING_VERSION
+            }
+        }
+
+        return getData<CacheEntity<Variation>>(cacheKey)?.let { (variation, version, cachedAt) ->
+            if (version < cacheVersion) return@let null
             if ((maxAgeMillis != null) && (System.currentTimeMillis() - cachedAt > maxAgeMillis)) return@let null
             val languageCodes = locales.mapNotNull { locale -> extractLanguageCode(locale) }
-            if (paywall.getLanguageCode() !in languageCodes) return@let null
-            paywall
+            if (variation.getLanguageCode() !in languageCodes) return@let null
+            variation
         }
     }
 
-    fun savePaywall(id: String, paywallDto: PaywallDto) {
+    fun saveVariation(id: String, variation: Variation) {
+        when (variation) {
+            is PaywallDto -> savePaywall(id, variation)
+            is Onboarding -> saveOnboarding(id, variation)
+        }
+    }
+
+    private fun savePaywall(id: String, paywallDto: PaywallDto) {
         saveData(getPaywallCacheKey(id), CacheEntity(paywallDto, CURRENT_CACHED_PAYWALL_VERSION))
     }
 
+    private fun saveOnboarding(id: String, onboarding: Onboarding) {
+        saveData(getOnboardingCacheKey(id), CacheEntity(onboarding, CURRENT_CACHED_ONBOARDING_VERSION))
+    }
+
     private fun getPaywallCacheKey(id: String) =
-        "$PAYWALL_RESPONSE_START_PART${id}$PAYWALL_RESPONSE_END_PART"
+        getVariationCacheKey(id, PAYWALL_RESPONSE_START_PART)
+
+    private fun getOnboardingCacheKey(id: String) =
+        getVariationCacheKey(id, ONBOARDING_RESPONSE_START_PART)
+
+    private fun getVariationCacheKey(id: String, startPart: String) =
+        "$startPart${id}$VARIATION_RESPONSE_END_PART"
+
+    fun getOnboardingVariationId() = getString(ONBOARDING_VARIATION_ID)
+
+    fun saveOnboardingVariationId(onboardingVariationId: String) {
+        cache[ONBOARDING_VARIATION_ID] = onboardingVariationId
+        preferenceManager.saveString(ONBOARDING_VARIATION_ID, onboardingVariationId)
+    }
 
     @JvmSynthetic
-    fun saveFallbackPaywalls(source: FileLocation) {
-        cache[FALLBACK_PAYWALLS] = fallbackPaywallRetriever.getMetaInfo(source)
+    fun saveFallback(source: FileLocation) {
+        cache[FALLBACK_FILE] = fallbackPaywallRetriever.getMetaInfo(source)
     }
 
     @JvmSynthetic
@@ -443,6 +482,7 @@ internal class CacheRepository(
     }
 
     private companion object {
+        private const val CURRENT_CACHED_ONBOARDING_VERSION = 1
         private const val CURRENT_CACHED_PAYWALL_VERSION = 2
     }
 

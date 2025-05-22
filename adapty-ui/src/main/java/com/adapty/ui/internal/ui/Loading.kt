@@ -1,6 +1,5 @@
 package com.adapty.ui.internal.ui
 
-import android.util.TypedValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -15,9 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.adapty.ui.R
 import com.adapty.ui.internal.utils.LOADING_BG_COLOR
 import com.adapty.ui.internal.utils.LOADING_SIZE
+import com.adapty.ui.internal.utils.getProgressCustomColorOrNull
 
 @Composable
 internal fun Loading(modifier: Modifier = Modifier) {
@@ -31,12 +30,7 @@ internal fun Loading(modifier: Modifier = Modifier) {
         val context = LocalContext.current
 
         val circularColor = remember {
-            val typedValue = TypedValue()
-            if (context.theme.resolveAttribute(R.attr.adapty_progressIndicatorColor, typedValue, true)) {
-                kotlin.runCatching { Color(typedValue.data) }.getOrNull()
-            } else {
-                null
-            }
+            context.getProgressCustomColorOrNull()?.let { Color(it) }
         }
 
         CircularProgressIndicator(

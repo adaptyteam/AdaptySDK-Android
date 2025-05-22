@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class Variations(
-    val data: List<PaywallDto>,
+    val data: List<Variation>,
     @SerializedName("snapshot_at")
     val snapshotAt: Long,
     val version: Int,

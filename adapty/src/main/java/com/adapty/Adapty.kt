@@ -13,7 +13,7 @@ import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.AdaptyInternal
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.di.Dependencies.inject
-import com.adapty.internal.utils.DEFAULT_PAYWALL_LOCALE
+import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
 import com.adapty.internal.utils.DEFAULT_PAYWALL_TIMEOUT
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.Logger
@@ -179,7 +179,7 @@ public object Adapty {
      * Example: `"en"` means English, `"en-US"` represents US English.
      * If the parameter is omitted, the paywall will be returned in the default locale.
      *
-     * @param[fetchPolicy] By default SDK will try to load data from server and will return cached data in case of failure. Otherwise use [AdaptyPaywall.FetchPolicy.ReturnCacheDataElseLoad] to return cached data if it exists.
+     * @param[fetchPolicy] By default SDK will try to load data from server and will return cached data in case of failure. Otherwise use [AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad] to return cached data if it exists.
      *
      * @param[loadTimeout] This value limits the timeout for this method. If the timeout is reached,
      * cached data or local fallback will be returned. The minimum value is 1 second.
@@ -197,7 +197,7 @@ public object Adapty {
     public fun getPaywall(
         placementId: String,
         locale: String? = null,
-        fetchPolicy: AdaptyPaywall.FetchPolicy = AdaptyPaywall.FetchPolicy.Default,
+        fetchPolicy: AdaptyPlacementFetchPolicy = AdaptyPlacementFetchPolicy.Default,
         loadTimeout: TimeInterval = DEFAULT_PAYWALL_TIMEOUT,
         callback: ResultCallback<AdaptyPaywall>,
     ) {
@@ -207,7 +207,7 @@ public object Adapty {
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getPaywall(placementId, locale ?: DEFAULT_PAYWALL_LOCALE, fetchPolicy, loadTimeout, callback)
+        adaptyInternal.getPaywall(placementId, locale ?: DEFAULT_PLACEMENT_LOCALE, fetchPolicy, loadTimeout, callback)
     }
 
     /**
@@ -228,13 +228,31 @@ public object Adapty {
         paywall: AdaptyPaywall,
         callback: ResultCallback<List<AdaptyPaywallProduct>>,
     ) {
-        Logger.log(VERBOSE) { "getPaywallProducts(placementId = ${paywall.placementId})" }
+        Logger.log(VERBOSE) { "getPaywallProducts(placementId = ${paywall.placement.id})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
         adaptyInternal.getPaywallProducts(paywall, callback)
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    public fun getOnboarding(
+        placementId: String,
+        locale: String? = null,
+        fetchPolicy: AdaptyPlacementFetchPolicy = AdaptyPlacementFetchPolicy.Default,
+        loadTimeout: TimeInterval = DEFAULT_PAYWALL_TIMEOUT,
+        callback: ResultCallback<AdaptyOnboarding>,
+    ) {
+        Logger.log(VERBOSE) { "getOnboarding(placementId = $placementId${locale?.let { ", locale = $locale" }.orEmpty()}, fetchPolicy = ${fetchPolicy}${loadTimeout.takeIf { it != TimeInterval.INFINITE }?.let { ", timeout = $it" }.orEmpty()})" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.getOnboarding(placementId, locale ?: DEFAULT_PLACEMENT_LOCALE, fetchPolicy, loadTimeout, callback)
     }
 
     /**
@@ -250,7 +268,7 @@ public object Adapty {
         loadTimeout: TimeInterval,
         callback: ResultCallback<Map<String, Any>>
     ) {
-        Logger.log(VERBOSE) { "getViewConfiguration(placementId = ${paywall.placementId}, locale = ${getLocaleFromViewConfig(paywall.viewConfig)}${loadTimeout.takeIf { it != TimeInterval.INFINITE }?.let { ", timeout = $it" }.orEmpty()})" }
+        Logger.log(VERBOSE) { "getViewConfiguration(placementId = ${paywall.placement.id}, locale = ${getLocaleFromViewConfig(paywall.viewConfig)}${loadTimeout.takeIf { it != TimeInterval.INFINITE }?.let { ", timeout = $it" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
@@ -448,10 +466,10 @@ public object Adapty {
      */
     @JvmStatic
     @JvmOverloads
-    public fun setFallbackPaywalls(location: FileLocation, callback: ErrorCallback? = null) {
-        Logger.log(VERBOSE) { "setFallbackPaywalls()" }
+    public fun setFallback(location: FileLocation, callback: ErrorCallback? = null) {
+        Logger.log(VERBOSE) { "setFallback()" }
         if (!checkActivated(callback)) return
-        adaptyInternal.setFallbackPaywalls(location, callback)
+        adaptyInternal.setFallback(location, callback)
     }
 
     /**
@@ -529,6 +547,25 @@ public object Adapty {
         adaptyInternal.logShowOnboarding(name, screenName, screenOrder, callback)
     }
 
+    internal fun logShowOnboardingInternal(
+        onboarding: AdaptyOnboarding,
+        screenName: String?,
+        screenOrder: Int,
+        isLastScreen: Boolean,
+    ) {
+        Logger.log(VERBOSE) { "logShowOnboardingInternal()" }
+        if (!isActivated) {
+            logNotInitializedError()
+            return
+        }
+        adaptyInternal.logShowOnboardingInternal(
+            onboarding,
+            screenName,
+            screenOrder,
+            isLastScreen,
+        )
+    }
+
     /**
      * Fetches the paywall of the specified placement for the **All Users** audience.
      *
@@ -553,7 +590,7 @@ public object Adapty {
      * Example: `"en"` means English, `"en-US"` represents US English.
      * If the parameter is omitted, the paywall will be returned in the default locale.
      *
-     * @param[fetchPolicy] By default SDK will try to load data from server and will return cached data in case of failure. Otherwise use [AdaptyPaywall.FetchPolicy.ReturnCacheDataElseLoad] to return cached data if it exists.
+     * @param[fetchPolicy] By default SDK will try to load data from server and will return cached data in case of failure. Otherwise use [AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad] to return cached data if it exists.
      *
      * @param[callback] A result containing the [AdaptyPaywall] object. This model contains the list
      * of the products ids, paywall’s identifier, custom payload, and several other properties.
@@ -565,7 +602,7 @@ public object Adapty {
     public fun getPaywallForDefaultAudience(
         placementId: String,
         locale: String? = null,
-        fetchPolicy: AdaptyPaywall.FetchPolicy = AdaptyPaywall.FetchPolicy.Default,
+        fetchPolicy: AdaptyPlacementFetchPolicy = AdaptyPlacementFetchPolicy.Default,
         callback: ResultCallback<AdaptyPaywall>,
     ) {
         Logger.log(VERBOSE) { "getPaywallForDefaultAudience(placementId = $placementId${locale?.let { ", locale = $locale" }.orEmpty()}, fetchPolicy = ${fetchPolicy})" }
@@ -574,7 +611,24 @@ public object Adapty {
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getPaywallForDefaultAudience(placementId, locale ?: DEFAULT_PAYWALL_LOCALE, fetchPolicy, callback)
+        adaptyInternal.getPaywallForDefaultAudience(placementId, locale ?: DEFAULT_PLACEMENT_LOCALE, fetchPolicy, callback)
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    public fun getOnboardingForDefaultAudience(
+        placementId: String,
+        locale: String? = null,
+        fetchPolicy: AdaptyPlacementFetchPolicy = AdaptyPlacementFetchPolicy.Default,
+        callback: ResultCallback<AdaptyOnboarding>,
+    ) {
+        Logger.log(VERBOSE) { "getOnboardingForDefaultAudience(placementId = $placementId${locale?.let { ", locale = $locale" }.orEmpty()}, fetchPolicy = ${fetchPolicy})" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.getOnboardingForDefaultAudience(placementId, locale ?: DEFAULT_PLACEMENT_LOCALE, fetchPolicy, callback)
     }
 
     private val adaptyInternal: AdaptyInternal by inject()

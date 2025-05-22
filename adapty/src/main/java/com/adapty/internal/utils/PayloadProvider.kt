@@ -26,4 +26,14 @@ internal class PayloadProvider(
         val payload = "{\"builder_version\":\"$builderVersion\",\"locale\":\"${locale.lowercase(Locale.ENGLISH)}\"}"
         return hashingHelper.md5(payload)
     }
+
+    fun getPayloadHashForOnboardingRequest(
+        locale: String,
+        segmentId: String,
+        crossPlacementEligibility: Boolean,
+    ): String {
+        val payload =
+            "{\"locale\":\"${locale.lowercase(Locale.ENGLISH)}\",\"segment_hash\":\"$segmentId\",\"cross_placement_eligibility\":\"$crossPlacementEligibility\"}"
+        return hashingHelper.md5(payload)
+    }
 }
