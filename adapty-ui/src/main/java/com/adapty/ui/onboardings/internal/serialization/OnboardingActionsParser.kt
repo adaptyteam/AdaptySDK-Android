@@ -28,6 +28,9 @@ internal class OnboardingActionsParser(
                     input.getString("action_id"),
                     metaParamsParser.parse(input.getJSONObject("meta")).getOrThrow()
                 )
+                "onboarding_loaded" -> AdaptyOnboardingLoadedAction(
+                    metaParamsParser.parse(input.getJSONObject("meta")).getOrThrow()
+                )
                 else -> throw IllegalArgumentException("Unknown action type: ${input.getString("type")}")
             }
         }

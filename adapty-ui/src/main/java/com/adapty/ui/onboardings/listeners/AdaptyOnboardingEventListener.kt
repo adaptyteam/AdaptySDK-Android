@@ -3,6 +3,7 @@ package com.adapty.ui.onboardings.listeners
 import android.content.Context
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingCloseAction
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingCustomAction
+import com.adapty.ui.onboardings.actions.AdaptyOnboardingLoadedAction
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingOpenPaywallAction
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingStateUpdatedAction
 import com.adapty.ui.onboardings.errors.AdaptyOnboardingError
@@ -10,7 +11,7 @@ import com.adapty.ui.onboardings.events.AdaptyOnboardingAnalyticsEvent
 
 public interface AdaptyOnboardingEventListener {
 
-    public fun onFinishLoading(context: Context)
+    public fun onFinishLoading(action: AdaptyOnboardingLoadedAction, context: Context)
 
     public fun onCloseAction(action: AdaptyOnboardingCloseAction, context: Context)
 

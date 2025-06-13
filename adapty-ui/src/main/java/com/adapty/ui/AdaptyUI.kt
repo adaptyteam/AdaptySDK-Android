@@ -69,7 +69,6 @@ import com.adapty.ui.onboardings.internal.serialization.OnboardingActionsParser
 import com.adapty.ui.onboardings.internal.serialization.OnboardingCommonDeserializer
 import com.adapty.ui.onboardings.internal.serialization.OnboardingCommonEventParser
 import com.adapty.ui.onboardings.internal.serialization.OnboardingEventsParser
-import com.adapty.ui.onboardings.internal.serialization.OnboardingLoadedEventParser
 import com.adapty.ui.onboardings.internal.serialization.OnboardingStateUpdatedParamsParser
 import com.adapty.ui.onboardings.listeners.AdaptyOnboardingEventListener
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
@@ -544,8 +543,7 @@ public object AdaptyUI {
                     val onboardingStateUpdatedParamsParser = OnboardingStateUpdatedParamsParser()
                     val onboardingEventsParser = OnboardingEventsParser(metaParamsParser)
                     val onboardingActionsParser = OnboardingActionsParser(metaParamsParser, onboardingStateUpdatedParamsParser)
-                    val onboardingLoadedEventParser = OnboardingLoadedEventParser(metaParamsParser)
-                    val onboardingCommonEventParser = OnboardingCommonEventParser(onboardingEventsParser, onboardingLoadedEventParser)
+                    val onboardingCommonEventParser = OnboardingCommonEventParser(onboardingEventsParser)
                     OnboardingCommonDeserializer(
                         onboardingActionsParser, onboardingCommonEventParser,
                     )

@@ -8,6 +8,7 @@ import android.content.res.ColorStateList
 import android.net.http.SslError
 import android.util.AttributeSet
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.SslErrorHandler
@@ -16,8 +17,6 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.widget.FrameLayout
 import android.widget.ProgressBar
-import androidx.activity.OnBackPressedCallback
-import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -35,6 +34,7 @@ import com.adapty.ui.internal.utils.log
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingAction
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingCloseAction
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingCustomAction
+import com.adapty.ui.onboardings.actions.AdaptyOnboardingLoadedAction
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingOpenPaywallAction
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingStateUpdatedAction
 import com.adapty.ui.onboardings.errors.AdaptyOnboardingError
@@ -59,13 +59,11 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
     private val webView: WebView
-    private val progressBar: ProgressBar
+    private val placeholderView: PlaceholderView
 
     private var delegate: AdaptyOnboardingEventListener? = null
 
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-
-    private var backCallback: OnBackPressedCallback? = null
 
     private val viewModel: OnboardingViewModel? by lazy {
         val viewModelStoreOwner = findViewTreeViewModelStoreOwner()
@@ -117,21 +115,42 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
             }
         }
 
-        progressBar = ProgressBar(context).apply {
-            isIndeterminate = true
-            visibility = View.VISIBLE
-            context.getProgressCustomColorOrNull()?.let { color ->
-                indeterminateTintList = ColorStateList.valueOf(color)
-            }
-        }
-
         addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        addView(progressBar, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.CENTER
-        })
+
+        placeholderView = tryCreateCustomPlaceholderView(context)?.also {
+                addView(it.view)
+            } ?: createDefaultPlaceholderView(context).also {
+                addView(it.view, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                    gravity = Gravity.CENTER
+                })
+            }
 
         observeViewModel()
     }
+
+    private fun createDefaultPlaceholderView(context: Context) =
+        PlaceholderView.Default(
+            ProgressBar(context).apply {
+                isIndeterminate = true
+                visibility = View.VISIBLE
+                context.getProgressCustomColorOrNull()?.let { color ->
+                    indeterminateTintList = ColorStateList.valueOf(color)
+                }
+            }
+        )
+
+    private fun tryCreateCustomPlaceholderView(context: Context) =
+        kotlin.runCatching {
+            context.resources.getIdentifier("adapty_onboarding_placeholder_view", "layout", context.packageName)
+                .takeIf { it > 0 }
+                ?.let { resId ->
+                    PlaceholderView.Custom(LayoutInflater.from(context).inflate(resId, this, false))
+                }
+        }
+            .getOrElse { e ->
+                log(ERROR) { "$LOG_PREFIX_ERROR couldn't create view from 'adapty_onboarding_placeholder_view': (${e.localizedMessage})" }
+                null
+            }
 
     public fun show(viewConfig: AdaptyOnboardingConfiguration, delegate: AdaptyOnboardingEventListener) {
         this.delegate = delegate
@@ -141,10 +160,10 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
         viewModel?.onboardingConfig = viewConfig
 
         if (previousUrl != newUrl || viewModel?.hasFinishedLoading != true) {
-            progressBar.visibility = View.VISIBLE
+            placeholderView.view.visibility = View.VISIBLE
             webView.loadUrl(newUrl)
         } else {
-            progressBar.visibility = View.GONE
+            placeholderView.view.visibility = View.GONE
         }
     }
 
@@ -154,7 +173,7 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
                 launch { vm.actions.collect { action -> handleAction(action) } }
                 launch { vm.analytics.collect { event -> delegate?.onAnalyticsEvent(event, context) } }
                 launch { vm.errors.collect { error -> delegate?.onError(error, context) } }
-                launch { vm.loadedEvents.collect { triggerFinishLoading() } }
+                launch { vm.onboardingLoaded.collect { triggerFinishLoading(it) } }
             }
         }
     }
@@ -165,14 +184,15 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
             is AdaptyOnboardingCustomAction -> delegate?.onCustomAction(action, context)
             is AdaptyOnboardingOpenPaywallAction -> delegate?.onOpenPaywallAction(action, context)
             is AdaptyOnboardingStateUpdatedAction -> delegate?.onStateUpdatedAction(action, context)
+            is AdaptyOnboardingLoadedAction -> delegate?.onFinishLoading(action, context)
         }
     }
 
-    private fun triggerFinishLoading() {
+    private fun triggerFinishLoading(action: AdaptyOnboardingLoadedAction) {
         if (viewModel?.hasFinishedLoading != true) {
             viewModel?.hasFinishedLoading = true
-            progressBar.visibility = View.GONE
-            delegate?.onFinishLoading(context)
+            placeholderView.view.visibility = View.GONE
+            delegate?.onFinishLoading(action, context)
             injectUniversalInsetSupport()
             sendInsetsToWebView()
         }
@@ -197,7 +217,7 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
             if (typeof window.updateInsets === 'function') {
                 window.updateInsets($topDp, $bottomDp, $leftDp, $rightDp);
             } else {
-                console.log("[Onboarding SDK] updateInsets not defined");
+                console.log("[OnboardingView] updateInsets not defined");
             }
         """.trimIndent()
 
@@ -207,7 +227,7 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
     private fun injectUniversalInsetSupport() {
         val js = """
             window.updateInsets = function(top, bottom, left, right) {
-                console.log("[Onboarding SDK] Applying insets: top=" + top + " bottom=" + bottom);
+                console.log("[OnboardingView] Applying insets: top=" + top + " bottom=" + bottom);
     
                 const root = document.documentElement;
                 root.style.boxSizing = "border-box";
@@ -229,39 +249,22 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
                     mainContainer.style.overflowY = "auto";
                 }
     
-                console.log("[Onboarding SDK] Layout adjusted");
+                console.log("[OnboardingView] Layout adjusted");
             };
         """.trimIndent()
 
         webView.evaluateJavascript(js, null)
     }
 
-    override fun onAttachedToWindow() {
-        super.onAttachedToWindow()
-        val dispatcherOwner = findViewTreeOnBackPressedDispatcherOwner()
-        val dispatcher = dispatcherOwner?.onBackPressedDispatcher
+    public fun canGoBack(): Boolean = webView.canGoBack()
 
-        if (dispatcher != null) {
-            backCallback = object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    if (!webView.canGoBack()) {
-                        isEnabled = false
-                        dispatcher.onBackPressed()
-                    } else {
-                        webView.goBack()
-                    }
-                }
-            }.also {
-                dispatcher.addCallback(it)
-            }
-        }
+    public fun goBack() {
+        webView.goBack()
     }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         coroutineScope.cancel()
-        backCallback?.remove()
-        backCallback = null
         delegate = null
     }
 
@@ -285,4 +288,9 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
             })
         }
     }
+}
+
+private sealed class PlaceholderView(val view: View) {
+    class Default(progressBar: ProgressBar): PlaceholderView(progressBar)
+    class Custom(view: View): PlaceholderView(view)
 }

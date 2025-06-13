@@ -6,11 +6,11 @@ import androidx.lifecycle.ViewModel
 import com.adapty.Adapty
 import com.adapty.ui.onboardings.AdaptyOnboardingConfiguration
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingAction
+import com.adapty.ui.onboardings.actions.AdaptyOnboardingLoadedAction
 import com.adapty.ui.onboardings.errors.AdaptyOnboardingError
 import com.adapty.ui.onboardings.events.AdaptyOnboardingAnalyticsEvent
-import com.adapty.ui.onboardings.internal.util.OnboardingLoadedEvent
-import com.adapty.ui.onboardings.internal.util.OneOf3
 import com.adapty.ui.onboardings.internal.serialization.OnboardingCommonDeserializer
+import com.adapty.ui.onboardings.internal.util.OneOf
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -28,8 +28,8 @@ internal class OnboardingViewModel(
     private val _errors = MutableSharedFlow<AdaptyOnboardingError>(extraBufferCapacity = 1)
     val errors: SharedFlow<AdaptyOnboardingError> = _errors.asSharedFlow()
 
-    private val _loadedEvents = MutableSharedFlow<OnboardingLoadedEvent>(extraBufferCapacity = 1)
-    val loadedEvents: SharedFlow<OnboardingLoadedEvent> = _loadedEvents.asSharedFlow()
+    private val _onboardingLoaded = MutableSharedFlow<AdaptyOnboardingLoadedAction>(extraBufferCapacity = 1)
+    val onboardingLoaded: SharedFlow<AdaptyOnboardingLoadedAction> = _onboardingLoaded.asSharedFlow()
 
     var onboardingConfig: AdaptyOnboardingConfiguration? = null
     var hasFinishedLoading: Boolean = false
@@ -39,9 +39,11 @@ internal class OnboardingViewModel(
             .fold(
                 { result ->
                     when (result) {
-                        is OneOf3.First -> _actions.tryEmit(result.value)
-                        is OneOf3.Second -> handleAnalyticsEvent(result.value)
-                        is OneOf3.Third -> _loadedEvents.tryEmit(result.value)
+                        is OneOf.First -> when (result.value) {
+                            is AdaptyOnboardingLoadedAction -> _onboardingLoaded.tryEmit(result.value)
+                            else -> _actions.tryEmit(result.value)
+                        }
+                        is OneOf.Second -> handleAnalyticsEvent(result.value)
                     }
                 },
             ) { e ->

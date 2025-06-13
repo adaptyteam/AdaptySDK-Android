@@ -4,13 +4,14 @@ import android.content.Context
 import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingCloseAction
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingCustomAction
+import com.adapty.ui.onboardings.actions.AdaptyOnboardingLoadedAction
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingOpenPaywallAction
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingStateUpdatedAction
 import com.adapty.ui.onboardings.errors.AdaptyOnboardingError
 import com.adapty.ui.onboardings.events.AdaptyOnboardingAnalyticsEvent
 
 public open class AdaptyOnboardingDefaultEventListener: AdaptyOnboardingEventListener {
-    override fun onFinishLoading(context: Context) { }
+    override fun onFinishLoading(action: AdaptyOnboardingLoadedAction, context: Context) { }
 
     override fun onCloseAction(action: AdaptyOnboardingCloseAction, context: Context) {
         context?.getActivityOrNull()?.onBackPressed()
