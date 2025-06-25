@@ -11,28 +11,43 @@ import com.adapty.ui.onboardings.errors.AdaptyOnboardingError
 import com.adapty.ui.onboardings.events.AdaptyOnboardingAnalyticsEvent
 import com.adapty.ui.onboardings.internal.serialization.OnboardingCommonDeserializer
 import com.adapty.ui.onboardings.internal.util.OneOf
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import java.util.concurrent.atomic.AtomicLong
 
 internal class OnboardingViewModel(
     private val deserializer: OnboardingCommonDeserializer
 ) : ViewModel() {
 
-    private val _actions = MutableSharedFlow<AdaptyOnboardingAction>(extraBufferCapacity = 1)
-    val actions: SharedFlow<AdaptyOnboardingAction> = _actions.asSharedFlow()
+    private val sessionCounter = AtomicLong(0)
+    private var currentSessionId: Long = sessionCounter.incrementAndGet()
 
-    private val _analytics = MutableSharedFlow<AdaptyOnboardingAnalyticsEvent>(extraBufferCapacity = 1)
-    val analytics: SharedFlow<AdaptyOnboardingAnalyticsEvent> = _analytics.asSharedFlow()
+    private val _actions = MutableSharedFlow<SessionedEmission<AdaptyOnboardingAction>>(extraBufferCapacity = 1)
+    val actions: Flow<AdaptyOnboardingAction> = _actions.asSharedFlow()
+        .filter { it.sessionId == currentSessionId }
+        .map { it.value }
 
-    private val _errors = MutableSharedFlow<AdaptyOnboardingError>(extraBufferCapacity = 1)
-    val errors: SharedFlow<AdaptyOnboardingError> = _errors.asSharedFlow()
+    private val _analytics = MutableSharedFlow<SessionedEmission<AdaptyOnboardingAnalyticsEvent>>(extraBufferCapacity = 1)
+    val analytics: Flow<AdaptyOnboardingAnalyticsEvent> = _analytics.asSharedFlow()
+        .filter { it.sessionId == currentSessionId }
+        .map { it.value }
 
-    private val _onboardingLoaded = MutableSharedFlow<AdaptyOnboardingLoadedAction>(extraBufferCapacity = 1)
-    val onboardingLoaded: SharedFlow<AdaptyOnboardingLoadedAction> = _onboardingLoaded.asSharedFlow()
+    private val _errors = MutableSharedFlow<SessionedEmission<AdaptyOnboardingError>>(extraBufferCapacity = 1)
+    val errors: Flow<AdaptyOnboardingError> = _errors.asSharedFlow()
+        .filter { it.sessionId == currentSessionId }
+        .map { it.value }
+
+    private val _onboardingLoaded = MutableSharedFlow<SessionedEmission<AdaptyOnboardingLoadedAction>>(extraBufferCapacity = 1)
+    val onboardingLoaded: Flow<AdaptyOnboardingLoadedAction> = _onboardingLoaded.asSharedFlow()
+        .filter { it.sessionId == currentSessionId }
+        .map { it.value }
 
     var onboardingConfig: AdaptyOnboardingConfiguration? = null
     var hasFinishedLoading: Boolean = false
+    var safeAreaPaddings: Boolean = true
 
     fun processMessage(message: String) {
         deserializer.deserialize(message)
@@ -40,8 +55,12 @@ internal class OnboardingViewModel(
                 { result ->
                     when (result) {
                         is OneOf.First -> when (result.value) {
-                            is AdaptyOnboardingLoadedAction -> _onboardingLoaded.tryEmit(result.value)
-                            else -> _actions.tryEmit(result.value)
+                            is AdaptyOnboardingLoadedAction -> _onboardingLoaded.tryEmit(
+                                SessionedEmission(result.value, currentSessionId)
+                            )
+                            else -> _actions.tryEmit(
+                                SessionedEmission(result.value, currentSessionId)
+                            )
                         }
                         is OneOf.Second -> handleAnalyticsEvent(result.value)
                     }
@@ -52,7 +71,7 @@ internal class OnboardingViewModel(
     }
 
     private fun handleAnalyticsEvent(event: AdaptyOnboardingAnalyticsEvent) {
-        _analytics.tryEmit(event)
+        _analytics.tryEmit(SessionedEmission(event, currentSessionId))
 
         if (event is AdaptyOnboardingAnalyticsEvent.ScreenPresented) {
             onboardingConfig?.let { config ->
@@ -67,6 +86,18 @@ internal class OnboardingViewModel(
     }
 
     fun emitError(error: AdaptyOnboardingError) {
-        _errors.tryEmit(error)
+        _errors.tryEmit(SessionedEmission(error, currentSessionId))
+    }
+
+    fun clearState() {
+        hasFinishedLoading = false
+        onboardingConfig = null
+        safeAreaPaddings = true
+        currentSessionId = sessionCounter.incrementAndGet()
     }
 }
+
+private data class SessionedEmission<T>(
+    val value: T,
+    val sessionId: Long
+)

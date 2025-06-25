@@ -148,16 +148,18 @@ public object AdaptyUI {
     }
 
     @JvmStatic
+    @JvmOverloads
     @UiThread
     public fun getOnboardingView(
         activity: Activity,
         viewConfig: AdaptyOnboardingConfiguration,
         eventListener: AdaptyOnboardingEventListener,
+        safeAreaPaddings: Boolean = true,
     ): AdaptyOnboardingView {
         return AdaptyOnboardingView(activity).apply {
             id = View.generateViewId()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            show(viewConfig, eventListener)
+            show(viewConfig, eventListener, safeAreaPaddings)
         }
     }
 

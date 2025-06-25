@@ -29,6 +29,7 @@ import com.adapty.internal.di.Dependencies
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
+import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.getProgressCustomColorOrNull
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingAction
@@ -118,12 +119,14 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
         addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
         placeholderView = tryCreateCustomPlaceholderView(context)?.also {
-                addView(it.view)
-            } ?: createDefaultPlaceholderView(context).also {
-                addView(it.view, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-                    gravity = Gravity.CENTER
-                })
-            }
+            addView(it.view)
+        } ?: createDefaultPlaceholderView(context).also {
+            addView(it.view, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.CENTER
+            })
+        }
+
+        overrideSafeAreaPaddingsIfNeeded(context)
 
         observeViewModel()
     }
@@ -152,6 +155,19 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
                 null
             }
 
+    private fun overrideSafeAreaPaddingsIfNeeded(context: Context) =
+        kotlin.runCatching {
+            context.resources.getIdentifier("adapty_onboarding_enable_safe_area_paddings", "bool", context.packageName)
+                .takeIf { it > 0 }
+                ?.let { resId ->
+                    withViewModel { it.safeAreaPaddings = context.resources.getBoolean(resId) }
+                }
+        }
+            .getOrElse { e ->
+                log(ERROR) { "$LOG_PREFIX_ERROR couldn't parse custom safe area paddings from 'adapty_onboarding_enable_safe_area_paddings': (${e.localizedMessage})" }
+                null
+            }
+
     public fun show(viewConfig: AdaptyOnboardingConfiguration, delegate: AdaptyOnboardingEventListener) {
         this.delegate = delegate
         val previousUrl = viewModel?.onboardingConfig?.url
@@ -167,6 +183,15 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
         }
     }
 
+    public fun show(
+        viewConfig: AdaptyOnboardingConfiguration,
+        delegate: AdaptyOnboardingEventListener,
+        safeAreaPaddings: Boolean,
+    ) {
+        viewModel?.safeAreaPaddings = safeAreaPaddings
+        show(viewConfig, delegate)
+    }
+
     private fun observeViewModel() {
         withViewModel { vm ->
             coroutineScope.launch {
@@ -174,6 +199,18 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
                 launch { vm.analytics.collect { event -> delegate?.onAnalyticsEvent(event, context) } }
                 launch { vm.errors.collect { error -> delegate?.onError(error, context) } }
                 launch { vm.onboardingLoaded.collect { triggerFinishLoading(it) } }
+                
+                if (vm.hasFinishedLoading) {
+                    val webViewHasContent = webView.url?.startsWith("http") == true
+                    if (webViewHasContent) {
+                        placeholderView.view.visibility = View.GONE
+                    } else {
+                        vm.onboardingConfig?.let { config ->
+                            placeholderView.view.visibility = View.VISIBLE
+                            webView.loadUrl(config.url)
+                        }
+                    }
+                }
             }
         }
     }
@@ -189,10 +226,10 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
     }
 
     private fun triggerFinishLoading(action: AdaptyOnboardingLoadedAction) {
-        if (viewModel?.hasFinishedLoading != true) {
-            viewModel?.hasFinishedLoading = true
-            placeholderView.view.visibility = View.GONE
-            delegate?.onFinishLoading(action, context)
+        viewModel?.hasFinishedLoading = true
+        placeholderView.view.visibility = View.GONE
+        delegate?.onFinishLoading(action, context)
+        if (viewModel?.safeAreaPaddings != false) {
             injectUniversalInsetSupport()
             sendInsetsToWebView()
         }
@@ -264,6 +301,10 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        val isChangingConfig = context.getActivityOrNull()?.isChangingConfigurations ?: false
+        if (!isChangingConfig) {
+            viewModel?.clearState()
+        }
         coroutineScope.cancel()
         delegate = null
     }
