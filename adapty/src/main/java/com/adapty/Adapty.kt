@@ -301,7 +301,7 @@ public object Adapty {
      */
     @Deprecated(
         message = "This method has been deprecated. Please use Adapty.makePurchase(activity: Activity, product: AdaptyPaywallProduct, params: AdaptyPurchaseParameters) instead",
-        replaceWith = ReplaceWith("Adapty.makePurchase(activity, product, AdaptyPurchaseParameters.Builder().withSubscriptionUpdateParams(subscriptionUpdateParams).withOfferPersonalized(isOfferPersonalized).build())", "com.adapty.models.AdaptyPurchaseParameters"),
+        replaceWith = ReplaceWith("Adapty.makePurchase(activity, product, AdaptyPurchaseParameters.Builder().withSubscriptionUpdateParams(subscriptionUpdateParams).withOfferPersonalized(isOfferPersonalized).build(), callback)", "com.adapty.models.AdaptyPurchaseParameters"),
     )
     @JvmStatic
     public fun makePurchase(
