@@ -22,14 +22,19 @@ import com.adapty.ui.R
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.utils.AdaptyLogLevel
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
+import java.util.Locale
 import java.util.concurrent.Executors
 
 internal fun Context.getCurrentLocale() =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+    (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         resources.configuration.locales.get(0)
     } else {
         resources.configuration.locale
-    }
+    })
+        ?: Locale.getDefault().also {
+            log(WARN) { "Failed to get locale from resources. Falling back to default." }
+        }
 
 internal fun AdaptyPaywallProduct.firstDiscountOfferOrNull(): AdaptyProductDiscountPhase? {
     return subscriptionDetails?.let { subDetails ->

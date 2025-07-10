@@ -299,8 +299,11 @@ public object Adapty {
      *
      * @see <a href="https://adapty.io/docs/making-purchases">Make purchases in mobile app</a>
      */
+    @Deprecated(
+        message = "This method has been deprecated. Please use Adapty.makePurchase(activity: Activity, product: AdaptyPaywallProduct, params: AdaptyPurchaseParameters) instead",
+        replaceWith = ReplaceWith("Adapty.makePurchase(activity, product, AdaptyPurchaseParameters.Builder().withSubscriptionUpdateParams(subscriptionUpdateParams).withOfferPersonalized(isOfferPersonalized).build())", "com.adapty.models.AdaptyPurchaseParameters"),
+    )
     @JvmStatic
-    @JvmOverloads
     public fun makePurchase(
         activity: Activity,
         product: AdaptyPaywallProduct,
@@ -308,13 +311,51 @@ public object Adapty {
         isOfferPersonalized: Boolean = false,
         callback: ResultCallback<AdaptyPurchaseResult>,
     ) {
-        Logger.log(VERBOSE) { "makePurchase(vendorProductId = ${product.vendorProductId}${product.subscriptionDetails?.let { "; basePlanId = ${it.basePlanId}${it.offerId?.let { offerId -> "; offerId = $offerId" }.orEmpty()}" }.orEmpty()}${subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; replacementMode = ${it.replacementMode}" }.orEmpty()})" }
+        makePurchase(
+            activity,
+            product,
+            AdaptyPurchaseParameters.Builder()
+                .withSubscriptionUpdateParams(subscriptionUpdateParams)
+                .withOfferPersonalized(isOfferPersonalized)
+                .build(),
+            callback
+        )
+    }
+
+    /**
+     * To make the purchase, you have to call this method.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[activity] An [Activity] instance.
+     *
+     * @param[product] An [AdaptyPaywallProduct] object retrieved from the paywall.
+     *
+     * @param[params] Optional [AdaptyPurchaseParameters] used to provide additional purchase options.
+     *
+     * @param[callback] The result includes an [AdaptyPurchaseResult] object, which provides details about the purchase.
+     * If the result is [AdaptyPurchaseResult.Success], it also includes the user's profile.
+     * The profile, in turn, includes details about access levels, subscriptions, and non-subscription
+     * purchases. Generally, you have to check only access level status to determine whether the user
+     * has premium access to the app.
+     *
+     * @see <a href="https://adapty.io/docs/making-purchases">Make purchases in mobile app</a>
+     */
+    @JvmStatic
+    @JvmOverloads
+    public fun makePurchase(
+        activity: Activity,
+        product: AdaptyPaywallProduct,
+        params: AdaptyPurchaseParameters = AdaptyPurchaseParameters.Empty,
+        callback: ResultCallback<AdaptyPurchaseResult>,
+    ) {
+        Logger.log(VERBOSE) { "makePurchase(vendorProductId = ${product.vendorProductId}${product.subscriptionDetails?.let { "; basePlanId = ${it.basePlanId}${it.offerId?.let { offerId -> "; offerId = $offerId" }.orEmpty()}" }.orEmpty()}${params.subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; replacementMode = ${it.replacementMode}" }.orEmpty()}${params.isOfferPersonalized.takeIf { it }?.let { "; isOfferPersonalized = $it" }.orEmpty()}${params.obfuscatedAccountId?.let { "; obfuscatedAccountId = $it" }.orEmpty()}${params.obfuscatedProfileId?.let { "; obfuscatedProfileId = $it" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.makePurchase(activity, product, subscriptionUpdateParams, isOfferPersonalized, callback)
+        adaptyInternal.makePurchase(activity, product, params, callback)
     }
 
     /**

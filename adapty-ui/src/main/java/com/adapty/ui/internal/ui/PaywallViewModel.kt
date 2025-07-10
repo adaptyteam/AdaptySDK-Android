@@ -19,6 +19,7 @@ import com.adapty.internal.utils.CacheRepositoryProxy
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.PriceFormatter
 import com.adapty.internal.utils.extractProducts
+import com.adapty.models.AdaptyPurchaseParameters
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.AdaptyCustomAssets
@@ -411,7 +412,11 @@ internal class PaywallViewModel(
             log(VERBOSE) { "$LOG_PREFIX $flowKey makePurchase onSubscriptionUpdateParamsReceived called" }
             activity.runOnUiThread {
                 eventListener.onPurchaseStarted(product)
-                Adapty.makePurchase(activity, product, subscriptionUpdateParams, isOfferPersonalized) { result ->
+                val params = AdaptyPurchaseParameters.Builder()
+                    .withSubscriptionUpdateParams(subscriptionUpdateParams)
+                    .withOfferPersonalized(isOfferPersonalized)
+                    .build()
+                Adapty.makePurchase(activity, product, params) { result ->
                     toggleLoading(false)
                     when (result) {
                         is AdaptyResult.Success -> {

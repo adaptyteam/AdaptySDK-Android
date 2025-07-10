@@ -16,6 +16,7 @@ import com.adapty.internal.domain.models.ProductType.Consumable
 import com.adapty.internal.domain.models.ProductType.Subscription
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.internal.utils.*
+import com.adapty.models.AdaptyPurchaseParameters
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
@@ -239,9 +240,10 @@ internal class StoreManager(
     fun makePurchase(
         activity: Activity,
         purchaseableProduct: PurchaseableProduct,
-        subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
+        purchaseParams: AdaptyPurchaseParameters,
         callback: MakePurchaseCallback
     ) {
+        val subscriptionUpdateParams = purchaseParams.subscriptionUpdateParams
         val requestEvent = GoogleAPIRequestData.MakePurchase.create(purchaseableProduct, subscriptionUpdateParams)
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
@@ -282,6 +284,8 @@ internal class StoreManager(
                             .setProductDetailsParamsList(listOf(params))
                             .apply {
                                 purchaseableProduct.isOfferPersonalized.takeIf { it }?.let(::setIsOfferPersonalized)
+                                purchaseParams.obfuscatedAccountId?.let(::setObfuscatedAccountId)
+                                purchaseParams.obfuscatedProfileId?.let(::setObfuscatedProfileId)
                                 billingFlowSubUpdateParams?.let(::setSubscriptionUpdateParams)
                             }
                             .build()

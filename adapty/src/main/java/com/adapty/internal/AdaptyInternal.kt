@@ -181,14 +181,13 @@ internal class AdaptyInternal(
     fun makePurchase(
         activity: Activity,
         product: AdaptyPaywallProduct,
-        subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
-        isOfferPersonalized: Boolean,
+        params: AdaptyPurchaseParameters,
         callback: ResultCallback<AdaptyPurchaseResult>
     ) {
         val requestEvent = SDKMethodRequestData.MakePurchase.create(product)
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
-            purchasesInteractor.makePurchase(activity, product, subscriptionUpdateParams, isOfferPersonalized)
+            purchasesInteractor.makePurchase(activity, product, params)
                 .onSingleResult { result ->
                     analyticsTracker.trackSystemEvent(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())

@@ -31,7 +31,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${kotlin_version}"
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.0'
     implementation 'com.google.code.gson:gson:2.11.0'
-    api('com.android.billingclient:billing-ktx:6.1.0') { exclude group: 'org.jetbrains.kotlinx', module: 'kotlinx-coroutines-core'; exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib' }
+    api('com.android.billingclient:billing-ktx:7.0.0') { exclude group: 'org.jetbrains.kotlinx', module: 'kotlinx-coroutines-core'; exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib' }
     implementation 'com.google.android.gms:play-services-ads-identifier:18.0.1'
     implementation 'com.google.android.gms:play-services-appset:16.0.2'
     implementation 'androidx.lifecycle:lifecycle-process:2.4.0'
