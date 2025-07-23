@@ -10,7 +10,7 @@
 
 <p align="center">
 <a href="https://discord.gg/subscriptions-hub"><img src="https://img.shields.io/badge/Adapty-discord-purple"></a>
-<a href="https://maven-badges.herokuapp.com/maven-central/io.adapty/adapty-bom"><img src="https://maven-badges.herokuapp.com/maven-central/io.adapty/adapty-bom/badge.svg"></a>
+<a href="https://central.sonatype.com/artifact/io.adapty/adapty-bom"><img src="https://img.shields.io/maven-central/v/io.adapty/adapty-bom"></a>
 <a href="https://github.com/adaptyteam/AdaptySDK-Android/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-brightgreen.svg"></a>
 </p>
 
