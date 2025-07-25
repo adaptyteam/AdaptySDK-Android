@@ -108,6 +108,7 @@ internal class LifecycleAwareRequestRunner(
             userAcquisitionInteractor
                 .registerInstall()
                 .catch { }
+                .collect()
         }
     }
 

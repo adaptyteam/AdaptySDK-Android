@@ -64,15 +64,16 @@ internal class UserAcquisitionInteractor(
         registerInstall(installData)
     }
 
-    suspend fun registerInstall(): Flow<Unit> {
+    fun registerInstall(): Flow<Unit> {
         return registerInstall(cacheRepository.getInstallData())
     }
 
-    private suspend fun registerInstall(installData: InstallData?): Flow<Unit> {
+    private fun registerInstall(installData: InstallData?): Flow<Unit> {
         if (installData == null || cacheRepository.getInstallRegistrationResponseData() != null)
             return flowOf(Unit)
 
-        registerInstallSemaphore.acquire()
+        if (!registerInstallSemaphore.tryAcquire())
+            return flowOf(Unit)
 
         if (cacheRepository.getInstallRegistrationResponseData() != null) {
             registerInstallSemaphore.releaseQuietly()

@@ -137,7 +137,7 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 @JvmSynthetic
 internal const val DEFAULT_PLACEMENT_LOCALE = "en"
 
-internal const val VERSION_NAME = "3.9.0"
+internal const val VERSION_NAME = "3.9.1"
 
 /**
  * @suppress
