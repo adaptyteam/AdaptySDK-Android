@@ -18,6 +18,7 @@ import com.adapty.internal.utils.DEFAULT_PAYWALL_TIMEOUT
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.Logger
 import com.adapty.internal.utils.getLocaleFromViewConfig
+import com.adapty.listeners.OnInstallationDetailsListener
 import com.adapty.listeners.OnProfileUpdatedListener
 import com.adapty.models.*
 import com.adapty.utils.*
@@ -398,6 +399,17 @@ public object Adapty {
         adaptyInternal.setIntegrationId(key, value, callback)
     }
 
+    @JvmStatic
+    public fun getCurrentInstallationStatus(callback: ResultCallback<AdaptyInstallationStatus>) {
+        Logger.log(VERBOSE) { "getCurrentInstallationStatus()" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.getCurrentInstallationStatus(callback)
+    }
+
     /**
      * In Observer mode, Adapty SDK doesn’t know, where the purchase was made from.
      * If you display products using our [Paywalls](https://adapty.io/docs/paywalls) or
@@ -455,6 +467,12 @@ public object Adapty {
     public fun setOnProfileUpdatedListener(onProfileUpdatedListener: OnProfileUpdatedListener?) {
         if (!checkActivated()) return
         adaptyInternal.onProfileUpdatedListener = onProfileUpdatedListener
+    }
+
+    @JvmStatic
+    public fun setOnInstallationDetailsListener(onInstallationDetailsListener: OnInstallationDetailsListener?) {
+        if (!checkActivated()) return
+        adaptyInternal.onInstallationDetailsListener = onInstallationDetailsListener
     }
 
     /**

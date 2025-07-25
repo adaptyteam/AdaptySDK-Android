@@ -7,6 +7,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.AnalyticsTracker
 import com.adapty.internal.domain.ProfileInteractor
+import com.adapty.internal.domain.UserAcquisitionInteractor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class LifecycleAwareRequestRunner(
     lifecycleManager: LifecycleManager,
     private val profileInteractor: ProfileInteractor,
+    private val userAcquisitionInteractor: UserAcquisitionInteractor,
     private val analyticsTracker: AnalyticsTracker,
     private val cacheRepository: CacheRepository,
 ) : LifecycleManager.StateCallback {
@@ -47,6 +49,7 @@ internal class LifecycleAwareRequestRunner(
         if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
             handleAppOpenedEvent()
             handleRequestCrossPlacementInfo()
+            handleRegisterInstall()
             scheduleGetProfileRequest(initialDelayMillis = PERIODIC_REQUEST_INTERVAL)
         }
     }
@@ -56,6 +59,7 @@ internal class LifecycleAwareRequestRunner(
         if (areRequestsAllowed.get()) {
             handleAppOpenedEvent()
             handleRequestCrossPlacementInfo()
+            handleRegisterInstall()
             scheduleGetProfileRequest(initialDelayMillis = 0)
         }
     }
@@ -96,6 +100,14 @@ internal class LifecycleAwareRequestRunner(
                         cacheRepository.clearLastRequestedCrossPlacementInfoTime()
                     }
             }
+        }
+    }
+
+    private fun handleRegisterInstall() {
+        execute {
+            userAcquisitionInteractor
+                .registerInstall()
+                .catch { }
         }
     }
 

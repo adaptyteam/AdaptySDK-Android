@@ -22,6 +22,14 @@ internal class BackendInternalErrorDeserializer : JsonDeserializer<Set<BackendEr
     ): Set<BackendError.InternalError> {
         when (jsonElement) {
             is JsonObject -> {
+                kotlin.runCatching { jsonElement.getAsJsonArray("detail") }.getOrNull()
+                    ?.let { detail ->
+                        return detail.mapNotNull { element ->
+                            runCatching { element.asJsonObject.getAsJsonPrimitive("type").asString }
+                                .getOrNull()?.let { type -> BackendError.InternalError(type) }
+                        }.toSet()
+                    }
+
                 kotlin.runCatching { jsonElement.getAsJsonPrimitive(ERROR_CODE).asString }.getOrNull()
                     ?.let { code -> return setOf(BackendError.InternalError(code)) }
 

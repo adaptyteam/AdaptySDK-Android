@@ -16,7 +16,9 @@ import com.adapty.internal.domain.OnboardingInteractor
 import com.adapty.internal.domain.PaywallInteractor
 import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.domain.PurchasesInteractor
+import com.adapty.internal.domain.UserAcquisitionInteractor
 import com.adapty.internal.utils.*
+import com.adapty.listeners.OnInstallationDetailsListener
 import com.adapty.listeners.OnProfileUpdatedListener
 import com.adapty.models.*
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
@@ -36,6 +38,7 @@ internal class AdaptyInternal(
     private val purchasesInteractor: PurchasesInteractor,
     private val paywallInteractor: PaywallInteractor,
     private val onboardingInteractor: OnboardingInteractor,
+    private val userAcquisitionInteractor: UserAcquisitionInteractor,
     private val analyticsTracker: AnalyticsTracker,
     private val lifecycleAwareRequestRunner: LifecycleAwareRequestRunner,
     private val lifecycleManager: LifecycleManager,
@@ -58,7 +61,29 @@ internal class AdaptyInternal(
             field = value
         }
 
+    var onInstallationDetailsListener: OnInstallationDetailsListener? = null
+        set(value) {
+            execute {
+                userAcquisitionInteractor
+                    .subscribeOnInstallRegistration()
+                    .catch { }
+                    .onEach { result ->
+                        runOnMain {
+                            value?.let {
+                                when (result) {
+                                    is AdaptyResult.Success -> value.onInstallationDetailsSuccess(result.value)
+                                    is AdaptyResult.Error -> value.onInstallationDetailsFailure(result.error)
+                                }
+                            }
+                        }
+                    }
+                    .collect()
+            }
+            field = value
+        }
+
     fun init(appKey: String) {
+        userAcquisitionInteractor.handleFirstLaunch()
         authInteractor.handleAppKey(appKey)
         lifecycleManager.init()
     }
@@ -125,7 +150,10 @@ internal class AdaptyInternal(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())
                     )
                     callback?.onResult(result.errorOrNull())
-                    if (isInitialActivation) setupStartRequests()
+                    if (isInitialActivation) {
+                        setupStartRequests()
+                        handleNewSession()
+                    }
                 }
                 .collect()
         }
@@ -490,6 +518,23 @@ internal class AdaptyInternal(
     }
 
     @JvmSynthetic
+    fun getCurrentInstallationStatus(callback: ResultCallback<AdaptyInstallationStatus>) {
+        val requestEvent = SDKMethodRequestData.create("get_current_installation_status")
+        analyticsTracker.trackSystemEvent(requestEvent)
+        execute {
+            userAcquisitionInteractor
+                .getCurrentInstallationStatus()
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result)
+                }
+                .collect()
+        }
+    }
+
+    @JvmSynthetic
     fun reportTransaction(
         transactionInfo: TransactionInfo,
         variationId: String?,
@@ -548,6 +593,15 @@ internal class AdaptyInternal(
                     }.merge()
                 }
                 .catch { }
+                .collect()
+        }
+    }
+
+    private fun handleNewSession() {
+        execute {
+            userAcquisitionInteractor
+                .handleNewSession()
+                .catch { e -> Logger.log(ERROR) { e.localizedMessage.orEmpty() } }
                 .collect()
         }
     }

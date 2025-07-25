@@ -137,7 +137,7 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 @JvmSynthetic
 internal const val DEFAULT_PLACEMENT_LOCALE = "en"
 
-internal const val VERSION_NAME = "3.8.2"
+internal const val VERSION_NAME = "3.9.0"
 
 /**
  * @suppress
@@ -215,7 +215,7 @@ internal fun getServerErrorDelay(attempt: Long) =
     min((2f.pow((attempt + 3).coerceAtMost(7).toInt()) + 1), 90f).toLong() * 1000L
 
 @JvmSynthetic
-internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long = INFINITE_RETRY): Flow<T> =
+internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long = INFINITE_RETRY, getDelay: (attempt: Long) -> Long = { getServerErrorDelay(it) }): Flow<T> =
     this.retryWhen { error, attempt ->
         if (error !is AdaptyError || (maxAttemptCount in 0..attempt)) {
             return@retryWhen false
@@ -223,7 +223,7 @@ internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long = INFINITE_RETRY
 
         when (error.getRetryType(maxAttemptCount < 0)) {
             RetryType.PROGRESSIVE -> {
-                delay(getServerErrorDelay(attempt))
+                delay(getDelay(attempt))
                 return@retryWhen true
             }
             RetryType.SIMPLE -> {

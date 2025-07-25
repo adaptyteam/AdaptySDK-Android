@@ -10,6 +10,7 @@ import com.adapty.internal.data.models.AnalyticsEvent.BackendAPIRequestData
 import com.adapty.internal.data.models.AttributionData
 import com.adapty.internal.data.models.InstallationMeta
 import com.adapty.internal.data.models.RestoreProductInfo
+import com.adapty.internal.data.models.InstallRegistrationData
 import com.adapty.internal.data.models.requests.*
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
@@ -388,6 +389,20 @@ internal class RequestFactory(
                 systemLog = BackendAPIRequestData.GetPaywall.create(apiKeyPrefix, id, locale, variationId)
             }
         }
+
+    fun registerInstallRequest(installRegistrationData: InstallRegistrationData, retryAttempt: Long, maxRetries: Long) = Request.Builder(baseRequest = Request("https://api-ua.adapty.io/api/v1")).apply {
+        method = POST
+        body = gson.toJson(installRegistrationData)
+        endPoint = "/attribution/install"
+        headers += listOfNotNull(
+            Request.Header("Content-type", "application/json"),
+            Request.Header("adapty-sdk-profile-id", cacheRepository.getProfileId()),
+            Request.Header("adapty-sdk-device-id", metaInfoRetriever.installationMetaId),
+            Request.Header("adapty-sdk-version", VERSION_NAME),
+            Request.Header(AUTHORIZATION_KEY, "$API_KEY_PREFIX${apiKey}"),
+        )
+        systemLog = BackendAPIRequestData.RegisterInstall.create(retryAttempt, maxRetries)
+    }.build()
 
     @JvmSynthetic
     fun getOnboardingByVariationIdRequest(id: String, locale: String, segmentId: String, variationId: String) =

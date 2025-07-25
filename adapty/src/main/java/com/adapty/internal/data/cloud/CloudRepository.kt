@@ -74,6 +74,17 @@ internal class CloudRepository(
         }
     }
 
+    fun registerInstall(installRegistrationData: InstallRegistrationData, retryAttempt: Long, maxRetries: Long): InstallRegistrationResponseData {
+        val response = httpClient.newCall<InstallRegistrationResponseData>(
+            requestFactory.registerInstallRequest(installRegistrationData, retryAttempt, maxRetries),
+            InstallRegistrationResponseData::class.java,
+        )
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> throw response.error
+        }
+    }
+
     @JvmSynthetic
     fun getVariationsFallback(id: String, locale: String, variationType: VariationType): Variations {
         val response = httpClient.newCall<Variations>(

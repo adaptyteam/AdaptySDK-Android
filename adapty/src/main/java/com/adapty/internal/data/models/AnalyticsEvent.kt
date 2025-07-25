@@ -743,6 +743,25 @@ internal class AnalyticsEvent(
             }
         }
 
+        class RegisterInstall private constructor(
+            val retryAttempt: Long?,
+            val maxRetries: Long?,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    retryAttempt: Long,
+                    maxRetries: Long,
+                ) =
+                    RegisterInstall(
+                        retryAttempt.takeIf { it > 0 },
+                        maxRetries.takeIf { retryAttempt > 0 },
+                        "register_install",
+                    )
+            }
+        }
+
         class ReportTransaction private constructor(
             val transaction: String,
             val variationId: String,

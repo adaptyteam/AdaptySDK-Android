@@ -3,6 +3,7 @@
 package com.adapty.internal.data.cache
 
 import androidx.annotation.RestrictTo
+import com.adapty.errors.AdaptyError
 import com.adapty.internal.data.models.*
 import com.adapty.internal.domain.VariationType
 import com.adapty.internal.utils.FallbackPaywallRetriever
@@ -14,9 +15,11 @@ import com.adapty.internal.utils.generateUuid
 import com.adapty.internal.utils.getLanguageCode
 import com.adapty.internal.utils.orDefault
 import com.adapty.internal.utils.unlockQuietly
+import com.adapty.utils.AdaptyResult
 import com.adapty.utils.FileLocation
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.take
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.locks.ReentrantReadWriteLock
@@ -29,6 +32,8 @@ internal class CacheRepository(
 ) {
 
     private val currentProfile = MutableSharedFlow<ProfileDto>()
+
+    private val installRegistration = MutableSharedFlow<AdaptyResult<InstallRegistrationResponseData>>()
 
     private val cache = ConcurrentHashMap<String, Any>(32)
 
@@ -81,6 +86,11 @@ internal class CacheRepository(
     fun subscribeOnProfileChanges() =
         currentProfile
             .distinctUntilChanged()
+
+    @JvmSynthetic
+    fun subscribeOnInstallRegistration() =
+        installRegistration
+            .take(1)
 
     @JvmSynthetic
     fun getAppKey() = preferenceManager.getString(APP_KEY)
@@ -384,6 +394,43 @@ internal class CacheRepository(
         } finally {
             crossPlacementInfoLock.writeLock().unlockQuietly()
         }
+    }
+
+    fun getInstallData(): InstallData? {
+        return getData<CacheEntity<InstallData>>(INSTALL_DATA)?.value
+    }
+
+    fun saveInstallData(installData: InstallData) {
+        saveData(INSTALL_DATA, CacheEntity(installData))
+    }
+
+    fun getInstallRegistrationResponseData(): InstallRegistrationResponseData? {
+        return getData<CacheEntity<InstallRegistrationResponseData>>(INSTALL_REGISTRATION_RESPONSE_DATA)?.value
+    }
+
+    fun saveInstallRegistrationResponseError(error: AdaptyError) {
+        execute {
+            installRegistration.emit(AdaptyResult.Error(error))
+        }
+    }
+
+    fun saveInstallRegistrationResponseData(installRegistrationResponseData: InstallRegistrationResponseData) {
+        execute {
+            installRegistration.emit(AdaptyResult.Success(installRegistrationResponseData))
+        }
+        saveData(INSTALL_REGISTRATION_RESPONSE_DATA, CacheEntity(installRegistrationResponseData))
+    }
+
+    fun getSessionCount() =
+        cache.safeGetOrPut(
+            SESSION_COUNT,
+            { preferenceManager.getLong(SESSION_COUNT, 0L) }) as? Long ?: 0L
+
+    @JvmSynthetic
+    fun incrementSessionCount() {
+        val sessionCount = getSessionCount() + 1
+        cache[SESSION_COUNT] = sessionCount
+        preferenceManager.saveLong(SESSION_COUNT, sessionCount)
     }
 
     @JvmSynthetic

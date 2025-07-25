@@ -17,6 +17,7 @@ import com.adapty.internal.domain.OnboardingInteractor
 import com.adapty.internal.domain.PaywallInteractor
 import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.domain.PurchasesInteractor
+import com.adapty.internal.domain.UserAcquisitionInteractor
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyConfig
 import com.google.gson.*
@@ -144,6 +145,12 @@ public object Dependencies {
                             .registerTypeAdapterFactory(
                                 AdaptyResponseTypeAdapterFactory(
                                     TypeToken.get(CrossPlacementInfo::class.java),
+                                    dataObjectExtractor,
+                                )
+                            )
+                            .registerTypeAdapterFactory(
+                                AdaptyResponseTypeAdapterFactory(
+                                    TypeToken.get(InstallRegistrationResponseData::class.java),
                                     dataObjectExtractor,
                                 )
                             )
@@ -323,6 +330,7 @@ public object Dependencies {
                             injectInternal(),
                             injectInternal(named = ANALYTICS),
                             injectInternal(named = LOCAL),
+                            injectInternal(),
                         )
                     }),
                 ),
@@ -380,6 +388,7 @@ public object Dependencies {
                 MetaInfoRetriever::class to singleVariantDiObject({
                     MetaInfoRetriever(
                         appContext,
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
@@ -471,6 +480,14 @@ public object Dependencies {
 
                 ReplacementModeMapper::class to singleVariantDiObject({ ReplacementModeMapper() }),
 
+                InstallRegistrationResponseDataMapper::class to singleVariantDiObject({
+                    InstallRegistrationResponseDataMapper(injectInternal(), injectInternal())
+                }),
+
+                InstallationPayloadMapper::class to singleVariantDiObject({
+                    InstallationPayloadMapper(injectInternal(named = BASE))
+                }),
+
                 ProfileMapper::class to singleVariantDiObject({ ProfileMapper() }),
 
                 StoreManager::class to singleVariantDiObject({
@@ -481,8 +498,15 @@ public object Dependencies {
                     )
                 }),
 
+                ReferrerManager::class to singleVariantDiObject({
+                    ReferrerManager(
+                        appContext,
+                    )
+                }),
+
                 LifecycleAwareRequestRunner::class to singleVariantDiObject({
                     LifecycleAwareRequestRunner(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(named = BASE),
@@ -573,8 +597,22 @@ public object Dependencies {
                     )
                 }),
 
+                UserAcquisitionInteractor::class to singleVariantDiObject({
+                    UserAcquisitionInteractor(
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                    )
+                }),
+
                 AdaptyInternal::class to singleVariantDiObject({
                     AdaptyInternal(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
