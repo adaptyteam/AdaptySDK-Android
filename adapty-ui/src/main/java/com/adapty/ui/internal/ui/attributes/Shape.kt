@@ -32,6 +32,7 @@ public class Shape internal constructor(
     internal val fill: Fill?,
     internal val type: Type,
     internal val border: Border?,
+    internal val shadow: Shadow?,
 ) {
     internal class Fill(val assetId: String)
 
@@ -71,7 +72,7 @@ public class Shape internal constructor(
 
     internal companion object {
         fun plain(assetId: String) =
-            Shape(fill = Fill(assetId), type = Type.Rectangle(null), border = null)
+            Shape(fill = Fill(assetId), type = Type.Rectangle(null), border = null, shadow = null)
     }
 }
 
@@ -83,6 +84,45 @@ internal sealed class ComposeFill {
 
 internal fun Asset.Composite<Asset.Color>.toComposeFill(): ComposeFill.Color {
     return ComposeFill.Color(Color(this.main.value))
+}
+
+internal fun Asset.Composite<Asset.Color>.toGradientAsset(
+    targetGradient: Asset.Composite<Asset.Gradient>
+): Asset.Composite<Asset.Gradient> {
+    val color = this.main
+    val target = targetGradient.main
+    
+    val gradientAsset = Asset.Gradient(
+        type = target.type,
+        values = target.values.map { Asset.Gradient.Value(it.p, color) },
+        points = target.points,
+        customId = color.customId
+    )
+    
+    return Asset.Composite(gradientAsset, this.fallback?.let { fallbackColor ->
+        val fallbackTarget = targetGradient.fallback ?: target
+        Asset.Gradient(
+            type = fallbackTarget.type,
+            values = fallbackTarget.values.map { Asset.Gradient.Value(it.p, fallbackColor) },
+            points = fallbackTarget.points,
+            customId = fallbackColor.customId
+        )
+    })
+}
+
+internal fun Asset.Composite<Asset.Color>.toGradientAsset(): Asset.Composite<Asset.Gradient> {
+    val stubGradientAsset = Asset.Composite(
+        main = Asset.Gradient(
+            type = Asset.Gradient.Type.LINEAR,
+            values = listOf(
+                Asset.Gradient.Value(0f, Asset.Color(android.graphics.Color.TRANSPARENT)),
+                Asset.Gradient.Value(1f, Asset.Color(android.graphics.Color.TRANSPARENT))
+            ),
+            points = Asset.Gradient.Points(0f, 0f, 1f, 1f),
+        )
+    )
+    
+    return toGradientAsset(stubGradientAsset)
 }
 
 internal fun Asset.Composite<Asset.Gradient>.toComposeFill(): ComposeFill.Gradient {

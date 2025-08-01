@@ -32,11 +32,14 @@ public abstract class BaseUIElementMapper(
             this["decorator"]?.let(commonAttributeMapper::mapShape),
             this["padding"]?.let(commonAttributeMapper::mapEdgeEntities),
             this["offset"]?.let(commonAttributeMapper::mapOffset),
-            (this["visibility"] as? Boolean) ?: true,
-            (this["transition_in"] as? List<*>)?.mapNotNull { item ->
-                (item as? Map<*, *>)?.let(commonAttributeMapper::mapTransition)
+            (this["opacity"] as? Number)?.toFloat() ?: 1f,
+            (this["on_appear"] as? List<*>)?.mapNotNull { item ->
+                (item as? Map<*, *>)?.let(commonAttributeMapper::mapAnimation)
             }?.takeIf { it.isNotEmpty() }
-                ?: (this["transition_in"] as? Map<*, *>)?.let(commonAttributeMapper::mapTransition)?.let { listOf(it) }
+                ?: (this["transition_in"] as? List<*>)?.mapNotNull { item ->
+                    (item as? Map<*, *>)?.let(commonAttributeMapper::mapFadeTransitionToAnimation)
+                }?.takeIf { it.isNotEmpty() }
+                ?: (this["transition_in"] as? Map<*, *>)?.let(commonAttributeMapper::mapFadeTransitionToAnimation)?.let { listOf(it) }
         )
     }
 

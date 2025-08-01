@@ -2,11 +2,11 @@
 
 package com.adapty.ui.internal.ui.attributes
 
+import androidx.compose.animation.core.EaseIn
+import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.Easing
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import com.adapty.internal.utils.InternalAdaptyApi
 
 @InternalAdaptyApi
@@ -30,9 +30,9 @@ public sealed class Transition(
 
 internal val Transition.easing: Easing
     get() = when (interpolatorName) {
-        "ease_in_out" -> FastOutSlowInEasing
-        "ease_in" -> FastOutLinearInEasing
-        "ease_out" -> LinearOutSlowInEasing
+        "ease_in_out" -> EaseInOut
+        "ease_in" -> EaseIn
+        "ease_out" -> EaseOut
         "linear" -> LinearEasing
-        else -> FastOutSlowInEasing
+        else -> EaseInOut
     }

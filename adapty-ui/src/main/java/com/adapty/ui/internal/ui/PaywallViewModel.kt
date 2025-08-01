@@ -19,7 +19,6 @@ import com.adapty.internal.utils.CacheRepositoryProxy
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.PriceFormatter
 import com.adapty.internal.utils.extractProducts
-import com.adapty.models.AdaptyPurchaseParameters
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.AdaptyCustomAssets
@@ -48,7 +47,6 @@ import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.listeners.AdaptyUiEventListener
 import com.adapty.ui.listeners.AdaptyUiObserverModeHandler
-import com.adapty.ui.listeners.AdaptyUiPersonalizedOfferResolver
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.adapty.ui.listeners.AdaptyUiTimerResolver
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
@@ -370,12 +368,11 @@ internal class PaywallViewModel(
         product: AdaptyPaywallProduct,
         eventListener: EventCallback,
         observerModeHandler: AdaptyUiObserverModeHandler?,
-        personalizedOfferResolver: AdaptyUiPersonalizedOfferResolver,
     ) {
         if (!isObserverMode) {
             if (observerModeHandler != null)
                 log(WARN) { "$LOG_PREFIX $flowKey You should not pass observerModeHandler if you're using Adapty in Full Mode" }
-            performMakePurchase(activity, product, eventListener, personalizedOfferResolver)
+            performMakePurchase(activity, product, eventListener)
         } else {
             if (observerModeHandler != null) {
                 log(VERBOSE) { "$LOG_PREFIX $flowKey observerModeHandler: onPurchaseInitiated begin" }
@@ -394,7 +391,7 @@ internal class PaywallViewModel(
                 )
             } else {
                 log(WARN) { "$LOG_PREFIX $flowKey In order to handle purchases in Observer Mode enabled, provide the observerModeHandler!" }
-                performMakePurchase(activity, product, eventListener, personalizedOfferResolver)
+                performMakePurchase(activity, product, eventListener)
             }
         }
     }
@@ -403,20 +400,14 @@ internal class PaywallViewModel(
         activity: Activity,
         product: AdaptyPaywallProduct,
         eventListener: EventCallback,
-        personalizedOfferResolver: AdaptyUiPersonalizedOfferResolver,
     ) {
         toggleLoading(true)
         log(VERBOSE) { "$LOG_PREFIX $flowKey makePurchase begin" }
-        val isOfferPersonalized = personalizedOfferResolver.resolve(product)
-        eventListener.onAwaitingSubscriptionUpdateParams(product) { subscriptionUpdateParams ->
-            log(VERBOSE) { "$LOG_PREFIX $flowKey makePurchase onSubscriptionUpdateParamsReceived called" }
+        eventListener.onAwaitingPurchaseParams(product) { purchaseParams ->
+            log(VERBOSE) { "$LOG_PREFIX $flowKey makePurchase onAwaitingPurchaseParams called" }
             activity.runOnUiThread {
                 eventListener.onPurchaseStarted(product)
-                val params = AdaptyPurchaseParameters.Builder()
-                    .withSubscriptionUpdateParams(subscriptionUpdateParams)
-                    .withOfferPersonalized(isOfferPersonalized)
-                    .build()
-                Adapty.makePurchase(activity, product, params) { result ->
+                Adapty.makePurchase(activity, product, purchaseParams) { result ->
                     toggleLoading(false)
                     when (result) {
                         is AdaptyResult.Success -> {
@@ -600,7 +591,6 @@ internal class UserArgs(
     val viewConfig: AdaptyUI.LocalizedViewConfiguration,
     val eventListener: AdaptyUiEventListener,
     val userInsets: AdaptyPaywallInsets,
-    val personalizedOfferResolver: AdaptyUiPersonalizedOfferResolver,
     val customAssets: AdaptyCustomAssets,
     val tagResolver: AdaptyUiTagResolver,
     val timerResolver: AdaptyUiTimerResolver,
@@ -613,7 +603,6 @@ internal class UserArgs(
             viewConfig: AdaptyUI.LocalizedViewConfiguration,
             eventListener: AdaptyUiEventListener,
             userInsets: AdaptyPaywallInsets,
-            personalizedOfferResolver: AdaptyUiPersonalizedOfferResolver,
             customAssets: AdaptyCustomAssets,
             tagResolver: AdaptyUiTagResolver,
             timerResolver: AdaptyUiTimerResolver,
@@ -625,7 +614,6 @@ internal class UserArgs(
                 viewConfig,
                 eventListener,
                 userInsets,
-                personalizedOfferResolver,
                 customAssets,
                 tagResolver,
                 timerResolver,

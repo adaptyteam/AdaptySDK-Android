@@ -10,12 +10,12 @@ import com.adapty.errors.AdaptyError
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
+import com.adapty.models.AdaptyPurchaseParameters
 import com.adapty.models.AdaptyPurchaseResult
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.log
-import com.adapty.ui.listeners.AdaptyUiEventListener.SubscriptionUpdateParamsCallback
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 
 public open class AdaptyUiDefaultEventListener : AdaptyUiEventListener {
@@ -35,12 +35,13 @@ public open class AdaptyUiDefaultEventListener : AdaptyUiEventListener {
         }
     }
 
-    override fun onAwaitingSubscriptionUpdateParams(
+    override fun onAwaitingPurchaseParams(
         product: AdaptyPaywallProduct,
         context: Context,
-        onSubscriptionUpdateParamsReceived: SubscriptionUpdateParamsCallback,
-    ) {
-        onSubscriptionUpdateParamsReceived(null)
+        onPurchaseParamsReceived: AdaptyUiEventListener.PurchaseParamsCallback,
+    ): AdaptyUiEventListener.PurchaseParamsCallback.IveBeenInvoked {
+        onPurchaseParamsReceived(AdaptyPurchaseParameters.Empty)
+        return AdaptyUiEventListener.PurchaseParamsCallback.IveBeenInvoked
     }
 
     override fun onLoadingProductsFailure(

@@ -24,7 +24,6 @@ import com.adapty.ui.internal.utils.log
 import com.adapty.ui.listeners.AdaptyUiDefaultEventListener
 import com.adapty.ui.listeners.AdaptyUiEventListener
 import com.adapty.ui.listeners.AdaptyUiObserverModeHandler
-import com.adapty.ui.listeners.AdaptyUiPersonalizedOfferResolver
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.adapty.ui.listeners.AdaptyUiTimerResolver
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
@@ -72,10 +71,6 @@ public class AdaptyPaywallView @JvmOverloads constructor(
      *
      * @param[insets] You can override the default window inset handling by specifying the [AdaptyPaywallInsets].
      *
-     * @param[personalizedOfferResolver] In case you want to indicate whether the price is personalized ([read more](https://developer.android.com/google/play/billing/integrate#personalized-price)),
-     * you can implement [AdaptyUiPersonalizedOfferResolver] and pass your own logic
-     * that maps [AdaptyPaywallProduct] to `true`, if the price of the product is personalized, otherwise `false`.
-     *
      * @param[customAssets] If you are going to use custom assets functionality, pass [AdaptyCustomAssets] here.
      *
      * @param[tagResolver] If you are going to use custom tags functionality, pass the resolver function here.
@@ -91,7 +86,6 @@ public class AdaptyPaywallView @JvmOverloads constructor(
         products: List<AdaptyPaywallProduct>?,
         eventListener: AdaptyUiEventListener,
         insets: AdaptyPaywallInsets = AdaptyPaywallInsets.UNSPECIFIED,
-        personalizedOfferResolver: AdaptyUiPersonalizedOfferResolver = AdaptyUiPersonalizedOfferResolver.DEFAULT,
         customAssets: AdaptyCustomAssets = AdaptyCustomAssets.Empty,
         tagResolver: AdaptyUiTagResolver = AdaptyUiTagResolver.DEFAULT,
         timerResolver: AdaptyUiTimerResolver = AdaptyUiTimerResolver.DEFAULT,
@@ -103,7 +97,6 @@ public class AdaptyPaywallView @JvmOverloads constructor(
                     viewConfiguration,
                     eventListener,
                     insets,
-                    personalizedOfferResolver,
                     customAssets,
                     tagResolver,
                     timerResolver,

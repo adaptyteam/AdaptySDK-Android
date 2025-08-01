@@ -5,8 +5,8 @@ import android.content.Context
 import com.adapty.errors.AdaptyError
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
+import com.adapty.models.AdaptyPurchaseParameters
 import com.adapty.models.AdaptyPurchaseResult
-import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.ui.AdaptyPaywallView
 import com.adapty.ui.AdaptyUI
 
@@ -39,24 +39,22 @@ public interface AdaptyUiEventListener {
 
     /**
      * This callback is invoked when user initiates the purchase process, providing the ability
-     * to supply an [AdaptySubscriptionUpdateParameters] object.
-     * This is used when you need one subscription to be replaced with another.
+     * to supply an [AdaptyPurchaseParameters] object with additional purchase options.
      *
      * @param[product] An [AdaptyPaywallProduct] of the purchase.
      *
      * @param[context] A UI [Context] within which the event occurred.
      *
-     * @param[onSubscriptionUpdateParamsReceived] If a new subscription is purchased while another is still active,
-     * call `onSubscriptionUpdateParamsReceived(...)` either with [AdaptySubscriptionUpdateParameters]
-     * instance if the new subscription should replace a currently active subscription
-     * or with `null` if the active subscription should remain active and the new one should be added separately.
-     * [Read more](https://adapty.io/docs/making-purchases#change-subscription-when-making-a-purchase).
+     * @param[onPurchaseParamsReceived] Call `onPurchaseParamsReceived(...)` either with [AdaptyPurchaseParameters]
+     * instance if you want to provide additional purchase options — e.g., if the new subscription should replace a currently active subscription
+     * or if you want to indicate whether the price is personalized ([read more](https://developer.android.com/google/play/billing/integrate#personalized-price)) —
+     * or with [AdaptyPurchaseParameters.Empty] as the default value.
      */
-    public fun onAwaitingSubscriptionUpdateParams(
+    public fun onAwaitingPurchaseParams(
         product: AdaptyPaywallProduct,
         context: Context,
-        onSubscriptionUpdateParamsReceived: SubscriptionUpdateParamsCallback,
-    )
+        onPurchaseParamsReceived: PurchaseParamsCallback,
+    ): PurchaseParamsCallback.IveBeenInvoked
 
     /**
      * This callback is invoked in case of errors during the products loading process.
@@ -192,7 +190,9 @@ public interface AdaptyUiEventListener {
         context: Context,
     )
 
-    public fun interface SubscriptionUpdateParamsCallback {
-        public operator fun invoke(subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?)
+    public fun interface PurchaseParamsCallback {
+        public operator fun invoke(purchaseParams: AdaptyPurchaseParameters)
+
+        public companion object IveBeenInvoked
     }
 }
