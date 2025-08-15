@@ -83,11 +83,11 @@ internal abstract class BaseUIComplexElementMapper(
                     is DimSpec.Specified -> nextInheritShrink = nextInheritShrink and SHRINK_HEIGHT_ONLY
                     is DimSpec.Min -> {
                         if (map.isVerticalContainer())
-                            newWidthSpec = DimSpec.Shrink(min = widthSpec.value, DimSpec.Axis.X)
+                            newWidthSpec = DimSpec.Shrink(min = widthSpec.value, maxValue = widthSpec.maxValue, DimSpec.Axis.X)
                     }
                     null -> {
                         if (map.isVerticalContainer())
-                            newWidthSpec = DimSpec.Shrink(min = DimUnit.Exact(0f), DimSpec.Axis.X)
+                            newWidthSpec = DimSpec.Shrink(min = DimUnit.Exact(0f), null, DimSpec.Axis.X)
                     }
                     is DimSpec.Shrink -> nextInheritShrink = nextInheritShrink or SHRINK_WIDTH_ONLY
                     is DimSpec.FillMax -> {}
@@ -98,11 +98,11 @@ internal abstract class BaseUIComplexElementMapper(
                     is DimSpec.Specified -> nextInheritShrink = nextInheritShrink and SHRINK_WIDTH_ONLY
                     is DimSpec.Min -> {
                         if (map.isHorizontalContainer())
-                            newHeightSpec = DimSpec.Shrink(min = heightSpec.value, DimSpec.Axis.Y)
+                            newHeightSpec = DimSpec.Shrink(min = heightSpec.value, maxValue = heightSpec.maxValue, DimSpec.Axis.Y)
                     }
                     null -> {
                         if (map.isHorizontalContainer())
-                            newHeightSpec = DimSpec.Shrink(min = DimUnit.Exact(0f), DimSpec.Axis.Y)
+                            newHeightSpec = DimSpec.Shrink(min = DimUnit.Exact(0f), maxValue = null, DimSpec.Axis.Y)
                     }
                     is DimSpec.Shrink -> nextInheritShrink = nextInheritShrink or SHRINK_HEIGHT_ONLY
                     is DimSpec.FillMax -> {}

@@ -4,8 +4,9 @@ import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.*
+import com.adapty.internal.domain.VariationType
 import com.adapty.internal.domain.models.PurchaseableProduct
-import com.adapty.internal.utils.DEFAULT_PAYWALL_LOCALE
+import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
 import com.adapty.models.AdaptyProfileParameters
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
@@ -44,10 +45,39 @@ internal class CloudRepository(
         }
     }
 
-    fun getPaywallVariations(id: String, locale: String, segmentId: String): Variations {
+    fun getVariations(id: String, locale: String, segmentId: String, variationType: VariationType): Pair<Variations, Request.CurrentDataWhenSent?> {
+        val request = when (variationType) {
+            VariationType.Paywall -> requestFactory.getPaywallVariationsRequest(id, locale, segmentId)
+            VariationType.Onboarding -> requestFactory.getOnboardingVariationsRequest(id, locale, segmentId)
+        }
         val response = httpClient.newCall<Variations>(
-            requestFactory.getPaywallVariationsRequest(id, locale, segmentId),
+            request,
             Variations::class.java,
+        )
+        when (response) {
+            is Response.Success -> return response.body to request.currentDataWhenSent
+            is Response.Error -> throw response.error
+        }
+    }
+
+    fun getVariationById(id: String, locale: String, segmentId: String, variationId: String, variationType: VariationType): Variation {
+        val response = httpClient.newCall<Variation>(
+            when (variationType) {
+                VariationType.Paywall -> requestFactory.getPaywallByVariationIdRequest(id, locale, segmentId, variationId)
+                VariationType.Onboarding -> requestFactory.getOnboardingByVariationIdRequest(id, locale, segmentId, variationId)
+            },
+            Variation::class.java,
+        )
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> throw response.error
+        }
+    }
+
+    fun registerInstall(installRegistrationData: InstallRegistrationData, retryAttempt: Long, maxRetries: Long): InstallRegistrationResponseData {
+        val response = httpClient.newCall<InstallRegistrationResponseData>(
+            requestFactory.registerInstallRequest(installRegistrationData, retryAttempt, maxRetries),
+            InstallRegistrationResponseData::class.java,
         )
         when (response) {
             is Response.Success -> return response.body
@@ -56,9 +86,12 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun getPaywallVariationsFallback(id: String, locale: String): Variations {
+    fun getVariationsFallback(id: String, locale: String, variationType: VariationType): Variations {
         val response = httpClient.newCall<Variations>(
-            requestFactory.getPaywallVariationsFallbackRequest(id, locale),
+            when (variationType) {
+                VariationType.Paywall -> requestFactory.getPaywallVariationsFallbackRequest(id, locale)
+                VariationType.Onboarding -> requestFactory.getOnboardingVariationsFallbackRequest(id, locale)
+            },
             Variations::class.java,
         )
         when (response) {
@@ -66,18 +99,41 @@ internal class CloudRepository(
             is Response.Error -> {
                 val error = response.error
                 when {
-                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PAYWALL_LOCALE ->
-                        return getPaywallVariationsFallback(id, DEFAULT_PAYWALL_LOCALE)
+                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
+                        return getVariationsFallback(id, DEFAULT_PLACEMENT_LOCALE, variationType)
                     else -> throw response.error
                 }
             }
         }
     }
 
-    @JvmSynthetic
-    fun getPaywallVariationsUntargeted(id: String, locale: String): Variations {
+    fun getVariationByIdFallback(id: String, locale: String, variationId: String, variationType: VariationType): Variation {
+        val response = httpClient.newCall<Variation>(
+            when (variationType) {
+                VariationType.Paywall -> requestFactory.getPaywallByVariationIdFallbackRequest(id, locale, variationId)
+                VariationType.Onboarding -> requestFactory.getOnboardingByVariationIdFallbackRequest(id, locale, variationId)
+            },
+            Variation::class.java,
+        )
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> {
+                val error = response.error
+                when {
+                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
+                        return getVariationByIdFallback(id, DEFAULT_PLACEMENT_LOCALE, variationId, variationType)
+                    else -> throw response.error
+                }
+            }
+        }
+    }
+
+    fun getVariationsUntargeted(id: String, locale: String, variationType: VariationType): Variations {
         val response = httpClient.newCall<Variations>(
-            requestFactory.getPaywallVariationsUntargetedRequest(id, locale),
+            when (variationType) {
+                VariationType.Paywall -> requestFactory.getPaywallVariationsUntargetedRequest(id, locale)
+                VariationType.Onboarding -> requestFactory.getOnboardingVariationsUntargetedRequest(id, locale)
+            },
             Variations::class.java,
         )
         when (response) {
@@ -85,8 +141,8 @@ internal class CloudRepository(
             is Response.Error -> {
                 val error = response.error
                 when {
-                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PAYWALL_LOCALE ->
-                        return getPaywallVariationsUntargeted(id, DEFAULT_PAYWALL_LOCALE)
+                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
+                        return getVariationsUntargeted(id, DEFAULT_PLACEMENT_LOCALE, variationType)
                     else -> throw response.error
                 }
             }
@@ -116,8 +172,8 @@ internal class CloudRepository(
             is Response.Error -> {
                 val error = response.error
                 when {
-                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PAYWALL_LOCALE ->
-                        return getViewConfigurationFallback(paywallId, DEFAULT_PAYWALL_LOCALE)
+                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
+                        return getViewConfigurationFallback(paywallId, DEFAULT_PLACEMENT_LOCALE)
                     else -> throw response.error
                 }
             }
@@ -228,6 +284,19 @@ internal class CloudRepository(
             Any::class.java
         )
         processEmptyResponse(response)
+    }
+
+    @JvmSynthetic
+    fun getCrossPlacementInfo(replacementProfileId: String?): CrossPlacementInfo {
+        val response = httpClient.newCall<CrossPlacementInfo>(
+            requestFactory.getCrossPlacementInfoRequest(replacementProfileId),
+            CrossPlacementInfo::class.java
+        )
+
+        when (response) {
+            is Response.Success -> return response.body
+            is Response.Error -> throw response.error
+        }
     }
 
     @JvmSynthetic

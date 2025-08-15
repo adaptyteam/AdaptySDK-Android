@@ -11,7 +11,7 @@ import java.math.BigDecimal
 /**
  * @property[localizedDescription] A description of the product.
  * @property[localizedTitle] The name of the product.
- * @property[paywallABTestName] Same as [abTestName][AdaptyPaywall.abTestName] property of the parent [AdaptyPaywall].
+ * @property[paywallABTestName] Same as [abTestName][AdaptyPlacement.abTestName] property of the parent paywall's [AdaptyPlacement].
  * @property[paywallName] Same as [name][AdaptyPaywall.name] property of the parent [AdaptyPaywall].
  * @property[price] The [price][Price] of the product in the local currency.
  * @property[productDetails] Underlying system representation of the product.
@@ -107,5 +107,5 @@ public class AdaptyPaywallProduct internal constructor(
         }
     }
 
-    internal class Payload internal constructor(@get:JvmSynthetic val priceAmountMicros: Long, @get:JvmSynthetic val currencyCode: String, @get:JvmSynthetic val type: String, @get:JvmSynthetic val subscriptionData: SubscriptionData?)
+    internal class Payload internal constructor(val priceAmountMicros: Long, val currencyCode: String, val type: String, val subscriptionData: SubscriptionData?, val paywallProductIndex: Int, val adaptyProductId: String)
 }

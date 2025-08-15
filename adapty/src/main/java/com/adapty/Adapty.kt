@@ -13,11 +13,12 @@ import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.AdaptyInternal
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.di.Dependencies.inject
-import com.adapty.internal.utils.DEFAULT_PAYWALL_LOCALE
+import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
 import com.adapty.internal.utils.DEFAULT_PAYWALL_TIMEOUT
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.Logger
 import com.adapty.internal.utils.getLocaleFromViewConfig
+import com.adapty.listeners.OnInstallationDetailsListener
 import com.adapty.listeners.OnProfileUpdatedListener
 import com.adapty.models.*
 import com.adapty.utils.*
@@ -179,7 +180,7 @@ public object Adapty {
      * Example: `"en"` means English, `"en-US"` represents US English.
      * If the parameter is omitted, the paywall will be returned in the default locale.
      *
-     * @param[fetchPolicy] By default SDK will try to load data from server and will return cached data in case of failure. Otherwise use [AdaptyPaywall.FetchPolicy.ReturnCacheDataElseLoad] to return cached data if it exists.
+     * @param[fetchPolicy] By default SDK will try to load data from server and will return cached data in case of failure. Otherwise use [AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad] to return cached data if it exists.
      *
      * @param[loadTimeout] This value limits the timeout for this method. If the timeout is reached,
      * cached data or local fallback will be returned. The minimum value is 1 second.
@@ -197,7 +198,7 @@ public object Adapty {
     public fun getPaywall(
         placementId: String,
         locale: String? = null,
-        fetchPolicy: AdaptyPaywall.FetchPolicy = AdaptyPaywall.FetchPolicy.Default,
+        fetchPolicy: AdaptyPlacementFetchPolicy = AdaptyPlacementFetchPolicy.Default,
         loadTimeout: TimeInterval = DEFAULT_PAYWALL_TIMEOUT,
         callback: ResultCallback<AdaptyPaywall>,
     ) {
@@ -207,7 +208,7 @@ public object Adapty {
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getPaywall(placementId, locale ?: DEFAULT_PAYWALL_LOCALE, fetchPolicy, loadTimeout, callback)
+        adaptyInternal.getPaywall(placementId, locale ?: DEFAULT_PLACEMENT_LOCALE, fetchPolicy, loadTimeout, callback)
     }
 
     /**
@@ -228,13 +229,31 @@ public object Adapty {
         paywall: AdaptyPaywall,
         callback: ResultCallback<List<AdaptyPaywallProduct>>,
     ) {
-        Logger.log(VERBOSE) { "getPaywallProducts(placementId = ${paywall.placementId})" }
+        Logger.log(VERBOSE) { "getPaywallProducts(placementId = ${paywall.placement.id})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
         adaptyInternal.getPaywallProducts(paywall, callback)
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    public fun getOnboarding(
+        placementId: String,
+        locale: String? = null,
+        fetchPolicy: AdaptyPlacementFetchPolicy = AdaptyPlacementFetchPolicy.Default,
+        loadTimeout: TimeInterval = DEFAULT_PAYWALL_TIMEOUT,
+        callback: ResultCallback<AdaptyOnboarding>,
+    ) {
+        Logger.log(VERBOSE) { "getOnboarding(placementId = $placementId${locale?.let { ", locale = $locale" }.orEmpty()}, fetchPolicy = ${fetchPolicy}${loadTimeout.takeIf { it != TimeInterval.INFINITE }?.let { ", timeout = $it" }.orEmpty()})" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.getOnboarding(placementId, locale ?: DEFAULT_PLACEMENT_LOCALE, fetchPolicy, loadTimeout, callback)
     }
 
     /**
@@ -250,7 +269,7 @@ public object Adapty {
         loadTimeout: TimeInterval,
         callback: ResultCallback<Map<String, Any>>
     ) {
-        Logger.log(VERBOSE) { "getViewConfiguration(placementId = ${paywall.placementId}, locale = ${getLocaleFromViewConfig(paywall.viewConfig)}${loadTimeout.takeIf { it != TimeInterval.INFINITE }?.let { ", timeout = $it" }.orEmpty()})" }
+        Logger.log(VERBOSE) { "getViewConfiguration(placementId = ${paywall.placement.id}, locale = ${getLocaleFromViewConfig(paywall.viewConfig)}${loadTimeout.takeIf { it != TimeInterval.INFINITE }?.let { ", timeout = $it" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
@@ -281,8 +300,11 @@ public object Adapty {
      *
      * @see <a href="https://adapty.io/docs/making-purchases">Make purchases in mobile app</a>
      */
+    @Deprecated(
+        message = "This method has been deprecated. Please use Adapty.makePurchase(activity: Activity, product: AdaptyPaywallProduct, params: AdaptyPurchaseParameters) instead",
+        replaceWith = ReplaceWith("Adapty.makePurchase(activity, product, AdaptyPurchaseParameters.Builder().withSubscriptionUpdateParams(subscriptionUpdateParams).withOfferPersonalized(isOfferPersonalized).build(), callback)", "com.adapty.models.AdaptyPurchaseParameters"),
+    )
     @JvmStatic
-    @JvmOverloads
     public fun makePurchase(
         activity: Activity,
         product: AdaptyPaywallProduct,
@@ -290,13 +312,51 @@ public object Adapty {
         isOfferPersonalized: Boolean = false,
         callback: ResultCallback<AdaptyPurchaseResult>,
     ) {
-        Logger.log(VERBOSE) { "makePurchase(vendorProductId = ${product.vendorProductId}${product.subscriptionDetails?.let { "; basePlanId = ${it.basePlanId}${it.offerId?.let { offerId -> "; offerId = $offerId" }.orEmpty()}" }.orEmpty()}${subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; replacementMode = ${it.replacementMode}" }.orEmpty()})" }
+        makePurchase(
+            activity,
+            product,
+            AdaptyPurchaseParameters.Builder()
+                .withSubscriptionUpdateParams(subscriptionUpdateParams)
+                .withOfferPersonalized(isOfferPersonalized)
+                .build(),
+            callback
+        )
+    }
+
+    /**
+     * To make the purchase, you have to call this method.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[activity] An [Activity] instance.
+     *
+     * @param[product] An [AdaptyPaywallProduct] object retrieved from the paywall.
+     *
+     * @param[params] Optional [AdaptyPurchaseParameters] used to provide additional purchase options.
+     *
+     * @param[callback] The result includes an [AdaptyPurchaseResult] object, which provides details about the purchase.
+     * If the result is [AdaptyPurchaseResult.Success], it also includes the user's profile.
+     * The profile, in turn, includes details about access levels, subscriptions, and non-subscription
+     * purchases. Generally, you have to check only access level status to determine whether the user
+     * has premium access to the app.
+     *
+     * @see <a href="https://adapty.io/docs/making-purchases">Make purchases in mobile app</a>
+     */
+    @JvmStatic
+    @JvmOverloads
+    public fun makePurchase(
+        activity: Activity,
+        product: AdaptyPaywallProduct,
+        params: AdaptyPurchaseParameters = AdaptyPurchaseParameters.Empty,
+        callback: ResultCallback<AdaptyPurchaseResult>,
+    ) {
+        Logger.log(VERBOSE) { "makePurchase(vendorProductId = ${product.vendorProductId}${product.subscriptionDetails?.let { "; basePlanId = ${it.basePlanId}${it.offerId?.let { offerId -> "; offerId = $offerId" }.orEmpty()}" }.orEmpty()}${params.subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; replacementMode = ${it.replacementMode}" }.orEmpty()}${params.isOfferPersonalized.takeIf { it }?.let { "; isOfferPersonalized = $it" }.orEmpty()}${params.obfuscatedAccountId?.let { "; obfuscatedAccountId = $it" }.orEmpty()}${params.obfuscatedProfileId?.let { "; obfuscatedProfileId = $it" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.makePurchase(activity, product, subscriptionUpdateParams, isOfferPersonalized, callback)
+        adaptyInternal.makePurchase(activity, product, params, callback)
     }
 
     /**
@@ -337,6 +397,17 @@ public object Adapty {
         Logger.log(VERBOSE) { "setIntegrationIdentifier(key = $key)" }
         if (!checkActivated(callback)) return
         adaptyInternal.setIntegrationId(key, value, callback)
+    }
+
+    @JvmStatic
+    public fun getCurrentInstallationStatus(callback: ResultCallback<AdaptyInstallationStatus>) {
+        Logger.log(VERBOSE) { "getCurrentInstallationStatus()" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.getCurrentInstallationStatus(callback)
     }
 
     /**
@@ -398,6 +469,12 @@ public object Adapty {
         adaptyInternal.onProfileUpdatedListener = onProfileUpdatedListener
     }
 
+    @JvmStatic
+    public fun setOnInstallationDetailsListener(onInstallationDetailsListener: OnInstallationDetailsListener?) {
+        if (!checkActivated()) return
+        adaptyInternal.onInstallationDetailsListener = onInstallationDetailsListener
+    }
+
     /**
      * Set to the most appropriate level of logging.
      *
@@ -448,10 +525,10 @@ public object Adapty {
      */
     @JvmStatic
     @JvmOverloads
-    public fun setFallbackPaywalls(location: FileLocation, callback: ErrorCallback? = null) {
-        Logger.log(VERBOSE) { "setFallbackPaywalls()" }
+    public fun setFallback(location: FileLocation, callback: ErrorCallback? = null) {
+        Logger.log(VERBOSE) { "setFallback()" }
         if (!checkActivated(callback)) return
-        adaptyInternal.setFallbackPaywalls(location, callback)
+        adaptyInternal.setFallback(location, callback)
     }
 
     /**
@@ -529,6 +606,25 @@ public object Adapty {
         adaptyInternal.logShowOnboarding(name, screenName, screenOrder, callback)
     }
 
+    internal fun logShowOnboardingInternal(
+        onboarding: AdaptyOnboarding,
+        screenName: String?,
+        screenOrder: Int,
+        isLastScreen: Boolean,
+    ) {
+        Logger.log(VERBOSE) { "logShowOnboardingInternal()" }
+        if (!isActivated) {
+            logNotInitializedError()
+            return
+        }
+        adaptyInternal.logShowOnboardingInternal(
+            onboarding,
+            screenName,
+            screenOrder,
+            isLastScreen,
+        )
+    }
+
     /**
      * Fetches the paywall of the specified placement for the **All Users** audience.
      *
@@ -553,7 +649,7 @@ public object Adapty {
      * Example: `"en"` means English, `"en-US"` represents US English.
      * If the parameter is omitted, the paywall will be returned in the default locale.
      *
-     * @param[fetchPolicy] By default SDK will try to load data from server and will return cached data in case of failure. Otherwise use [AdaptyPaywall.FetchPolicy.ReturnCacheDataElseLoad] to return cached data if it exists.
+     * @param[fetchPolicy] By default SDK will try to load data from server and will return cached data in case of failure. Otherwise use [AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad] to return cached data if it exists.
      *
      * @param[callback] A result containing the [AdaptyPaywall] object. This model contains the list
      * of the products ids, paywall’s identifier, custom payload, and several other properties.
@@ -565,7 +661,7 @@ public object Adapty {
     public fun getPaywallForDefaultAudience(
         placementId: String,
         locale: String? = null,
-        fetchPolicy: AdaptyPaywall.FetchPolicy = AdaptyPaywall.FetchPolicy.Default,
+        fetchPolicy: AdaptyPlacementFetchPolicy = AdaptyPlacementFetchPolicy.Default,
         callback: ResultCallback<AdaptyPaywall>,
     ) {
         Logger.log(VERBOSE) { "getPaywallForDefaultAudience(placementId = $placementId${locale?.let { ", locale = $locale" }.orEmpty()}, fetchPolicy = ${fetchPolicy})" }
@@ -574,7 +670,24 @@ public object Adapty {
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getPaywallForDefaultAudience(placementId, locale ?: DEFAULT_PAYWALL_LOCALE, fetchPolicy, callback)
+        adaptyInternal.getPaywallForDefaultAudience(placementId, locale ?: DEFAULT_PLACEMENT_LOCALE, fetchPolicy, callback)
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    public fun getOnboardingForDefaultAudience(
+        placementId: String,
+        locale: String? = null,
+        fetchPolicy: AdaptyPlacementFetchPolicy = AdaptyPlacementFetchPolicy.Default,
+        callback: ResultCallback<AdaptyOnboarding>,
+    ) {
+        Logger.log(VERBOSE) { "getOnboardingForDefaultAudience(placementId = $placementId${locale?.let { ", locale = $locale" }.orEmpty()}, fetchPolicy = ${fetchPolicy})" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.getOnboardingForDefaultAudience(placementId, locale ?: DEFAULT_PLACEMENT_LOCALE, fetchPolicy, callback)
     }
 
     private val adaptyInternal: AdaptyInternal by inject()

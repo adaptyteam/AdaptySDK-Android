@@ -1,6 +1,12 @@
 package com.adapty.internal.data.cloud
 
 import androidx.annotation.RestrictTo
+import com.adapty.errors.AdaptyError
+import com.adapty.errors.AdaptyErrorCode.AUTHENTICATION_ERROR
+import com.adapty.errors.AdaptyErrorCode.BAD_REQUEST
+import com.adapty.errors.AdaptyErrorCode.DECODING_FAILED
+import com.adapty.errors.AdaptyErrorCode.REQUEST_FAILED
+import com.adapty.errors.AdaptyErrorCode.SERVER_ERROR
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.models.AnalyticsConfig
 import com.adapty.internal.data.models.AnalyticsData
@@ -42,6 +48,15 @@ internal class AnalyticsEventQueueDispatcher(
                     lifecycleManager.onActivateAllowed()
                         .mapLatest { fetchDisabledEventTypes() }
                         .retryIfNecessary(DEFAULT_RETRY_COUNT)
+                        .catch { error ->
+                            if (error is AdaptyError && (error.isHttpError() || error.isDecodingError())) {
+                                val fallbackConfig = AnalyticsConfig.createFallback()
+                                cacheRepository.analyticsConfig = fallbackConfig
+                                emit(fallbackConfig.disabledEventTypes)
+                            } else {
+                                throw error
+                            }
+                        }
                         .flatMapConcat { disabledEventTypes ->
                             val (filteredEvents, processedEvents) =
                                 prepareData(disabledEventTypes, event.isSystemLog)
@@ -139,4 +154,10 @@ internal class AnalyticsEventQueueDispatcher(
             }
         }
     }
+
+    private fun AdaptyError.isHttpError() =
+        adaptyErrorCode in arrayOf(SERVER_ERROR, BAD_REQUEST, AUTHENTICATION_ERROR)
+                || (adaptyErrorCode == REQUEST_FAILED && originalError == null)
+
+    private fun AdaptyError.isDecodingError() = adaptyErrorCode == DECODING_FAILED
 }

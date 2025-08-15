@@ -53,4 +53,8 @@ public sealed class DimUnit {
     public data class SafeArea internal constructor(internal val side: Side): DimUnit() {
         internal enum class Side { START, END }
     }
+
+    public companion object {
+        public val Zero: DimUnit = Exact(0f)
+    }
 }

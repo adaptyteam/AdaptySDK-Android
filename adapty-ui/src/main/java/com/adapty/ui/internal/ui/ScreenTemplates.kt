@@ -106,8 +106,8 @@ internal fun renderBasicTemplate(
         )
         val boxMaxHeightPx = constraints.maxHeight
         val contentWrapper = defaultScreen.contentWrapper
+        val contentOffsetY = contentWrapper.offset?.y?.toExactDp(DimSpec.Axis.Y) ?: 0.dp
         val contentTopPadding = remember(coverHeight) {
-            val contentOffsetY = (contentWrapper.offset?.y ?: 0f).dp
             (coverHeight + contentOffsetY).coerceAtLeast(0.dp)
         }
         contentWrapper.offset?.consumed = true

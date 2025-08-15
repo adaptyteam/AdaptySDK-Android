@@ -7,6 +7,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.AnalyticsTracker
 import com.adapty.internal.domain.ProfileInteractor
+import com.adapty.internal.domain.UserAcquisitionInteractor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -20,13 +21,16 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class LifecycleAwareRequestRunner(
     lifecycleManager: LifecycleManager,
     private val profileInteractor: ProfileInteractor,
+    private val userAcquisitionInteractor: UserAcquisitionInteractor,
     private val analyticsTracker: AnalyticsTracker,
     private val cacheRepository: CacheRepository,
 ) : LifecycleManager.StateCallback {
 
     private val PERIODIC_REQUEST_INTERVAL = (60 * 1000).toLong()
 
-    private val APP_OPENED_EVENT_MIN_INTERVAL = 3_600_000L
+    private val APP_OPENED_EVENT_MIN_INTERVAL = 60_000L
+
+    private val CROSSPLACEMENT_INFO_REQUEST_MIN_INTERVAL = 60_000L
 
     private var scheduleGetProfileJob: Job? = null
 
@@ -44,6 +48,8 @@ internal class LifecycleAwareRequestRunner(
         areRequestsAllowed.set(true)
         if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
             handleAppOpenedEvent()
+            handleRequestCrossPlacementInfo()
+            handleRegisterInstall()
             scheduleGetProfileRequest(initialDelayMillis = PERIODIC_REQUEST_INTERVAL)
         }
     }
@@ -52,6 +58,8 @@ internal class LifecycleAwareRequestRunner(
     override fun onGoForeground() {
         if (areRequestsAllowed.get()) {
             handleAppOpenedEvent()
+            handleRequestCrossPlacementInfo()
+            handleRegisterInstall()
             scheduleGetProfileRequest(initialDelayMillis = 0)
         }
     }
@@ -78,6 +86,29 @@ internal class LifecycleAwareRequestRunner(
                     }
                 }
             })
+        }
+    }
+
+    private fun handleRequestCrossPlacementInfo() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - cacheRepository.getLastRequestedCrossPlacementInfoTime() !in 0L..CROSSPLACEMENT_INFO_REQUEST_MIN_INTERVAL) {
+            execute {
+                cacheRepository.saveLastRequestedCrossPlacementInfoTime(now)
+                profileInteractor
+                    .syncCrossPlacementInfo()
+                    .catch {
+                        cacheRepository.clearLastRequestedCrossPlacementInfoTime()
+                    }
+            }
+        }
+    }
+
+    private fun handleRegisterInstall() {
+        execute {
+            userAcquisitionInteractor
+                .registerInstall()
+                .catch { }
+                .collect()
         }
     }
 

@@ -21,6 +21,12 @@ import com.adapty.internal.utils.PriceFormatter
 import com.adapty.internal.utils.extractProducts
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.ui.AdaptyCustomAssets
+import com.adapty.ui.AdaptyCustomColorAsset
+import com.adapty.ui.AdaptyCustomFontAsset
+import com.adapty.ui.AdaptyCustomGradientAsset
+import com.adapty.ui.AdaptyCustomImageAsset
+import com.adapty.ui.AdaptyCustomVideoAsset
 import com.adapty.ui.AdaptyPaywallInsets
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
@@ -31,6 +37,8 @@ import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.text.TagResolver
 import com.adapty.ui.internal.text.TextResolver
 import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
+import com.adapty.ui.internal.utils.CUSTOM_ASSET_SUFFIX
+import com.adapty.ui.internal.utils.DARK_THEME_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.EventCallback
 import com.adapty.ui.internal.utils.LOADING_PRODUCTS_RETRY_DELAY
 import com.adapty.ui.internal.utils.LOG_PREFIX
@@ -39,7 +47,6 @@ import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.listeners.AdaptyUiEventListener
 import com.adapty.ui.listeners.AdaptyUiObserverModeHandler
-import com.adapty.ui.listeners.AdaptyUiPersonalizedOfferResolver
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.adapty.ui.listeners.AdaptyUiTimerResolver
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
@@ -79,6 +86,7 @@ internal class PaywallViewModel(
                     if (newData == null) return@collect
                     val viewConfig = newData.viewConfig
                     val initialProducts = newData.products
+                    val customAssets = newData.customAssets
                     updateData(newData)
 
                     if (initialProducts.isEmpty()) {
@@ -93,11 +101,173 @@ internal class PaywallViewModel(
                             toggleLoading(false)
                         }
                     }
+
                     viewConfig.assets.forEach { (id, asset) ->
                         if (asset is Asset.RemoteImage) {
+                            when (val customAsset = asset.customId?.let(customAssets::getImage)) {
+                                is AdaptyCustomImageAsset.Remote -> {
+                                    viewModelScope.launch {
+                                        val image = loadImage(customAsset.value)
+                                        val customAssetId =
+                                            if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                                                "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+                                            else
+                                                "${id}${CUSTOM_ASSET_SUFFIX}"
+                                        assets[customAssetId] = image
+                                    }
+                                }
+                                is AdaptyCustomImageAsset.Local -> {
+                                    val customAssetId =
+                                        if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                                            "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+                                        else
+                                            "${id}${CUSTOM_ASSET_SUFFIX}"
+                                    assets[customAssetId] = customAsset.value
+                                }
+                                else -> Unit
+                            }
+
                             viewModelScope.launch {
                                 val image = loadImage(asset)
                                 assets[id] = image
+                            }
+                        }
+
+                        if (asset is Image) {
+                            when (val customAsset = asset.customId?.let(customAssets::getImage)) {
+                                is AdaptyCustomImageAsset.Remote -> {
+                                    viewModelScope.launch {
+                                        val image = loadImage(customAsset.value)
+                                        val customAssetId =
+                                            if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                                                "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+                                            else
+                                                "${id}${CUSTOM_ASSET_SUFFIX}"
+                                        assets[customAssetId] = image
+                                    }
+                                }
+                                is AdaptyCustomImageAsset.Local -> {
+                                    val customAssetId =
+                                        if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                                            "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+                                        else
+                                            "${id}${CUSTOM_ASSET_SUFFIX}"
+                                    assets[customAssetId] = customAsset.value
+                                }
+                                else -> Unit
+                            }
+                        }
+
+                        if (asset is Asset.Color) {
+                            val customAsset = asset.customId?.let { customAssetId ->
+                                customAssets.getFirstAvailable(
+                                    customAssetId,
+                                    listOf(
+                                        AdaptyCustomAssets.AssetType.COLOR,
+                                        AdaptyCustomAssets.AssetType.GRADIENT,
+                                    )
+                                )
+                            }
+                            when (customAsset) {
+                                is AdaptyCustomColorAsset -> {
+                                    val customAssetId =
+                                        if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                                            "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+                                        else
+                                            "${id}${CUSTOM_ASSET_SUFFIX}"
+                                    assets[customAssetId] = customAsset.value
+                                }
+                                is AdaptyCustomGradientAsset -> {
+                                    val customAssetId =
+                                        if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                                            "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+                                        else
+                                            "${id}${CUSTOM_ASSET_SUFFIX}"
+                                    assets[customAssetId] = customAsset.value
+                                }
+                                else -> Unit
+                            }
+                        }
+
+                        if (asset is Asset.Gradient) {
+                            val customAsset = asset.customId?.let { customAssetId ->
+                                customAssets.getFirstAvailable(
+                                    customAssetId,
+                                    listOf(
+                                        AdaptyCustomAssets.AssetType.GRADIENT,
+                                        AdaptyCustomAssets.AssetType.COLOR,
+                                    )
+                                )
+                            }
+                            when (customAsset) {
+                                is AdaptyCustomColorAsset -> {
+                                    val customAssetId =
+                                        if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                                            "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+                                        else
+                                            "${id}${CUSTOM_ASSET_SUFFIX}"
+                                    assets[customAssetId] = customAsset.value
+                                }
+                                is AdaptyCustomGradientAsset -> {
+                                    val customAssetId =
+                                        if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                                            "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+                                        else
+                                            "${id}${CUSTOM_ASSET_SUFFIX}"
+                                    assets[customAssetId] = customAsset.value
+                                }
+                                else -> Unit
+                            }
+                        }
+
+                        if (asset is Asset.Video) {
+                            when (val customAsset = asset.customId?.let(customAssets::getVideo)) {
+                                is AdaptyCustomVideoAsset -> {
+                                    val customAssetId =
+                                        if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                                            "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+                                        else
+                                            "${id}${CUSTOM_ASSET_SUFFIX}"
+                                    assets[customAssetId] = customAsset.value
+
+                                    when (val customPreviewAsset = customAsset.preview) {
+                                        is AdaptyCustomImageAsset.Remote -> {
+                                            viewModelScope.launch {
+                                                val image = loadImage(customPreviewAsset.value)
+                                                val customAssetId =
+                                                    if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                                                        "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+                                                    else
+                                                        "${id}${CUSTOM_ASSET_SUFFIX}"
+                                                assets[customAssetId] = image
+                                            }
+                                        }
+                                        is AdaptyCustomImageAsset.Local -> {
+                                            val customAssetId =
+                                                if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                                                    "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+                                                else
+                                                    "${id}${CUSTOM_ASSET_SUFFIX}"
+                                            assets[customAssetId] = customAsset.value
+                                        }
+                                        else -> Unit
+                                    }
+                                }
+                                else -> Unit
+                            }
+                        }
+
+                        if (asset is Asset.Font) {
+                            when (val customAsset = asset.customId?.let(customAssets::getFont)) {
+                                is AdaptyCustomFontAsset -> {
+                                    val customAssetId =
+                                        if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                                            "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+                                        else
+                                            "${id}${CUSTOM_ASSET_SUFFIX}"
+                                    assets[customAssetId] = customAsset.value
+                                }
+                                else -> Unit
                             }
                         }
                     }
@@ -198,12 +368,11 @@ internal class PaywallViewModel(
         product: AdaptyPaywallProduct,
         eventListener: EventCallback,
         observerModeHandler: AdaptyUiObserverModeHandler?,
-        personalizedOfferResolver: AdaptyUiPersonalizedOfferResolver,
     ) {
         if (!isObserverMode) {
             if (observerModeHandler != null)
                 log(WARN) { "$LOG_PREFIX $flowKey You should not pass observerModeHandler if you're using Adapty in Full Mode" }
-            performMakePurchase(activity, product, eventListener, personalizedOfferResolver)
+            performMakePurchase(activity, product, eventListener)
         } else {
             if (observerModeHandler != null) {
                 log(VERBOSE) { "$LOG_PREFIX $flowKey observerModeHandler: onPurchaseInitiated begin" }
@@ -222,7 +391,7 @@ internal class PaywallViewModel(
                 )
             } else {
                 log(WARN) { "$LOG_PREFIX $flowKey In order to handle purchases in Observer Mode enabled, provide the observerModeHandler!" }
-                performMakePurchase(activity, product, eventListener, personalizedOfferResolver)
+                performMakePurchase(activity, product, eventListener)
             }
         }
     }
@@ -231,16 +400,14 @@ internal class PaywallViewModel(
         activity: Activity,
         product: AdaptyPaywallProduct,
         eventListener: EventCallback,
-        personalizedOfferResolver: AdaptyUiPersonalizedOfferResolver,
     ) {
         toggleLoading(true)
         log(VERBOSE) { "$LOG_PREFIX $flowKey makePurchase begin" }
-        val isOfferPersonalized = personalizedOfferResolver.resolve(product)
-        eventListener.onAwaitingSubscriptionUpdateParams(product) { subscriptionUpdateParams ->
-            log(VERBOSE) { "$LOG_PREFIX $flowKey makePurchase onSubscriptionUpdateParamsReceived called" }
+        eventListener.onAwaitingPurchaseParams(product) { purchaseParams ->
+            log(VERBOSE) { "$LOG_PREFIX $flowKey makePurchase onAwaitingPurchaseParams called" }
             activity.runOnUiThread {
                 eventListener.onPurchaseStarted(product)
-                Adapty.makePurchase(activity, product, subscriptionUpdateParams, isOfferPersonalized) { result ->
+                Adapty.makePurchase(activity, product, purchaseParams) { result ->
                     toggleLoading(false)
                     when (result) {
                         is AdaptyResult.Success -> {
@@ -424,7 +591,7 @@ internal class UserArgs(
     val viewConfig: AdaptyUI.LocalizedViewConfiguration,
     val eventListener: AdaptyUiEventListener,
     val userInsets: AdaptyPaywallInsets,
-    val personalizedOfferResolver: AdaptyUiPersonalizedOfferResolver,
+    val customAssets: AdaptyCustomAssets,
     val tagResolver: AdaptyUiTagResolver,
     val timerResolver: AdaptyUiTimerResolver,
     val observerModeHandler: AdaptyUiObserverModeHandler?,
@@ -436,7 +603,7 @@ internal class UserArgs(
             viewConfig: AdaptyUI.LocalizedViewConfiguration,
             eventListener: AdaptyUiEventListener,
             userInsets: AdaptyPaywallInsets,
-            personalizedOfferResolver: AdaptyUiPersonalizedOfferResolver,
+            customAssets: AdaptyCustomAssets,
             tagResolver: AdaptyUiTagResolver,
             timerResolver: AdaptyUiTimerResolver,
             observerModeHandler: AdaptyUiObserverModeHandler?,
@@ -447,7 +614,7 @@ internal class UserArgs(
                 viewConfig,
                 eventListener,
                 userInsets,
-                personalizedOfferResolver,
+                customAssets,
                 tagResolver,
                 timerResolver,
                 observerModeHandler,

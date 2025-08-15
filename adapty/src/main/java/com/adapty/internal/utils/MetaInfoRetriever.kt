@@ -3,11 +3,16 @@ package com.adapty.internal.utils
 import android.content.Context
 import android.os.Build
 import android.provider.Settings.Secure
+import android.util.DisplayMetrics
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
+import com.adapty.internal.data.cache.INSTALLATION_META_ID
+import com.adapty.internal.data.cache.PreferenceManager
 import com.adapty.utils.AdaptyLogLevel
+import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.*
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -17,14 +22,19 @@ internal class MetaInfoRetriever(
     private val adaptyUiAccessor: AdaptyUiAccessor,
     private val userAgentRetriever: UserAgentRetriever,
     private val cacheRepository: CacheRepository,
+    private val preferenceManager: PreferenceManager,
 ) {
 
     @get:JvmSynthetic
     val installationMetaId get() = cacheRepository.getInstallationMetaId()
 
+    val applicationId = appContext.packageName
+
+    fun isJustInstalled(): Boolean = preferenceManager.getString(INSTALLATION_META_ID) == null
+
     @get:JvmSynthetic
     val appBuildAndVersion: Pair<String, String> by lazy {
-        appContext.packageManager.getPackageInfo(appContext.packageName, 0)
+        appContext.packageManager.getPackageInfo(applicationId, 0)
             .let { packageInfo ->
                 val appBuild = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     "${packageInfo.longVersionCode}"
@@ -35,6 +45,10 @@ internal class MetaInfoRetriever(
 
                 appBuild to appVersion
             }
+    }
+
+    val displayMetrics: DisplayMetrics by lazy {
+        appContext.resources.displayMetrics
     }
 
     @JvmSynthetic
@@ -94,6 +108,19 @@ internal class MetaInfoRetriever(
     @get:JvmSynthetic
     val builderVersion by lazy {
         adaptyUiAccessor.builderVersion
+    }
+
+    fun formatDateTimeGMT(timestampMillis: Long = -1): String =
+        dateFormatter.format(getDate(timestampMillis))
+
+    fun getDate(timestampMillis: Long = -1) =
+        if (timestampMillis == -1L) Calendar.getInstance().time
+        else Date(timestampMillis)
+
+    private val dateFormatter: DateFormat by lazy {
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("GMT")
+        }
     }
 
     private fun throwWrongParamError(message: String): Nothing {

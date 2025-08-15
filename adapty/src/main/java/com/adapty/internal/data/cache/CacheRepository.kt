@@ -1,16 +1,25 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.internal.data.cache
 
 import androidx.annotation.RestrictTo
+import com.adapty.errors.AdaptyError
 import com.adapty.internal.data.models.*
+import com.adapty.internal.domain.VariationType
 import com.adapty.internal.utils.FallbackPaywallRetriever
+import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.internal.utils.ProfileStateChange
 import com.adapty.internal.utils.execute
 import com.adapty.internal.utils.extractLanguageCode
 import com.adapty.internal.utils.generateUuid
 import com.adapty.internal.utils.getLanguageCode
 import com.adapty.internal.utils.orDefault
+import com.adapty.internal.utils.unlockQuietly
+import com.adapty.utils.AdaptyResult
 import com.adapty.utils.FileLocation
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.take
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.locks.ReentrantReadWriteLock
@@ -19,9 +28,12 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 internal class CacheRepository(
     private val preferenceManager: PreferenceManager,
     private val fallbackPaywallRetriever: FallbackPaywallRetriever,
+    private val crossPlacementInfoLock: ReentrantReadWriteLock,
 ) {
 
     private val currentProfile = MutableSharedFlow<ProfileDto>()
+
+    private val installRegistration = MutableSharedFlow<AdaptyResult<InstallRegistrationResponseData>>()
 
     private val cache = ConcurrentHashMap<String, Any>(32)
 
@@ -29,15 +41,14 @@ internal class CacheRepository(
     suspend fun updateDataOnCreateProfile(
         profile: ProfileDto,
         installationMeta: InstallationMeta,
-    ): Boolean {
-        if (profile.timestamp.orDefault() < getProfile()?.timestamp.orDefault())
-            return false
-        var profileIdHasChanged = false
-        (profile.profileId ?: (cache[UNSYNCED_PROFILE_ID] as? String))?.let { profileId ->
-            profileIdHasChanged = profileId != preferenceManager.getString(PROFILE_ID)
-
-            if (profileIdHasChanged) onNewProfileIdReceived(profileId)
-        }
+        profileStateChange: ProfileStateChange,
+    ) {
+        if (profileStateChange == ProfileStateChange.OUTDATED)
+            return
+        val profileIdHasChanged =
+            profileStateChange in listOf(ProfileStateChange.NEW, ProfileStateChange.IDENTIFIED_TO_ANOTHER)
+        if (profileIdHasChanged)
+            onNewProfileIdReceived(profile.profileId)
         if (profileIdHasChanged || (getCustomerUserId() != profile.customerUserId)) {
             clearSyncedPurchases()
         }
@@ -49,7 +60,6 @@ internal class CacheRepository(
         if (!currentUnsyncedCUIdDiffers)
             cache.remove(UNSYNCED_CUSTOMER_USER_ID)
         saveLastSentInstallationMeta(installationMeta)
-        return profileIdHasChanged
     }
 
     @JvmSynthetic
@@ -76,6 +86,11 @@ internal class CacheRepository(
     fun subscribeOnProfileChanges() =
         currentProfile
             .distinctUntilChanged()
+
+    @JvmSynthetic
+    fun subscribeOnInstallRegistration() =
+        installRegistration
+            .take(1)
 
     @JvmSynthetic
     fun getAppKey() = preferenceManager.getString(APP_KEY)
@@ -219,6 +234,26 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
+    fun getLastRequestedCrossPlacementInfoTime() =
+        cache.safeGetOrPut(
+            CROSSPLACEMENT_INFO_REQUESTED_TIME,
+            { preferenceManager.getLong(CROSSPLACEMENT_INFO_REQUESTED_TIME, 0L) }) as? Long ?: 0L
+
+    @JvmSynthetic
+    fun saveLastRequestedCrossPlacementInfoTime(timeMillis: Long) {
+        cache[CROSSPLACEMENT_INFO_REQUESTED_TIME] = timeMillis
+        preferenceManager.saveLong(CROSSPLACEMENT_INFO_REQUESTED_TIME, timeMillis)
+    }
+
+    @JvmSynthetic
+    fun clearLastRequestedCrossPlacementInfoTime() {
+        clearData(
+            containsKeys = setOf(CROSSPLACEMENT_INFO_REQUESTED_TIME),
+            startsWithKeys = setOf(),
+        )
+    }
+
+    @JvmSynthetic
     fun getProfile() =
         getData(PROFILE, ProfileDto::class.java)
 
@@ -233,7 +268,7 @@ internal class CacheRepository(
     fun getFallbackPaywallsSnapshotAt() =
         getFallbackPaywallsMetaInfo()?.meta?.snapshotAt
 
-    private fun getFallbackPaywallsMetaInfo() = cache[FALLBACK_PAYWALLS] as? FallbackPaywallsInfo
+    private fun getFallbackPaywallsMetaInfo() = cache[FALLBACK_FILE] as? FallbackPaywallsInfo
 
     @JvmSynthetic
     fun getSyncedPurchases() =
@@ -260,28 +295,142 @@ internal class CacheRepository(
     var analyticsConfig = AnalyticsConfig.DEFAULT
 
     fun getPaywall(id: String, locale: String, maxAgeMillis: Long? = null) =
-        getPaywall(id, setOf(locale), maxAgeMillis)
+        getVariation(id, setOf(locale), VariationType.Paywall, maxAgeMillis) as? PaywallDto
 
-    fun getPaywall(id: String, locales: Set<String>, maxAgeMillis: Long? = null): PaywallDto? {
-        return getData<CacheEntity<PaywallDto>>(getPaywallCacheKey(id))?.let { (paywall, version, cachedAt) ->
-            if (version < CURRENT_CACHED_PAYWALL_VERSION) return@let null
+    fun getVariation(id: String, locales: Set<String>, variationType: VariationType, maxAgeMillis: Long? = null): Variation? {
+        val cacheKey: String
+        val cacheVersion: Int
+
+        when (variationType) {
+            VariationType.Paywall -> {
+                cacheKey = getPaywallCacheKey(id)
+                cacheVersion = CURRENT_CACHED_PAYWALL_VERSION
+            }
+            VariationType.Onboarding -> {
+                cacheKey = getOnboardingCacheKey(id)
+                cacheVersion = CURRENT_CACHED_ONBOARDING_VERSION
+            }
+        }
+
+        return getData<CacheEntity<Variation>>(cacheKey)?.let { (variation, version, cachedAt) ->
+            if (version < cacheVersion) return@let null
             if ((maxAgeMillis != null) && (System.currentTimeMillis() - cachedAt > maxAgeMillis)) return@let null
             val languageCodes = locales.mapNotNull { locale -> extractLanguageCode(locale) }
-            if (paywall.getLanguageCode() !in languageCodes) return@let null
-            paywall
+            if (variation.getLanguageCode() !in languageCodes) return@let null
+            variation
         }
     }
 
-    fun savePaywall(id: String, paywallDto: PaywallDto) {
+    fun saveVariation(id: String, variation: Variation) {
+        when (variation) {
+            is PaywallDto -> savePaywall(id, variation)
+            is Onboarding -> saveOnboarding(id, variation)
+        }
+    }
+
+    private fun savePaywall(id: String, paywallDto: PaywallDto) {
         saveData(getPaywallCacheKey(id), CacheEntity(paywallDto, CURRENT_CACHED_PAYWALL_VERSION))
     }
 
+    private fun saveOnboarding(id: String, onboarding: Onboarding) {
+        saveData(getOnboardingCacheKey(id), CacheEntity(onboarding, CURRENT_CACHED_ONBOARDING_VERSION))
+    }
+
     private fun getPaywallCacheKey(id: String) =
-        "$PAYWALL_RESPONSE_START_PART${id}$PAYWALL_RESPONSE_END_PART"
+        getVariationCacheKey(id, PAYWALL_RESPONSE_START_PART)
+
+    private fun getOnboardingCacheKey(id: String) =
+        getVariationCacheKey(id, ONBOARDING_RESPONSE_START_PART)
+
+    private fun getVariationCacheKey(id: String, startPart: String) =
+        "$startPart${id}$VARIATION_RESPONSE_END_PART"
+
+    fun getOnboardingVariationId() = getString(ONBOARDING_VARIATION_ID)
+
+    fun saveOnboardingVariationId(onboardingVariationId: String) {
+        cache[ONBOARDING_VARIATION_ID] = onboardingVariationId
+        preferenceManager.saveString(ONBOARDING_VARIATION_ID, onboardingVariationId)
+    }
 
     @JvmSynthetic
-    fun saveFallbackPaywalls(source: FileLocation) {
-        cache[FALLBACK_PAYWALLS] = fallbackPaywallRetriever.getMetaInfo(source)
+    fun saveFallback(source: FileLocation) {
+        cache[FALLBACK_FILE] = fallbackPaywallRetriever.getMetaInfo(source)
+    }
+
+    @JvmSynthetic
+    fun getCrossPlacementInfo() =
+        try {
+            crossPlacementInfoLock.readLock().lock()
+            getCrossPlacementInfoInternal()
+        } finally {
+            crossPlacementInfoLock.readLock().unlockQuietly()
+        }
+
+    private fun getCrossPlacementInfoInternal() =
+        getData<CacheEntity<CrossPlacementInfo>>(CROSS_PLACEMENT_INFO)?.value
+
+    fun saveCrossPlacementInfo(crossPlacementInfo: CrossPlacementInfo) {
+        try {
+            crossPlacementInfoLock.writeLock().lock()
+            val oldVersion = getCrossPlacementInfoInternal()?.version ?: -1
+            if (crossPlacementInfo.version > oldVersion)
+                saveData(CROSS_PLACEMENT_INFO, CacheEntity(crossPlacementInfo))
+        } finally {
+            crossPlacementInfoLock.writeLock().unlockQuietly()
+        }
+    }
+
+    fun saveCrossPlacementInfoFromPaywall(crossPlacementInfo: CrossPlacementInfo) {
+        try {
+            crossPlacementInfoLock.writeLock().lock()
+            saveData(
+                CROSS_PLACEMENT_INFO,
+                CacheEntity(
+                    getCrossPlacementInfoInternal()
+                        ?.copy(placementWithVariationMap = crossPlacementInfo.placementWithVariationMap)
+                        ?: crossPlacementInfo
+                )
+            )
+        } finally {
+            crossPlacementInfoLock.writeLock().unlockQuietly()
+        }
+    }
+
+    fun getInstallData(): InstallData? {
+        return getData<CacheEntity<InstallData>>(INSTALL_DATA)?.value
+    }
+
+    fun saveInstallData(installData: InstallData) {
+        saveData(INSTALL_DATA, CacheEntity(installData))
+    }
+
+    fun getInstallRegistrationResponseData(): InstallRegistrationResponseData? {
+        return getData<CacheEntity<InstallRegistrationResponseData>>(INSTALL_REGISTRATION_RESPONSE_DATA)?.value
+    }
+
+    fun saveInstallRegistrationResponseError(error: AdaptyError) {
+        execute {
+            installRegistration.emit(AdaptyResult.Error(error))
+        }
+    }
+
+    fun saveInstallRegistrationResponseData(installRegistrationResponseData: InstallRegistrationResponseData) {
+        execute {
+            installRegistration.emit(AdaptyResult.Success(installRegistrationResponseData))
+        }
+        saveData(INSTALL_REGISTRATION_RESPONSE_DATA, CacheEntity(installRegistrationResponseData))
+    }
+
+    fun getSessionCount() =
+        cache.safeGetOrPut(
+            SESSION_COUNT,
+            { preferenceManager.getLong(SESSION_COUNT, 0L) }) as? Long ?: 0L
+
+    @JvmSynthetic
+    fun incrementSessionCount() {
+        val sessionCount = getSessionCount() + 1
+        cache[SESSION_COUNT] = sessionCount
+        preferenceManager.saveLong(SESSION_COUNT, sessionCount)
     }
 
     @JvmSynthetic
@@ -294,10 +443,12 @@ internal class CacheRepository(
                 SYNCED_PURCHASES,
                 PURCHASES_HAVE_BEEN_SYNCED,
                 APP_OPENED_TIME,
+                CROSSPLACEMENT_INFO_REQUESTED_TIME,
                 PRODUCT_RESPONSE,
                 PRODUCT_RESPONSE_HASH,
                 PROFILE_RESPONSE,
                 PROFILE_RESPONSE_HASH,
+                CROSS_PLACEMENT_INFO,
             ),
             startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART),
         )
@@ -324,12 +475,14 @@ internal class CacheRepository(
                 SYNCED_PURCHASES,
                 PURCHASES_HAVE_BEEN_SYNCED,
                 APP_OPENED_TIME,
+                CROSSPLACEMENT_INFO_REQUESTED_TIME,
                 PRODUCT_RESPONSE,
                 PRODUCT_RESPONSE_HASH,
                 PRODUCT_IDS_RESPONSE,
                 PRODUCT_IDS_RESPONSE_HASH,
                 PROFILE_RESPONSE,
                 PROFILE_RESPONSE_HASH,
+                CROSS_PLACEMENT_INFO,
                 ANALYTICS_DATA,
                 YET_UNPROCESSED_VALIDATE_PRODUCT_INFO,
                 EXTERNAL_ANALYTICS_ENABLED,
@@ -376,6 +529,7 @@ internal class CacheRepository(
     }
 
     private companion object {
+        private const val CURRENT_CACHED_ONBOARDING_VERSION = 1
         private const val CURRENT_CACHED_PAYWALL_VERSION = 2
     }
 

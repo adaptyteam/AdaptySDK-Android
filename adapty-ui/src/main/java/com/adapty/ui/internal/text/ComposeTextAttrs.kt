@@ -14,7 +14,7 @@ import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.RichText
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.ui.element.BaseTextElement
-import com.adapty.ui.internal.utils.getForCurrentSystemTheme
+import com.adapty.ui.internal.utils.getAsset
 
 internal class ComposeTextAttrs(
     val textColor: Color?,
@@ -80,8 +80,8 @@ internal class ComposeTextAttrs(
         @Composable
         private fun resolveColorAsset(assetId: String?, assets: Assets): Color? {
             return assetId
-                ?.let { assets.getForCurrentSystemTheme(assetId) as? AdaptyUI.LocalizedViewConfiguration.Asset.Color }
-                ?.let { asset -> Color(asset.value) }
+                ?.let { assets.getAsset<AdaptyUI.LocalizedViewConfiguration.Asset.Color>(assetId) }
+                ?.let { asset -> Color(asset.main.value) }
         }
 
         private fun resolveColor(@ColorInt color: Int?): Color? {

@@ -149,7 +149,7 @@ internal class ProductMapper(
             localizedTitle = productDetails.name,
             localizedDescription = productDetails.description,
             paywallName = paywall.name,
-            paywallABTestName = paywall.abTestName,
+            paywallABTestName = paywall.placement.abTestName,
             variationId = paywall.variationId,
             price = AdaptyPaywallProduct.Price(
                 amount = priceFromMicros(priceAmountMicros),
@@ -164,6 +164,8 @@ internal class ProductMapper(
                 currencyCode,
                 product.type.toString(),
                 subscriptionData,
+                product.paywallProductIndex,
+                product.id,
             ),
         )
     }
@@ -183,6 +185,7 @@ internal class ProductMapper(
                 message = "vendorProductId in Product should not be null",
                 adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
             ),
+            paywallProductIndex = productDto.paywallProductIndex,
             type = when {
                 productDto.basePlanId != null -> Subscription(
                     BackendProduct.SubscriptionData(

@@ -1,3 +1,5 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.internal.utils
 
 import android.content.Context
@@ -36,19 +38,19 @@ internal class FallbackPaywallRetriever(
                 val version = fallbackPaywallsInfo.meta.version
                 if (version < CURRENT_FALLBACK_PAYWALL_VERSION) {
                     throw AdaptyError(
-                        message = "The fallback paywalls version is not correct. Download a new one from the Adapty Dashboard.",
+                        message = "The fallback file version is not correct. Download a new one from the Adapty Dashboard.",
                         adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER,
                     )
                 } else if (version > CURRENT_FALLBACK_PAYWALL_VERSION) {
                     throw AdaptyError(
-                        message = "The fallback paywalls version is not correct. Please update the AdaptySDK.",
+                        message = "The fallback file version is not correct. Please update the AdaptySDK.",
                         adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER,
                     )
                 }
 
                 fallbackPaywallsInfo.copy(location = source)
             } ?: throw AdaptyError(
-                message = "Couldn't open file with fallback paywalls.",
+                message = "Couldn't open fallback file.",
                 adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER,
             )
         } catch (e: Exception) {
@@ -56,7 +58,7 @@ internal class FallbackPaywallRetriever(
                 Logger.log(AdaptyLogLevel.ERROR) { "${e.message}" }
                 throw e
             } else {
-                val message = "Couldn't set fallback paywalls. $e"
+                val message = "Couldn't set fallback file. $e"
                 Logger.log(AdaptyLogLevel.ERROR) { message }
                 throw AdaptyError(e, message, AdaptyErrorCode.WRONG_PARAMETER)
             }
@@ -132,25 +134,25 @@ internal class FallbackPaywallRetriever(
                     fallbackPaywall.takeIf {
                         placementId == fallbackPaywall.placementId && fallbackPaywall.data.isNotEmpty()
                     } ?: throw AdaptyError(
-                        message = "Couldn't parse fallback paywall (placementId: $placementId).${if (fallbackPaywall.data.isEmpty()) " Data is empty." else ""}${if (placementId != fallbackPaywall.placementId) " id (${fallbackPaywall.placementId}) != $placementId." else ""}",
+                        message = "Couldn't parse fallback variation (placementId: $placementId).${if (fallbackPaywall.data.isEmpty()) " Data is empty." else ""}${if (placementId != fallbackPaywall.placementId) " id (${fallbackPaywall.placementId}) != $placementId." else ""}",
                         adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED,
                     )
                 }
             } ?: throw AdaptyError(
-                message = "Couldn't open file with fallback paywalls.",
+                message = "Couldn't open fallback file.",
                 adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER,
             )
         } catch (e: Exception) {
             if (e is AdaptyError) {
                 Logger.log(AdaptyLogLevel.ERROR) { "${e.message}" }
             } else {
-                Logger.log(AdaptyLogLevel.ERROR) { "Couldn't retrieve fallback paywall (placementId: $placementId). $e" }
+                Logger.log(AdaptyLogLevel.ERROR) { "Couldn't retrieve fallback variation (placementId: $placementId). $e" }
             }
             null
         }
     }
 
     private companion object {
-        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 7
+        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 8
     }
 }

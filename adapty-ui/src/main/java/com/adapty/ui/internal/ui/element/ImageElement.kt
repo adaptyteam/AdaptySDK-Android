@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset.Image.ScaleType
@@ -24,7 +25,7 @@ import com.adapty.ui.internal.ui.attributes.toComposeContentScale
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.utils.EventCallback
 import com.adapty.ui.internal.utils.getBitmap
-import com.adapty.ui.internal.utils.getForCurrentSystemTheme
+import com.adapty.ui.internal.utils.getAsset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -50,18 +51,19 @@ public class ImageElement internal constructor(
         modifier: Modifier,
     ): @Composable () -> Unit = {
         val isSystemInDarkTheme = isSystemInDarkTheme()
-        val tint = tint?.assetId?.let { assetId -> resolveAssets().getForCurrentSystemTheme(assetId) }
+        val context = LocalContext.current
+        val tint = tint?.assetId?.let { assetId -> resolveAssets().getAsset<Asset.Color>(assetId) }
         val colorFilter = remember(isSystemInDarkTheme) {
-            (tint as? Asset.Color)?.toComposeFill()?.color?.let { color ->
+            tint?.toComposeFill()?.color?.let { color ->
                 ColorFilter.tint(color)
             }
         }
-        val image = resolveAssets().getForCurrentSystemTheme(assetId) as? Asset.Image
+        val image = resolveAssets().getAsset<Asset.Image>(assetId)
         BoxWithConstraints {
-            val imageBitmapState by produceState<ImageBitmap?>(null, constraints.maxWidth, constraints.maxHeight, image?.source?.javaClass, isSystemInDarkTheme) {
+            val imageBitmapState by produceState<ImageBitmap?>(null, constraints.maxWidth, constraints.maxHeight, image?.main?.source?.javaClass, isSystemInDarkTheme) {
                 value = withContext(Dispatchers.Default) {
                     image?.let {
-                        getBitmap(image, constraints.maxWidth, constraints.maxHeight,
+                        getBitmap(context, image, constraints.maxWidth, constraints.maxHeight,
                             if (aspectRatio == AspectRatio.FIT) ScaleType.FIT_MIN else ScaleType.FIT_MAX
                         )?.asImageBitmap()
                     }

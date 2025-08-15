@@ -6,11 +6,11 @@ import com.google.gson.annotations.SerializedName
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class ProfileDto(
     @SerializedName("profile_id")
-    val profileId: String?,
+    val profileId: String,
     @SerializedName("customer_user_id")
     val customerUserId: String?,
     @SerializedName("segment_hash")
-    val segmentId: String?,
+    val segmentId: String,
     @SerializedName("is_test_user")
     val isTestUser: Boolean?,
     @SerializedName("timestamp")
@@ -44,9 +44,9 @@ internal class ProfileDto(
     }
 
     override fun hashCode(): Int {
-        var result = profileId?.hashCode() ?: 0
+        var result = profileId.hashCode()
         result = 31 * result + (customerUserId?.hashCode() ?: 0)
-        result = 31 * result + (segmentId?.hashCode() ?: 0)
+        result = 31 * result + segmentId.hashCode()
         result = 31 * result + (isTestUser?.hashCode() ?: 0)
         result = 31 * result + (accessLevels?.hashCode() ?: 0)
         result = 31 * result + (subscriptions?.hashCode() ?: 0)

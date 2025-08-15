@@ -3,12 +3,13 @@
 package com.adapty.ui.internal.ui
 
 import android.content.Context
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +23,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.adapty.errors.AdaptyError
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
@@ -44,7 +48,7 @@ import com.adapty.ui.internal.utils.getInsets
 import com.adapty.ui.internal.utils.getProductGroupKey
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.internal.utils.wrap
-import com.adapty.ui.listeners.AdaptyUiEventListener.SubscriptionUpdateParamsCallback
+import com.adapty.ui.listeners.AdaptyUiEventListener
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -60,98 +64,123 @@ internal fun AdaptyPaywallInternal(viewModel: PaywallViewModel) {
         LocalCustomInsets provides userArgs.userInsets.wrap(),
     ) {
         val insets = getInsets()
-        BoxWithConstraints {
-            val density = LocalDensity.current
-            val configuration = LocalConfiguration.current
-            val screenHeightPxFromConfig: Int
-            val maxHeightPxFromConstraints: Int
-            with(density) {
-                screenHeightPxFromConfig = configuration.screenHeightDp.dp.roundToPx()
-                maxHeightPxFromConstraints = maxHeight.roundToPx()
-            }
-            var loggedNonSkipping by remember { mutableStateOf(false) }
-            if (!insets.isCustom) {
-                val insetTop = insets.getTop(density)
-                val insetBottom = insets.getBottom(density)
-                if ((insetTop == 0 && insetBottom == 0 && maxHeightPxFromConstraints - screenHeightPxFromConfig > 10)) {
-                    log(VERBOSE) { "$LOG_PREFIX skipping ($screenHeightPxFromConfig; $maxHeightPxFromConstraints)" }
-                    return@BoxWithConstraints
+        Box {
+            BoxWithConstraints {
+                val density = LocalDensity.current
+                val configuration = LocalConfiguration.current
+                val screenHeightPxFromConfig: Int
+                val maxHeightPxFromConstraints: Int
+                with(density) {
+                    screenHeightPxFromConfig = configuration.screenHeightDp.dp.roundToPx()
+                    maxHeightPxFromConstraints = maxHeight.roundToPx()
+                }
+                var loggedNonSkipping by remember { mutableStateOf(false) }
+                if (!insets.isCustom) {
+                    val insetTop = insets.getTop(density)
+                    val insetBottom = insets.getBottom(density)
+                    if ((insetTop == 0 && insetBottom == 0 && maxHeightPxFromConstraints - screenHeightPxFromConfig > 10)) {
+                        log(VERBOSE) { "$LOG_PREFIX skipping ($screenHeightPxFromConfig; $maxHeightPxFromConstraints)" }
+                        return@BoxWithConstraints
+                    } else {
+                        if (!loggedNonSkipping) {
+                            log(VERBOSE) { "$LOG_PREFIX non-skipping ($insetTop; $insetBottom; $screenHeightPxFromConfig; $maxHeightPxFromConstraints)" }
+                            loggedNonSkipping = true
+                        }
+                    }
                 } else {
                     if (!loggedNonSkipping) {
-                        log(VERBOSE) { "$LOG_PREFIX non-skipping ($insetTop; $insetBottom; $screenHeightPxFromConfig; $maxHeightPxFromConstraints)" }
+                        log(VERBOSE) { "$LOG_PREFIX non-skipping (custom insets: ${(insets as? InsetWrapper.Custom)?.insets}" }
                         loggedNonSkipping = true
                     }
                 }
-            } else {
-                if (!loggedNonSkipping) {
-                    log(VERBOSE) { "$LOG_PREFIX non-skipping (custom insets: ${(insets as? InsetWrapper.Custom)?.insets}" }
-                    loggedNonSkipping = true
-                }
-            }
-            val context = LocalContext.current
-            val resolveAssets = { viewModel.assets }
-            val resolveText = @Composable { stringId: StringId, textAttrs: Attributes? -> viewModel.resolveText(stringId, textAttrs) }
-            val resolveState = { viewModel.state }
-            val sheetState = rememberBottomSheetState()
-            val scope = rememberCoroutineScope()
-            val eventCallback = createEventCallback(
-                context,
-                userArgs,
-                viewModel,
-                scope,
-                sheetState,
-            )
-            renderDefaultScreen(
-                viewConfig.screens,
-                resolveAssets,
-                resolveText,
-                resolveState,
-                eventCallback,
-            )
+                val context = LocalContext.current
+                val resolveAssets = { viewModel.assets }
+                val resolveText = @Composable { stringId: StringId, textAttrs: Attributes? -> viewModel.resolveText(stringId, textAttrs) }
+                val resolveState = { viewModel.state }
+                val sheetState = rememberBottomSheetState()
+                val scope = rememberCoroutineScope()
+                val eventCallback = createEventCallback(
+                    context,
+                    userArgs,
+                    viewModel,
+                    scope,
+                    sheetState,
+                )
+                renderDefaultScreen(
+                    viewConfig.screens,
+                    resolveAssets,
+                    resolveText,
+                    resolveState,
+                    eventCallback,
+                )
 
-            val currentBottomSheet = (viewModel.state[OPENED_ADDITIONAL_SCREEN_KEY] as? String)?.let { screenId ->
-                viewConfig.screens.bottomSheets[screenId]
-            }
-            if (currentBottomSheet != null) {
-                BottomSheet(
-                    sheetState = sheetState,
-                    onDismissRequest = {
-                        viewModel.state.remove(OPENED_ADDITIONAL_SCREEN_KEY)
-                    },
-                ) {
-                    currentBottomSheet.content.render(
-                        resolveAssets,
-                        resolveText,
-                        resolveState,
-                        eventCallback,
-                        fillModifierWithScopedParams(
-                            currentBottomSheet.content,
-                            Modifier.fillWithBaseParams(currentBottomSheet.content, resolveAssets),
-                        )
-                    )
+                val currentBottomSheet = (viewModel.state[OPENED_ADDITIONAL_SCREEN_KEY] as? String)?.let { screenId ->
+                    viewConfig.screens.bottomSheets[screenId]
                 }
+                if (currentBottomSheet != null) {
+                    BottomSheet(
+                        sheetState = sheetState,
+                        onDismissRequest = {
+                            viewModel.state.remove(OPENED_ADDITIONAL_SCREEN_KEY)
+                        },
+                    ) {
+                        currentBottomSheet.content.render(
+                            resolveAssets,
+                            resolveText,
+                            resolveState,
+                            eventCallback,
+                            fillModifierWithScopedParams(
+                                currentBottomSheet.content,
+                                Modifier.fillWithBaseParams(currentBottomSheet.content, resolveAssets),
+                            )
+                        )
+                    }
+                }
+
+                OnScreenLifecycle(
+                    key = Unit,
+                    onEnter = { viewModel.logShowPaywall(viewConfig); eventCallback.onPaywallShown() },
+                    onExit = { eventCallback.onPaywallClosed() },
+                )
             }
 
             if (viewModel.isLoading.value)
                 Loading()
-
-            LaunchedEffectSaveable(Unit) {
-                viewModel.logShowPaywall(viewConfig)
-            }
         }
     }
 }
 
 @Composable
-internal fun LaunchedEffectSaveable(
+internal fun OnScreenLifecycle(
     key: Any?,
-    effect: suspend CoroutineScope.() -> Unit
+    onEnter: () -> Unit,
+    onExit: () -> Unit
 ) {
-    val hasExecuted = rememberSaveable(key) { mutableStateOf(false) }
-    LaunchedEffect(key) {
-        if (!hasExecuted.value) {
-            hasExecuted.value = true
-            effect()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
+    val hasAppeared = rememberSaveable(key) { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (!hasAppeared.value) {
+                        hasAppeared.value = true
+                        onEnter()
+                    }
+                }
+                else -> {}
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            val isChangingConfig = context.getActivityOrNull()?.isChangingConfigurations ?: false
+            if (!isChangingConfig) {
+                onExit()
+            }
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 }
@@ -168,7 +197,6 @@ private fun createEventCallback(
     val eventListener = userArgs.eventListener
     val timerResolver = userArgs.timerResolver
     val observerModeHandler = userArgs.observerModeHandler
-    val personalizedOfferResolver = userArgs.personalizedOfferResolver
     return object: EventCallback {
         override fun onActions(actions: List<Action>) {
             actions.forEach { action ->
@@ -197,7 +225,6 @@ private fun createEventCallback(
                             product,
                             this,
                             observerModeHandler,
-                            personalizedOfferResolver,
                         )
                     }
                     is Action.PurchaseSelectedProduct -> {
@@ -213,7 +240,6 @@ private fun createEventCallback(
                             product,
                             this,
                             observerModeHandler,
-                            personalizedOfferResolver,
                         )
                     }
                     is Action.ClosePaywall -> eventListener.onActionPerformed(AdaptyUI.Action.Close, localContext)
@@ -234,25 +260,25 @@ private fun createEventCallback(
         }
 
         override fun getTimerStartTimestamp(timerId: String, isPersisted: Boolean): Long? {
-            return viewModel.getTimerStartTimestamp(viewConfig.paywall.placementId, timerId, isPersisted)
+            return viewModel.getTimerStartTimestamp(viewConfig.paywall.placement.id, timerId, isPersisted)
         }
 
         override fun setTimerStartTimestamp(timerId: String, value: Long, isPersisted: Boolean) {
-            viewModel.setTimerStartTimestamp(viewConfig.paywall.placementId, timerId, value, isPersisted)
+            viewModel.setTimerStartTimestamp(viewConfig.paywall.placement.id, timerId, value, isPersisted)
         }
 
         override fun timerEndAtDate(timerId: String): Date {
             return timerResolver.timerEndAtDate(timerId)
         }
 
-        override fun onAwaitingSubscriptionUpdateParams(
+        override fun onAwaitingPurchaseParams(
             product: AdaptyPaywallProduct,
-            onSubscriptionUpdateParamsReceived: SubscriptionUpdateParamsCallback,
+            onPurchaseParamsReceived: AdaptyUiEventListener.PurchaseParamsCallback,
         ) {
-            eventListener.onAwaitingSubscriptionUpdateParams(
+            eventListener.onAwaitingPurchaseParams(
                 product,
                 localContext,
-                onSubscriptionUpdateParamsReceived,
+                onPurchaseParamsReceived,
             )
         }
 
@@ -281,6 +307,14 @@ private fun createEventCallback(
 
         override fun onRestoreSuccess(profile: AdaptyProfile) {
             eventListener.onRestoreSuccess(profile, localContext)
+        }
+
+        override fun onPaywallShown() {
+            eventListener.onPaywallShown(localContext)
+        }
+
+        override fun onPaywallClosed() {
+            eventListener.onPaywallClosed()
         }
     }
 }

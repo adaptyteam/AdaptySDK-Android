@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.ui.attributes.toComposeShape
 import com.adapty.ui.internal.ui.clickIndication
@@ -52,12 +51,6 @@ public class ButtonElement internal constructor(
         val actionsResolved = actions.mapNotNull { action -> action.resolve(resolveText) }
         Box(
             modifier
-                .run {
-                    if (shape != null)
-                        clip(shape)
-                    else
-                        this
-                }
                 .clickable(
                     indication = shape?.let { clickIndication() },
                     interactionSource = remember { MutableInteractionSource() },

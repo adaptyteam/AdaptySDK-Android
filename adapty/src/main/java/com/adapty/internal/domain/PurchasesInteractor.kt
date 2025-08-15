@@ -12,12 +12,12 @@ import com.adapty.internal.data.models.PurchaseResult.Success.State
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.models.AdaptyPurchaseParameters
 import com.adapty.models.AdaptyProfile
 import com.adapty.models.AdaptyPurchaseResult
 import com.adapty.models.AdaptyPurchaseResult.Pending
 import com.adapty.models.AdaptyPurchaseResult.Success
 import com.adapty.models.AdaptyPurchaseResult.UserCanceled
-import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.INFO
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
@@ -55,22 +55,21 @@ internal class PurchasesInteractor(
     fun makePurchase(
         activity: Activity,
         product: AdaptyPaywallProduct,
-        subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
-        isOfferPersonalized: Boolean,
+        params: AdaptyPurchaseParameters,
     ) : Flow<AdaptyPurchaseResult> {
         return storeManager.queryInfoForProduct(product.vendorProductId, product.payloadData.type)
             .flatMapConcat { productDetails ->
                 val purchaseableProduct = productMapper.mapToPurchaseableProduct(
                     product,
                     productDetails,
-                    isOfferPersonalized,
+                    params.isOfferPersonalized,
                 )
                 flow {
                     emit(
                         makePurchase(
                             activity,
                             purchaseableProduct,
-                            subscriptionUpdateParams,
+                            params,
                         )
                     )
                 }
@@ -134,12 +133,12 @@ internal class PurchasesInteractor(
     private suspend fun makePurchase(
         activity: Activity,
         purchaseableProduct: PurchaseableProduct,
-        subscriptionUpdateParams: AdaptySubscriptionUpdateParameters?,
+        params: AdaptyPurchaseParameters,
     ) = suspendCancellableCoroutine<PurchaseResult> { continuation ->
         storeManager.makePurchase(
             activity,
             purchaseableProduct,
-            subscriptionUpdateParams,
+            params,
         ) { purchaseResult ->
             continuation.resume(purchaseResult) {}
         }

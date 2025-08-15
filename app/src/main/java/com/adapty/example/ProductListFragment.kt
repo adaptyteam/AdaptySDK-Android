@@ -10,6 +10,7 @@ import com.adapty.Adapty
 import com.adapty.example.adapter.ProductAdapter
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.models.AdaptyPurchaseParameters
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.ui.AdaptyUI
 import com.adapty.utils.AdaptyResult
@@ -77,10 +78,14 @@ class ProductListFragment : Fragment(R.layout.fragment_list) {
                                     Adapty.makePurchase(
                                         activity,
                                         product,
-                                        AdaptySubscriptionUpdateParameters(
-                                            vendorProductId,
-                                            replacementMode
-                                        )
+                                        AdaptyPurchaseParameters.Builder()
+                                            .withSubscriptionUpdateParams(
+                                                AdaptySubscriptionUpdateParameters(
+                                                    vendorProductId,
+                                                    replacementMode,
+                                                )
+                                            )
+                                            .build(),
                                     ) { result ->
                                         progressDialog.cancel()
                                         showToast(

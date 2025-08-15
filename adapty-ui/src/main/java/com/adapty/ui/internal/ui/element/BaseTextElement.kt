@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
@@ -128,8 +129,7 @@ public abstract class BaseTextElement(
         }
     }
 
-    @Composable
-    private fun Modifier.retainInitialHeight(initialHeightPxState: MutableIntState): Modifier =
+    private fun Modifier.retainInitialHeight(initialHeightPxState: MutableIntState): Modifier = composed {
         onSizeChanged { size ->
             if (size.height <= 0 || initialHeightPxState.intValue > 0)
                 return@onSizeChanged
@@ -141,6 +141,7 @@ public abstract class BaseTextElement(
                 height(with(LocalDensity.current) { initialHeight.toDp() })
                     .wrapContentHeight()
             }
+    }
 
     private fun Modifier.textBackgroundOrSkip(backgroundColor: Color?): Modifier {
         if (backgroundColor == null) return this

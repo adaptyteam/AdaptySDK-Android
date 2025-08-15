@@ -4,6 +4,7 @@ package com.adapty.ui.internal.mapping.viewconfig
 
 import android.graphics.Color
 import androidx.annotation.ColorInt
+import androidx.core.net.toUri
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.adaptyError
@@ -17,6 +18,7 @@ internal class ViewConfigurationAssetMapper {
         const val ASSETS = "assets"
         const val LOCALIZATIONS = "localizations"
         const val ID = "id"
+        const val CUSTOM_ID = "custom_id"
         const val TYPE = "type"
         const val VALUE = "value"
         const val VALUES = "values"
@@ -79,15 +81,17 @@ internal class ViewConfigurationAssetMapper {
 
     private fun mapImageAsset(asset: JsonObject): Asset {
         val url = asset.getAs<String>(URL)
+        val customId = asset.getAs<String>(CUSTOM_ID)
         return if (url != null)
             Asset.RemoteImage(
                 url,
                 asset.getAs<String>(PREVIEW_VALUE)?.let { preview ->
                     Asset.Image(source = Asset.Image.Source.Base64Str(preview))
-                }
+                },
+                customId,
             )
         else
-            Asset.Image(source = Asset.Image.Source.Base64Str(asset.getAs<String>(VALUE)))
+            Asset.Image(source = Asset.Image.Source.Base64Str(asset.getAs<String>(VALUE)), customId)
     }
 
     private fun mapVideoAsset(asset: JsonObject): Pair<Asset.Video, Asset> {
@@ -101,7 +105,8 @@ internal class ViewConfigurationAssetMapper {
                 message = "image value for video should not be null",
                 adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
             )
-        return Asset.Video(url) to mapImageAsset(image)
+        val customId = asset.getAs<String>(CUSTOM_ID)
+        return Asset.Video(Asset.Video.Source.Uri(url.toUri()), customId) to mapImageAsset(image)
     }
 
     private fun mapColorAsset(asset: JsonObject): Asset.Color =
@@ -111,7 +116,8 @@ internal class ViewConfigurationAssetMapper {
                 ?: throw adaptyError(
                     message = "color value should not be null",
                     adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
-                )
+                ),
+            asset.getAs<String>(CUSTOM_ID),
         )
 
     private fun mapGradientAsset(asset: JsonObject, type: String): Asset.Gradient =
@@ -126,7 +132,7 @@ internal class ViewConfigurationAssetMapper {
                     val p = (value["p"] as? Number)?.toFloat() ?: return@mapNotNull null
                     val color = Asset.Color(
                         (value["color"] as? String)?.let(::mapVisualAssetColorString)
-                            ?: return@mapNotNull null
+                            ?: return@mapNotNull null,
                     )
                     Asset.Gradient.Value(p, color)
                 }
@@ -144,6 +150,7 @@ internal class ViewConfigurationAssetMapper {
                 message = "gradient points should not be null",
                 adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
             ),
+            asset.getAs<String>(CUSTOM_ID),
         )
 
     private fun mapFontAsset(asset: JsonObject): Asset.Font =
@@ -154,6 +161,7 @@ internal class ViewConfigurationAssetMapper {
             asset.getAs(IS_ITALIC) ?: false,
             asset.getAs<Number>(SIZE)?.toFloat() ?: 15f,
             asset.getAs<String?>(COLOR)?.let(::mapVisualAssetColorString),
+            asset.getAs<String>(CUSTOM_ID),
         )
 
     @ColorInt

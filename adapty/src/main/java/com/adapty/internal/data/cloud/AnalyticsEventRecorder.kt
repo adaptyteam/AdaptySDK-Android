@@ -14,15 +14,13 @@ import com.google.gson.Gson
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import java.text.DateFormat
-import java.text.SimpleDateFormat
-import java.util.*
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class AnalyticsEventRecorder(
     private val cacheRepository: CacheRepository,
     private val gson: Gson,
     private val dataLocalSemaphore: Semaphore,
+    private val metaInfoRetriever: MetaInfoRetriever,
 ): AnalyticsTracker {
 
     private val sessionId = generateUuid()
@@ -69,7 +67,7 @@ internal class AnalyticsEventRecorder(
     }
 
     private fun createEvent(eventName: String, subMap: Map<String, Any>?): AnalyticsEvent {
-        val createdAt = formatCurrentDateTime()
+        val createdAt = metaInfoRetriever.formatDateTimeGMT()
         return AnalyticsEvent(
             eventId = generateUuid(),
             eventName = eventName,
@@ -111,15 +109,6 @@ internal class AnalyticsEventRecorder(
                 ),
                 isSystemLog,
             )
-        }
-    }
-
-    private fun formatCurrentDateTime(): String =
-        Calendar.getInstance().time.let(dateFormatter::format)
-
-    private val dateFormatter: DateFormat by lazy {
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("GMT")
         }
     }
 }

@@ -3,7 +3,6 @@
 package com.adapty.ui.internal.ui.element
 
 import android.content.Context
-import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -37,7 +36,7 @@ import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.asMediaItem
 import com.adapty.ui.internal.utils.createPlayer
-import com.adapty.ui.internal.utils.getForCurrentSystemTheme
+import com.adapty.ui.internal.utils.getAsset
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.video.R
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
@@ -59,7 +58,7 @@ public class VideoElement internal constructor(
         eventCallback: EventCallback,
         modifier: Modifier,
     ): @Composable () -> Unit = renderVideo@{
-        val video = resolveAssets().getForCurrentSystemTheme(assetId) as? Asset.Video
+        val video = resolveAssets().getAsset<Asset.Video>(assetId)?.main
             ?: return@renderVideo
         var firstFrameRendered by remember {
             mutableStateOf(false)
@@ -88,8 +87,11 @@ public class VideoElement internal constructor(
                 })
             }
         }
-        remember(video.url) {
-            Uri.parse(video.url).also { uri ->
+        remember(video.source) {
+            when (val source = video.source) {
+                is Asset.Video.Source.Uri -> source.uri
+                is Asset.Video.Source.AndroidAsset -> android.net.Uri.parse("asset:///${source.path}")
+            }.also { uri ->
                 player?.setMediaItem(uri.asMediaItem())
                 player?.prepare()
             }

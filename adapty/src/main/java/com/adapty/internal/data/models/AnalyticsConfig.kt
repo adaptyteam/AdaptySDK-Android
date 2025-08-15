@@ -12,6 +12,13 @@ internal class AnalyticsConfig(
 ) {
     companion object {
         val DEFAULT = AnalyticsConfig(listOf(), 0)
+
+        fun createFallback() = AnalyticsConfig(
+            listOf("system_log"),
+            System.currentTimeMillis() + FALLBACK_MILLIS,
+        )
+
+        private const val FALLBACK_MILLIS = 24 * 60 * 60 * 1000
     }
 
     operator fun component1() = disabledEventTypes

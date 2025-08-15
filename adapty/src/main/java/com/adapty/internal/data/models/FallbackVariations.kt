@@ -7,5 +7,5 @@ import com.google.gson.annotations.SerializedName
 internal class FallbackVariations(
     @SerializedName("placement_id")
     val placementId: String,
-    val data: List<PaywallDto>,
+    val data: List<Variation>,
 )
