@@ -49,13 +49,13 @@ internal class PaywallInteractor(
     @JvmSynthetic
     fun getPaywall(placementId: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy, loadTimeout: Int): Flow<AdaptyPaywall> {
         return paywallFetcher.fetchPaywall(placementId, locale, fetchPolicy, loadTimeout)
-            .map { paywall -> paywallMapper.map(paywall, productMapper.map(paywall.products)) }
+            .map { paywall -> paywallMapper.map(paywall, productMapper.map(paywall.products), locale) }
     }
 
     @JvmSynthetic
     fun getPaywallUntargeted(placementId: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy): Flow<AdaptyPaywall> {
         return paywallFetcher.fetchPaywallUntargeted(placementId, locale, fetchPolicy)
-            .map { paywall -> paywallMapper.map(paywall, productMapper.map(paywall.products)) }
+            .map { paywall -> paywallMapper.map(paywall, productMapper.map(paywall.products), locale) }
     }
 
     @JvmSynthetic

@@ -177,7 +177,9 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
 
         if (previousUrl != newUrl || viewModel?.hasFinishedLoading != true) {
             placeholderView.view.visibility = View.VISIBLE
-            webView.loadUrl(newUrl)
+            val requestedLocale = viewConfig.requestedLocale
+            if (requestedLocale == null) webView.loadUrl(newUrl)
+            else webView.loadUrl(newUrl, mapOf("Accept-Language" to requestedLocale))
         } else {
             placeholderView.view.visibility = View.GONE
         }
@@ -207,7 +209,8 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
                     } else {
                         vm.onboardingConfig?.let { config ->
                             placeholderView.view.visibility = View.VISIBLE
-                            webView.loadUrl(config.url)
+                            if (config.requestedLocale == null) webView.loadUrl(config.url)
+                            else webView.loadUrl(config.url, mapOf("Accept-Language" to config.requestedLocale))
                         }
                     }
                 }

@@ -14,7 +14,7 @@ internal class PaywallMapper(
 ) {
 
     @JvmSynthetic
-    fun map(paywallDto: PaywallDto, products: List<BackendProduct>) = AdaptyPaywall(
+    fun map(paywallDto: PaywallDto, products: List<BackendProduct>, requestedLocale: String) = AdaptyPaywall(
         name = paywallDto.name,
         variationId = paywallDto.variationId,
         remoteConfig = paywallDto.remoteConfig?.let(remoteConfigMapper::map),
@@ -22,6 +22,7 @@ internal class PaywallMapper(
         id = paywallDto.id,
         snapshotAt = paywallDto.snapshotAt,
         viewConfig = paywallDto.paywallBuilder,
+        requestedLocale = requestedLocale,
         placement = placementMapper.map(paywallDto.placement),
     )
 }
