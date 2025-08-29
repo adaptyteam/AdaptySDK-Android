@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import com.adapty.internal.utils.InternalAdaptyApi
@@ -23,6 +26,8 @@ import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.utils.EventCallback
 import com.adapty.ui.internal.utils.getBitmap
 import com.adapty.ui.internal.utils.getAsset
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @InternalAdaptyApi
 public class ImageElement internal constructor(
@@ -55,14 +60,17 @@ public class ImageElement internal constructor(
         }
         val image = resolveAssets().getAsset<Asset.Image>(assetId)
         BoxWithConstraints {
-            val imageBitmap = remember(constraints.maxWidth, constraints.maxHeight, image?.main?.source?.javaClass, isSystemInDarkTheme) {
-                image?.let {
-                    getBitmap(context, image, constraints.maxWidth, constraints.maxHeight, if (aspectRatio == AspectRatio.FIT) ScaleType.FIT_MIN else ScaleType.FIT_MAX)
-                        ?.asImageBitmap()
+            val imageBitmapState by produceState<ImageBitmap?>(null, constraints.maxWidth, constraints.maxHeight, image?.main?.source?.javaClass, isSystemInDarkTheme) {
+                value = withContext(Dispatchers.Default) {
+                    image?.let {
+                        getBitmap(context, image, constraints.maxWidth, constraints.maxHeight,
+                            if (aspectRatio == AspectRatio.FIT) ScaleType.FIT_MIN else ScaleType.FIT_MAX
+                        )?.asImageBitmap()
+                    }
                 }
             }
 
-            if (imageBitmap == null) return@BoxWithConstraints
+            val imageBitmap = imageBitmapState ?: return@BoxWithConstraints
 
             Image(
                 bitmap = imageBitmap,
