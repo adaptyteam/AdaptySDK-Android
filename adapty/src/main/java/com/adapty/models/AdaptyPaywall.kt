@@ -23,6 +23,7 @@ public class AdaptyPaywall internal constructor(
     @get:JvmSynthetic internal val products: List<BackendProduct>,
     @get:JvmSynthetic internal val id: String,
     @get:JvmSynthetic internal val viewConfig: Map<String, Any>?,
+    @get:JvmSynthetic internal val requestedLocale: String,
     @get:JvmSynthetic internal val snapshotAt: Long,
 ) {
 

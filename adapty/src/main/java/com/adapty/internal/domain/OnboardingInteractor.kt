@@ -19,12 +19,12 @@ internal class OnboardingInteractor(
 
     fun getOnboarding(placementId: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy, loadTimeout: Int): Flow<AdaptyOnboarding> {
         return onboardingFetcher.fetchOnboarding(placementId, locale, fetchPolicy, loadTimeout)
-            .map { onboarding -> onboardingMapper.map(onboarding) }
+            .map { onboarding -> onboardingMapper.map(onboarding, locale) }
     }
 
     fun getOnboardingUntargeted(placementId: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy): Flow<AdaptyOnboarding> {
         return onboardingFetcher.fetchOnboardingUntargeted(placementId, locale, fetchPolicy)
-            .map { onboarding -> onboardingMapper.map(onboarding) }
+            .map { onboarding -> onboardingMapper.map(onboarding, locale) }
     }
 
     fun logShowOnboardingInternal(

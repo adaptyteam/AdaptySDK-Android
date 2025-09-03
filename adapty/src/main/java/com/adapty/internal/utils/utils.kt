@@ -137,7 +137,7 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 @JvmSynthetic
 internal const val DEFAULT_PLACEMENT_LOCALE = "en"
 
-internal const val VERSION_NAME = "3.10.0"
+internal const val VERSION_NAME = "3.11.0"
 
 /**
  * @suppress
@@ -161,7 +161,7 @@ internal val noLetterRegex by lazy { Pattern.compile("[^\\p{L}]") }
 internal fun Variation.getLanguageCode() =
     (when (this) {
         is PaywallDto -> listOfNotNull(remoteConfig?.lang, getLocaleFromViewConfig(paywallBuilder))
-        is Onboarding -> listOfNotNull(remoteConfig?.lang, getLocaleFromOnboardingConfig(viewConfig))
+        is Onboarding -> listOfNotNull(remoteConfig?.lang)
     })
         .firstNotNullOfOrNull { locale ->
             extractLanguageCode(locale)?.takeIf { it != DEFAULT_PLACEMENT_LOCALE }
@@ -170,9 +170,6 @@ internal fun Variation.getLanguageCode() =
 @JvmSynthetic
 internal fun getLocaleFromViewConfig(viewConfig: Map<String, Any>?) =
     viewConfig?.get("lang") as? String
-
-internal fun getLocaleFromOnboardingConfig(viewConfig: OnboardingBuilder) =
-    viewConfig.lang
 
 @JvmSynthetic
 internal fun AdaptyPaywall.getLocale() =

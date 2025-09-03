@@ -23,6 +23,4 @@ internal class Onboarding(
 internal class OnboardingBuilder(
     @SerializedName("config_url")
     val url: String,
-    @SerializedName("lang")
-    val lang: String,
 )

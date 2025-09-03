@@ -15,6 +15,7 @@ public class AdaptyOnboarding internal constructor(
     public val placement: AdaptyPlacement,
     @get:JvmSynthetic internal val id: String,
     @get:JvmSynthetic internal val viewConfig: OnboardingBuilder,
+    @get:JvmSynthetic internal val requestedLocale: String,
     @get:JvmSynthetic internal val snapshotAt: Long,
 ) {
 
