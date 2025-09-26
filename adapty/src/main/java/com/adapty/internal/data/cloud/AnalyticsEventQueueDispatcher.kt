@@ -47,7 +47,6 @@ internal class AnalyticsEventQueueDispatcher(
                     dataRemoteSemaphore.acquire()
                     lifecycleManager.onActivateAllowed()
                         .mapLatest { fetchDisabledEventTypes() }
-                        .retryIfNecessary(DEFAULT_RETRY_COUNT)
                         .catch { error ->
                             if (error is AdaptyError && (error.isHttpError() || error.isDecodingError())) {
                                 val fallbackConfig = AnalyticsConfig.createFallback()

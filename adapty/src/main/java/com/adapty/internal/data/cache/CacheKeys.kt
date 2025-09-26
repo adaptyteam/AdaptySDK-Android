@@ -6,6 +6,7 @@ package com.adapty.internal.data.cache
 @JvmSynthetic internal const val UNSYNCED_CUSTOMER_USER_ID = "UNSYNCED_CUSTOMER_USER_ID"
 @JvmSynthetic internal const val INSTALLATION_META_ID = "INSTALLATION_META_ID"
 @JvmSynthetic internal const val LAST_SENT_INSTALLATION_META = "LAST_SENT_INSTALLATION_META"
+@JvmSynthetic internal const val LAST_SENT_IP = "LAST_SENT_IP"
 @JvmSynthetic internal const val IAM_ACCESS_KEY_ID = "IAM_ACCESS_KEY_ID"
 @JvmSynthetic internal const val IAM_SECRET_KEY = "IAM_SECRET_KEY"
 @JvmSynthetic internal const val IAM_SESSION_TOKEN = "IAM_SESSION_TOKEN"

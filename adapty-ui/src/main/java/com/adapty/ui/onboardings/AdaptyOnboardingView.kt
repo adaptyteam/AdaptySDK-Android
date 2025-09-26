@@ -100,12 +100,13 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
             webViewClient = object : WebViewClientCompat() {
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceErrorCompat) {
                     log(ERROR) { "$LOG_PREFIX_ERROR onReceivedError: ${error.toLog()})" }
+                    if (!request.isForMainFrame) return
                     withViewModel { it.emitError(AdaptyOnboardingError.WebKit.WebResource(error)) }
                 }
 
                 override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: WebResourceResponse) {
-                    if (errorResponse.statusCode == 522 && !request.isForMainFrame) return
                     log(ERROR) { "$LOG_PREFIX_ERROR onReceivedHttpError: ${errorResponse.toLog()})" }
+                    if (!request.isForMainFrame) return
                     withViewModel { it.emitError(AdaptyOnboardingError.WebKit.Http(errorResponse)) }
                 }
 
@@ -170,19 +171,14 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
 
     public fun show(viewConfig: AdaptyOnboardingConfiguration, delegate: AdaptyOnboardingEventListener) {
         this.delegate = delegate
-        val previousUrl = viewModel?.onboardingConfig?.url
-        val newUrl = viewConfig.url
+        val url = viewConfig.url
 
         viewModel?.onboardingConfig = viewConfig
 
-        if (previousUrl != newUrl || viewModel?.hasFinishedLoading != true) {
-            placeholderView.view.visibility = View.VISIBLE
-            val requestedLocale = viewConfig.requestedLocale
-            if (requestedLocale == null) webView.loadUrl(newUrl)
-            else webView.loadUrl(newUrl, mapOf("Accept-Language" to requestedLocale))
-        } else {
-            placeholderView.view.visibility = View.GONE
-        }
+        placeholderView.view.visibility = View.VISIBLE
+        val requestedLocale = viewConfig.requestedLocale
+        if (requestedLocale == null) webView.loadUrl(url)
+        else webView.loadUrl(url, mapOf("Accept-Language" to requestedLocale))
     }
 
     public fun show(

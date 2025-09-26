@@ -55,7 +55,7 @@ public class ImageElement internal constructor(
         }
         val image = resolveAssets().getAsset<Asset.Image>(assetId)
         BoxWithConstraints {
-            val imageBitmap = remember(constraints.maxWidth, constraints.maxHeight, image?.main?.source?.javaClass, isSystemInDarkTheme) {
+            val imageBitmap = remember(constraints.maxWidth, constraints.maxHeight, image?.main?.source?.key, isSystemInDarkTheme) {
                 image?.let {
                     getBitmap(context, image, constraints.maxWidth, constraints.maxHeight, if (aspectRatio == AspectRatio.FIT) ScaleType.FIT_MIN else ScaleType.FIT_MAX)
                         ?.asImageBitmap()
@@ -75,5 +75,12 @@ public class ImageElement internal constructor(
                     .fillMaxHeight(),
             )
         }
+    }
+
+    private val Asset.Image.Source.key get() = when (this) {
+        is Asset.Image.Source.AndroidAsset -> path
+        is Asset.Image.Source.Base64Str -> imageBase64
+        is Asset.Image.Source.Bitmap -> "$bitmap"
+        is Asset.Image.Source.Uri -> "$uri"
     }
 }

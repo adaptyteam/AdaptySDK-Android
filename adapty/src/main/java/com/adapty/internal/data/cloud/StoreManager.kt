@@ -42,7 +42,9 @@ internal class StoreManager(
 
     private val billingClient = BillingClient
         .newBuilder(context)
-        .enablePendingPurchases()
+        .enablePendingPurchases(
+            PendingPurchasesParams.newBuilder().enableOneTimeProducts().build()
+        )
         .setListener(this)
         .build()
 

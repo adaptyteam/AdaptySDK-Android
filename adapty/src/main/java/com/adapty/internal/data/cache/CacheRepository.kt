@@ -196,6 +196,19 @@ internal class CacheRepository(
         saveData(LAST_SENT_INSTALLATION_META, installationMeta)
     }
 
+    fun getLastSentIp() = (cache[LAST_SENT_IP] as? Pair<*, *>)
+        ?.let { (profileId, ip) ->
+            if (profileId != getProfileId()) {
+                cache.remove(LAST_SENT_IP)
+                return@let null
+            }
+            ip as? String
+        }
+
+    fun saveLastSentIp(ip: String, profileId: String? = null) {
+        cache[LAST_SENT_IP] = (profileId ?: getProfileId()) to ip
+    }
+
     @JvmSynthetic
     fun getPurchasesHaveBeenSynced() =
         cache.safeGetOrPut(

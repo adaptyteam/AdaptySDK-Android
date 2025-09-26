@@ -87,7 +87,10 @@ internal class UserAcquisitionInteractor(
         ) { adId, referrerDetails, appSetId ->
             val installTimeFormatted =
                 metaInfoRetriever.formatDateTimeGMT(
-                    referrerDetails?.installBeginTimestampSeconds?.times(1000) ?: installData.installTimestampMillis
+                    referrerDetails?.installBeginTimestampSeconds
+                        ?.takeIf { it > 0 }
+                        ?.times(1000)
+                        ?: installData.installTimestampMillis
                 )
 
             val installRegistrationData = InstallRegistrationData(

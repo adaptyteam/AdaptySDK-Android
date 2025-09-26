@@ -52,14 +52,16 @@ internal class ProfileInteractor(
                 val metaHasChanged = installationMeta.hasChanged(cacheRepository.getInstallationMeta())
                 val metaToBeSent = installationMeta.takeIf { metaHasChanged }
 
+                var ip: String? = null
                 authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
-                    val ip = if (!iPv4Retriever.disabled) {
+                    ip = (if (!iPv4Retriever.disabled) {
                         iPv4Retriever.value
                             .also { value ->
                                 if (value == null)
                                     sendIpWhenReceived()
                             }
-                    } else null
+                    } else null)
+                        ?.takeIf { it != cacheRepository.getLastSentIp() }
                     if (ip == null && params == null && metaToBeSent == null)
                         throw NothingToUpdateException()
                     cloudRepository.updateProfile(params, metaToBeSent, ip)
@@ -70,6 +72,9 @@ internal class ProfileInteractor(
                             currentDataWhenRequestSent?.profileId,
                         )
                         metaToBeSent?.let(cacheRepository::saveLastSentInstallationMeta)
+                        ip?.let { ip ->
+                            cacheRepository.saveLastSentIp(ip, currentDataWhenRequestSent?.profileId)
+                        }
                         Unit
                     }
                     .catch { e ->
@@ -153,10 +158,16 @@ internal class ProfileInteractor(
     private fun sendIpWhenReceived() {
         iPv4Retriever.onValueReceived = { value ->
             execute {
+                if (value == cacheRepository.getLastSentIp())
+                    return@execute
                 flow {
                     emit(cloudRepository.updateProfile(ipv4Address = value))
                 }
-                    .retryIfNecessary(INFINITE_RETRY).catch { }.collect()
+                    .retryIfNecessary(INFINITE_RETRY)
+                    .map { (_, currentDataWhenRequestSent) ->
+                        cacheRepository.saveLastSentIp(value, currentDataWhenRequestSent?.profileId)
+                    }
+                    .catch { }.collect()
             }
         }
     }
