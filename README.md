@@ -78,6 +78,10 @@ Ask questions, participate in discussions about Adapty-related topics, become a 
 
 Read the [documentation](https://adapty.io/docs/sdk-installation-android?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android) to install and configure Adapty SDK. Set up purchases in hours instead of weeks :rocket:
 
+## Example App
+
+This repository includes a sample application that demonstrates Adapty SDK integration. See the [example app README](app/README.md) for details on how to run it.
+
 ## Contributing
 
 - Feel free to open an issue, we check all of them or drop us an email at [support@adapty.io](mailto:support@adapty.io) and tell us everything you want.
