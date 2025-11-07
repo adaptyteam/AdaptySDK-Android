@@ -27,17 +27,19 @@ Adapty SDK is an open-source framework that makes implementing in-app subscripti
 
 ## Why Adapty?
 
-- [On-the-fly paywalls price testing](https://docs.adapty.io/docs/ab-test?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android). Test different prices, duration, offers, messages, and designs simultaneously, all without new app releases.
-- [Full customer's payment history](https://docs.adapty.io/docs/profiles-crm?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android). Explore the user's payment events from the trial start to subscription cancellation or billing issues.
-- [In-app purchase data integration](https://docs.adapty.io/docs/events?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android). Send subscription events to 3rd-party analytics, attribution, and ad services with no coding, even if the user uninstalls the app.
-- [No server code implementation](https://docs.adapty.io/docs/android-configuring?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android). Integrate in-app purchases with server-side receipt validation in minutes. Apple Promotional Offers supported out-of-the-box.
-- [Advanced analytics](https://docs.adapty.io/docs/analytics-charts?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android). Analyze your app real-time metrics with advanced filters, such as Ad network, Ad campaign, country, A/B test, etc.
+- [No server code implementation](https://adapty.io/docs/sdk-installation-android?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android). Integrate in-app purchases with server-side receipt validation in minutes — in your own paywall or one created in the no-code builder.
+- [No-code paywall builder](https://adapty.io/docs/adapty-paywall-builder?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android). Create a beautiful, natively rendered paywall in the no-code editor and display it in your app to start getting paid instantly.
+- [On-the-fly paywalls price testing](https://docs.adapty.io/v3.0/docs/ab-tests?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android). Test different prices, duration, offers, messages, and designs simultaneously, all without new app releases.
+- [Beautiful onboardings](https://adapty.io/docs/onboardings?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android). Design onboardings in the no-code editor and guide users through their first app experience.
+- [Full customer's payment history](https://docs.adapty.io/v3.0/docs/profiles-crm?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android). Explore the user's payment events from the trial start to subscription cancellation or billing issues.
+- [3rd-party integrations](https://docs.adapty.io/v3.0/docs/events?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android). Send subscription events to 3rd-party analytics, attribution, and ad services with no coding, even if the user uninstalls the app.
+- [Advanced analytics](https://docs.adapty.io/v3.0/docs/charts?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android). Analyze your app real-time metrics with advanced filters, such as Ad network, Ad campaign, country, A/B test, etc.
 
 <h3 align="center" style="border-bottom: none; margin-top: -15px; margin-bottom: -15px; font-size: 150%">
 <a href="https://adapty.io/schedule-demo?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android_schedule-demo">Talk to Us to Learn More</a>
 </h3>
 
-## Integrate IAPs Within a Few Hours Without Server Coding 
+## Integrate IAPs within a few Hours without server coding
 
 **Adapty handles everything, from free trials to refunds, in a simple, developer-friendly SDK.**
 
@@ -46,39 +48,41 @@ Adapty SDK is an open-source framework that makes implementing in-app subscripti
 - One-time purchases and lifetime subscriptions supported.
 - Sync subscribers' states across iOS, Android, and Web.
 
-## Price Testing for In-app Purchases on Android Without App Releases
+## Design paywalls in the no-code builder
 
-- Optimize in-app subscriptions with the paywall A/B testing. Conversions, trials, revenue, cancellations, and more — everything is calculated for you: each paywall and each A/B test.
-- Change images, colors, layouts, and literally anything with a custom JSON. Configure different prices, trial periods, promo offers, and more in Adapty without app releases.
+![No-code builder](https://adapty.io/assets/uploads/2024/09/img-builder-and-templates@2x.webp)
 
-## Paywall A/B Testing on Android
+With Adapty, you can create a complete, purchase-ready paywall in the no-code builder. 
+
+Adapty automatically renders it and handles all the complex purchase flow, receipt validation, and subscription management behind the scenes.
+
+## Test paywalls & prices on Android without app releases
 
 ![Adapty: In-app subscriptions with paywall A/B testing](https://adapty-portal-media-production.s3.amazonaws.com/github/ab-test-new.png)
-- Conversions, trials, revenue, cancellations, and more  everything is calculated for you: each paywall and each A/B test.
-- Change images, colors, layouts and literally anything with a custom JSON.
-- Price testing is seamlessly integrated for any platform.
 
-## Real-time Analytics for Your Android App
+- Optimize in-app subscriptions with the paywall A/B testing. Conversions, trials, revenue, cancellations, and more — everything is calculated for you: each paywall and each A/B test.
+- Change images, colors, layouts, and literally anything using the no-code builder or a custom JSON. Configure different prices, trial periods, promo offers, and more in Adapty without app releases.
+
+## Real-time analytics for your Android app
 
 ![Adapty: How Adapty works](https://adapty-portal-media-production.s3.amazonaws.com/github/analyticss.gif)
 
-- 99.5% accuracy.
 - Manage the subscription's state without managing transactions.
+- 99.5% accuracy.
 - View and analyze data by attributes, such as status, channels, campaigns, and more.
 - Filter, group, and measure metrics by attribution, platform, custom users' segments, and more in a few clicks.
 
-## Mobile App Monetization's Largest Community
+## Mobile app monetization's largest community
 
-Ask questions, participate in discussions about Adapty-related topics, become a part of our community for mobile app developers and marketers. Learn how to monetize your app, ask questions, post jobs, read industry news and analytics. Ad free.
+Ask questions, participate in discussions about Adapty-related topics, become a part of our community for app developers and marketers. Learn how to monetize your app, ask questions, post jobs, read industry news and analytics. Ad free.
 
 <a href="https://discord.gg/subscriptions-hub"><img src="https://adapty-portal-media-production.s3.amazonaws.com/github/join-discord.svg" /></a>
 
+## Get started
 
-## Getting Started
+Follow our [quickstart guide](https://adapty.io/docs/android-sdk-overview#get-started?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android) to install and configure Adapty SDK. Set up purchases in hours instead of weeks 🚀
 
-Read the [documentation](https://adapty.io/docs/sdk-installation-android?utm_source=github&utm_medium=referral&utm_campaign=AdaptySDK-Android) to install and configure Adapty SDK. Set up purchases in hours instead of weeks :rocket:
-
-## Example App
+## Example app
 
 This repository includes a sample application that demonstrates Adapty SDK integration. See the [example app README](app/README.md) for details on how to run it.
 
@@ -87,7 +91,7 @@ This repository includes a sample application that demonstrates Adapty SDK integ
 - Feel free to open an issue, we check all of them or drop us an email at [support@adapty.io](mailto:support@adapty.io) and tell us everything you want.
 - Want to suggest a feature? Just contact us or open an issue in the repo.
 
-## Like Adapty SDK? 
+## Like Adapty SDK?
 
 So do we! Feel free to star the repo ⭐️⭐️⭐️ and make our developers happy!
 
