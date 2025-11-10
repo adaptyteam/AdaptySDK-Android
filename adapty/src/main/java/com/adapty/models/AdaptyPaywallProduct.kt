@@ -9,12 +9,14 @@ import com.android.billingclient.api.ProductDetails
 import java.math.BigDecimal
 
 /**
+ * @property[accessLevelId] An identifier of the access level configured in Adapty Dashboard that this product unlocks.
  * @property[localizedDescription] A description of the product.
  * @property[localizedTitle] The name of the product.
  * @property[paywallABTestName] Same as [abTestName][AdaptyPlacement.abTestName] property of the parent paywall's [AdaptyPlacement].
  * @property[paywallName] Same as [name][AdaptyPaywall.name] property of the parent [AdaptyPaywall].
  * @property[price] The [price][Price] of the product in the local currency.
  * @property[productDetails] Underlying system representation of the product.
+ * @property[productType] The type of the product.
  * @property[subscriptionDetails] Consolidates all subscription-related properties if the product is a subscription, otherwise `null`.
  * @property[variationId] Same as [variationId][AdaptyPaywall.variationId] property of the parent [AdaptyPaywall].
  * @property[vendorProductId] Unique identifier of a product from App Store Connect or Google Play Console.
@@ -26,6 +28,8 @@ public class AdaptyPaywallProduct internal constructor(
     public val paywallName: String,
     public val paywallABTestName: String,
     public val variationId: String,
+    public val accessLevelId: String,
+    public val productType: String,
     public val price: Price,
     public val subscriptionDetails: AdaptyProductSubscriptionDetails?,
     public val productDetails: ProductDetails,
@@ -44,6 +48,8 @@ public class AdaptyPaywallProduct internal constructor(
         if (paywallName != other.paywallName) return false
         if (paywallABTestName != other.paywallABTestName) return false
         if (variationId != other.variationId) return false
+        if (accessLevelId != other.accessLevelId) return false
+        if (productType != other.productType) return false
         if (price != other.price) return false
         if (subscriptionDetails != other.subscriptionDetails) return false
         if (productDetails != other.productDetails) return false
@@ -58,6 +64,8 @@ public class AdaptyPaywallProduct internal constructor(
         result = 31 * result + paywallName.hashCode()
         result = 31 * result + paywallABTestName.hashCode()
         result = 31 * result + variationId.hashCode()
+        result = 31 * result + accessLevelId.hashCode()
+        result = 31 * result + productType.hashCode()
         result = 31 * result + price.hashCode()
         result = 31 * result + (subscriptionDetails?.hashCode() ?: 0)
         result = 31 * result + productDetails.hashCode()
@@ -65,7 +73,7 @@ public class AdaptyPaywallProduct internal constructor(
     }
 
     override fun toString(): String {
-        return "AdaptyPaywallProduct(vendorProductId=$vendorProductId, localizedTitle=$localizedTitle, localizedDescription=$localizedDescription, paywallName=$paywallName, paywallABTestName=$paywallABTestName, variationId=$variationId, price=$price, subscriptionDetails=$subscriptionDetails, productDetails=$productDetails)"
+        return "AdaptyPaywallProduct(vendorProductId=$vendorProductId, localizedTitle=$localizedTitle, localizedDescription=$localizedDescription, paywallName=$paywallName, paywallABTestName=$paywallABTestName, variationId=$variationId, accessLevelId=$accessLevelId, price=$price, subscriptionDetails=$subscriptionDetails, productDetails=$productDetails)"
     }
 
     /**

@@ -12,7 +12,7 @@ import com.adapty.internal.data.models.InstallationMeta
 import com.adapty.internal.data.models.RestoreProductInfo
 import com.adapty.internal.data.models.InstallRegistrationData
 import com.adapty.internal.data.models.requests.*
-import com.adapty.internal.domain.models.PurchaseableProduct
+import com.adapty.internal.domain.models.IdentityParams
 import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
 import com.adapty.internal.utils.ID
 import com.adapty.internal.utils.MetaInfoRetriever
@@ -224,7 +224,7 @@ internal class RequestFactory(
 
     @JvmSynthetic
     fun createProfileRequest(
-        customerUserId: String?,
+        identityParams: IdentityParams?,
         installationMeta: InstallationMeta,
         params: AdaptyProfileParameters?,
     ) =
@@ -235,33 +235,26 @@ internal class RequestFactory(
                     CreateOrUpdateProfileRequest.create(
                         profileId,
                         installationMeta,
-                        customerUserId,
+                        identityParams,
                         params,
                     )
                 )
                 endPoint = getEndpointForProfileRequests(profileId)
-                systemLog = BackendAPIRequestData.CreateProfile.create(!customerUserId.isNullOrEmpty())
+                systemLog = BackendAPIRequestData.CreateProfile.create(!identityParams?.customerUserId.isNullOrEmpty())
             }
         }
 
     @JvmSynthetic
     fun validatePurchaseRequest(
-        purchase: Purchase,
-        product: PurchaseableProduct,
+        validateData: ValidateReceiptRequest,
+        purchase: Purchase?,
     ) = cacheRepository.getProfileId().let { profileId ->
         buildRequest {
             method = POST
             endPoint = "$purchasePrefix/play-store/token/v2/validate/"
-            body = gson.toJson(
-                ValidateReceiptRequest.create(
-                    profileId,
-                    purchase,
-                    product,
-                    cacheRepository.getOnboardingVariationId(),
-                )
-            )
+            body = gson.toJson(validateData)
             currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
-            systemLog = BackendAPIRequestData.Validate.create(product, purchase)
+            systemLog = BackendAPIRequestData.Validate.create(validateData, purchase)
         }
     }
 
@@ -304,11 +297,11 @@ internal class RequestFactory(
         }
 
     @JvmSynthetic
-    fun getProductIdsRequest() = buildRequest {
+    fun getProductsRequest() = buildRequest {
         method = GET
-        endPoint = "$inappsPrefix/$apiKeyPrefix/products-ids/${metaInfoRetriever.store}/${getDisableCacheQueryParamOrEmpty()}"
-        addResponseCacheKeys(responseCacheKeyProvider.forGetProductIds())
-        systemLog = BackendAPIRequestData.GetProductIds.create()
+        endPoint = "$inappsPrefix/$apiKeyPrefix/products/${metaInfoRetriever.store}/${getDisableCacheQueryParamOrEmpty()}"
+        addResponseCacheKeys(responseCacheKeyProvider.forGetProducts())
+        systemLog = BackendAPIRequestData.GetProducts.create()
     }
 
     @JvmSynthetic

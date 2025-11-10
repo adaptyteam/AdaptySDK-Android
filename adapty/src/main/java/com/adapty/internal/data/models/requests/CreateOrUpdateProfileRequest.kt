@@ -2,6 +2,7 @@ package com.adapty.internal.data.models.requests
 
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.InstallationMeta
+import com.adapty.internal.domain.models.IdentityParams
 import com.adapty.models.AdaptyProfileParameters
 import com.google.gson.annotations.SerializedName
 
@@ -24,6 +25,8 @@ internal class CreateOrUpdateProfileRequest(
             private val installationMeta: InstallationMeta?,
             @SerializedName("customer_user_id")
             private val customerUserId: String?,
+            @SerializedName("app_account_token")
+            private val appAccountToken: String?,
             @SerializedName("email")
             private val email: String?,
             @SerializedName("phone_number")
@@ -47,12 +50,13 @@ internal class CreateOrUpdateProfileRequest(
             internal companion object {
                 fun create(
                     installationMeta: InstallationMeta?,
-                    customerUserId: String?,
+                    identityParams: IdentityParams?,
                     updateProfileParams: AdaptyProfileParameters?,
                     ipv4Address: String?,
                 ) = Attributes(
                     installationMeta = installationMeta,
-                    customerUserId = customerUserId,
+                    customerUserId = identityParams?.customerUserId,
+                    appAccountToken = identityParams?.obfuscatedAccountId,
                     email = updateProfileParams?.email,
                     phoneNumber = updateProfileParams?.phoneNumber,
                     firstName = updateProfileParams?.firstName,
@@ -79,14 +83,14 @@ internal class CreateOrUpdateProfileRequest(
         fun create(
             profileId: String,
             installationMeta: InstallationMeta?,
-            customerUserId: String?,
+            identityParams: IdentityParams?,
             updateProfileParams: AdaptyProfileParameters?,
-        ) = create(profileId, installationMeta, customerUserId, updateProfileParams, null)
+        ) = create(profileId, installationMeta, identityParams, updateProfileParams, null)
 
         private fun create(
             profileId: String,
             installationMeta: InstallationMeta?,
-            customerUserId: String?,
+            identityParams: IdentityParams?,
             updateProfileParams: AdaptyProfileParameters?,
             ipv4Address: String?,
         ) = CreateOrUpdateProfileRequest(
@@ -94,7 +98,7 @@ internal class CreateOrUpdateProfileRequest(
                 id = profileId,
                 attributes = Data.Attributes.create(
                     installationMeta,
-                    customerUserId,
+                    identityParams,
                     updateProfileParams,
                     ipv4Address,
                 )

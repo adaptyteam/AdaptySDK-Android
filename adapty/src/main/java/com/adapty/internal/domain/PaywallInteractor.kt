@@ -4,6 +4,7 @@ package com.adapty.internal.domain
 
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
+import com.adapty.errors.AdaptyErrorCode
 import com.adapty.errors.AdaptyErrorCode.NO_PRODUCT_IDS_FOUND
 import com.adapty.errors.AdaptyErrorCode.WRONG_PARAMETER
 import com.adapty.internal.data.cache.CacheRepository
@@ -19,6 +20,7 @@ import com.adapty.internal.utils.Logger
 import com.adapty.internal.utils.PAYWALL_TIMEOUT_MILLIS_SHIFT
 import com.adapty.internal.utils.PaywallMapper
 import com.adapty.internal.utils.ProductMapper
+import com.adapty.internal.utils.TimeoutException
 import com.adapty.internal.utils.retryIfNecessary
 import com.adapty.internal.utils.timeout
 import com.adapty.models.AdaptyPaywall
@@ -28,11 +30,13 @@ import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.FileLocation
 import com.android.billingclient.api.ProductDetails
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
+import java.io.IOException
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class PaywallInteractor(
@@ -44,18 +48,27 @@ internal class PaywallInteractor(
     private val storeManager: StoreManager,
     private val paywallMapper: PaywallMapper,
     private val productMapper: ProductMapper,
+    private val allowLocalPAL: Boolean,
 ) {
 
     @JvmSynthetic
     fun getPaywall(placementId: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy, loadTimeout: Int): Flow<AdaptyPaywall> {
         return paywallFetcher.fetchPaywall(placementId, locale, fetchPolicy, loadTimeout)
-            .map { paywall -> paywallMapper.map(paywall, productMapper.map(paywall.products), locale) }
+            .map { paywall ->
+                if (allowLocalPAL)
+                    cacheRepository.saveProductPALMappingsFromPaywall(paywall.products)
+                paywallMapper.map(paywall, productMapper.map(paywall.products), locale)
+            }
     }
 
     @JvmSynthetic
     fun getPaywallUntargeted(placementId: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy): Flow<AdaptyPaywall> {
         return paywallFetcher.fetchPaywallUntargeted(placementId, locale, fetchPolicy)
-            .map { paywall -> paywallMapper.map(paywall, productMapper.map(paywall.products), locale) }
+            .map { paywall ->
+                if (allowLocalPAL)
+                    cacheRepository.saveProductPALMappingsFromPaywall(paywall.products)
+                paywallMapper.map(paywall, productMapper.map(paywall.products), locale)
+            }
     }
 
     @JvmSynthetic
@@ -87,8 +100,11 @@ internal class PaywallInteractor(
         } else {
             timeout(baseFlow, loadTimeout - PAYWALL_TIMEOUT_MILLIS_SHIFT)
         }
-            .map { viewConfig ->
-                viewConfig ?: cloudRepository.getViewConfigurationFallback(paywall.id, locale)
+            .catch { e ->
+                if (e is TimeoutException || (e is AdaptyError && (e.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || e.originalError is IOException)))
+                    emit(cloudRepository.getViewConfigurationFallback(paywall.id, locale))
+                else
+                    throw e
             }
     }
 
@@ -106,9 +122,14 @@ internal class PaywallInteractor(
     @JvmSynthetic
     fun getProductsOnStart() =
         lifecycleManager.onActivateAllowed()
-            .mapLatest { cloudRepository.getProductIds() }
+            .mapLatest { cloudRepository.getProducts() }
             .retryIfNecessary(INFINITE_RETRY)
-            .flatMapConcat { productIds -> storeManager.queryProductDetails(productIds, INFINITE_RETRY) }
+            .flatMapConcat { products ->
+                if (allowLocalPAL)
+                    cacheRepository.saveProductPALMappings(products)
+                val productIds = products.items.keys.map { it.split(":")[0] } .toList()
+                storeManager.queryProductDetails(productIds, INFINITE_RETRY)
+            }
 
     @JvmSynthetic
     fun setFallback(source: FileLocation) =

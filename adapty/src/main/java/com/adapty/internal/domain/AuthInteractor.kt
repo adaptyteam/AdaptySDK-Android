@@ -6,6 +6,7 @@ import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.models.CrossPlacementInfo
+import com.adapty.internal.domain.models.IdentityParams
 import com.adapty.internal.domain.models.ProfileRequestResult
 import com.adapty.internal.domain.models.ProfileRequestResult.*
 import com.adapty.internal.utils.*
@@ -37,15 +38,15 @@ internal class AuthInteractor(
     private val authSemaphore = Semaphore(1)
 
     private suspend fun createProfileIfNeeded(): Flow<ProfileRequestResult> {
-        cacheRepository.getUnsyncedAuthData().let { (newProfileId, newCustomerUserId) ->
-            if (newProfileId.isNullOrEmpty() && newCustomerUserId.isNullOrEmpty()) {
+        cacheRepository.getUnsyncedAuthData().let { (newProfileId, newIdentityParams) ->
+            if (newProfileId.isNullOrEmpty() && newIdentityParams == null) {
                 return flowOf(ProfileIdSame)
             }
         }
 
         authSemaphore.acquire()
-        val (newProfileId, newCustomerUserId) = cacheRepository.getUnsyncedAuthData()
-        return if (newProfileId.isNullOrEmpty() && newCustomerUserId.isNullOrEmpty()) {
+        val (newProfileId, newIdentityParams) = cacheRepository.getUnsyncedAuthData()
+        return if (newProfileId.isNullOrEmpty() && newIdentityParams == null) {
             authSemaphore.release()
             flowOf(ProfileIdSame)
         } else {
@@ -54,7 +55,7 @@ internal class AuthInteractor(
                     val params = cacheRepository.getExternalAnalyticsEnabled()?.let { enabled ->
                         AdaptyProfileParameters.Builder().withExternalAnalyticsDisabled(!enabled).build()
                     }
-                    cloudRepository.createProfile(newCustomerUserId, installationMeta, params)
+                    cloudRepository.createProfile(newIdentityParams, installationMeta, params)
                         .map { profile ->
                             val profileStateChange = profileStateChangeChecker.getProfileStateChange(profile)
                             when (profileStateChange) {
@@ -123,9 +124,9 @@ internal class AuthInteractor(
         }
 
     @JvmSynthetic
-    fun prepareAuthDataToSync(newCustomerUserId: String?) {
+    fun prepareAuthDataToSync(newCustomerUserId: String?, newObfuscatedAccountId: String?) {
         cacheRepository.prepareProfileIdToSync()
-        cacheRepository.prepareCustomerUserIdToSync(newCustomerUserId)
+        cacheRepository.prepareIdentityParamsToSync(IdentityParams.from(newCustomerUserId, newObfuscatedAccountId))
     }
 
     @JvmSynthetic

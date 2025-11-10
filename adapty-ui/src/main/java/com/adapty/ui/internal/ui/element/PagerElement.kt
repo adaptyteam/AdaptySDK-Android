@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
@@ -54,6 +55,7 @@ import com.adapty.ui.internal.ui.attributes.toPaddingValues
 import com.adapty.ui.internal.ui.marginsOrSkip
 import com.adapty.ui.internal.utils.EventCallback
 import com.adapty.ui.internal.utils.LOG_PREFIX
+import com.adapty.ui.internal.utils.areAnimationsDisabled
 import com.adapty.ui.internal.utils.getAsset
 import com.adapty.ui.internal.utils.log
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
@@ -106,6 +108,10 @@ public class PagerElement internal constructor(
         val isDragged = interactionSource.collectIsDraggedAsState()
         val wasInterrupted = remember { mutableStateOf(false) }
         val wasFinishedForever = remember { mutableStateOf(false) }
+        val context = LocalContext.current
+        val animationsDisabled = remember(context) {
+            context.areAnimationsDisabled()
+        }
 
         if (animation != null && pages.size > 1) {
             val shouldAnimate = !isDragged.value && (interactionBehavior != CANCEL_ANIMATION || !wasInterrupted.value) && !wasFinishedForever.value
@@ -114,7 +120,7 @@ public class PagerElement internal constructor(
                 if (!shouldAnimate) return@LaunchedEffect
 
                 delay(if (wasInterrupted.value) animation.afterInteractionDelayMillis.coerceAtLeast(500L) else animation.startDelayMillis)
-                slideNext(pagerState, pages, animation) {
+                slideNext(pagerState, pages, animation, animationsDisabled) {
                     wasFinishedForever.value = true
                 }
             }
@@ -289,6 +295,7 @@ public class PagerElement internal constructor(
         pagerState: PagerState,
         pages: List<UIElement>,
         animation: PagerAnimation,
+        animationsDisabled: Boolean,
         onFinishedForever: () -> Unit,
     ) {
         val toPage = ((pagerState.currentPage + 1) % pages.size)
@@ -296,19 +303,28 @@ public class PagerElement internal constructor(
         if (toPage == 0) {
             val transition = animation.repeatTransition
             if (transition != null) {
-                pagerState.slideBackToStart(0, transition)
-                slideNext(pagerState, pages, animation, onFinishedForever)
+                pagerState.slideBackToStart(0, transition, animationsDisabled)
+                slideNext(pagerState, pages, animation, animationsDisabled, onFinishedForever)
             } else {
                 onFinishedForever()
             }
         } else {
             val transition = animation.pageTransition
-            pagerState.slideToPage(toPage, transition)
-            slideNext(pagerState, pages, animation, onFinishedForever)
+            pagerState.slideToPage(toPage, transition, animationsDisabled)
+            slideNext(pagerState, pages, animation, animationsDisabled, onFinishedForever)
         }
     }
 
-    private suspend fun PagerState.slideToPage(page: Int, transition: Transition.Slide) {
+    private suspend fun PagerState.slideToPage(
+        page: Int,
+        transition: Transition.Slide,
+        animationsDisabled: Boolean,
+    ) {
+        if (animationsDisabled) {
+            delay(transition.startDelayMillis.toLong().coerceAtLeast(500L))
+            scrollToPage(page)
+            return
+        }
         animateScrollToPage(
             page = page,
             animationSpec = tween(
@@ -319,12 +335,22 @@ public class PagerElement internal constructor(
         )
     }
 
-    private suspend fun PagerState.slideBackToStart(targetPage: Int, transition: Transition.Slide) {
+    private suspend fun PagerState.slideBackToStart(
+        targetPage: Int,
+        transition: Transition.Slide,
+        animationsDisabled: Boolean,
+    ) {
         val pageSize = layoutInfo.pageSize
         val pageSpacing = layoutInfo.pageSpacing
         val currentPage = currentPage
 
         if (currentPage == targetPage) return
+
+        if (animationsDisabled) {
+            delay(transition.startDelayMillis.toLong().coerceAtLeast(500L))
+            scrollToPage(targetPage)
+            return
+        }
 
         val pageDiff = targetPage - currentPage
         val distance = (pageDiff * (pageSize + pageSpacing)).toFloat()

@@ -98,6 +98,7 @@ internal class UserAcquisitionInteractor(
                 referrerDetails?.installReferrer,
                 adId.takeIf { it.isNotEmpty() },
                 appSetId.takeIf { it.isNotEmpty() },
+                metaInfoRetriever.androidId,
                 metaInfoRetriever.platform,
                 metaInfoRetriever.os,
                 Build.BRAND,

@@ -1,13 +1,14 @@
 @file:OptIn(InternalAdaptyApi::class)
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.mapping.viewconfig
 
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.adaptyError
+import com.adapty.internal.utils.getAs
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.RichText
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.TextItem
-import com.adapty.ui.internal.utils.getAs
 
 internal class ViewConfigurationTextMapper {
 

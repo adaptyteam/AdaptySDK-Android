@@ -3,6 +3,7 @@ package com.adapty.internal.domain.models
 import androidx.annotation.RestrictTo
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.android.billingclient.api.BillingClient
+import kotlin.time.Duration
 
 /**
  * @suppress
@@ -15,6 +16,9 @@ public class BackendProduct internal constructor(
     public val paywallProductIndex: Int,
     public val timestamp: Long,
     public val type: ProductType,
+    public val accessLevelId: String,
+    public val declaredProductType: String,
+    public val duration: Duration,
 ) {
     public class SubscriptionData(
         public val basePlanId: String,

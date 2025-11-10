@@ -7,11 +7,11 @@ import com.google.gson.annotations.SerializedName
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class PurchasedProductDetails(
     @SerializedName("product_id")
-    private val productId: String,
+    val productId: String,
     @SerializedName("one_time_purchase_offer_details")
-    private val oneTimePurchaseOfferDetails: OneTime?,
+    val oneTimePurchaseOfferDetails: OneTime?,
     @SerializedName("subscription_offer_details")
-    private val subscriptionOfferDetails: List<Sub>?,
+    val subscriptionOfferDetails: List<Sub>?,
 ) {
     internal class OneTime(
         @SerializedName("price_amount_micros")

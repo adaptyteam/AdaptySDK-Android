@@ -2,6 +2,7 @@ package com.adapty.internal.data.models
 
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
+import com.adapty.internal.data.models.requests.ValidateReceiptRequest
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyPlacementFetchPolicy
@@ -364,15 +365,15 @@ internal class AnalyticsEvent(
 
             companion object {
                 fun create(
-                    product: PurchaseableProduct,
-                    purchase: Purchase,
+                    validateData: ValidateReceiptRequest,
+                    purchase: Purchase?,
                 ) =
                     Validate(
-                        product.vendorProductId,
-                        product.currentOfferDetails?.basePlanId,
-                        product.currentOfferDetails?.offerId,
-                        purchase.orderId,
-                        product.variationId,
+                        validateData.vendorProductId,
+                        validateData.basePlanId,
+                        validateData.offerId,
+                        purchase?.orderId,
+                        validateData.variationId,
                         "validate_transaction",
                     )
             }
@@ -806,14 +807,14 @@ internal class AnalyticsEvent(
             }
         }
 
-        class GetProductIds private constructor(
+        class GetProducts private constructor(
             methodName: String,
         ) : BackendAPIRequestData(methodName) {
 
             companion object {
                 fun create() =
-                    GetProductIds(
-                        "get_products_ids",
+                    GetProducts(
+                        "get_products",
                     )
             }
         }

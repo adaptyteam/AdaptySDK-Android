@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.retryWhen
 internal class IPv4Retriever(
     val disabled: Boolean,
     private val cloudRepository: CloudRepository,
+    private val connectivityHelper: ConnectivityHelper,
 ) {
 
     @Volatile
@@ -27,7 +28,13 @@ internal class IPv4Retriever(
 
     init {
         if (!disabled)
-            execute { getIPv4().retryWhen { _, _ -> delay(1000L); true }.catch { }.collect() }
+            execute {
+                getIPv4().retryWhen { _, _ ->
+                    delay(1000L)
+                    connectivityHelper.waitForInternetConnectivity()
+                    true
+                }.catch { }.collect()
+            }
     }
 
     private fun getIPv4(): Flow<String?> =

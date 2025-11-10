@@ -7,7 +7,6 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
-import androidx.annotation.IntRange
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.AdaptyInternal
@@ -17,13 +16,16 @@ import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
 import com.adapty.internal.utils.DEFAULT_PAYWALL_TIMEOUT
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.Logger
+import com.adapty.internal.utils.getCurrentProcessName
 import com.adapty.internal.utils.getLocaleFromViewConfig
+import com.adapty.internal.utils.getMainProcessName
 import com.adapty.listeners.OnInstallationDetailsListener
 import com.adapty.listeners.OnProfileUpdatedListener
 import com.adapty.models.*
 import com.adapty.utils.*
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 public object Adapty {
@@ -42,7 +44,7 @@ public object Adapty {
         context: Context,
         config: AdaptyConfig,
     ) {
-        Logger.log(VERBOSE) { "activate(customerUserId = ${config.customerUserId})" }
+        Logger.log(VERBOSE) { "activate(customerUserId = ${config.customerUserId}, gpObfuscatedAccountId = ${config.gpObfuscatedAccountId})" }
 
         require(config.apiKey.isNotBlank()) { "Public SDK key must not be empty." }
         require(context.applicationContext is Application) { "Application context must be provided." }
@@ -53,8 +55,11 @@ public object Adapty {
             return
         }
 
+        if (!canBeActivatedInCurrentProcess(context, config))
+            return
+
         init(context, config)
-        adaptyInternal.activate(config.customerUserId)
+        adaptyInternal.activate(config.customerUserId, config.gpObfuscatedAccountId)
     }
 
     /**
@@ -105,13 +110,16 @@ public object Adapty {
      *
      * @param[customerUserId] User identifier in your system.
      *
+     * @param[gpObfuscatedAccountId] The obfuscated account identifier, [read more](https://developer.android.com/google/play/billing/developer-payload#attribute).
+     *
      * @param[callback] An result containing the optional [AdaptyError].
      */
     @JvmStatic
-    public fun identify(customerUserId: String, callback: ErrorCallback) {
-        Logger.log(VERBOSE) { "identify($customerUserId)" }
+    @JvmOverloads
+    public fun identify(customerUserId: String, gpObfuscatedAccountId: String? = null, callback: ErrorCallback) {
+        Logger.log(VERBOSE) { "identify($customerUserId, $gpObfuscatedAccountId)" }
         if (!checkActivated(callback)) return
-        adaptyInternal.identify(customerUserId, callback)
+        adaptyInternal.identify(customerUserId, gpObfuscatedAccountId, callback)
     }
 
     /**
@@ -125,7 +133,7 @@ public object Adapty {
      *
      * @param[callback] A result containing the optional [AdaptyError].
      *
-     * @see <a href="https://adapty.io/docs/setting-user-attributes">Set user attributes</a>
+     * @see <a href="https://adapty.io/docs/android-setting-user-attributes">Set user attributes</a>
      */
     @JvmStatic
     public fun updateProfile(params: AdaptyProfileParameters, callback: ErrorCallback) {
@@ -189,9 +197,9 @@ public object Adapty {
      * @param[callback] A result containing the [AdaptyPaywall] object. This model contains the list
      * of the products ids, paywall’s identifier, custom payload, and several other properties.
      *
-     * @see <a href="https://adapty.io/docs/display-remote-config-paywalls">Display paywalls designed with remote config</a>
+     * @see <a href="https://adapty.io/docs/present-remote-config-paywalls-android">Display paywalls designed with remote config</a>
      *
-     * @see <a href="https://adapty.io/docs/display-pb-paywalls">Display paywalls designed with Paywall Builder</a>
+     * @see <a href="https://adapty.io/docs/android-present-paywalls">Display paywalls designed with Paywall Builder</a>
      */
     @JvmStatic
     @JvmOverloads
@@ -220,9 +228,9 @@ public object Adapty {
      *
      * @param[callback] A result containing the [AdaptyPaywallProduct] list. You can present them in your UI.
      *
-     * @see <a href="https://adapty.io/docs/display-remote-config-paywalls">Display paywalls designed with remote config</a>
+     * @see <a href="https://adapty.io/docs/present-remote-config-paywalls-android">Display paywalls designed with remote config</a>
      *
-     * @see <a href="https://adapty.io/docs/display-pb-paywalls">Display paywalls designed with Paywall Builder</a>
+     * @see <a href="https://adapty.io/docs/android-present-paywalls">Display paywalls designed with Paywall Builder</a>
      */
     @JvmStatic
     public fun getPaywallProducts(
@@ -288,7 +296,7 @@ public object Adapty {
      * @param[product] An [AdaptyPaywallProduct] object retrieved from the paywall.
      *
      * @param[subscriptionUpdateParams] An [AdaptySubscriptionUpdateParameters] object, used when
-     * you need a subscription to be replaced with another one, [read more](https://adapty.io/docs/making-purchases#change-subscription-when-making-a-purchase).
+     * you need a subscription to be replaced with another one, [read more](https://adapty.io/docs/android-making-purchases#change-subscription-when-making-a-purchase).
      *
      * @param[isOfferPersonalized] Indicates whether the price is personalized, [read more](https://developer.android.com/google/play/billing/integrate#personalized-price).
      *
@@ -298,7 +306,7 @@ public object Adapty {
      * purchases. Generally, you have to check only access level status to determine whether the user
      * has premium access to the app.
      *
-     * @see <a href="https://adapty.io/docs/making-purchases">Make purchases in mobile app</a>
+     * @see <a href="https://adapty.io/docs/android-making-purchases">Make purchases in mobile app</a>
      */
     @Deprecated(
         message = "This method has been deprecated. Please use Adapty.makePurchase(activity: Activity, product: AdaptyPaywallProduct, params: AdaptyPurchaseParameters) instead",
@@ -340,7 +348,7 @@ public object Adapty {
      * purchases. Generally, you have to check only access level status to determine whether the user
      * has premium access to the app.
      *
-     * @see <a href="https://adapty.io/docs/making-purchases">Make purchases in mobile app</a>
+     * @see <a href="https://adapty.io/docs/android-making-purchases">Make purchases in mobile app</a>
      */
     @JvmStatic
     @JvmOverloads
@@ -350,7 +358,7 @@ public object Adapty {
         params: AdaptyPurchaseParameters = AdaptyPurchaseParameters.Empty,
         callback: ResultCallback<AdaptyPurchaseResult>,
     ) {
-        Logger.log(VERBOSE) { "makePurchase(vendorProductId = ${product.vendorProductId}${product.subscriptionDetails?.let { "; basePlanId = ${it.basePlanId}${it.offerId?.let { offerId -> "; offerId = $offerId" }.orEmpty()}" }.orEmpty()}${params.subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; replacementMode = ${it.replacementMode}" }.orEmpty()}${params.isOfferPersonalized.takeIf { it }?.let { "; isOfferPersonalized = $it" }.orEmpty()}${params.obfuscatedAccountId?.let { "; obfuscatedAccountId = $it" }.orEmpty()}${params.obfuscatedProfileId?.let { "; obfuscatedProfileId = $it" }.orEmpty()})" }
+        Logger.log(VERBOSE) { "makePurchase(vendorProductId = ${product.vendorProductId}${product.subscriptionDetails?.let { "; basePlanId = ${it.basePlanId}${it.offerId?.let { offerId -> "; offerId = $offerId" }.orEmpty()}" }.orEmpty()}${params.subscriptionUpdateParams?.let { "; oldVendorProductId = ${it.oldSubVendorProductId}; replacementMode = ${it.replacementMode}" }.orEmpty()}${params.isOfferPersonalized.takeIf { it }?.let { "; isOfferPersonalized = $it" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
@@ -368,7 +376,7 @@ public object Adapty {
      * access levels, subscriptions, and non-subscription purchases. Generally, you have to check
      * only access level status to determine whether the user has premium access to the app.
      *
-     * @see <a href="https://adapty.io/docs/restore-purchase">Restore purchases in mobile app</a>
+     * @see <a href="https://adapty.io/docs/android-restore-purchase">Restore purchases in mobile app</a>
      */
     @JvmStatic
     public fun restorePurchases(callback: ResultCallback<AdaptyProfile>) {
@@ -426,7 +434,7 @@ public object Adapty {
      *
      * @param[callback] A result containing the optional [AdaptyError].
      *
-     * @see <a href="https://adapty.io/docs/report-transactions-observer-mode">Report transactions in Observer mode</a>
+     * @see <a href="https://adapty.io/docs/report-transactions-observer-mode-android">Report transactions in Observer mode</a>
      */
     @JvmOverloads
     @JvmStatic
@@ -547,7 +555,7 @@ public object Adapty {
      *
      * @param[callback] A result containing the optional [AdaptyError].
      *
-     * @see <a href="https://adapty.io/docs/present-remote-config-paywalls#track-paywall-view-events">Track paywall view events</a>
+     * @see <a href="https://adapty.io/docs/present-remote-config-paywalls-android#track-paywall-view-events">Track paywall view events</a>
      */
     @JvmStatic
     @JvmOverloads
@@ -567,43 +575,6 @@ public object Adapty {
         Logger.log(VERBOSE) { "logShowPaywall()" }
         if (!checkActivated(callback)) return
         adaptyInternal.logShowPaywall(paywall, additionalFields, callback)
-    }
-
-    /**
-     * Call this method to keep track of the user’s steps while onboarding.
-     *
-     * The onboarding stage is a very common situation in modern mobile apps. The quality of its
-     * implementation, content, and number of steps can have a rather significant influence on further
-     * user behavior, especially on his desire to become a subscriber or simply make some purchases.
-     *
-     * In order for you to be able to analyze user behavior at this critical stage without leaving
-     * Adapty, we have implemented the ability to send dedicated events every time a user visits yet
-     * another onboarding screen.
-     *
-     * Should not be called before [activate]
-     *
-     * @param[name] Name of your onboarding.
-     *
-     * @param[screenName] Readable name of a particular screen as part of onboarding.
-     *
-     * @param[screenOrder] An unsigned integer value representing the order of this screen in your
-     * onboarding sequence (it must me greater than 0).
-     *
-     * @param[callback] A result containing the optional [AdaptyError].
-     *
-     * @see <a href="https://adapty.io/docs/onboarding-screens-tracking">Track onboarding screens</a>
-     */
-    @JvmStatic
-    @JvmOverloads
-    public fun logShowOnboarding(
-        name: String?,
-        screenName: String?,
-        @IntRange(from = 1) screenOrder: Int,
-        callback: ErrorCallback? = null,
-    ) {
-        Logger.log(VERBOSE) { "logShowOnboarding()" }
-        if (!checkActivated(callback)) return
-        adaptyInternal.logShowOnboarding(name, screenName, screenOrder, callback)
     }
 
     internal fun logShowOnboardingInternal(
@@ -638,7 +609,7 @@ public object Adapty {
      * However, it’s crucial to understand that the recommended approach is to fetch the paywall
      * through the placement ID by the [getPaywall] method.
      * The `getPaywallForDefaultAudience` method should be a last resort due to its significant drawbacks.
-     * See [docs](https://adapty.io/docs/fetch-paywalls-and-products#speed-up-paywall-fetching-with-default-audience-paywall) for more details
+     * See [docs](https://adapty.io/docs/fetch-paywalls-and-products-android#speed-up-paywall-fetching-with-default-audience-paywall) for more details
      *
      * Should not be called before [activate]
      *
@@ -654,7 +625,7 @@ public object Adapty {
      * @param[callback] A result containing the [AdaptyPaywall] object. This model contains the list
      * of the products ids, paywall’s identifier, custom payload, and several other properties.
      *
-     * @see <a href="https://adapty.io/docs/fetch-paywalls-and-products#speed-up-paywall-fetching-with-default-audience-paywall">Speed up paywall fetching with default audience paywall</a>
+     * @see <a href="https://adapty.io/docs/fetch-paywalls-and-products-android#speed-up-paywall-fetching-with-default-audience-paywall">Speed up paywall fetching with default audience paywall</a>
      */
     @JvmStatic
     @JvmOverloads
@@ -737,5 +708,21 @@ public object Adapty {
 
     private fun logNotInitializedError() {
         Logger.log(ERROR) { "${notInitializedError.message}" }
+    }
+
+    private fun canBeActivatedInCurrentProcess(context: Context, config: AdaptyConfig): Boolean {
+        val processName = getCurrentProcessName() ?: return true
+        val customProcessName = config.customProcessName?.let { customProcessName ->
+            if (customProcessName.startsWith(":"))
+                "${context.packageName}${customProcessName}"
+            else
+                customProcessName
+        }
+        val desiredProcessName = customProcessName ?: context.getMainProcessName() ?: return true
+        return (processName == desiredProcessName)
+            .also {
+                if (!it)
+                    Logger.log(WARN) { "Adapty can only run in a single process (the main process by default). To use a different process, set it in `AdaptyConfig` via `.withProcess($processName)`." }
+            }
     }
 }

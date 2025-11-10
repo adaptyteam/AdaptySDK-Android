@@ -6,6 +6,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.os.Build
+import android.provider.Settings
 import android.util.TypedValue
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
@@ -17,6 +18,7 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyEligibility.ELIGIBLE
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProductDiscountPhase
+import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
 import com.adapty.ui.R
 import com.adapty.ui.internal.mapping.element.Assets
@@ -36,6 +38,15 @@ internal fun Context.getCurrentLocale() =
             log(WARN) { "Failed to get locale from resources. Falling back to default." }
         }
 
+internal fun Context.areAnimationsDisabled() =
+    runCatching {
+        Settings.Global.getFloat(
+            contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        ) == 0f
+    }.getOrDefault(false)
+
 internal fun AdaptyPaywallProduct.firstDiscountOfferOrNull(): AdaptyProductDiscountPhase? {
     return subscriptionDetails?.let { subDetails ->
         subDetails.introductoryOfferPhases.firstOrNull()?.takeIf { subDetails.introductoryOfferEligibility == ELIGIBLE }
@@ -43,8 +54,6 @@ internal fun AdaptyPaywallProduct.firstDiscountOfferOrNull(): AdaptyProductDisco
 }
 
 internal fun getProductGroupKey(groupId: String) = "group_${groupId}"
-
-internal inline fun <reified T> Map<*, *>.getAs(key: String) = this[key] as? T
 
 @Composable
 internal fun getScreenHeightDp(): Float {
@@ -86,6 +95,22 @@ internal fun Context.getProgressCustomColorOrNull(): Int? {
             }.getOrNull()
         else -> null
     }
+}
+
+internal inline fun <T> withAdaptyUIActivated(body: () -> T): T {
+    return runCatching { body() }.getOrElse { e ->
+        if (e is NullPointerException) {
+            log(WARN) { "$LOG_PREFIX Ensuring AdaptyUI initialization..." }
+            ensureAdaptyUIInitialized()
+            body()
+        } else {
+            throw e
+        }
+    }
+}
+
+private fun ensureAdaptyUIInitialized() {
+    AdaptyUI
 }
 
 @InternalAdaptyApi

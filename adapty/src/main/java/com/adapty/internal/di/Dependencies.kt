@@ -2,6 +2,7 @@ package com.adapty.internal.di
 
 import android.app.Application
 import android.content.Context
+import android.net.ConnectivityManager
 import androidx.annotation.RestrictTo
 import com.adapty.internal.AdaptyInternal
 import com.adapty.internal.data.cache.CacheEntityTypeAdapterFactory
@@ -70,6 +71,8 @@ public object Dependencies {
     private const val LOCAL = "local"
     private const val REMOTE = "remote"
     private const val CROSS_PLACEMENT_INFO = "cross_placement_info"
+    private const val PRODUCT_PAL_MAPPING = "product_pal_mapping"
+    private const val VALIDATE_DATA = "validate_data"
     public const val OBSERVER_MODE: String = "observer_mode"
 
     public fun <T> singleVariantDiObject(
@@ -211,6 +214,12 @@ public object Dependencies {
                             )
                             .registerTypeAdapterFactory(
                                 AdaptyResponseTypeAdapterFactory(
+                                    TypeToken.get(ProductPALMappings::class.java),
+                                    ProductPALMappingsExtractor(),
+                                )
+                            )
+                            .registerTypeAdapterFactory(
+                                AdaptyResponseTypeAdapterFactory(
                                     TypeToken.get(ValidationResult::class.java),
                                     validationResultExtractor,
                                 )
@@ -274,6 +283,8 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(named = CROSS_PLACEMENT_INFO),
+                        injectInternal(named = PRODUCT_PAL_MAPPING),
+                        injectInternal(named = VALIDATE_DATA),
                     )
                 }),
 
@@ -421,7 +432,11 @@ public object Dependencies {
                 }),
 
                 IPv4Retriever::class to singleVariantDiObject({
-                    IPv4Retriever(config.ipAddressCollectionDisabled, injectInternal())
+                    IPv4Retriever(
+                        config.ipAddressCollectionDisabled,
+                        injectInternal(),
+                        injectInternal(),
+                    )
                 }),
 
                 FallbackPaywallRetriever::class to singleVariantDiObject({
@@ -488,13 +503,17 @@ public object Dependencies {
                     InstallationPayloadMapper(injectInternal(named = BASE))
                 }),
 
-                ProfileMapper::class to singleVariantDiObject({ ProfileMapper() }),
+                ProfileMapper::class to singleVariantDiObject({
+                    ProfileMapper(injectInternal())
+                }),
 
                 StoreManager::class to singleVariantDiObject({
                     StoreManager(
                         appContext,
                         injectInternal(),
+                        injectInternal(),
                         injectInternal(named = BASE),
+                        config.enablePendingPrepaidPlans,
                     )
                 }),
 
@@ -509,6 +528,7 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
                         injectInternal(named = BASE),
                         injectInternal(),
                     )
@@ -520,6 +540,12 @@ public object Dependencies {
 
                 ReentrantReadWriteLock::class to mapOf(
                     CROSS_PLACEMENT_INFO to DIObject({
+                        ReentrantReadWriteLock()
+                    }),
+                    PRODUCT_PAL_MAPPING to DIObject({
+                        ReentrantReadWriteLock()
+                    }),
+                    VALIDATE_DATA to DIObject({
                         ReentrantReadWriteLock()
                     }),
                 ),
@@ -547,6 +573,7 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
+                        config.allowLocalPAL,
                     )
                 }),
 
@@ -555,6 +582,13 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(named = BASE),
+                        injectInternal(),
+                    )
+                }),
+
+                OfflineProfileManager::class to singleVariantDiObject({
+                    OfflineProfileManager(
+                        injectInternal(),
                         injectInternal(),
                     )
                 }),
@@ -568,6 +602,8 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
+                        config.allowLocalPAL,
                     )
                 }),
 
@@ -579,7 +615,9 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
-                        injectInternal()
+                        injectInternal(),
+                        injectInternal(),
+                        config.allowLocalPAL,
                     )
                 }),
 
@@ -624,6 +662,12 @@ public object Dependencies {
                         injectInternal(),
                         config.observerMode,
                         config.ipAddressCollectionDisabled,
+                    )
+                }),
+
+                ConnectivityHelper::class to singleVariantDiObject({
+                    ConnectivityHelper(
+                        appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
                     )
                 }),
             )

@@ -11,6 +11,8 @@ internal data class InstallRegistrationData(
     val gaid: String?,
     @SerializedName("app_set_id")
     val appSetId: String?,
+    @SerializedName("android_id")
+    val androidId: String?,
     @SerializedName("os")
     val os: String,
     @SerializedName("os_major")

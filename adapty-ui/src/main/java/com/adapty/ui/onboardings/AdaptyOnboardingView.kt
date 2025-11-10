@@ -32,6 +32,7 @@ import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.getProgressCustomColorOrNull
 import com.adapty.ui.internal.utils.log
+import com.adapty.ui.internal.utils.withAdaptyUIActivated
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingAction
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingCloseAction
 import com.adapty.ui.onboardings.actions.AdaptyOnboardingCustomAction
@@ -50,6 +51,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import java.util.ArrayDeque
+import java.util.Queue
 import kotlin.math.roundToInt
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -66,13 +69,17 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
 
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    private val pendingActions: Queue<() -> Unit> = ArrayDeque()
+
     private val viewModel: OnboardingViewModel? by lazy {
         val viewModelStoreOwner = findViewTreeViewModelStoreOwner()
             ?: run {
                 log(ERROR) { "$LOG_PREFIX OnboardingView (${hashCode()}) rendering error: No ViewModelStoreOwner found" }
                 return@lazy null
             }
-        val onboardingCommonDeserializer = Dependencies.injectInternal<OnboardingCommonDeserializer>()
+        val onboardingCommonDeserializer = withAdaptyUIActivated {
+            Dependencies.injectInternal<OnboardingCommonDeserializer>()
+        }
         val factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 @Suppress("UNCHECKED_CAST")
@@ -127,6 +134,16 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
             })
         }
 
+        addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View?) {
+                executePendingActions()
+            }
+
+            override fun onViewDetachedFromWindow(v: View?) {
+                pendingActions.clear()
+            }
+        })
+
         overrideSafeAreaPaddingsIfNeeded(context)
 
         observeViewModel()
@@ -173,7 +190,7 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
         this.delegate = delegate
         val url = viewConfig.url
 
-        viewModel?.onboardingConfig = viewConfig
+        withViewModel { it.onboardingConfig = viewConfig }
 
         placeholderView.view.visibility = View.VISIBLE
         val requestedLocale = viewConfig.requestedLocale
@@ -186,7 +203,7 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
         delegate: AdaptyOnboardingEventListener,
         safeAreaPaddings: Boolean,
     ) {
-        viewModel?.safeAreaPaddings = safeAreaPaddings
+        withViewModel { it.safeAreaPaddings = safeAreaPaddings }
         show(viewConfig, delegate)
     }
 
@@ -225,12 +242,14 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
     }
 
     private fun triggerFinishLoading(action: AdaptyOnboardingLoadedAction) {
-        viewModel?.hasFinishedLoading = true
         placeholderView.view.visibility = View.GONE
         delegate?.onFinishLoading(action, context)
-        if (viewModel?.safeAreaPaddings != false) {
-            injectUniversalInsetSupport()
-            sendInsetsToWebView()
+        withViewModel {
+            it.hasFinishedLoading = true
+            if (it.safeAreaPaddings) {
+                injectUniversalInsetSupport()
+                sendInsetsToWebView()
+            }
         }
     }
 
@@ -316,16 +335,13 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
         if (isAttachedToWindow) {
             action()
         } else {
-            addOnAttachStateChangeListener(object: OnAttachStateChangeListener {
-                override fun onViewAttachedToWindow(v: View?) {
-                    action()
-                    removeOnAttachStateChangeListener(this)
-                }
+            pendingActions.offer(action)
+        }
+    }
 
-                override fun onViewDetachedFromWindow(v: View?) {
-                    removeOnAttachStateChangeListener(this)
-                }
-            })
+    private fun executePendingActions() {
+        while (pendingActions.isNotEmpty()) {
+            pendingActions.poll()?.let { action -> action() }
         }
     }
 }

@@ -2,16 +2,20 @@
 
 package com.adapty.internal.utils
 
+import android.app.Application
+import android.content.Context
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyError.RetryType
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.Onboarding
-import com.adapty.internal.data.models.OnboardingBuilder
 import com.adapty.internal.data.models.PaywallDto
 import com.adapty.internal.data.models.Variation
+import com.adapty.internal.di.Dependencies
 import com.adapty.models.AdaptyPaywall
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.adapty.utils.TimeInterval
 import com.adapty.utils.seconds
 import com.adapty.utils.AdaptyResult
@@ -20,6 +24,7 @@ import com.adapty.utils.ImmutableMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -28,8 +33,10 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.sync.Semaphore
+import java.io.IOException
 import java.util.*
 import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.regex.Pattern
 import kotlin.math.min
 import kotlin.math.pow
@@ -117,6 +124,23 @@ public fun Lock.unlockQuietly() {
     }
 }
 
+internal inline fun <T> ReentrantReadWriteLock.ReadLock.withLockSafe(action: () -> T) =
+    try {
+        this.lock()
+        action()
+    } finally {
+        this.unlockQuietly()
+    }
+
+internal inline fun ReentrantReadWriteLock.WriteLock.withLockSafe(action: () -> Unit) {
+    try {
+        this.lock()
+        action()
+    } finally {
+        this.unlockQuietly()
+    }
+}
+
 @JvmSynthetic
 internal fun execute(block: suspend CoroutineScope.() -> Unit) =
     adaptyScope.launch(context = Dispatchers.IO, block = block)
@@ -137,7 +161,7 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 @JvmSynthetic
 internal const val DEFAULT_PLACEMENT_LOCALE = "en"
 
-internal const val VERSION_NAME = "3.11.1"
+internal const val VERSION_NAME = "3.12.1"
 
 /**
  * @suppress
@@ -156,6 +180,10 @@ internal const val INF_PAYWALL_TIMEOUT_MILLIS = Int.MAX_VALUE
 
 @get:JvmSynthetic
 internal val noLetterRegex by lazy { Pattern.compile("[^\\p{L}]") }
+
+internal inline fun <reified T> Map<*, *>.getAs(key: String) = this[key] as? T
+
+internal fun String.isValidUUID() = runCatching { UUID.fromString(this); true }.getOrDefault(false)
 
 @JvmSynthetic
 internal fun Variation.getLanguageCode() =
@@ -194,17 +222,26 @@ internal fun TimeInterval.toMillis() =
 @JvmSynthetic
 internal fun <T> timeout(flow: Flow<T>, timeout: Int) =
     merge(
-        flow.catch<T?> { e ->
-            if ((e as? AdaptyError)?.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR) emit(null) else throw e
-        },
+        flow,
         getTimeoutFlow<T>(timeout)
     )
         .take(1)
 
+internal class TimeoutException: Exception()
+
 private fun <T> getTimeoutFlow(timeout: Int) =
-    flow<T?> {
+    flow<T> {
         delay(timeout.toLong())
-        emit(null)
+        throw TimeoutException()
+    }
+
+internal fun <T> Flow<T>.recoverOnReachabilityError(nextValue: (error: Throwable) -> T) =
+    catch { error ->
+        if (error is TimeoutException || error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
+            emit(nextValue(error))
+        } else {
+            throw error
+        }
     }
 
 @JvmSynthetic
@@ -212,7 +249,7 @@ internal fun getServerErrorDelay(attempt: Long) =
     min((2f.pow((attempt + 3).coerceAtMost(7).toInt()) + 1), 90f).toLong() * 1000L
 
 @JvmSynthetic
-internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long = INFINITE_RETRY, getDelay: (attempt: Long) -> Long = { getServerErrorDelay(it) }): Flow<T> =
+internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long, getDelay: (attempt: Long) -> Long = { getServerErrorDelay(it) }): Flow<T> =
     this.retryWhen { error, attempt ->
         if (error !is AdaptyError || (maxAttemptCount in 0..attempt)) {
             return@retryWhen false
@@ -225,6 +262,10 @@ internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long = INFINITE_RETRY
             }
             RetryType.SIMPLE -> {
                 delay(NETWORK_ERROR_DELAY_MILLIS)
+                if (maxAttemptCount == INFINITE_RETRY) {
+                    runCatching { Dependencies.injectInternal<ConnectivityHelper>() }.getOrNull()
+                        ?.waitForInternetConnectivity()
+                }
                 return@retryWhen true
             }
             else -> {
@@ -232,3 +273,41 @@ internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long = INFINITE_RETRY
             }
         }
     }
+
+@JvmSynthetic
+internal fun getCurrentProcessName(): String? {
+    if (Build.VERSION.SDK_INT >= 28)
+        return Application.getProcessName()
+    return runCatching {
+        Class.forName("android.app.ActivityThread")
+            .getDeclaredMethod("currentProcessName")
+            .invoke(null) as? String
+    }.getOrElse { e ->
+        Logger.log(WARN) { "Couldn't retrieve current process name: ${e.localizedMessage}" }
+        null
+    }
+}
+
+@JvmSynthetic
+internal fun Context.getMainProcessName(): String? {
+    return applicationInfo.processName ?: run {
+        Logger.log(WARN) { "Couldn't retrieve main process name" }
+        null
+    }
+}
+
+
+internal fun combinedProductId(vendorProductId: String, basePlanId: String?) =
+    basePlanId?.let { basePlanId -> "$vendorProductId:$basePlanId" } ?: vendorProductId
+
+internal fun kotlin.time.Duration.Companion.fromProductType(productType: String?): kotlin.time.Duration = when (productType) {
+    "weekly" -> 7.days
+    "monthly" -> 30.days
+    "two_months" -> 60.days
+    "trimonthly" -> 90.days
+    "semiannual" -> 180.days
+    "annual" -> 365.days
+    "lifetime" -> kotlin.time.Duration.INFINITE
+    "consumable", "nonsubscriptions", "uncategorised" -> kotlin.time.Duration.ZERO
+    else -> kotlin.time.Duration.ZERO
+}

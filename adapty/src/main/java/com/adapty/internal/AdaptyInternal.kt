@@ -6,6 +6,7 @@ import android.app.Activity
 import android.content.ContentResolver
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
+import com.adapty.errors.AdaptyErrorCode.LOGGING_OUT_UNIDENTIFIED_USER
 import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
 import com.adapty.errors.AdaptyErrorCode.WRONG_PARAMETER
 import com.adapty.internal.data.cloud.AnalyticsTracker
@@ -131,6 +132,7 @@ internal class AdaptyInternal(
     @JvmSynthetic
     fun activate(
         customerUserId: String?,
+        obfuscatedAccountId: String?,
         callback: ErrorCallback? = null,
         isInitialActivation: Boolean = true,
     ) {
@@ -141,7 +143,7 @@ internal class AdaptyInternal(
                 SDKMethodRequestData.create("logout")
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
-            authInteractor.prepareAuthDataToSync(customerUserId)
+            authInteractor.prepareAuthDataToSync(customerUserId, obfuscatedAccountId)
 
             authInteractor
                 .activateOrIdentify()
@@ -161,7 +163,7 @@ internal class AdaptyInternal(
     }
 
     @JvmSynthetic
-    fun identify(customerUserId: String, callback: ErrorCallback) {
+    fun identify(customerUserId: String, obfuscatedAccountId: String?, callback: ErrorCallback) {
         val requestEvent = SDKMethodRequestData.create("identify")
         analyticsTracker.trackSystemEvent(requestEvent)
         if (customerUserId.isBlank()) {
@@ -185,7 +187,7 @@ internal class AdaptyInternal(
         }
 
         execute {
-            authInteractor.prepareAuthDataToSync(customerUserId)
+            authInteractor.prepareAuthDataToSync(customerUserId, obfuscatedAccountId)
 
             authInteractor
                 .activateOrIdentify()
@@ -201,8 +203,22 @@ internal class AdaptyInternal(
 
     @JvmSynthetic
     fun logout(callback: ErrorCallback) {
+        if (authInteractor.getCustomerUserId() == null) {
+            val requestEvent = SDKMethodRequestData.create("logout")
+            val errorMessage = "Logout cannot be called for an unidentified user"
+            Logger.log(ERROR) { errorMessage }
+            val e = AdaptyError(
+                message = errorMessage,
+                adaptyErrorCode = LOGGING_OUT_UNIDENTIFIED_USER,
+            )
+            analyticsTracker.trackSystemEvent(
+                SDKMethodResponseData.create(requestEvent, e)
+            )
+            callback.onResult(e)
+            return
+        }
         authInteractor.clearDataOnLogout()
-        activate(null, callback, false)
+        activate(null, null, callback, false)
     }
 
     @JvmSynthetic
@@ -436,36 +452,6 @@ internal class AdaptyInternal(
             ).apply {
                 additionalFields?.let(::putAll)
             },
-            completion = callback,
-        )
-    }
-
-    @JvmSynthetic
-    fun logShowOnboarding(
-        name: String?,
-        screenName: String?,
-        screenOrder: Int,
-        callback: ErrorCallback?,
-    ) {
-        if (screenOrder < 1) {
-            val errorMessage = "screenOrder must be greater than or equal to 1"
-            Logger.log(ERROR) { errorMessage }
-            callback?.onResult(
-                AdaptyError(
-                    message = errorMessage,
-                    adaptyErrorCode = WRONG_PARAMETER
-                )
-            )
-            return
-        }
-
-        analyticsTracker.trackEvent(
-            "onboarding_screen_showed",
-            hashMapOf<String, Any>("onboarding_screen_order" to screenOrder)
-                .apply {
-                    name?.let { put("onboarding_name", name) }
-                    screenName?.let { put("onboarding_screen_name", screenName) }
-                },
             completion = callback,
         )
     }

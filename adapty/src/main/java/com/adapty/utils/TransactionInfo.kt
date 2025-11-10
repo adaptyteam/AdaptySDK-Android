@@ -18,7 +18,7 @@ public sealed class TransactionInfo {
          * @param[transactionId] A string identifier (`purchase.getOrderId()`) of the purchase,
          * where the purchase is an instance of the billing library [Purchase](https://developer.android.com/reference/com/android/billingclient/api/Purchase) class.
          *
-         * @see <a href="https://adapty.io/docs/report-transactions-observer-mode">Report transactions in Observer mode</a>
+         * @see <a href="https://adapty.io/docs/report-transactions-observer-mode-android">Report transactions in Observer mode</a>
          */
         @JvmStatic
         public fun fromId(transactionId: String): TransactionInfo =
@@ -27,7 +27,7 @@ public sealed class TransactionInfo {
         /**
          * @param[purchase] An instance of the billing library [Purchase](https://developer.android.com/reference/com/android/billingclient/api/Purchase) class.
          *
-         * @see <a href="https://adapty.io/docs/report-transactions-observer-mode">Report transactions in Observer mode</a>
+         * @see <a href="https://adapty.io/docs/report-transactions-observer-mode-android">Report transactions in Observer mode</a>
          */
         @JvmStatic
         public fun fromPurchase(purchase: com.android.billingclient.api.Purchase): TransactionInfo =

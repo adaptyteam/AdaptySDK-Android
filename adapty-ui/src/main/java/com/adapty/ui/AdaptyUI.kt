@@ -169,7 +169,7 @@ public object AdaptyUI {
      *
      * @param[callback] A result containing the [LocalizedViewConfiguration] object.
      *
-     * @see <a href="https://adapty.io/docs/display-pb-paywalls">Display paywalls designed with Paywall Builder</a>
+     * @see <a href="https://adapty.io/docs/android-present-paywalls">Display paywalls designed with Paywall Builder</a>
      */
     @JvmStatic
     @JvmOverloads

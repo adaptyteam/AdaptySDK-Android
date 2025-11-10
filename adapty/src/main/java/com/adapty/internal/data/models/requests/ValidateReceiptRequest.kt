@@ -12,6 +12,12 @@ internal class ValidateReceiptRequest(
     @SerializedName("data")
     private val data: Data
 ) {
+
+    val vendorProductId get() = data.attributes.productId
+    val basePlanId get() = data.attributes.productDetails.subscriptionOfferDetails?.firstOrNull()?.basePlanId
+    val offerId get() = data.attributes.productDetails.subscriptionOfferDetails?.firstOrNull()?.offerId
+    val variationId get() = data.attributes.variationId
+
     internal class Data(
         @SerializedName("id")
         val id: String,
@@ -23,19 +29,19 @@ internal class ValidateReceiptRequest(
 
         internal class Attributes(
             @SerializedName("profile_id")
-            private val profileId: String,
+            val profileId: String,
             @SerializedName("product_id")
-            private val productId: String,
+            val productId: String,
             @SerializedName("purchase_token")
-            private val purchaseToken: String,
+            val purchaseToken: String,
             @SerializedName("is_subscription")
-            private val isSubscription: Boolean,
+            val isSubscription: Boolean,
             @SerializedName("variation_id")
-            private val variationId: String,
+            val variationId: String,
             @SerializedName("onboarding_variation_id")
-            private val onboardingVariationId: String?,
+            val onboardingVariationId: String?,
             @SerializedName("product_details")
-            private val productDetails: PurchasedProductDetails,
+            val productDetails: PurchasedProductDetails,
         )
     }
 

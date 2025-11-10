@@ -4,8 +4,9 @@ import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.*
+import com.adapty.internal.data.models.requests.ValidateReceiptRequest
 import com.adapty.internal.domain.VariationType
-import com.adapty.internal.domain.models.PurchaseableProduct
+import com.adapty.internal.domain.models.IdentityParams
 import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
 import com.adapty.models.AdaptyProfileParameters
 import com.android.billingclient.api.ProductDetails
@@ -34,10 +35,10 @@ internal class CloudRepository(
     }
 
     @JvmSynthetic
-    fun getProductIds(): List<String> {
-        val response = httpClient.newCall<ArrayList<String>>(
-            requestFactory.getProductIdsRequest(),
-            object : TypeToken<ArrayList<String>>() {}.type,
+    fun getProducts(): ProductPALMappings {
+        val response = httpClient.newCall<ProductPALMappings>(
+            requestFactory.getProductsRequest(),
+            object : TypeToken<ProductPALMappings>() {}.type,
         )
         when (response) {
             is Response.Success -> return response.body
@@ -182,13 +183,13 @@ internal class CloudRepository(
 
     @JvmSynthetic
     fun createProfile(
-        customerUserId: String?,
+        identityParams: IdentityParams?,
         installationMeta: InstallationMeta,
         params: AdaptyProfileParameters?,
     ): Flow<ProfileDto> =
         flow {
             val response = httpClient.newCall<ProfileDto>(
-                requestFactory.createProfileRequest(customerUserId, installationMeta, params),
+                requestFactory.createProfileRequest(identityParams, installationMeta, params),
                 ProfileDto::class.java
             )
             when (response) {
@@ -199,10 +200,10 @@ internal class CloudRepository(
 
     @JvmSynthetic
     fun validatePurchase(
-        purchase: Purchase,
-        product: PurchaseableProduct,
+        validateData: ValidateReceiptRequest,
+        purchase: Purchase?,
     ): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
-        val request = requestFactory.validatePurchaseRequest(purchase, product)
+        val request = requestFactory.validatePurchaseRequest(validateData, purchase)
         val response = httpClient.newCall<ValidationResult>(
             request,
             ValidationResult::class.java

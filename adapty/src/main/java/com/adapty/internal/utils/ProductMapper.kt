@@ -22,6 +22,7 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.ProductDetails.RecurrenceMode
 import com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails
 import java.math.BigDecimal
+import kotlin.time.Duration
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class ProductMapper(
@@ -151,6 +152,8 @@ internal class ProductMapper(
             paywallName = paywall.name,
             paywallABTestName = paywall.placement.abTestName,
             variationId = paywall.variationId,
+            accessLevelId = product.accessLevelId,
+            productType = product.declaredProductType,
             price = AdaptyPaywallProduct.Price(
                 amount = priceFromMicros(priceAmountMicros),
                 localizedString = localizedPrice,
@@ -193,9 +196,12 @@ internal class ProductMapper(
                         productDto.offerId,
                     )
                 )
-                productDto.isConsumable == true -> Consumable
+                productDto.productType == "consumable" -> Consumable
                 else -> NonConsumable
             },
+            accessLevelId = productDto.accessLevelId,
+            declaredProductType = productDto.productType,
+            duration = Duration.fromProductType(productDto.productType),
             timestamp = productDto.timestamp.orDefault(),
         )
 

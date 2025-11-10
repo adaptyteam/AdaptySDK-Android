@@ -7,6 +7,7 @@ import android.content.Context
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
+import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.models.AnalyticsEvent.GoogleAPIRequestData
 import com.adapty.internal.data.models.AnalyticsEvent.GoogleAPIResponseData
 import com.adapty.internal.data.models.PurchaseRecordModel
@@ -36,14 +37,23 @@ import kotlin.coroutines.resumeWithException
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class StoreManager(
     context: Context,
+    private val cacheRepository: CacheRepository,
     private val replacementModeMapper: ReplacementModeMapper,
     private val analyticsTracker: AnalyticsTracker,
+    private val enablePendingPrepaidPlans: Boolean,
 ) : PurchasesUpdatedListener {
 
     private val billingClient = BillingClient
         .newBuilder(context)
         .enablePendingPurchases(
-            PendingPurchasesParams.newBuilder().enableOneTimeProducts().build()
+            PendingPurchasesParams
+                .newBuilder()
+                .enableOneTimeProducts()
+                .apply {
+                    if (enablePendingPrepaidPlans)
+                        enablePrepaidPlans()
+                }
+                .build()
         )
         .setListener(this)
         .build()
@@ -58,6 +68,13 @@ internal class StoreManager(
             .flatMapConcat { subsHistoryList ->
                 getPurchaseHistoryDataToRestoreForType(INAPP, maxAttemptCount)
                     .map { inAppHistoryList -> concatResults(subsHistoryList, inAppHistoryList) }
+            }
+
+    fun queryActivePurchases(maxAttemptCount: Long): Flow<List<Purchase>> =
+        queryActivePurchasesForType(SUBS, maxAttemptCount)
+            .flatMapConcat { activeSubsList ->
+                queryActivePurchasesForType(INAPP, maxAttemptCount)
+                    .map { activeInAppList -> concatResults(activeSubsList, activeInAppList).filter { it.purchaseState == Purchase.PurchaseState.PURCHASED } }
             }
 
     fun findPurchaseForTransactionId(transactionId: String, maxAttemptCount: Long): Flow<Purchase?> =
@@ -249,6 +266,8 @@ internal class StoreManager(
         val requestEvent = GoogleAPIRequestData.MakePurchase.create(purchaseableProduct, subscriptionUpdateParams)
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
+            val identityParams = cacheRepository.getIdentityParams()
+
             if (subscriptionUpdateParams != null) {
                 onConnected {
                     storeHelper.queryActivePurchasesForTypeWithSync(SUBS)
@@ -286,8 +305,13 @@ internal class StoreManager(
                             .setProductDetailsParamsList(listOf(params))
                             .apply {
                                 purchaseableProduct.isOfferPersonalized.takeIf { it }?.let(::setIsOfferPersonalized)
-                                purchaseParams.obfuscatedAccountId?.let(::setObfuscatedAccountId)
-                                purchaseParams.obfuscatedProfileId?.let(::setObfuscatedProfileId)
+                                if (identityParams != null) {
+                                    if (identityParams.obfuscatedAccountId != null) {
+                                        setObfuscatedAccountId(identityParams.obfuscatedAccountId)
+                                    } else if (identityParams.customerUserId != null && identityParams.customerUserId.isValidUUID()) {
+                                        setObfuscatedAccountId(identityParams.customerUserId)
+                                    }
+                                }
                                 billingFlowSubUpdateParams?.let(::setSubscriptionUpdateParams)
                             }
                             .build()
@@ -422,7 +446,7 @@ internal class StoreManager(
         }
     }
 
-    private fun <T> Flow<T>.retryOnConnectionError(maxAttemptCount: Long = INFINITE_RETRY): Flow<T> =
+    private fun <T> Flow<T>.retryOnConnectionError(maxAttemptCount: Long): Flow<T> =
         this.retryWhen { error, attempt ->
             if (canRetry(error, attempt, maxAttemptCount)) {
                 delay(2000)

@@ -19,6 +19,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.unit.Dp
@@ -53,6 +54,7 @@ import com.adapty.ui.internal.ui.element.heightBehaviour
 import com.adapty.ui.internal.ui.element.shadowBlurRadiusBehaviour
 import com.adapty.ui.internal.ui.element.shadowColorBehaviour
 import com.adapty.ui.internal.ui.element.shadowOffsetBehaviour
+import com.adapty.ui.internal.utils.areAnimationsDisabled
 
 @Composable
 internal fun <T> rememberAnimatedValue(
@@ -80,8 +82,12 @@ internal fun <T> rememberAnimatedValueWithRunner(
 ): State<T> {
     val runner = remember(animations) { AnimationRunner(animations) }
     val anim = remember { Animatable(initialValue, converter) }
+    val context = LocalContext.current
+    val animationsDisabled = remember(context) {
+        context.areAnimationsDisabled()
+    }
 
-    LaunchedEffect(runner) {
+    LaunchedEffect(runner, animationsDisabled) {
         while (true) {
             val step = runner.next() ?: break
             val primitive = step.primitive
@@ -90,6 +96,9 @@ internal fun <T> rememberAnimatedValueWithRunner(
                 if (primitive.delayMillis > 0) {
                     delay(primitive.delayMillis)
                 }
+                anim.snapTo(primitive.to)
+            } else if (animationsDisabled) {
+                delay(primitive.delayMillis.coerceAtLeast(500L))
                 anim.snapTo(primitive.to)
             } else {
                 anim.animateTo(

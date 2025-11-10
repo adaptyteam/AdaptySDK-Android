@@ -1,10 +1,12 @@
 @file:OptIn(InternalAdaptyApi::class)
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.mapping.viewconfig
 
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.adaptyError
+import com.adapty.internal.utils.getAs
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Screen
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.ScreenBundle
 import com.adapty.ui.internal.mapping.attributes.CommonAttributeMapper
@@ -15,7 +17,6 @@ import com.adapty.ui.internal.mapping.element.UIElementFactory
 import com.adapty.ui.internal.ui.attributes.plus
 import com.adapty.ui.internal.ui.element.BoxElement
 import com.adapty.ui.internal.utils.ContentWrapper
-import com.adapty.ui.internal.utils.getAs
 
 internal class ViewConfigurationScreenMapper(
     private val uiElementFactory: UIElementFactory,

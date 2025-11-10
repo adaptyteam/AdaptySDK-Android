@@ -5,20 +5,24 @@ package com.adapty.internal.data.cache
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.internal.data.models.*
+import com.adapty.internal.data.models.requests.ValidateReceiptRequest
 import com.adapty.internal.domain.VariationType
+import com.adapty.internal.domain.models.IdentityParams
 import com.adapty.internal.utils.FallbackPaywallRetriever
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.ProfileStateChange
+import com.adapty.internal.utils.combinedProductId
 import com.adapty.internal.utils.execute
 import com.adapty.internal.utils.extractLanguageCode
 import com.adapty.internal.utils.generateUuid
+import com.adapty.internal.utils.getAs
 import com.adapty.internal.utils.getLanguageCode
 import com.adapty.internal.utils.orDefault
 import com.adapty.internal.utils.unlockQuietly
+import com.adapty.internal.utils.withLockSafe
 import com.adapty.utils.AdaptyResult
 import com.adapty.utils.FileLocation
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.take
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
@@ -29,6 +33,8 @@ internal class CacheRepository(
     private val preferenceManager: PreferenceManager,
     private val fallbackPaywallRetriever: FallbackPaywallRetriever,
     private val crossPlacementInfoLock: ReentrantReadWriteLock,
+    private val productPALMappingLock: ReentrantReadWriteLock,
+    private val validateDataLock: ReentrantReadWriteLock,
 ) {
 
     private val currentProfile = MutableSharedFlow<ProfileDto>()
@@ -52,13 +58,13 @@ internal class CacheRepository(
         if (profileIdHasChanged || (getCustomerUserId() != profile.customerUserId)) {
             clearSyncedPurchases()
         }
-        profile.customerUserId?.let(::saveCustomerUserId)
+        saveCustomerUserId(profile.customerUserId)
         saveProfile(profile)
 
         cache.remove(UNSYNCED_PROFILE_ID)
-        val currentUnsyncedCUIdDiffers = profile.customerUserId != cache[UNSYNCED_CUSTOMER_USER_ID]
+        val currentUnsyncedCUIdDiffers = profile.customerUserId != cache.getAs<IdentityParams>(UNSYNCED_IDENTITY_PARAMS)?.customerUserId
         if (!currentUnsyncedCUIdDiffers)
-            cache.remove(UNSYNCED_CUSTOMER_USER_ID)
+            cache.remove(UNSYNCED_IDENTITY_PARAMS)
         saveLastSentInstallationMeta(installationMeta)
     }
 
@@ -85,7 +91,6 @@ internal class CacheRepository(
     @JvmSynthetic
     fun subscribeOnProfileChanges() =
         currentProfile
-            .distinctUntilChanged()
 
     @JvmSynthetic
     fun subscribeOnInstallRegistration() =
@@ -101,7 +106,7 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
-    fun getProfileId() = ((cache[UNSYNCED_PROFILE_ID] as? String) ?: getString(PROFILE_ID))
+    fun getProfileId() = (cache.getAs<String>(UNSYNCED_PROFILE_ID) ?: getString(PROFILE_ID))
         ?.takeIf(String::isNotEmpty) ?: generateUuid().also { cache[UNSYNCED_PROFILE_ID] = it }
 
     private fun saveProfileId(profileId: String) {
@@ -127,24 +132,51 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
-    fun getCustomerUserId() = getString(CUSTOMER_USER_ID)
+    fun getCustomerUserId() = getIdentityParams()?.customerUserId
 
-    @JvmSynthetic
-    fun getUnsyncedAuthData(): Pair<String?, String?> {
-        return (cache[UNSYNCED_PROFILE_ID] as? String) to (cache[UNSYNCED_CUSTOMER_USER_ID] as? String)
+    fun getIdentityParams(): IdentityParams? {
+        return cache.safeGetOrPut(
+            IDENTITY_PARAMS,
+            {
+                IdentityParams.from(
+                    preferenceManager.getString(CUSTOMER_USER_ID),
+                    preferenceManager.getString(GP_OBFUSCATED_ACCOUNT_ID),
+                )
+            },
+        ) as? IdentityParams
     }
 
-    private fun saveCustomerUserId(customerUserId: String) {
-        cache[CUSTOMER_USER_ID] = customerUserId
-        preferenceManager.saveString(CUSTOMER_USER_ID, customerUserId)
+    @JvmSynthetic
+    fun getUnsyncedAuthData(): Pair<String?, IdentityParams?> {
+        return cache.getAs<String>(UNSYNCED_PROFILE_ID) to cache.getAs<IdentityParams>(UNSYNCED_IDENTITY_PARAMS)
+    }
+
+    private fun saveCustomerUserId(customerUserId: String?) {
+        val obfuscatedAccountId = cache.getAs<IdentityParams>(UNSYNCED_IDENTITY_PARAMS)?.obfuscatedAccountId
+        val identityParams = IdentityParams.from(
+            customerUserId,
+            obfuscatedAccountId,
+        )
+        if (identityParams != null)
+            cache[IDENTITY_PARAMS] = identityParams
+        else
+            cache.remove(IDENTITY_PARAMS)
+        if (customerUserId != null)
+            preferenceManager.saveString(CUSTOMER_USER_ID, customerUserId)
+        else
+            preferenceManager.clearData(setOf(CUSTOMER_USER_ID))
+        if (obfuscatedAccountId != null)
+            preferenceManager.saveString(GP_OBFUSCATED_ACCOUNT_ID, obfuscatedAccountId)
+        else
+            preferenceManager.clearData(setOf(GP_OBFUSCATED_ACCOUNT_ID))
     }
 
     @JvmSynthetic
-    fun prepareCustomerUserIdToSync(newCustomerUserId: String?) {
-        if (newCustomerUserId.isNullOrBlank()) {
-            cache.remove(UNSYNCED_CUSTOMER_USER_ID)
-        } else if (getString(CUSTOMER_USER_ID) != newCustomerUserId) {
-            cache[UNSYNCED_CUSTOMER_USER_ID] = newCustomerUserId
+    fun prepareIdentityParamsToSync(newIdentityParams: IdentityParams?) {
+        if (newIdentityParams == null) {
+            cache.remove(UNSYNCED_IDENTITY_PARAMS)
+        } else if (getIdentityParams() != newIdentityParams) {
+            cache[UNSYNCED_IDENTITY_PARAMS] = newIdentityParams
         }
     }
 
@@ -409,6 +441,52 @@ internal class CacheRepository(
         }
     }
 
+    fun getProductPALMappings() =
+        try {
+            productPALMappingLock.readLock().lock()
+            getProductPALMappingsInternal()
+        } finally {
+            productPALMappingLock.readLock().unlockQuietly()
+        }
+
+    private fun getProductPALMappingsInternal() =
+        getData<CacheEntity<ProductPALMappings>>(PRODUCT_PAL_MAPPINGS)?.value
+
+    fun saveProductPALMappings(productPALMappings: ProductPALMappings) {
+        try {
+            productPALMappingLock.writeLock().lock()
+            saveData(
+                PRODUCT_PAL_MAPPINGS,
+                CacheEntity(productPALMappings),
+            )
+        } finally {
+            productPALMappingLock.writeLock().unlockQuietly()
+        }
+    }
+
+    fun saveProductPALMappingsFromPaywall(products: Collection<ProductDto>) {
+        try {
+            productPALMappingLock.writeLock().lock()
+            val palMappings = getProductPALMappingsInternal()
+            val palMappingsFromPaywall = ProductPALMappings(
+                products.mapNotNull {
+                    it.vendorProductId ?: return@mapNotNull null
+                    val key = combinedProductId(it.vendorProductId, it.basePlanId)
+                    key to ProductPALMappings.Item(it.accessLevelId, it.productType)
+                }.toMap()
+            )
+            saveData(
+                PRODUCT_PAL_MAPPINGS,
+                CacheEntity(
+                    palMappings?.let { it.copy(it.items + palMappingsFromPaywall.items) }
+                        ?: palMappingsFromPaywall.items,
+                )
+            )
+        } finally {
+            productPALMappingLock.writeLock().unlockQuietly()
+        }
+    }
+
     fun getInstallData(): InstallData? {
         return getData<CacheEntity<InstallData>>(INSTALL_DATA)?.value
     }
@@ -434,6 +512,28 @@ internal class CacheRepository(
         saveData(INSTALL_REGISTRATION_RESPONSE_DATA, CacheEntity(installRegistrationResponseData))
     }
 
+    fun getUnsyncedValidateData() =
+        validateDataLock.readLock().withLockSafe {
+            getUnsyncedValidateDataInternal()
+        }
+
+    private fun getUnsyncedValidateDataInternal() =
+        getData<CacheEntity<Map<String, ValidateReceiptRequest>>>(UNSYNCED_VALIDATE_DATA)?.value
+
+    fun saveUnsyncedValidateData(key: String, validateData: ValidateReceiptRequest) {
+        validateDataLock.writeLock().withLockSafe {
+            val unsyncedValidateData = getUnsyncedValidateDataInternal().orEmpty() + (key to validateData)
+            saveData(UNSYNCED_VALIDATE_DATA, CacheEntity(unsyncedValidateData))
+        }
+    }
+
+    fun removeUnsyncedValidateData(key: String) {
+        validateDataLock.writeLock().withLockSafe {
+            val unsyncedValidateData = getUnsyncedValidateDataInternal()?.minus(key) ?: return@withLockSafe
+            saveData(UNSYNCED_VALIDATE_DATA, CacheEntity(unsyncedValidateData))
+        }
+    }
+
     fun getSessionCount() =
         cache.safeGetOrPut(
             SESSION_COUNT,
@@ -451,6 +551,8 @@ internal class CacheRepository(
         clearData(
             containsKeys = setOf(
                 CUSTOMER_USER_ID,
+                GP_OBFUSCATED_ACCOUNT_ID,
+                IDENTITY_PARAMS,
                 PROFILE_ID,
                 PROFILE,
                 SYNCED_PURCHASES,
@@ -483,6 +585,8 @@ internal class CacheRepository(
         clearData(
             containsKeys = setOf(
                 CUSTOMER_USER_ID,
+                GP_OBFUSCATED_ACCOUNT_ID,
+                IDENTITY_PARAMS,
                 PROFILE_ID,
                 PROFILE,
                 SYNCED_PURCHASES,
@@ -491,8 +595,8 @@ internal class CacheRepository(
                 CROSSPLACEMENT_INFO_REQUESTED_TIME,
                 PRODUCT_RESPONSE,
                 PRODUCT_RESPONSE_HASH,
-                PRODUCT_IDS_RESPONSE,
-                PRODUCT_IDS_RESPONSE_HASH,
+                PRODUCTS_RESPONSE,
+                PRODUCTS_RESPONSE_HASH,
                 PROFILE_RESPONSE,
                 PROFILE_RESPONSE_HASH,
                 CROSS_PLACEMENT_INFO,
@@ -543,7 +647,7 @@ internal class CacheRepository(
 
     private companion object {
         private const val CURRENT_CACHED_ONBOARDING_VERSION = 1
-        private const val CURRENT_CACHED_PAYWALL_VERSION = 2
+        private const val CURRENT_CACHED_PAYWALL_VERSION = 3
     }
 
     fun setLongValue(key: String, value: Long, isPersisted: Boolean) {

@@ -9,6 +9,7 @@ import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.StoreManager
 import com.adapty.internal.data.models.PurchaseResult
 import com.adapty.internal.data.models.PurchaseResult.Success.State
+import com.adapty.internal.data.models.requests.ValidateReceiptRequest
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyPaywallProduct
@@ -36,6 +37,8 @@ internal class PurchasesInteractor(
     private val storeManager: StoreManager,
     private val productMapper: ProductMapper,
     private val profileMapper: ProfileMapper,
+    private val offlineProfileManager: OfflineProfileManager,
+    private val allowLocalPAL: Boolean,
 ) {
 
     init {
@@ -111,16 +114,16 @@ internal class PurchasesInteractor(
     private fun validatePurchase(
         purchase: Purchase,
         product: PurchaseableProduct,
-    ): Flow<AdaptyPurchaseResult> =
-        authInteractor.runWhenAuthDataSynced {
-            cloudRepository.validatePurchase(purchase, product)
+    ): Flow<AdaptyPurchaseResult> {
+        val validateData = ValidateReceiptRequest.create(
+            cacheRepository.getProfileId(),
+            purchase,
+            product,
+            cacheRepository.getOnboardingVariationId(),
+        )
+        return authInteractor.runWhenAuthDataSynced {
+            cloudRepository.validatePurchase(validateData, purchase)
         }
-            .catch { e ->
-                if (e is AdaptyError && e.adaptyErrorCode in listOf(BAD_REQUEST, SERVER_ERROR)) {
-                    storeManager.acknowledgeOrConsume(purchase, product).catch { }.collect()
-                }
-                throw e
-            }
             .map { (profile, currentDataWhenRequestSent) ->
                 cacheRepository.updateOnProfileReceived(
                     profile,
@@ -129,6 +132,28 @@ internal class PurchasesInteractor(
                     Success(profileMapper.map(profile), purchase)
                 }
             }
+            .catch { e ->
+                val key = product.vendorProductId
+                cacheRepository.saveUnsyncedValidateData(key, validateData)
+                if (e is AdaptyError && e.adaptyErrorCode in listOf(BAD_REQUEST, SERVER_ERROR)) {
+                    storeManager.acknowledgeOrConsume(purchase, product).catch { }.collect()
+                }
+                if (!allowLocalPAL)
+                    throw e
+
+                emitAll(
+                    flow { emit(cacheRepository.getProfile()) }
+                        .zip(offlineProfileManager.getLocalPAL()) { profile, localPALData ->
+                            if (localPALData == null)
+                                throw e
+                            val profile = profile
+                                ?: cacheRepository.getProfile()
+                                ?: offlineProfileManager.constructProfile()
+                            Success(profileMapper.map(profile, localPALData), purchase)
+                        }
+                )
+            }
+    }
 
     private suspend fun makePurchase(
         activity: Activity,
@@ -144,11 +169,31 @@ internal class PurchasesInteractor(
         }
     }
 
+    suspend fun syncUnsyncedValidateData(): Flow<Any> {
+        cacheRepository.getUnsyncedValidateData()?.takeIf { it.isNotEmpty() } ?: return flowOf(Unit)
+
+        syncValidateDataSemaphore.acquire()
+        val (key, validateData) = cacheRepository.getUnsyncedValidateData()?.entries?.firstOrNull() ?: run {
+            syncValidateDataSemaphore.releaseQuietly()
+            return flowOf(Unit)
+        }
+
+        return authInteractor.runWhenAuthDataSynced {
+            cloudRepository.validatePurchase(validateData, null)
+        }
+            .onEach {
+                cacheRepository.removeUnsyncedValidateData(key)
+                syncValidateDataSemaphore.releaseQuietly()
+            }
+            .catch { error -> syncValidateDataSemaphore.releaseQuietly(); throw error }
+    }
+
     @JvmSynthetic
     fun restorePurchases() =
         syncPurchasesInternal(maxAttemptCount = DEFAULT_RETRY_COUNT, byUser = true)
 
     private val syncPurchasesSemaphore = Semaphore(1)
+    private val syncValidateDataSemaphore = Semaphore(1)
 
     @JvmSynthetic
     suspend fun syncPurchasesIfNeeded(): Flow<AdaptyProfile?> {
@@ -176,7 +221,7 @@ internal class PurchasesInteractor(
     }
 
     private fun syncPurchasesInternal(
-        maxAttemptCount: Long = INFINITE_RETRY,
+        maxAttemptCount: Long,
         byUser: Boolean = false,
     ): Flow<AdaptyProfile> {
         return storeManager.getPurchaseHistoryDataToRestore(maxAttemptCount)

@@ -153,6 +153,6 @@ internal class FallbackPaywallRetriever(
     }
 
     private companion object {
-        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 8
+        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 9
     }
 }

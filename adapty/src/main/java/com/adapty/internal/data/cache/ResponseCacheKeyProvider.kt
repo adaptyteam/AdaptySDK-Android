@@ -10,8 +10,8 @@ internal class ResponseCacheKeyProvider {
         responseHashKey = PROFILE_RESPONSE_HASH
     )
 
-    fun forGetProductIds() = ResponseCacheKeys(
-        responseKey = PRODUCT_IDS_RESPONSE,
-        responseHashKey = PRODUCT_IDS_RESPONSE_HASH
+    fun forGetProducts() = ResponseCacheKeys(
+        responseKey = PRODUCTS_RESPONSE,
+        responseHashKey = PRODUCTS_RESPONSE_HASH
     )
 }

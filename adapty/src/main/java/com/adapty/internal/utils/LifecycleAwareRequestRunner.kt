@@ -7,6 +7,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.AnalyticsTracker
 import com.adapty.internal.domain.ProfileInteractor
+import com.adapty.internal.domain.PurchasesInteractor
 import com.adapty.internal.domain.UserAcquisitionInteractor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -22,6 +23,7 @@ internal class LifecycleAwareRequestRunner(
     lifecycleManager: LifecycleManager,
     private val profileInteractor: ProfileInteractor,
     private val userAcquisitionInteractor: UserAcquisitionInteractor,
+    private val purchasesInteractor: PurchasesInteractor,
     private val analyticsTracker: AnalyticsTracker,
     private val cacheRepository: CacheRepository,
 ) : LifecycleManager.StateCallback {
@@ -50,6 +52,7 @@ internal class LifecycleAwareRequestRunner(
             handleAppOpenedEvent()
             handleRequestCrossPlacementInfo()
             handleRegisterInstall()
+            handleSyncUnsyncedValidateData()
             scheduleGetProfileRequest(initialDelayMillis = PERIODIC_REQUEST_INTERVAL)
         }
     }
@@ -60,6 +63,7 @@ internal class LifecycleAwareRequestRunner(
             handleAppOpenedEvent()
             handleRequestCrossPlacementInfo()
             handleRegisterInstall()
+            handleSyncUnsyncedValidateData()
             scheduleGetProfileRequest(initialDelayMillis = 0)
         }
     }
@@ -99,7 +103,17 @@ internal class LifecycleAwareRequestRunner(
                     .catch {
                         cacheRepository.clearLastRequestedCrossPlacementInfoTime()
                     }
+                    .collect()
             }
+        }
+    }
+
+    private fun handleSyncUnsyncedValidateData() {
+        execute {
+            purchasesInteractor
+                .syncUnsyncedValidateData()
+                .catch { }
+                .collect()
         }
     }
 

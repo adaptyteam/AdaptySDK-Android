@@ -6,6 +6,7 @@ import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.models.ProfileDto
 import com.adapty.internal.utils.*
+import com.adapty.models.AdaptyProfile
 import com.adapty.models.AdaptyProfileParameters
 import kotlinx.coroutines.flow.*
 
@@ -18,22 +19,24 @@ internal class ProfileInteractor(
     private val attributionHelper: AttributionHelper,
     private val customAttributeValidator: CustomAttributeValidator,
     private val iPv4Retriever: IPv4Retriever,
+    private val offlineProfileManager: OfflineProfileManager,
+    private val allowLocalPAL: Boolean,
 ) {
 
     @JvmSynthetic
-    fun getProfile(maxAttemptCount: Long = DEFAULT_RETRY_COUNT) =
-        authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
+    fun getProfile(maxAttemptCount: Long = DEFAULT_RETRY_COUNT): Flow<AdaptyProfile> {
+        val baseProfileFlow = authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
             cloudRepository.getProfile()
         }
             .map { (profile, currentDataWhenRequestSent) ->
                 cacheRepository.updateOnProfileReceived(
                     profile,
                     currentDataWhenRequestSent?.profileId,
-                ).let(profileMapper::map)
+                )
             }
             .catch { error ->
                 if (error !is AdaptyError || error.backendError == null || error.backendError.responseCode !in 400..406) {
-                    val cachedProfile = cacheRepository.getProfile()?.let(profileMapper::map)
+                    val cachedProfile = cacheRepository.getProfile()
                     if (cachedProfile != null) {
                         emitAll(flowOf(cachedProfile))
                     } else {
@@ -43,6 +46,17 @@ internal class ProfileInteractor(
                     throw error
                 }
             }
+
+        return if (allowLocalPAL) {
+            baseProfileFlow
+                .zip(offlineProfileManager.getLocalPAL()) { profile, localPALData ->
+                    profileMapper.map(profile, localPALData)
+                }
+        } else {
+            baseProfileFlow
+                .map { profileMapper.map(it) }
+        }
+    }
 
     @JvmSynthetic
     fun updateProfile(params: AdaptyProfileParameters?, maxAttemptCount: Long = DEFAULT_RETRY_COUNT) =
@@ -134,12 +148,21 @@ internal class ProfileInteractor(
 
     @JvmSynthetic
     fun subscribeOnProfileChanges() =
-        cacheRepository.subscribeOnProfileChanges()
-            .map(profileMapper::map)
+        if (allowLocalPAL) {
+            cacheRepository.subscribeOnProfileChanges()
+                .zip(offlineProfileManager.getLocalPAL()) { profile, localPALData ->
+                    profileMapper.map(profile, localPALData)
+                }
+        } else {
+            cacheRepository.subscribeOnProfileChanges()
+                .map { profileMapper.map(it) }
+        }
+            .distinctUntilChanged()
 
     @JvmSynthetic
     fun subscribeOnEventsForStartRequests() =
         cacheRepository.subscribeOnProfileChanges()
+            .distinctUntilChanged()
             .onStart {
                 cacheRepository.getProfile()?.let { cachedProfile -> emit(cachedProfile) }
             }

@@ -1,4 +1,5 @@
 @file:OptIn(InternalAdaptyApi::class)
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.mapping.viewconfig
 
@@ -8,9 +9,9 @@ import androidx.core.net.toUri
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.adaptyError
+import com.adapty.internal.utils.getAs
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
 import com.adapty.ui.internal.utils.DARK_THEME_ASSET_SUFFIX
-import com.adapty.ui.internal.utils.getAs
 
 internal class ViewConfigurationAssetMapper {
 
