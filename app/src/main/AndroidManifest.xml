@@ -6,12 +6,13 @@
         android:name=".App"
         android:allowBackup="true"
         android:fullBackupContent="@xml/sample_backup_rules"
+        android:dataExtractionRules="@xml/sample_data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
-        tools:replace="android:fullBackupContent">
+        tools:replace="android:fullBackupContent,android:dataExtractionRules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
