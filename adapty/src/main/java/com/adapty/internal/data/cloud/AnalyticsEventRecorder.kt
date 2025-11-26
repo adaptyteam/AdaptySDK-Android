@@ -40,7 +40,7 @@ internal class AnalyticsEventRecorder(
     ) {
         execute {
             flow {
-                if (eventName !in cacheRepository.analyticsConfig.disabledEventTypes) {
+                if (eventName !in cacheRepository.netConfig.eventsExcludedFromRecording) {
                     val event = createEvent(eventName, subMap)
                     retainEvent(event)
                     onEventRegistered(event)

@@ -26,11 +26,11 @@ internal class DefaultConnectionCreator : NetworkConnectionCreator {
             requestMethod = request.method.name
             doInput = true
 
-            request.headers?.forEach { header ->
+            request.headers.forEach { header ->
                 setRequestProperty(header.key, header.value)
             }
 
-            if (request.method != GET) {
+            if (request.body != null) {
                 doOutput = true
                 val os = outputStream
                 BufferedWriter(OutputStreamWriter(os, "UTF-8")).apply {

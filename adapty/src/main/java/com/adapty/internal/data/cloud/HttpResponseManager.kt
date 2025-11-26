@@ -1,7 +1,6 @@
 package com.adapty.internal.data.cloud
 
 import androidx.annotation.RestrictTo
-import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.models.AnalyticsEvent.BackendAPIResponseData
@@ -11,9 +10,7 @@ import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.INFO
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import com.google.gson.reflect.TypeToken
-import java.io.BufferedReader
 import java.io.InputStream
-import java.io.InputStreamReader
 import java.lang.reflect.Type
 import java.net.HttpURLConnection
 import java.util.zip.GZIPInputStream
@@ -33,6 +30,7 @@ internal class DefaultHttpResponseManager(
     private val bodyConverter: ResponseBodyConverter,
     private val cacheRepository: CacheRepository,
     private val analyticsTracker: AnalyticsTracker,
+    private val requestBlockingManager: RequestBlockingManager,
 ) : HttpResponseManager {
 
     override fun <T> handleResponse(
@@ -72,18 +70,23 @@ internal class DefaultHttpResponseManager(
             request.systemLog?.let { customData ->
                 analyticsTracker.trackSystemEvent(BackendAPIResponseData.create(requestId, connection.headerFields, customData))
             }
-            return Response.Success(bodyConverter.convert(responseStr, typeOfT))
+            return Response(bodyConverter.convert(responseStr, typeOfT), request)
 
         } else {
             val responseStr = toStringUtf8(connection.errorStream, isInGzip)
+            val responseContent = when (connection.responseCode) {
+                444 -> "Server is temporarily unavailable (status code 444)"
+                else -> responseStr
+            }
             val errorMessage =
-                "Request is unsuccessful. ${connection.url} Code: ${connection.responseCode}, Response: $responseStr"
+                "Request is unsuccessful. ${connection.url} Code: ${connection.responseCode}, Response: $responseContent"
             Logger.log(ERROR) { errorMessage }
-            val e = AdaptyError(
+            val e = Response.Error(
                 message = errorMessage,
                 adaptyErrorCode = AdaptyErrorCode.fromNetwork(connection.responseCode),
                 backendError = BackendError(
                     connection.responseCode,
+                    responseStr,
                     runCatching {
                         bodyConverter.convert<Set<BackendError.InternalError>>(
                             responseStr,
@@ -91,11 +94,13 @@ internal class DefaultHttpResponseManager(
                         )
                     }.getOrNull() ?: emptySet(),
                 ),
+                request = request,
             )
+            requestBlockingManager.handleError(e)
             request.systemLog?.let { customData ->
                 analyticsTracker.trackSystemEvent(BackendAPIResponseData.create(requestId, customData, e))
             }
-            return Response.Error(e)
+            throw e
         }
     }
 

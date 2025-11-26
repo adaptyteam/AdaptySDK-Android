@@ -1,9 +1,9 @@
 package com.adapty.internal.domain
 
 import androidx.annotation.RestrictTo
-import com.adapty.errors.AdaptyError
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
+import com.adapty.internal.data.cloud.Response
 import com.adapty.internal.data.models.ProfileDto
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyProfile
@@ -28,14 +28,14 @@ internal class ProfileInteractor(
         val baseProfileFlow = authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
             cloudRepository.getProfile()
         }
-            .map { (profile, currentDataWhenRequestSent) ->
+            .map { (profile, request) ->
                 cacheRepository.updateOnProfileReceived(
                     profile,
-                    currentDataWhenRequestSent?.profileId,
+                    request.currentDataWhenSent?.profileId,
                 )
             }
             .catch { error ->
-                if (error !is AdaptyError || error.backendError == null || error.backendError.responseCode !in 400..406) {
+                if (error !is Response.Error || error.backendError == null || error.backendError.responseCode !in 400..406) {
                     val cachedProfile = cacheRepository.getProfile()
                     if (cachedProfile != null) {
                         emitAll(flowOf(cachedProfile))
@@ -80,14 +80,14 @@ internal class ProfileInteractor(
                         throw NothingToUpdateException()
                     cloudRepository.updateProfile(params, metaToBeSent, ip)
                 }
-                    .map { (profile, currentDataWhenRequestSent) ->
+                    .map { (profile, request) ->
                         cacheRepository.updateOnProfileReceived(
                             profile,
-                            currentDataWhenRequestSent?.profileId,
+                            request.currentDataWhenSent?.profileId,
                         )
                         metaToBeSent?.let(cacheRepository::saveLastSentInstallationMeta)
                         ip?.let { ip ->
-                            cacheRepository.saveLastSentIp(ip, currentDataWhenRequestSent?.profileId)
+                            cacheRepository.saveLastSentIp(ip, request.currentDataWhenSent?.profileId)
                         }
                         Unit
                     }
@@ -123,10 +123,10 @@ internal class ProfileInteractor(
                 attributionHelper.createAttributionData(attribution, source, cacheRepository.getProfileId())
             )
         }
-            .map { (profile, currentDataWhenRequestSent) ->
+            .map { (profile, request) ->
                 cacheRepository.updateOnProfileReceived(
                     profile,
-                    currentDataWhenRequestSent?.profileId,
+                    request.currentDataWhenSent?.profileId,
                 )
                 Unit
             }
@@ -140,7 +140,7 @@ internal class ProfileInteractor(
     @JvmSynthetic
     fun syncCrossPlacementInfo(replacementProfileId: String? = null) =
         authInteractor.runWhenAuthDataSynced {
-            cloudRepository.getCrossPlacementInfo(replacementProfileId)
+            cloudRepository.getCrossPlacementInfo(replacementProfileId).data
         }
             .map { crossPlacementInfo ->
                 cacheRepository.saveCrossPlacementInfo(crossPlacementInfo)
@@ -187,8 +187,8 @@ internal class ProfileInteractor(
                     emit(cloudRepository.updateProfile(ipv4Address = value))
                 }
                     .retryIfNecessary(INFINITE_RETRY)
-                    .map { (_, currentDataWhenRequestSent) ->
-                        cacheRepository.saveLastSentIp(value, currentDataWhenRequestSent?.profileId)
+                    .map { (_, request) ->
+                        cacheRepository.saveLastSentIp(value, request.currentDataWhenSent?.profileId)
                     }
                     .catch { }.collect()
             }

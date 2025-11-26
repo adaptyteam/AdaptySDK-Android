@@ -10,6 +10,9 @@ import android.provider.Settings
 import android.util.TypedValue
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -22,9 +25,11 @@ import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
 import com.adapty.ui.R
 import com.adapty.ui.internal.mapping.element.Assets
+import com.adapty.ui.internal.ui.element.Action
 import com.adapty.utils.AdaptyLogLevel
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
+import kotlinx.coroutines.CoroutineScope
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -54,6 +59,34 @@ internal fun AdaptyPaywallProduct.firstDiscountOfferOrNull(): AdaptyProductDisco
 }
 
 internal fun getProductGroupKey(groupId: String) = "group_${groupId}"
+
+@Composable
+internal fun handleInitialProductSelection(
+    productId: String,
+    groupId: String,
+    isSelected: Boolean,
+    eventCallback: EventCallback,
+) {
+    LaunchedEffectSaveable(productId, groupId) {
+        if (!isSelected) return@LaunchedEffectSaveable
+        val action = Action.SelectProduct(productId, groupId)
+        eventCallback.onActions(listOf(action))
+    }
+}
+
+@Composable
+internal fun LaunchedEffectSaveable(
+    vararg keys: Any?,
+    effect: suspend CoroutineScope.() -> Unit
+) {
+    val hasExecuted = rememberSaveable(*keys) { mutableStateOf(false) }
+    LaunchedEffect(*keys) {
+        if (!hasExecuted.value) {
+            hasExecuted.value = true
+            effect()
+        }
+    }
+}
 
 @Composable
 internal fun getScreenHeightDp(): Float {

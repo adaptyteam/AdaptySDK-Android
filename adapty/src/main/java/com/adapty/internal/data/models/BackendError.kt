@@ -5,6 +5,7 @@ import androidx.annotation.RestrictTo
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class BackendError(
     val responseCode: Int,
+    val responseBody: String,
     private val internalErrors: Set<InternalError>,
 ) {
     internal companion object {

@@ -20,6 +20,7 @@ import com.adapty.internal.utils.getLanguageCode
 import com.adapty.internal.utils.orDefault
 import com.adapty.internal.utils.unlockQuietly
 import com.adapty.internal.utils.withLockSafe
+import com.adapty.models.AdaptyConfig.ServerCluster
 import com.adapty.utils.AdaptyResult
 import com.adapty.utils.FileLocation
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -35,6 +36,7 @@ internal class CacheRepository(
     private val crossPlacementInfoLock: ReentrantReadWriteLock,
     private val productPALMappingLock: ReentrantReadWriteLock,
     private val validateDataLock: ReentrantReadWriteLock,
+    serverCluster: ServerCluster,
 ) {
 
     private val currentProfile = MutableSharedFlow<ProfileDto>()
@@ -337,7 +339,7 @@ internal class CacheRepository(
         if (isSystemLog) ANALYTICS_LOW_PRIORITY_DATA else ANALYTICS_DATA
 
     @Volatile
-    var analyticsConfig = AnalyticsConfig.DEFAULT
+    var netConfig = NetConfig.createDefault(serverCluster)
 
     fun getPaywall(id: String, locale: String, maxAgeMillis: Long? = null) =
         getVariation(id, setOf(locale), VariationType.Paywall, maxAgeMillis) as? PaywallDto

@@ -1,7 +1,6 @@
 package com.adapty.internal.data.cloud
 
 import androidx.annotation.RestrictTo
-import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.*
 import com.adapty.internal.data.models.requests.ValidateReceiptRequest
@@ -12,338 +11,231 @@ import com.adapty.models.AdaptyProfileParameters
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.flow.*
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class CloudRepository(
     private val httpClient: HttpClient,
-    private val requestFactory: RequestFactory
+    private val mainRequestFactory: MainRequestFactory,
+    private val auxRequestFactory: AuxRequestFactory,
 ) {
 
-    @JvmSynthetic
-    fun getProfile(): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
-        val request = requestFactory.getProfileRequest()
-        val response =
-            httpClient.newCall<ProfileDto>(
-                request,
-                ProfileDto::class.java
-            )
-        when (response) {
-            is Response.Success -> return response.body to request.currentDataWhenSent
-            is Response.Error -> throw response.error
-        }
-    }
+    fun getProfile(): Response<ProfileDto> =
+        httpClient.newCall(
+            mainRequestFactory.getProfileRequest(),
+            ProfileDto::class.java
+        )
 
-    @JvmSynthetic
-    fun getProducts(): ProductPALMappings {
-        val response = httpClient.newCall<ProductPALMappings>(
-            requestFactory.getProductsRequest(),
+    fun getProducts(): Response<ProductPALMappings> =
+        httpClient.newCall(
+            mainRequestFactory.getProductsRequest(),
             object : TypeToken<ProductPALMappings>() {}.type,
         )
-        when (response) {
-            is Response.Success -> return response.body
-            is Response.Error -> throw response.error
-        }
-    }
 
-    fun getVariations(id: String, locale: String, segmentId: String, variationType: VariationType): Pair<Variations, Request.CurrentDataWhenSent?> {
-        val request = when (variationType) {
-            VariationType.Paywall -> requestFactory.getPaywallVariationsRequest(id, locale, segmentId)
-            VariationType.Onboarding -> requestFactory.getOnboardingVariationsRequest(id, locale, segmentId)
-        }
-        val response = httpClient.newCall<Variations>(
-            request,
+    fun getVariations(
+        id: String,
+        locale: String,
+        segmentId: String,
+        variationType: VariationType,
+    ): Response<Variations> =
+        httpClient.newCall(
+            when (variationType) {
+                VariationType.Paywall -> mainRequestFactory.getPaywallVariationsRequest(id, locale, segmentId)
+                VariationType.Onboarding -> mainRequestFactory.getOnboardingVariationsRequest(id, locale, segmentId)
+            },
             Variations::class.java,
         )
-        when (response) {
-            is Response.Success -> return response.body to request.currentDataWhenSent
-            is Response.Error -> throw response.error
-        }
-    }
 
-    fun getVariationById(id: String, locale: String, segmentId: String, variationId: String, variationType: VariationType): Variation {
-        val response = httpClient.newCall<Variation>(
+    fun getVariationById(
+        id: String,
+        locale: String,
+        segmentId: String,
+        variationId: String,
+        variationType: VariationType,
+    ): Response<Variation> =
+        httpClient.newCall(
             when (variationType) {
-                VariationType.Paywall -> requestFactory.getPaywallByVariationIdRequest(id, locale, segmentId, variationId)
-                VariationType.Onboarding -> requestFactory.getOnboardingByVariationIdRequest(id, locale, segmentId, variationId)
+                VariationType.Paywall -> mainRequestFactory.getPaywallByVariationIdRequest(id, locale, segmentId, variationId)
+                VariationType.Onboarding -> mainRequestFactory.getOnboardingByVariationIdRequest(id, locale, segmentId, variationId)
             },
             Variation::class.java,
         )
-        when (response) {
-            is Response.Success -> return response.body
-            is Response.Error -> throw response.error
-        }
-    }
 
-    fun registerInstall(installRegistrationData: InstallRegistrationData, retryAttempt: Long, maxRetries: Long): InstallRegistrationResponseData {
-        val response = httpClient.newCall<InstallRegistrationResponseData>(
-            requestFactory.registerInstallRequest(installRegistrationData, retryAttempt, maxRetries),
+    fun registerInstall(
+        installRegistrationData: InstallRegistrationData,
+        retryAttempt: Long,
+        maxRetries: Long,
+    ): Response<InstallRegistrationResponseData> =
+        httpClient.newCall(
+            auxRequestFactory.registerInstallRequest(installRegistrationData, retryAttempt, maxRetries),
             InstallRegistrationResponseData::class.java,
         )
-        when (response) {
-            is Response.Success -> return response.body
-            is Response.Error -> throw response.error
-        }
-    }
 
-    @JvmSynthetic
-    fun getVariationsFallback(id: String, locale: String, variationType: VariationType): Variations {
-        val response = httpClient.newCall<Variations>(
-            when (variationType) {
-                VariationType.Paywall -> requestFactory.getPaywallVariationsFallbackRequest(id, locale)
-                VariationType.Onboarding -> requestFactory.getOnboardingVariationsFallbackRequest(id, locale)
-            },
-            Variations::class.java,
-        )
-        when (response) {
-            is Response.Success -> return response.body
-            is Response.Error -> {
-                val error = response.error
-                when {
-                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
-                        return getVariationsFallback(id, DEFAULT_PLACEMENT_LOCALE, variationType)
-                    else -> throw response.error
-                }
+    fun getVariationsFallback(id: String, locale: String, variationType: VariationType): Response<Variations> =
+        try {
+            httpClient.newCall(
+                when (variationType) {
+                    VariationType.Paywall -> auxRequestFactory.getPaywallVariationsFallbackRequest(id, locale)
+                    VariationType.Onboarding -> auxRequestFactory.getOnboardingVariationsFallbackRequest(id, locale)
+                },
+                Variations::class.java,
+            )
+        } catch (error: Response.Error) {
+            when {
+                error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
+                    getVariationsFallback(id, DEFAULT_PLACEMENT_LOCALE, variationType)
+                else -> throw error
             }
         }
-    }
 
-    fun getVariationByIdFallback(id: String, locale: String, variationId: String, variationType: VariationType): Variation {
-        val response = httpClient.newCall<Variation>(
-            when (variationType) {
-                VariationType.Paywall -> requestFactory.getPaywallByVariationIdFallbackRequest(id, locale, variationId)
-                VariationType.Onboarding -> requestFactory.getOnboardingByVariationIdFallbackRequest(id, locale, variationId)
-            },
-            Variation::class.java,
-        )
-        when (response) {
-            is Response.Success -> return response.body
-            is Response.Error -> {
-                val error = response.error
-                when {
-                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
-                        return getVariationByIdFallback(id, DEFAULT_PLACEMENT_LOCALE, variationId, variationType)
-                    else -> throw response.error
-                }
+    fun getVariationByIdFallback(id: String, locale: String, variationId: String, variationType: VariationType): Response<Variation> =
+        try {
+            httpClient.newCall(
+                when (variationType) {
+                    VariationType.Paywall -> auxRequestFactory.getPaywallByVariationIdFallbackRequest(id, locale, variationId)
+                    VariationType.Onboarding -> auxRequestFactory.getOnboardingByVariationIdFallbackRequest(id, locale, variationId)
+                },
+                Variation::class.java,
+            )
+        } catch (error: Response.Error) {
+            when {
+                error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
+                    getVariationByIdFallback(id, DEFAULT_PLACEMENT_LOCALE, variationId, variationType)
+                else -> throw error
             }
         }
-    }
 
-    fun getVariationsUntargeted(id: String, locale: String, variationType: VariationType): Variations {
-        val response = httpClient.newCall<Variations>(
-            when (variationType) {
-                VariationType.Paywall -> requestFactory.getPaywallVariationsUntargetedRequest(id, locale)
-                VariationType.Onboarding -> requestFactory.getOnboardingVariationsUntargetedRequest(id, locale)
-            },
-            Variations::class.java,
-        )
-        when (response) {
-            is Response.Success -> return response.body
-            is Response.Error -> {
-                val error = response.error
-                when {
-                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
-                        return getVariationsUntargeted(id, DEFAULT_PLACEMENT_LOCALE, variationType)
-                    else -> throw response.error
-                }
+    fun getVariationsUntargeted(id: String, locale: String, variationType: VariationType): Response<Variations> =
+        try {
+            httpClient.newCall(
+                when (variationType) {
+                    VariationType.Paywall -> auxRequestFactory.getPaywallVariationsUntargetedRequest(id, locale)
+                    VariationType.Onboarding -> auxRequestFactory.getOnboardingVariationsUntargetedRequest(id, locale)
+                },
+                Variations::class.java,
+            )
+        } catch (error: Response.Error) {
+            when {
+                error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
+                    getVariationsUntargeted(id, DEFAULT_PLACEMENT_LOCALE, variationType)
+                else -> throw error
             }
         }
-    }
 
-    @JvmSynthetic
-    fun getViewConfiguration(variationId: String, locale: String): Map<String, Any> {
-        val response = httpClient.newCall<Map<String, Any>>(
-            requestFactory.getViewConfigurationRequest(variationId, locale),
+    fun getViewConfiguration(variationId: String, locale: String): Response<Map<String, Any>> =
+        httpClient.newCall(
+            mainRequestFactory.getViewConfigurationRequest(variationId, locale),
             object : TypeToken<Map<String, Any>>() {}.type
         )
-        when (response) {
-            is Response.Success -> return response.body
-            is Response.Error -> throw response.error
-        }
-    }
 
-    @JvmSynthetic
-    fun getViewConfigurationFallback(paywallId: String, locale: String): Map<String, Any> {
-        val response = httpClient.newCall<Map<String, Any>>(
-            requestFactory.getViewConfigurationFallbackRequest(paywallId, locale),
-            object : TypeToken<Map<String, Any>>() {}.type
-        )
-        when (response) {
-            is Response.Success -> return response.body
-            is Response.Error -> {
-                val error = response.error
-                when {
-                    error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
-                        return getViewConfigurationFallback(paywallId, DEFAULT_PLACEMENT_LOCALE)
-                    else -> throw response.error
-                }
+    fun getViewConfigurationFallback(paywallId: String, locale: String): Response<Map<String, Any>> =
+        try {
+            httpClient.newCall(
+                auxRequestFactory.getViewConfigurationFallbackRequest(paywallId, locale),
+                object : TypeToken<Map<String, Any>>() {}.type
+            )
+        } catch (error: Response.Error) {
+            when {
+                error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
+                    getViewConfigurationFallback(paywallId, DEFAULT_PLACEMENT_LOCALE)
+                else -> throw error
             }
         }
-    }
 
-    @JvmSynthetic
     fun createProfile(
         identityParams: IdentityParams?,
         installationMeta: InstallationMeta,
         params: AdaptyProfileParameters?,
-    ): Flow<ProfileDto> =
-        flow {
-            val response = httpClient.newCall<ProfileDto>(
-                requestFactory.createProfileRequest(identityParams, installationMeta, params),
-                ProfileDto::class.java
-            )
-            when (response) {
-                is Response.Success -> emit(response.body)
-                is Response.Error -> throw response.error
-            }
-        }
+    ): Response<ProfileDto> =
+        httpClient.newCall(
+            mainRequestFactory.createProfileRequest(identityParams, installationMeta, params),
+            ProfileDto::class.java
+        )
 
-    @JvmSynthetic
     fun validatePurchase(
         validateData: ValidateReceiptRequest,
         purchase: Purchase?,
-    ): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
-        val request = requestFactory.validatePurchaseRequest(validateData, purchase)
+    ): Response<ValidationResult> {
+        val request = mainRequestFactory.validatePurchaseRequest(validateData, purchase)
         val response = httpClient.newCall<ValidationResult>(
             request,
             ValidationResult::class.java
         )
-        when (response) {
-            is Response.Success -> {
-                val result = response.body
-                val error = result.errors.firstOrNull()
-                if (error != null) {
-                    throw AdaptyError(
-                        message = error.message.orEmpty(),
-                        adaptyErrorCode = AdaptyErrorCode.BAD_REQUEST,
-                    )
-                }
-                return result.profile to request.currentDataWhenSent
-            }
-            is Response.Error -> throw response.error
-        }
+        val validationError = response.data.errors.firstOrNull()
+        if (validationError != null)
+            throw Response.Error(
+                message = validationError.message.orEmpty(),
+                adaptyErrorCode = AdaptyErrorCode.BAD_REQUEST,
+                request = request,
+            )
+        return response
     }
 
-    @JvmSynthetic
-    fun restorePurchases(purchases: List<RestoreProductInfo>): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
-        val request = requestFactory.restorePurchasesRequest(purchases)
-        val response = httpClient.newCall<ProfileDto>(
-            request,
+    fun restorePurchases(purchases: List<RestoreProductInfo>): Response<ProfileDto> =
+        httpClient.newCall(
+            mainRequestFactory.restorePurchasesRequest(purchases),
             ProfileDto::class.java
         )
-        when (response) {
-            is Response.Success -> return response.body to request.currentDataWhenSent
-            is Response.Error -> throw response.error
-        }
-    }
 
-    @JvmSynthetic
     fun updateProfile(
         params: AdaptyProfileParameters? = null,
         installationMeta: InstallationMeta? = null,
         ipv4Address: String? = null,
-    ): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
-        val request = requestFactory.updateProfileRequest(params, installationMeta, ipv4Address)
-        val response =
-            httpClient.newCall<ProfileDto>(
-                request,
-                ProfileDto::class.java
-            )
-        when (response) {
-            is Response.Success -> return response.body to request.currentDataWhenSent
-            is Response.Error -> throw response.error
-        }
-    }
-
-    @JvmSynthetic
-    fun updateAttribution(attributionData: AttributionData): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
-        val request = requestFactory.updateAttributionRequest(attributionData)
-        val response = httpClient.newCall<ProfileDto>(
-            request,
+    ): Response<ProfileDto> =
+        httpClient.newCall(
+            mainRequestFactory.updateProfileRequest(params, installationMeta, ipv4Address),
             ProfileDto::class.java
         )
-        when (response) {
-            is Response.Success -> return response.body to request.currentDataWhenSent
-            is Response.Error -> throw response.error
-        }
-    }
 
-    @JvmSynthetic
+    fun updateAttribution(attributionData: AttributionData): Response<ProfileDto> =
+        httpClient.newCall(
+            mainRequestFactory.updateAttributionRequest(attributionData),
+            ProfileDto::class.java
+        )
+
     fun setIntegrationId(key: String, value: String) {
-        val request = requestFactory.setIntegrationIdRequest(key, value)
-        val response = httpClient.newCall<Any>(
-            request,
+        httpClient.newCall<Any>(
+            mainRequestFactory.setIntegrationIdRequest(key, value),
             Any::class.java
         )
-        processEmptyResponse(response)
     }
 
-    @JvmSynthetic
     fun setVariationId(transactionId: String, variationId: String) {
-        val response = httpClient.newCall<Any>(
-            requestFactory.setVariationIdRequest(transactionId, variationId),
+        httpClient.newCall<Any>(
+            mainRequestFactory.setVariationIdRequest(transactionId, variationId),
             Any::class.java
         )
-        processEmptyResponse(response)
     }
 
-    @JvmSynthetic
-    fun getCrossPlacementInfo(replacementProfileId: String?): CrossPlacementInfo {
-        val response = httpClient.newCall<CrossPlacementInfo>(
-            requestFactory.getCrossPlacementInfoRequest(replacementProfileId),
+    fun getCrossPlacementInfo(replacementProfileId: String?): Response<CrossPlacementInfo> =
+        httpClient.newCall(
+            mainRequestFactory.getCrossPlacementInfoRequest(replacementProfileId),
             CrossPlacementInfo::class.java
         )
 
-        when (response) {
-            is Response.Success -> return response.body
-            is Response.Error -> throw response.error
-        }
-    }
-
-    @JvmSynthetic
     fun reportTransactionWithVariation(
         transactionId: String,
         variationId: String,
         purchase: Purchase,
         product: ProductDetails,
-    ): Pair<ProfileDto, Request.CurrentDataWhenSent?> {
-        val request = requestFactory.reportTransactionWithVariationRequest(transactionId, variationId, purchase, product)
+    ): Response<ValidationResult> {
+        val request = mainRequestFactory.reportTransactionWithVariationRequest(transactionId, variationId, purchase, product)
         val response = httpClient.newCall<ValidationResult>(
             request,
             ValidationResult::class.java
         )
-        when (response) {
-            is Response.Success -> {
-                val result = response.body
-                val error = result.errors.firstOrNull()
-                if (error != null) {
-                    throw AdaptyError(
-                        message = error.message.orEmpty(),
-                        adaptyErrorCode = AdaptyErrorCode.BAD_REQUEST,
-                    )
-                }
-                return result.profile to request.currentDataWhenSent
-            }
-            is Response.Error -> throw response.error
-        }
+        val validationError = response.data.errors.firstOrNull()
+        if (validationError != null)
+            throw Response.Error(
+                message = validationError.message.orEmpty(),
+                adaptyErrorCode = AdaptyErrorCode.BAD_REQUEST,
+                request = request,
+            )
+        return response
     }
 
-    @JvmSynthetic
-    fun getIPv4Request(): IP {
-        val response = httpClient.newCall<IP>(
-            requestFactory.getIPv4Request(),
+    fun getIPv4Request(): Response<IP> =
+        httpClient.newCall(
+            auxRequestFactory.getIPv4Request(),
             IP::class.java
         )
-        when (response) {
-            is Response.Success -> return response.body
-            is Response.Error -> throw response.error
-        }
-    }
-
-    private fun processEmptyResponse(response: Response<*>) {
-        when (response) {
-            is Response.Success -> return
-            is Response.Error -> throw response.error
-        }
-    }
 }

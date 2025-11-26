@@ -8,7 +8,7 @@ import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.AnalyticsTracker
 import com.adapty.internal.data.cloud.CloudRepository
-import com.adapty.internal.data.cloud.Request
+import com.adapty.internal.data.cloud.Response
 import com.adapty.internal.data.models.BackendError.Companion.INCORRECT_SEGMENT_HASH_ERROR
 import com.adapty.internal.data.models.Onboarding
 import com.adapty.internal.data.models.PaywallDto
@@ -243,28 +243,28 @@ internal class BasePlacementFetcher(
                 }
         }
 
-        var profile = cacheRepository.getProfile() ?: cloudRepository.getProfile().first
-        val responseData: Pair<Variations, Request.CurrentDataWhenSent?>
+        var profile = cacheRepository.getProfile() ?: cloudRepository.getProfile().data
+        val response: Response<Variations>
         val segmentId = profile.segmentId
         try {
-            responseData = cloudRepository.getVariations(placementId, locale, segmentId, variationType)
+            response = cloudRepository.getVariations(placementId, locale, segmentId, variationType)
         } catch (error: Throwable) {
-            val isIncorrectSegmentHash = error is AdaptyError && error.backendError != null
+            val isIncorrectSegmentHash = error is Response.Error && error.backendError != null
                     && error.backendError.containsErrorCode(INCORRECT_SEGMENT_HASH_ERROR)
             if (!isIncorrectSegmentHash)
                 throw error
             val cachedProfile = cacheRepository.getProfile()
             if (cachedProfile != null && segmentId != cachedProfile.segmentId)
                 return getPaywallOrVariationsFromCloud(placementId, locale, placementSource, variationType)
-            profile = cloudRepository.getProfile().first
+            profile = cloudRepository.getProfile().data
             if (segmentId == profile.segmentId)
                 throw error
             return getPaywallOrVariationsFromCloud(placementId, locale, placementSource, variationType)
         }
 
-        val (variations, requestDataWhenSent) = responseData
+        val (variations, request) = response
 
-        if (requestDataWhenSent?.profileId != cacheRepository.getProfileId())
+        if (request.currentDataWhenSent?.profileId != cacheRepository.getProfileId())
             throw AdaptyError(
                 message = "Profile was changed!",
                 adaptyErrorCode = AdaptyErrorCode.PROFILE_WAS_CHANGED
@@ -293,7 +293,7 @@ internal class BasePlacementFetcher(
         locale: String,
         variationType: VariationType,
     ): Variation {
-        val variations = cloudRepository.getVariationsFallback(placementId, locale, variationType)
+        val variations = cloudRepository.getVariationsFallback(placementId, locale, variationType).data
         val profileId = cacheRepository.getProfileId()
         return extractSingleVariation(variations.data, profileId, placementId, locale, PlacementSource.Fallback.Remote, variationType)
             .also { variation -> saveEntityToCache(placementId, variation) }
@@ -305,19 +305,19 @@ internal class BasePlacementFetcher(
         variationId: String,
         variationType: VariationType,
     ): Variation {
-        var profile = cacheRepository.getProfile() ?: cloudRepository.getProfile().first
+        var profile = cacheRepository.getProfile() ?: cloudRepository.getProfile().data
         val segmentId = profile.segmentId
         try {
-            return cloudRepository.getVariationById(placementId, locale, segmentId, variationId, variationType)
+            return cloudRepository.getVariationById(placementId, locale, segmentId, variationId, variationType).data
         } catch (error: Throwable) {
-            val isIncorrectSegmentHash = error is AdaptyError && error.backendError != null
+            val isIncorrectSegmentHash = error is Response.Error && error.backendError != null
                     && error.backendError.containsErrorCode(INCORRECT_SEGMENT_HASH_ERROR)
             if (!isIncorrectSegmentHash)
                 throw error
             val cachedProfile = cacheRepository.getProfile()
             if (cachedProfile != null && segmentId != cachedProfile.segmentId)
                 return getPaywallByVariationId(placementId, locale, variationId, variationType)
-            profile = cloudRepository.getProfile().first
+            profile = cloudRepository.getProfile().data
             if (segmentId == profile.segmentId)
                 throw error
             return getPaywallByVariationId(placementId, locale, variationId, variationType)
@@ -325,7 +325,7 @@ internal class BasePlacementFetcher(
     }
 
     private fun getRemoteFallbackEntityByVariationId(placementId: String, locale: String, variationId: String, variationType: VariationType): Variation {
-        return cloudRepository.getVariationByIdFallback(placementId, locale, variationId, variationType)
+        return cloudRepository.getVariationByIdFallback(placementId, locale, variationId, variationType).data
     }
 
     private fun pickVariation(
@@ -511,7 +511,7 @@ internal class BasePlacementFetcher(
         lifecycleManager
             .onActivateAllowed()
             .mapLatest {
-                val variations = cloudRepository.getVariationsUntargeted(id, locale, variationType)
+                val variations = cloudRepository.getVariationsUntargeted(id, locale, variationType).data
                 val cachedPaywall = getEntityFromCache(id, locale, variationType)
                 val paywall = if (cachedPaywall != null && variations.snapshotAt < cachedPaywall.snapshotAt) {
                     cachedPaywall

@@ -1,8 +1,8 @@
 package com.adapty.ui.onboardings.errors
 
 import android.net.http.SslError
+import android.webkit.WebResourceError
 import android.webkit.WebResourceResponse
-import androidx.webkit.WebResourceErrorCompat
 import com.adapty.ui.onboardings.internal.util.toLog
 
 public sealed class AdaptyOnboardingError {
@@ -10,7 +10,7 @@ public sealed class AdaptyOnboardingError {
     public class NotActivated: AdaptyOnboardingError()
     public class ActivateOnce: AdaptyOnboardingError()
     public sealed class WebKit: AdaptyOnboardingError() {
-        public class WebResource(public val originalError: WebResourceErrorCompat): WebKit() {
+        public class WebResource(public val originalError: WebResourceError): WebKit() {
             override fun toString(): String {
                 return "AdaptyOnboardingError.WebResource(originalError=${originalError.toLog()})"
             }

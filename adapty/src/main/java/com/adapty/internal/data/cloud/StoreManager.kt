@@ -529,16 +529,21 @@ private class StoreHelper(
             val requestEvent = GoogleAPIRequestData.QueryPurchaseHistory.create(type)
             analyticsTracker.trackSystemEvent(requestEvent)
             val params = QueryPurchaseHistoryParams.newBuilder().setProductType(type).build()
-            val purchaseHistoryResult = billingClient.queryPurchaseHistory(params)
-            if (purchaseHistoryResult.billingResult.responseCode == OK) {
-                emit(purchaseHistoryResult.purchaseHistoryRecordList.orEmpty())
-                analyticsTracker.trackSystemEvent(
-                    GoogleAPIResponseData.QueryPurchaseHistory.create(purchaseHistoryResult.purchaseHistoryRecordList, requestEvent)
-                )
-            } else {
-                val e = createException(purchaseHistoryResult.billingResult, "on query history")
-                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.QueryPurchaseHistory.create(e, requestEvent))
-                throw e
+            try {
+                val purchaseHistoryResult = billingClient.queryPurchaseHistory(params)
+                if (purchaseHistoryResult.billingResult.responseCode == OK) {
+                    emit(purchaseHistoryResult.purchaseHistoryRecordList.orEmpty())
+                    analyticsTracker.trackSystemEvent(
+                        GoogleAPIResponseData.QueryPurchaseHistory.create(purchaseHistoryResult.purchaseHistoryRecordList, requestEvent)
+                    )
+                } else {
+                    val e = createException(purchaseHistoryResult.billingResult, "on query history")
+                    analyticsTracker.trackSystemEvent(GoogleAPIResponseData.QueryPurchaseHistory.create(e, requestEvent))
+                    throw e
+                }
+            } catch (e: LinkageError) {
+                emit(listOf())
+                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.QueryPurchaseHistory.create(e.asAdaptyError(), requestEvent))
             }
         }
 

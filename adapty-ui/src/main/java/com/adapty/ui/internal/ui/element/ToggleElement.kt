@@ -12,6 +12,7 @@ import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
 import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.utils.EventCallback
+import com.adapty.ui.internal.utils.handleInitialProductSelection
 import com.adapty.ui.internal.utils.getAsset
 import com.adapty.ui.internal.utils.getProductGroupKey
 
@@ -54,7 +55,15 @@ public class ToggleElement internal constructor(
                     }
                     is Condition.SelectedProduct -> {
                         val productGroupKey = getProductGroupKey(onCondition.groupId)
-                        state[productGroupKey] as? String == onCondition.productId
+                        (state[productGroupKey] as? String == onCondition.productId)
+                            .also { isChecked ->
+                                handleInitialProductSelection(
+                                    onCondition.productId,
+                                    onCondition.groupId,
+                                    isChecked,
+                                    eventCallback,
+                                )
+                            }
                     }
                     else -> false
                 },

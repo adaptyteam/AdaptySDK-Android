@@ -346,11 +346,11 @@ internal class AnalyticsEvent(
     sealed class BackendAPIRequestData private constructor(methodName: String) :
         CustomData("${API_REQUEST_PREFIX}${methodName}", null) {
 
-        class GetAnalyticsConfig private constructor(methodName: String) : BackendAPIRequestData(methodName) {
+        class GetNetConfig private constructor(methodName: String) : BackendAPIRequestData(methodName) {
 
             companion object {
                 fun create() =
-                    GetAnalyticsConfig("get_events_blacklist")
+                    GetNetConfig("get_net_config")
             }
         }
 

@@ -39,7 +39,7 @@ internal class IPv4Retriever(
 
     private fun getIPv4(): Flow<String?> =
         flow {
-            val ip = cloudRepository.getIPv4Request().value
+            val ip = cloudRepository.getIPv4Request().data.value
             value = ip
             emit(ip)
         }

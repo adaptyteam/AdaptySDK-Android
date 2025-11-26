@@ -1,7 +1,5 @@
 package com.adapty.models
 
-import com.adapty.internal.utils.InternalAdaptyApi
-
 public class AdaptyConfig private constructor(
     @get:JvmSynthetic internal val apiKey: String,
     @get:JvmSynthetic internal val observerMode: Boolean,
@@ -10,7 +8,7 @@ public class AdaptyConfig private constructor(
     @get:JvmSynthetic internal val enablePendingPrepaidPlans: Boolean,
     @get:JvmSynthetic internal val ipAddressCollectionDisabled: Boolean,
     @get:JvmSynthetic internal val adIdCollectionDisabled: Boolean,
-    @get:JvmSynthetic internal val backendBaseUrl: String,
+    @get:JvmSynthetic internal val serverCluster: ServerCluster,
     @get:JvmSynthetic internal val customProcessName: String?,
     @get:JvmSynthetic internal val allowLocalPAL: Boolean,
 ) {
@@ -35,7 +33,7 @@ public class AdaptyConfig private constructor(
 
         private var allowLocalPAL = false
 
-        private var backendBaseUrl = ServerCluster.DEFAULT.url
+        private var serverCluster = ServerCluster.DEFAULT
 
         private var customProcessName: String? = null
 
@@ -93,7 +91,7 @@ public class AdaptyConfig private constructor(
         }
 
         public fun withServerCluster(serverCluster: ServerCluster): Builder {
-            this.backendBaseUrl = serverCluster.url
+            this.serverCluster = serverCluster
             return this
         }
 
@@ -122,16 +120,6 @@ public class AdaptyConfig private constructor(
             return this
         }
 
-        /**
-         * @suppress
-         */
-        @InternalAdaptyApi
-        public fun withBackendBaseUrl(url: String): Builder {
-            if (url.isNotEmpty())
-                this.backendBaseUrl = url
-            return this
-        }
-
         public fun build(): AdaptyConfig {
             return AdaptyConfig(
                 apiKey,
@@ -141,16 +129,39 @@ public class AdaptyConfig private constructor(
                 enablePendingPrepaidPlans,
                 ipAddressCollectionDisabled,
                 adIdCollectionDisabled,
-                backendBaseUrl,
+                serverCluster,
                 customProcessName,
                 allowLocalPAL,
             )
         }
     }
 
-    public enum class ServerCluster(@get:JvmSynthetic internal val url: String) {
-        DEFAULT("https://api.adapty.io/api/v1"),
-        EU("https://api-eu.adapty.io/api/v1"),
-        CN("https://api-cn.adapty.io/api/v1"),
+    public enum class ServerCluster(
+        @get:JvmSynthetic internal val baseUrl: String,
+        @get:JvmSynthetic internal val fallbackBaseUrl: String,
+        @get:JvmSynthetic internal val configsCdnBaseUrl: String,
+        @get:JvmSynthetic internal val uaBaseUrl: String,
+    ) {
+        DEFAULT(
+            "https://api.adapty.io/api/v1",
+            "https://fallback.adapty.io/api/v1",
+            "https://configs-cdn.adapty.io/api/v1",
+            "https://api-ua.adapty.io/api/v1",
+        ),
+        EU(
+            "https://api-eu.adapty.io/api/v1",
+            "https://fallback.adapty.io/api/v1",
+            "https://configs-cdn.adapty.io/api/v1",
+            "https://api-ua.adapty.io/api/v1",
+        ),
+        CN(
+            "https://api-cn.adapty.io/api/v1",
+            "https://fallback-cn.adapty.io/api/v1",
+            "https://configs-cdn-cn.adapty.io/api/v1",
+            "https://api-ua-cn.adapty.io/api/v1",
+        ),
     }
+
+    @get:JvmSynthetic
+    internal val apiKeyPrefix: String = apiKey.split(".").getOrNull(0).orEmpty()
 }

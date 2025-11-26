@@ -8,8 +8,10 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import com.adapty.errors.AdaptyError
-import com.adapty.errors.AdaptyError.RetryType
 import com.adapty.errors.AdaptyErrorCode
+import com.adapty.internal.data.cloud.NetConfigManager
+import com.adapty.internal.data.cloud.Response
+import com.adapty.internal.data.models.NetConfig
 import com.adapty.internal.data.models.Onboarding
 import com.adapty.internal.data.models.PaywallDto
 import com.adapty.internal.data.models.Variation
@@ -24,7 +26,6 @@ import com.adapty.utils.ImmutableMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -34,12 +35,15 @@ import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.sync.Semaphore
 import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.*
 import java.util.concurrent.locks.Lock
-import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.regex.Pattern
-import kotlin.math.min
 import kotlin.math.pow
+import kotlin.random.Random
 
 @JvmSynthetic
 internal fun generateUuid() = UUID.randomUUID().toString()
@@ -124,22 +128,13 @@ public fun Lock.unlockQuietly() {
     }
 }
 
-internal inline fun <T> ReentrantReadWriteLock.ReadLock.withLockSafe(action: () -> T) =
+internal inline fun <T> Lock.withLockSafe(action: () -> T) =
     try {
         this.lock()
         action()
     } finally {
         this.unlockQuietly()
     }
-
-internal inline fun ReentrantReadWriteLock.WriteLock.withLockSafe(action: () -> Unit) {
-    try {
-        this.lock()
-        action()
-    } finally {
-        this.unlockQuietly()
-    }
-}
 
 @JvmSynthetic
 internal fun execute(block: suspend CoroutineScope.() -> Unit) =
@@ -161,7 +156,7 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 @JvmSynthetic
 internal const val DEFAULT_PLACEMENT_LOCALE = "en"
 
-internal const val VERSION_NAME = "3.12.1"
+internal const val VERSION_NAME = "3.14.0"
 
 /**
  * @suppress
@@ -246,7 +241,17 @@ internal fun <T> Flow<T>.recoverOnReachabilityError(nextValue: (error: Throwable
 
 @JvmSynthetic
 internal fun getServerErrorDelay(attempt: Long) =
-    min((2f.pow((attempt + 3).coerceAtMost(7).toInt()) + 1), 90f).toLong() * 1000L
+    run {
+        val max = (2f.pow(attempt.toInt()).coerceAtMost(30f) * 1000L).toLong()
+        Random.nextLong(max + 1).coerceAtLeast(500L)
+    }
+
+@JvmSynthetic
+internal fun IOException.isServerUnreachableError(): Boolean {
+    return this is ConnectException ||
+            this is NoRouteToHostException ||
+            this is SocketTimeoutException
+}
 
 @JvmSynthetic
 internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long, getDelay: (attempt: Long) -> Long = { getServerErrorDelay(it) }): Flow<T> =
@@ -255,22 +260,37 @@ internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long, getDelay: (atte
             return@retryWhen false
         }
 
-        when (error.getRetryType(maxAttemptCount < 0)) {
-            RetryType.PROGRESSIVE -> {
-                delay(getDelay(attempt))
-                return@retryWhen true
+        when {
+            error is Response.Error && error.backendError?.responseCode in NetConfig.SWITCHING_STATUSES -> {
+                Dependencies.injectInternal<NetConfigManager>()
+                    .switch(error.request.baseUrl)
+                true
             }
-            RetryType.SIMPLE -> {
-                delay(NETWORK_ERROR_DELAY_MILLIS)
+            error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR -> {
                 if (maxAttemptCount == INFINITE_RETRY) {
-                    runCatching { Dependencies.injectInternal<ConnectivityHelper>() }.getOrNull()
-                        ?.waitForInternetConnectivity()
+                    delay(getDelay(attempt))
+                } else {
+                    delay(NETWORK_ERROR_DELAY_MILLIS)
                 }
-                return@retryWhen true
+                true
             }
-            else -> {
-                return@retryWhen false
+            error.originalError is IOException -> {
+                val connectivityHelper = runCatching { Dependencies.injectInternal<ConnectivityHelper>() }.getOrNull()
+                val isServerUnreachable = error.originalError.isServerUnreachableError()
+                val isUnknownHostException = error.originalError is UnknownHostException
+                val hasInternet = connectivityHelper?.hasInternetConnectivity() == true
+
+                delay(NETWORK_ERROR_DELAY_MILLIS)
+                if (isServerUnreachable || (isUnknownHostException && hasInternet)) {
+                    if (error is Response.Error)
+                        Dependencies.injectInternal<NetConfigManager>()
+                            .switch(error.request.baseUrl)
+                } else if (maxAttemptCount == INFINITE_RETRY) {
+                    connectivityHelper?.waitForInternetConnectivity()
+                }
+                true
             }
+            else -> false
         }
     }
 

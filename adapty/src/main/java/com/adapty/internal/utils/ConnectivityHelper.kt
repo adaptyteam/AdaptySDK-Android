@@ -16,30 +16,27 @@ internal class ConnectivityHelper(
     private val connectivityManager: ConnectivityManager,
 ) {
 
+    fun hasInternetConnectivity(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val activeNetwork = connectivityManager.activeNetwork
+            val networkCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+            networkCapabilities?.isInternetAvailable() == true
+        } else {
+            val activeNetworkInfo = connectivityManager.activeNetworkInfo
+            activeNetworkInfo?.isConnected == true
+        }
+    }
+
     suspend fun waitForInternetConnectivity() =
         suspendCancellableCoroutine { continuation ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val activeNetwork = connectivityManager.activeNetwork
-                val networkCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
-                val hasValidatedInternet = networkCapabilities?.isInternetAvailable() == true
-
-                if (hasValidatedInternet) {
-                    continuation.resume(Unit) {}
-                    return@suspendCancellableCoroutine
-                }
-            } else {
-                val activeNetworkInfo = connectivityManager.activeNetworkInfo
-                val hasInternet = activeNetworkInfo?.isConnected == true
-
-                if (hasInternet) {
-                    continuation.resume(Unit) {}
-                    return@suspendCancellableCoroutine
-                }
+            if (hasInternetConnectivity()) {
+                continuation.resume(Unit) {}
+                return@suspendCancellableCoroutine
             }
 
             val callback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
-                    connectivityManager.unregisterNetworkCallback(this)
+                    connectivityManager.unregisterNetworkCallbackQuietly(this)
                     if (continuation.isActive) {
                         continuation.resume(Unit) {}
                     }
@@ -50,7 +47,7 @@ internal class ConnectivityHelper(
                         val internetAvailable = networkCapabilities.isInternetAvailable()
 
                         if (internetAvailable) {
-                            connectivityManager.unregisterNetworkCallback(this)
+                            connectivityManager.unregisterNetworkCallbackQuietly(this)
                             if (continuation.isActive) {
                                 continuation.resume(Unit) {}
                             }
@@ -58,7 +55,7 @@ internal class ConnectivityHelper(
                     } else {
                         val networkInfo = connectivityManager.getNetworkInfo(network)
                         if (networkInfo?.isConnected == true) {
-                            connectivityManager.unregisterNetworkCallback(this)
+                            connectivityManager.unregisterNetworkCallbackQuietly(this)
                             if (continuation.isActive) {
                                 continuation.resume(Unit) {}
                             }
@@ -85,7 +82,7 @@ internal class ConnectivityHelper(
             }
 
             continuation.invokeOnCancellation {
-                runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+                connectivityManager.unregisterNetworkCallbackQuietly(callback)
             }
         }
 
@@ -93,4 +90,8 @@ internal class ConnectivityHelper(
     private fun NetworkCapabilities.isInternetAvailable() =
         hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
                 hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+
+    private fun ConnectivityManager.unregisterNetworkCallbackQuietly(callback: ConnectivityManager.NetworkCallback) {
+        runCatching { unregisterNetworkCallback(callback) }
+    }
 }

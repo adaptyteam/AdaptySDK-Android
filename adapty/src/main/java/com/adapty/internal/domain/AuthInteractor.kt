@@ -51,41 +51,40 @@ internal class AuthInteractor(
             flowOf(ProfileIdSame)
         } else {
             createInstallationMeta(true)
-                .flatMapConcat { installationMeta ->
+                .map { installationMeta ->
                     val params = cacheRepository.getExternalAnalyticsEnabled()?.let { enabled ->
                         AdaptyProfileParameters.Builder().withExternalAnalyticsDisabled(!enabled).build()
                     }
-                    cloudRepository.createProfile(newIdentityParams, installationMeta, params)
-                        .map { profile ->
-                            val profileStateChange = profileStateChangeChecker.getProfileStateChange(profile)
-                            when (profileStateChange) {
-                                ProfileStateChange.NEW -> {
-                                    cacheRepository.updateDataOnCreateProfile(profile, installationMeta, profileStateChange)
-                                    cacheRepository.saveCrossPlacementInfo(CrossPlacementInfo.forNewProfile())
-                                    ProfileIdChanged
-                                }
-                                ProfileStateChange.IDENTIFIED_TO_ANOTHER -> {
-                                    val crossPlacementInfo = syncCrossPlacementInfoOnProfileChange(profile.profileId)
-                                    cacheRepository.updateDataOnCreateProfile(profile, installationMeta, profileStateChange)
-                                    cacheRepository.saveCrossPlacementInfo(crossPlacementInfo)
-                                    ProfileIdChanged
-                                }
-                                ProfileStateChange.IDENTIFIED_TO_SELF -> {
-                                    cacheRepository.updateDataOnCreateProfile(profile, installationMeta, profileStateChange)
-                                    ProfileIdSame
-                                }
-                                ProfileStateChange.OUTDATED -> ProfileIdSame
-                            }
+                    val (profile, _) = cloudRepository.createProfile(newIdentityParams, installationMeta, params)
+
+                    val profileStateChange = profileStateChangeChecker.getProfileStateChange(profile)
+                    when (profileStateChange) {
+                        ProfileStateChange.NEW -> {
+                            cacheRepository.updateDataOnCreateProfile(profile, installationMeta, profileStateChange)
+                            cacheRepository.saveCrossPlacementInfo(CrossPlacementInfo.forNewProfile())
+                            ProfileIdChanged
                         }
-                        .onEach { authSemaphore.release() }
-                        .catch { error -> authSemaphore.release(); throw error }
+                        ProfileStateChange.IDENTIFIED_TO_ANOTHER -> {
+                            val crossPlacementInfo = syncCrossPlacementInfoOnProfileChange(profile.profileId)
+                            cacheRepository.updateDataOnCreateProfile(profile, installationMeta, profileStateChange)
+                            cacheRepository.saveCrossPlacementInfo(crossPlacementInfo)
+                            ProfileIdChanged
+                        }
+                        ProfileStateChange.IDENTIFIED_TO_SELF -> {
+                            cacheRepository.updateDataOnCreateProfile(profile, installationMeta, profileStateChange)
+                            ProfileIdSame
+                        }
+                        ProfileStateChange.OUTDATED -> ProfileIdSame
+                    }
                 }
+                .onEach { authSemaphore.release() }
+                .catch { error -> authSemaphore.release(); throw error }
         }
     }
 
     private suspend fun syncCrossPlacementInfoOnProfileChange(newProfileId: String): CrossPlacementInfo {
         try {
-            return cloudRepository.getCrossPlacementInfo(newProfileId)
+            return cloudRepository.getCrossPlacementInfo(newProfileId).data
         } catch (error: Throwable) {
             delay(500L)
             return syncCrossPlacementInfoOnProfileChange(newProfileId)

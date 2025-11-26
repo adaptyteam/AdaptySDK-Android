@@ -1,14 +1,7 @@
 package com.adapty.internal.data.cloud
 
 import androidx.annotation.RestrictTo
-import com.adapty.errors.AdaptyError
-import com.adapty.errors.AdaptyErrorCode.AUTHENTICATION_ERROR
-import com.adapty.errors.AdaptyErrorCode.BAD_REQUEST
-import com.adapty.errors.AdaptyErrorCode.DECODING_FAILED
-import com.adapty.errors.AdaptyErrorCode.REQUEST_FAILED
-import com.adapty.errors.AdaptyErrorCode.SERVER_ERROR
 import com.adapty.internal.data.cache.CacheRepository
-import com.adapty.internal.data.models.AnalyticsConfig
 import com.adapty.internal.data.models.AnalyticsData
 import com.adapty.internal.data.models.AnalyticsEvent
 import com.adapty.internal.data.models.AnalyticsEvent.Companion.RETAIN_LIMIT
@@ -22,7 +15,8 @@ import kotlinx.coroutines.sync.withPermit
 internal class AnalyticsEventQueueDispatcher(
     private val cacheRepository: CacheRepository,
     private val httpClient: HttpClient,
-    private val requestFactory: RequestFactory,
+    private val mainRequestFactory: MainRequestFactory,
+    private val netConfigManager: NetConfigManager,
     private val lifecycleManager: LifecycleManager,
     private val dataLocalSemaphore: Semaphore,
     private val dataRemoteSemaphore: Semaphore,
@@ -46,19 +40,10 @@ internal class AnalyticsEventQueueDispatcher(
                 .flatMapConcat { event ->
                     dataRemoteSemaphore.acquire()
                     lifecycleManager.onActivateAllowed()
-                        .mapLatest { fetchDisabledEventTypes() }
-                        .catch { error ->
-                            if (error is AdaptyError && (error.isHttpError() || error.isDecodingError())) {
-                                val fallbackConfig = AnalyticsConfig.createFallback()
-                                cacheRepository.analyticsConfig = fallbackConfig
-                                emit(fallbackConfig.disabledEventTypes)
-                            } else {
-                                throw error
-                            }
-                        }
-                        .flatMapConcat { disabledEventTypes ->
+                        .mapLatest { fetchEventsExcludedFromSending() }
+                        .flatMapConcat { excludedEvents ->
                             val (filteredEvents, processedEvents) =
-                                prepareData(disabledEventTypes, event.isSystemLog)
+                                prepareData(excludedEvents, event.isSystemLog)
                             sendData(filteredEvents)
                                 .retryIfNecessary(DEFAULT_RETRY_COUNT)
                                 .map {
@@ -72,29 +57,12 @@ internal class AnalyticsEventQueueDispatcher(
         }
     }
 
-    private fun fetchDisabledEventTypes() : List<String> {
-        val (disabledEventTypes, expiresAt) = cacheRepository.analyticsConfig
-        if (System.currentTimeMillis() < expiresAt) {
-            return disabledEventTypes
-        } else {
-            val response = httpClient.newCall<AnalyticsConfig>(
-                requestFactory.getAnalyticsConfig(),
-                AnalyticsConfig::class.java
-            )
-            when (response) {
-                is Response.Success -> {
-                    cacheRepository.analyticsConfig = response.body
-                    return response.body.disabledEventTypes
-                }
-                is Response.Error -> {
-                    throw response.error
-                }
-            }
-        }
+    private fun fetchEventsExcludedFromSending() : List<String> {
+        return netConfigManager.getConfig().eventsExcludedFromSending
     }
 
     private suspend fun prepareData(
-        disabledEventTypes: List<String>,
+        excludedEvents: List<String>,
         isSystemLog: Boolean,
     ): Pair<List<AnalyticsEvent>, List<AnalyticsEvent>> {
         val events = dataLocalSemaphore.withPermit {
@@ -106,7 +74,7 @@ internal class AnalyticsEventQueueDispatcher(
         for (event in events) {
             if (filteredEvents.size >= SEND_LIMIT)
                 break
-            if (event.eventName !in disabledEventTypes)
+            if (event.eventName !in excludedEvents)
                 filteredEvents.add(event)
             processedCount++
         }
@@ -121,18 +89,11 @@ internal class AnalyticsEventQueueDispatcher(
             return@flow
         }
 
-        val response = httpClient.newCall<Unit>(
-            requestFactory.sendAnalyticsEventsRequest(filteredEvents),
+        httpClient.newCall<Unit>(
+            mainRequestFactory.sendAnalyticsEventsRequest(filteredEvents),
             Unit::class.java
         )
-        when (response) {
-            is Response.Success -> {
-                emit(Unit)
-            }
-            is Response.Error -> {
-                throw response.error
-            }
-        }
+        emit(Unit)
     }
 
     private suspend fun removeProcessedEventsOnSuccess(
@@ -153,10 +114,4 @@ internal class AnalyticsEventQueueDispatcher(
             }
         }
     }
-
-    private fun AdaptyError.isHttpError() =
-        adaptyErrorCode in arrayOf(SERVER_ERROR, BAD_REQUEST, AUTHENTICATION_ERROR)
-                || (adaptyErrorCode == REQUEST_FAILED && originalError == null)
-
-    private fun AdaptyError.isDecodingError() = adaptyErrorCode == DECODING_FAILED
 }

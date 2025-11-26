@@ -5,6 +5,7 @@ import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.StoreManager
 import com.adapty.internal.data.models.ProductPALMappings
 import com.adapty.internal.data.models.ProfileDto
+import com.adapty.utils.AdaptyLogLevel.Companion.INFO
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.android.billingclient.api.Purchase
 import kotlinx.coroutines.flow.Flow
@@ -22,7 +23,7 @@ internal class OfflineProfileManager(
     fun getLocalPAL(): Flow<ProductPALMappings.ItemExtended?> {
         val unsyncedValidateData = cacheRepository.getUnsyncedValidateData()?.takeIf { it.isNotEmpty() }
             ?: run {
-                Logger.log(WARN) { "Cannot retrieve local access level: no unsynced validate data available" }
+                Logger.log(INFO) { "Cannot retrieve local access level: no unsynced validate data available" }
                 return flowOf(null)
             }
 

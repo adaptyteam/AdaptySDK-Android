@@ -73,6 +73,7 @@ public object Dependencies {
     private const val CROSS_PLACEMENT_INFO = "cross_placement_info"
     private const val PRODUCT_PAL_MAPPING = "product_pal_mapping"
     private const val VALIDATE_DATA = "validate_data"
+    private const val NET_CONFIG = "net_config"
     public const val OBSERVER_MODE: String = "observer_mode"
 
     public fun <T> singleVariantDiObject(
@@ -135,8 +136,8 @@ public object Dependencies {
                             )
                             .registerTypeAdapterFactory(
                                 AdaptyResponseTypeAdapterFactory(
-                                    TypeToken.get(AnalyticsConfig::class.java),
-                                    dataObjectExtractor,
+                                    TypeToken.get(NetConfig::class.java),
+                                    NetConfigExtractor(config.serverCluster),
                                 )
                             )
                             .registerTypeAdapterFactory(
@@ -274,7 +275,8 @@ public object Dependencies {
                 CloudRepository::class to singleVariantDiObject({
                     CloudRepository(
                         injectInternal(named = BASE),
-                        injectInternal()
+                        injectInternal(),
+                        injectInternal(),
                     )
                 }),
 
@@ -285,11 +287,16 @@ public object Dependencies {
                         injectInternal(named = CROSS_PLACEMENT_INFO),
                         injectInternal(named = PRODUCT_PAL_MAPPING),
                         injectInternal(named = VALIDATE_DATA),
+                        config.serverCluster,
                     )
                 }),
 
                 CacheRepositoryProxy::class to singleVariantDiObject({
                     CacheRepositoryProxy(injectInternal())
+                }),
+
+                RequestBlockingManager::class to singleVariantDiObject({
+                    RequestBlockingManager(config.serverCluster)
                 }),
 
                 HttpClient::class to mapOf(
@@ -298,6 +305,7 @@ public object Dependencies {
                             injectInternal(),
                             injectInternal(named = BASE),
                             injectInternal(named = BASE),
+                            injectInternal(),
                         )
                     }),
                     ANALYTICS to DIObject({
@@ -305,6 +313,7 @@ public object Dependencies {
                             injectInternal(),
                             injectInternal(named = ANALYTICS),
                             injectInternal(named = RECORD_ONLY),
+                            injectInternal(),
                         )
                     }),
                 ),
@@ -322,6 +331,7 @@ public object Dependencies {
                     AnalyticsEventQueueDispatcher(
                         injectInternal(),
                         injectInternal(named = ANALYTICS),
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(named = LOCAL),
@@ -350,12 +360,22 @@ public object Dependencies {
                     DefaultConnectionCreator()
                 }),
 
+                NetConfigManager::class to singleVariantDiObject({
+                    NetConfigManager(
+                        injectInternal(named = ANALYTICS),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(named = NET_CONFIG),
+                    )
+                }),
+
                 HttpResponseManager::class to mapOf(
                     BASE to DIObject({
                         DefaultHttpResponseManager(
                             injectInternal(),
                             injectInternal(),
                             injectInternal(named = BASE),
+                            injectInternal(),
                         )
                     }),
                     ANALYTICS to DIObject({
@@ -363,6 +383,7 @@ public object Dependencies {
                             injectInternal(),
                             injectInternal(),
                             injectInternal(named = RECORD_ONLY),
+                            injectInternal(),
                         )
                     }),
                 ),
@@ -379,16 +400,24 @@ public object Dependencies {
                     PayloadProvider(injectInternal(), injectInternal())
                 }),
 
-                RequestFactory::class to singleVariantDiObject({
-                    RequestFactory(
+                MainRequestFactory::class to singleVariantDiObject({
+                    MainRequestFactory(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(named = BASE),
-                        config.apiKey,
-                        config.observerMode,
-                        config.backendBaseUrl,
+                        config,
+                    )
+                }),
+
+                AuxRequestFactory::class to singleVariantDiObject({
+                    AuxRequestFactory(
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(named = BASE),
+                        config,
                     )
                 }),
 
@@ -546,6 +575,9 @@ public object Dependencies {
                         ReentrantReadWriteLock()
                     }),
                     VALIDATE_DATA to DIObject({
+                        ReentrantReadWriteLock()
+                    }),
+                    NET_CONFIG to DIObject({
                         ReentrantReadWriteLock()
                     }),
                 ),

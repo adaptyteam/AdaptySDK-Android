@@ -122,7 +122,7 @@ internal class UserAcquisitionInteractor(
                             installRegistrationData.copy(clientTime = metaInfoRetriever.formatDateTimeGMT()),
                             retryAttempt++,
                             REGISTER_INSTALL_MAX_RETRIES,
-                        )
+                        ).data
                     )
                 }
                     .retryIfNecessary(REGISTER_INSTALL_MAX_RETRIES) { attempt ->

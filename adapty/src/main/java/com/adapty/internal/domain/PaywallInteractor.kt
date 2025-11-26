@@ -10,6 +10,7 @@ import com.adapty.errors.AdaptyErrorCode.WRONG_PARAMETER
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.StoreManager
+import com.adapty.internal.data.models.PaywallDto
 import com.adapty.internal.domain.models.BackendProduct
 import com.adapty.internal.utils.DEFAULT_RETRY_COUNT
 import com.adapty.internal.utils.INFINITE_RETRY
@@ -73,6 +74,25 @@ internal class PaywallInteractor(
 
     @JvmSynthetic
     fun getViewConfiguration(paywall: AdaptyPaywall, loadTimeout: Int) : Flow<Map<String, Any>> {
+        fun tryToRestoreViewConfigFromCache(paywall: AdaptyPaywall, locale: String): Map<String, Any>? =
+            cacheRepository.getPaywall(paywall.placement.id, locale)
+                ?.takeIf { cachedPaywall ->
+                    cachedPaywall.variationId == paywall.variationId
+                            && cachedPaywall.id == paywall.id
+                            && cachedPaywall.placement.revision == paywall.placement.revision
+                            && cachedPaywall.snapshotAt == paywall.snapshotAt
+                }
+                ?.paywallBuilder
+        fun tryToRestoreViewConfigFromFallback(paywall: AdaptyPaywall): Map<String, Any>? =
+            (cacheRepository.getPaywallVariationsFallback(paywall.placement.id)
+                ?.data?.firstOrNull { it.variationId == paywall.variationId } as? PaywallDto)
+                ?.takeIf { fallbackPaywall ->
+                    fallbackPaywall.id == paywall.id
+                            && fallbackPaywall.placement.revision == paywall.placement.revision
+                            && fallbackPaywall.snapshotAt == paywall.snapshotAt
+                }
+                ?.paywallBuilder
+
         val locale = paywall.viewConfig?.get("lang") as? String ?: kotlin.run {
             val errorMessage = "lang in paywall builder should not be null"
             Logger.log(ERROR) { errorMessage }
@@ -80,19 +100,14 @@ internal class PaywallInteractor(
                 throw AdaptyError(message = errorMessage, adaptyErrorCode = WRONG_PARAMETER)
             }
         }
-        val localViewConfig = (paywall.viewConfig.takeIf { config -> config["paywall_builder_config"] != null })
-            ?: (cacheRepository.getPaywall(paywall.placement.id, locale)
-                ?.takeIf { cachedPaywall ->
-                    cachedPaywall.variationId == paywall.variationId
-                            && cachedPaywall.id == paywall.id
-                            && cachedPaywall.placement.revision == paywall.placement.revision
-                            && cachedPaywall.snapshotAt == paywall.snapshotAt
-                }?.paywallBuilder)
+        val localViewConfig = paywall.viewConfig.takeIf { config -> config["paywall_builder_config"] != null }
+            ?: tryToRestoreViewConfigFromCache(paywall, locale)
+            ?: tryToRestoreViewConfigFromFallback(paywall)
         if (localViewConfig != null)
             return flowOf(localViewConfig)
 
         val baseFlow = authInteractor.runWhenAuthDataSynced {
-            cloudRepository.getViewConfiguration(paywall.variationId, locale)
+            cloudRepository.getViewConfiguration(paywall.variationId, locale).data
         }
 
         return if (loadTimeout == INF_PAYWALL_TIMEOUT_MILLIS) {
@@ -102,7 +117,7 @@ internal class PaywallInteractor(
         }
             .catch { e ->
                 if (e is TimeoutException || (e is AdaptyError && (e.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || e.originalError is IOException)))
-                    emit(cloudRepository.getViewConfigurationFallback(paywall.id, locale))
+                    emit(cloudRepository.getViewConfigurationFallback(paywall.id, locale).data)
                 else
                     throw e
             }
@@ -122,12 +137,14 @@ internal class PaywallInteractor(
     @JvmSynthetic
     fun getProductsOnStart() =
         lifecycleManager.onActivateAllowed()
-            .mapLatest { cloudRepository.getProducts() }
+            .mapLatest { cloudRepository.getProducts().data }
             .retryIfNecessary(INFINITE_RETRY)
             .flatMapConcat { products ->
                 if (allowLocalPAL)
                     cacheRepository.saveProductPALMappings(products)
-                val productIds = products.items.keys.map { it.split(":")[0] } .toList()
+                val productIds = products.items.keys.mapNotNull {
+                    it.split(":")[0].takeIf(String::isNotEmpty)
+                }.toList()
                 storeManager.queryProductDetails(productIds, INFINITE_RETRY)
             }
 

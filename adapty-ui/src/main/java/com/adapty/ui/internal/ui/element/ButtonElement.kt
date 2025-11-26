@@ -10,6 +10,7 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.ui.attributes.toComposeShape
 import com.adapty.ui.internal.ui.clickIndication
 import com.adapty.ui.internal.utils.EventCallback
+import com.adapty.ui.internal.utils.handleInitialProductSelection
 import com.adapty.ui.internal.utils.getProductGroupKey
 
 @InternalAdaptyApi
@@ -40,10 +41,16 @@ public class ButtonElement internal constructor(
             }
             selectedCondition is Condition.SelectedProduct -> {
                 val productGroupKey = getProductGroupKey(selectedCondition.groupId)
-                if (state[productGroupKey] as? String == selectedCondition.productId)
-                    selected
-                else
-                    normal
+                (state[productGroupKey] as? String == selectedCondition.productId)
+                    .also { isSelected ->
+                        handleInitialProductSelection(
+                            selectedCondition.productId,
+                            selectedCondition.groupId,
+                            isSelected,
+                            eventCallback,
+                        )
+                    }
+                    .let { isSelected -> if (isSelected) selected else normal }
             }
             else -> normal
         }

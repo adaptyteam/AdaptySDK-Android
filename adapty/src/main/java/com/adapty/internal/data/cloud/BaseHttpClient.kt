@@ -16,6 +16,7 @@ internal class BaseHttpClient(
     private val connectionCreator: NetworkConnectionCreator,
     private val responseManager: HttpResponseManager,
     private val analyticsTracker: AnalyticsTracker,
+    private val requestBlockingManager: RequestBlockingManager,
 ) : HttpClient {
 
     @WorkerThread
@@ -23,12 +24,21 @@ internal class BaseHttpClient(
     override fun <T> newCall(request: Request, typeOfT: Type): Response<T> {
         Logger.log(VERBOSE) {
             "${request.method.name} ${request.url}${
-                request.body.takeIf(String::isNotEmpty)?.let { body -> " Body: $body" }.orEmpty()
+                request.body?.takeIf(String::isNotEmpty)?.let { body -> " Body: $body" }.orEmpty()
             }"
         }
         request.systemLog?.let { customData ->
             customData.resetFlowId()
             analyticsTracker.trackSystemEvent(customData)
+        }
+
+        val blockedError = requestBlockingManager.getBlockedError(request)
+        if (blockedError != null) {
+            Logger.log(WARN) { blockedError.message }
+            request.systemLog?.let { customData ->
+                analyticsTracker.trackSystemEvent(BackendAPIResponseData.create("", customData, blockedError))
+            }
+            throw blockedError
         }
 
         var connection: HttpURLConnection? = null
@@ -38,18 +48,18 @@ internal class BaseHttpClient(
             connection.connect()
             return responseManager.handleResponse(connection, request, typeOfT)
 
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            if (e is Response.Error) throw e
             val message = "Request Error: ${e.localizedMessage ?: e.message}"
             Logger.log(WARN) { message }
             request.systemLog?.let { customData ->
                 analyticsTracker.trackSystemEvent(BackendAPIResponseData.create("", customData, e))
             }
-            return Response.Error(
-                AdaptyError(
-                    originalError = e,
-                    message = message,
-                    adaptyErrorCode = AdaptyErrorCode.REQUEST_FAILED
-                )
+            throw Response.Error(
+                originalError = e,
+                message = message,
+                adaptyErrorCode = AdaptyErrorCode.REQUEST_FAILED,
+                request = request,
             )
         } finally {
             connection?.disconnect()

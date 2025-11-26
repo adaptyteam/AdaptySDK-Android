@@ -12,9 +12,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.SslErrorHandler
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.ProgressBar
 import androidx.core.graphics.Insets
@@ -23,8 +25,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
-import androidx.webkit.WebResourceErrorCompat
-import androidx.webkit.WebViewClientCompat
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.utils.LOG_PREFIX
@@ -104,8 +104,8 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
                 }
             }, "Android")
 
-            webViewClient = object : WebViewClientCompat() {
-                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceErrorCompat) {
+            webViewClient = object : WebViewClient() {
+                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                     log(ERROR) { "$LOG_PREFIX_ERROR onReceivedError: ${error.toLog()})" }
                     if (!request.isForMainFrame) return
                     withViewModel { it.emitError(AdaptyOnboardingError.WebKit.WebResource(error)) }
