@@ -452,14 +452,16 @@ internal class CacheRepository(
         }
 
     private fun getProductPALMappingsInternal() =
-        getData<CacheEntity<ProductPALMappings>>(PRODUCT_PAL_MAPPINGS)?.value
+        getData<CacheEntity<ProductPALMappings>>(PRODUCT_PAL_MAPPINGS)
+            ?.takeIf { it.version == CURRENT_CACHED_PRODUCT_PAL_MAPPING_VERSION }
+            ?.value
 
     fun saveProductPALMappings(productPALMappings: ProductPALMappings) {
         try {
             productPALMappingLock.writeLock().lock()
             saveData(
                 PRODUCT_PAL_MAPPINGS,
-                CacheEntity(productPALMappings),
+                CacheEntity(productPALMappings, CURRENT_CACHED_PRODUCT_PAL_MAPPING_VERSION),
             )
         } finally {
             productPALMappingLock.writeLock().unlockQuietly()
@@ -480,8 +482,10 @@ internal class CacheRepository(
             saveData(
                 PRODUCT_PAL_MAPPINGS,
                 CacheEntity(
-                    palMappings?.let { it.copy(it.items + palMappingsFromPaywall.items) }
-                        ?: palMappingsFromPaywall.items,
+                    palMappings
+                        ?.let { it.copy(items = it.items + palMappingsFromPaywall.items) }
+                        ?: palMappingsFromPaywall,
+                    CURRENT_CACHED_PRODUCT_PAL_MAPPING_VERSION,
                 )
             )
         } finally {
@@ -650,6 +654,7 @@ internal class CacheRepository(
     private companion object {
         private const val CURRENT_CACHED_ONBOARDING_VERSION = 1
         private const val CURRENT_CACHED_PAYWALL_VERSION = 3
+        private const val CURRENT_CACHED_PRODUCT_PAL_MAPPING_VERSION = 2
     }
 
     fun setLongValue(key: String, value: Long, isPersisted: Boolean) {
