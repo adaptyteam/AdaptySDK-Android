@@ -4,8 +4,10 @@ package com.adapty.internal
 
 import android.app.Activity
 import android.content.ContentResolver
+import android.net.Uri
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
+import com.adapty.errors.AdaptyErrorCode
 import com.adapty.errors.AdaptyErrorCode.LOGGING_OUT_UNIDENTIFIED_USER
 import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
 import com.adapty.errors.AdaptyErrorCode.WRONG_PARAMETER
@@ -581,6 +583,70 @@ internal class AdaptyInternal(
                 .catch { }
                 .collect()
         }
+    }
+
+    @JvmSynthetic
+    fun createWebPaywallUrl(
+        paywall: AdaptyPaywall,
+        callback: ResultCallback<Uri>,
+    ) {
+        runCatching {
+            val url = paywallInteractor.createWebPaywallUrl(paywall)
+            callback.onResult(AdaptyResult.Success(url))
+        }.getOrElse { e ->
+            callback.onResult(AdaptyResult.Error(AdaptyError(originalError = e, message = e.localizedMessage ?: e.message.orEmpty(), adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED)))
+        }
+    }
+
+    @JvmSynthetic
+    fun createWebPaywallUrl(
+        product: AdaptyPaywallProduct,
+        callback: ResultCallback<Uri>,
+    ) {
+        runCatching {
+            val url = paywallInteractor.createWebPaywallUrl(product)
+            callback.onResult(AdaptyResult.Success(url))
+        }.getOrElse { e ->
+            callback.onResult(AdaptyResult.Error(AdaptyError(originalError = e, message = e.localizedMessage ?: e.message.orEmpty(), adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED)))
+        }
+    }
+
+    @JvmSynthetic
+    fun openWebPaywall(
+        activity: Activity,
+        paywall: AdaptyPaywall,
+        presentation: AdaptyWebPresentation,
+        callback: ErrorCallback,
+    ) {
+        runCatching {
+            paywallInteractor.openWebPaywall(activity, paywall, presentation)
+        }.exceptionOrNull()
+            .let { e ->
+                callback.onResult(
+                    e?.let {
+                        AdaptyError(originalError = e, message = e.localizedMessage ?: e.message.orEmpty(), adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED)
+                    }
+                )
+            }
+    }
+
+    @JvmSynthetic
+    fun openWebPaywall(
+        activity: Activity,
+        product: AdaptyPaywallProduct,
+        presentation: AdaptyWebPresentation,
+        callback: ErrorCallback,
+    ) {
+        runCatching {
+            paywallInteractor.openWebPaywall(activity, product, presentation)
+        }.exceptionOrNull()
+            .let { e ->
+                callback.onResult(
+                    e?.let {
+                        AdaptyError(originalError = e, message = e.localizedMessage ?: e.message.orEmpty(), adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED)
+                    }
+                )
+            }
     }
 
     private fun handleNewSession() {

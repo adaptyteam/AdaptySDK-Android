@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.models.AdaptyWebPresentation
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.text.StringId
@@ -116,7 +117,10 @@ public sealed class Action {
     public class SelectProduct internal constructor(internal val productId: String, internal val groupId: String): Action()
     public class UnselectProduct internal constructor(internal val groupId: String): Action()
     public class PurchaseProduct internal constructor(internal val productId: String): Action()
+    public class WebPurchaseProduct internal constructor(internal val productId: String, internal val presentation: AdaptyWebPresentation): Action()
+    public class WebPurchasePaywall internal constructor(internal val presentation: AdaptyWebPresentation): Action()
     public class PurchaseSelectedProduct internal constructor(internal val groupId: String): Action()
+    public class WebPurchaseSelectedProduct internal constructor(internal val groupId: String, internal val presentation: AdaptyWebPresentation): Action()
     public object RestorePurchases: Action()
     public class OpenScreen internal constructor(internal val screenId: String): Action()
     public object CloseCurrentScreen: Action()

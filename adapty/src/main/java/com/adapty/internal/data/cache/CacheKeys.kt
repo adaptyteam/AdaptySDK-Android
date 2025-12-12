@@ -33,6 +33,8 @@ package com.adapty.internal.data.cache
 @JvmSynthetic internal const val PURCHASES_HAVE_BEEN_SYNCED = "PURCHASES_HAVE_BEEN_SYNCED"
 @JvmSynthetic internal const val SESSION_ID = "SESSION_ID"
 @JvmSynthetic internal const val APP_OPENED_TIME = "APP_OPENED_TIME"
+@JvmSynthetic internal const val WEB_PAYWALL_OPENED_TIME = "WEB_PAYWALL_OPENED_TIME"
+@JvmSynthetic internal const val WEB_PAYWALL_PROFILE_REFRESH_START_TIME = "WEB_PAYWALL_PROFILE_REFRESH_START_TIME"
 @JvmSynthetic internal const val CROSSPLACEMENT_INFO_REQUESTED_TIME = "CROSSPLACEMENT_INFO_REQUESTED_TIME"
 @JvmSynthetic internal const val APP_KEY = "APP_KEY"
 @JvmSynthetic internal const val PAYWALL_RESPONSE_START_PART = "get_paywall_"

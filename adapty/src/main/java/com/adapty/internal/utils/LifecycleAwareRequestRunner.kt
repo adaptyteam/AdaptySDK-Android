@@ -14,7 +14,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.onEach
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -33,6 +32,10 @@ internal class LifecycleAwareRequestRunner(
     private val APP_OPENED_EVENT_MIN_INTERVAL = 60_000L
 
     private val CROSSPLACEMENT_INFO_REQUEST_MIN_INTERVAL = 60_000L
+
+    private val WEB_PAYWALL_OPENED_MAX_DURATION = 20 * 60 * 1000L
+    private val WEB_PAYWALL_FREQUENT_REFRESH_DURATION = 5 * 60 * 1000L
+    private val WEB_PAYWALL_FREQUENT_REFRESH_INTERVAL = 3000L
 
     private var scheduleGetProfileJob: Job? = null
 
@@ -64,7 +67,21 @@ internal class LifecycleAwareRequestRunner(
             handleRequestCrossPlacementInfo()
             handleRegisterInstall()
             handleSyncUnsyncedValidateData()
+            updateWebPaywallProfileRefreshStartTimeIfNeeded()
+
             scheduleGetProfileRequest(initialDelayMillis = 0)
+        }
+    }
+
+    private fun updateWebPaywallProfileRefreshStartTimeIfNeeded() {
+        val now = System.currentTimeMillis()
+        val openedTime = cacheRepository.getLastWebPaywallOpenedTime()
+
+        if (openedTime > 0 && now - openedTime < WEB_PAYWALL_OPENED_MAX_DURATION) {
+            val startTime = cacheRepository.getLastWebPaywallProfileRefreshStartTime()
+            if (startTime == 0L || startTime < openedTime) {
+                cacheRepository.saveLastWebPaywallProfileRefreshStartTime(now)
+            }
         }
     }
 
@@ -128,26 +145,38 @@ internal class LifecycleAwareRequestRunner(
 
     private fun scheduleGetProfileRequest(initialDelayMillis: Long) {
         execute {
-            runPeriodically(initialDelayMillis) {
+            runPeriodically(initialDelayMillis, ::getProfileRefreshDelay) {
                 profileInteractor
                     .getProfile(INFINITE_RETRY)
             }
         }.also { scheduleGetProfileJob = it }
     }
 
+    private fun getProfileRefreshDelay(): Long {
+        val now = System.currentTimeMillis()
+        val openedTime = cacheRepository.getLastWebPaywallOpenedTime()
+
+        if (openedTime > 0 && now - openedTime < WEB_PAYWALL_OPENED_MAX_DURATION) {
+            val startTime = cacheRepository.getLastWebPaywallProfileRefreshStartTime()
+            if (startTime > openedTime && now - startTime < WEB_PAYWALL_FREQUENT_REFRESH_DURATION) {
+                return WEB_PAYWALL_FREQUENT_REFRESH_INTERVAL
+            }
+        }
+        return PERIODIC_REQUEST_INTERVAL
+    }
+
     private suspend fun runPeriodically(
         initialDelayMillis: Long,
-        delayMillis: Long = PERIODIC_REQUEST_INTERVAL,
+        delayMillisProvider: () -> Long,
         call: () -> Flow<*>
     ) {
         if (initialDelayMillis > 0)
             delay(initialDelayMillis)
-        call()
-            .onEach {
-                delay(delayMillis)
-                runPeriodically(0, delayMillis, call)
-            }
-            .catch { }
-            .collect()
+        while (true) {
+            call()
+                .catch { }
+                .collect()
+            delay(delayMillisProvider())
+        }
     }
 }

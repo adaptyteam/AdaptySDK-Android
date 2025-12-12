@@ -11,6 +11,10 @@ import com.adapty.ui.internal.ui.attributes.toComposeShape
 import com.adapty.ui.internal.ui.clickIndication
 import com.adapty.ui.internal.utils.EventCallback
 import com.adapty.ui.internal.utils.handleInitialProductSelection
+import com.adapty.ui.internal.ui.rememberOpacityProvider
+import androidx.compose.runtime.CompositionLocalProvider
+import com.adapty.ui.internal.ui.ClearCompositionLocalProvider
+import com.adapty.ui.internal.ui.LocalOpacityProvider
 import com.adapty.ui.internal.utils.getProductGroupKey
 
 @InternalAdaptyApi
@@ -56,21 +60,27 @@ public class ButtonElement internal constructor(
         }
         val shape = item.baseProps.shape?.type?.toComposeShape()
         val actionsResolved = actions.mapNotNull { action -> action.resolve(resolveText) }
-        Box(
-            modifier
-                .clickable(
-                    indication = shape?.let { clickIndication() },
-                    interactionSource = remember { MutableInteractionSource() },
-                ) {
-                    eventCallback.onActions(actionsResolved)
+        val opacityProvider = rememberOpacityProvider(baseProps)
+        CompositionLocalProvider(LocalOpacityProvider provides opacityProvider) {
+            Box(
+                modifier
+                    .clickable(
+                        indication = shape?.let { clickIndication() },
+                        interactionSource = remember { MutableInteractionSource() },
+                        enabled = opacityProvider.alpha.value > 0f,
+                    ) {
+                        eventCallback.onActions(actionsResolved)
+                    }
+            ) {
+                ClearCompositionLocalProvider(LocalOpacityProvider) {
+                    item.render(
+                        resolveAssets,
+                        resolveText,
+                        resolveState,
+                        eventCallback,
+                    )
                 }
-        ) {
-            item.render(
-                resolveAssets,
-                resolveText,
-                resolveState,
-                eventCallback,
-            )
+            }
         }
     }
 }

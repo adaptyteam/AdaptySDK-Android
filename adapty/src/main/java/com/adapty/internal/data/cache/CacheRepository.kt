@@ -281,6 +281,22 @@ internal class CacheRepository(
     }
 
     @JvmSynthetic
+    fun getLastWebPaywallOpenedTime() = cache[WEB_PAYWALL_OPENED_TIME] as? Long ?: 0L
+
+    @JvmSynthetic
+    fun saveLastWebPaywallOpenedTime(timeMillis: Long) {
+        cache[WEB_PAYWALL_OPENED_TIME] = timeMillis
+    }
+
+    @JvmSynthetic
+    fun getLastWebPaywallProfileRefreshStartTime() = cache[WEB_PAYWALL_PROFILE_REFRESH_START_TIME] as? Long ?: 0L
+
+    @JvmSynthetic
+    fun saveLastWebPaywallProfileRefreshStartTime(timeMillis: Long) {
+        cache[WEB_PAYWALL_PROFILE_REFRESH_START_TIME] = timeMillis
+    }
+
+    @JvmSynthetic
     fun getLastRequestedCrossPlacementInfoTime() =
         cache.safeGetOrPut(
             CROSSPLACEMENT_INFO_REQUESTED_TIME,

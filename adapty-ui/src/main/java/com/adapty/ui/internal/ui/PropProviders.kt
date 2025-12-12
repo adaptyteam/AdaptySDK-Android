@@ -310,3 +310,5 @@ internal fun rememberShadowProvider(baseProps: BaseProps, resolveAssets: Resolve
     val offset = rememberAnimatedValue(baseProps.shadowOffsetBehaviour(), OffsetVectorConverter)
     return ShadowProvider(color, blurRadius, offset)
 }
+
+internal val LocalOpacityProvider = androidx.compose.runtime.compositionLocalOf<OpacityProvider?> { null }

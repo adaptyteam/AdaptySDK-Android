@@ -33,6 +33,7 @@ public class AdaptyPaywallProduct internal constructor(
     public val price: Price,
     public val subscriptionDetails: AdaptyProductSubscriptionDetails?,
     public val productDetails: ProductDetails,
+    @get:JvmSynthetic internal val webPurchaseUrl: String?,
     @get:JvmSynthetic internal val payloadData: Payload,
 ) {
 

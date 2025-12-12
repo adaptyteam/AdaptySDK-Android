@@ -2,7 +2,7 @@ package com.adapty.models
 
 public sealed class AdaptyPlacementFetchPolicy {
 
-    public class ReloadRevalidatingCacheData private constructor(): AdaptyPlacementFetchPolicy() {
+    internal class ReloadRevalidatingCacheData private constructor(): AdaptyPlacementFetchPolicy() {
 
         internal companion object {
             fun create() = ReloadRevalidatingCacheData()
@@ -13,7 +13,7 @@ public sealed class AdaptyPlacementFetchPolicy {
         }
     }
 
-    public class ReturnCacheDataElseLoad private constructor(): AdaptyPlacementFetchPolicy() {
+    internal class ReturnCacheDataElseLoad private constructor(): AdaptyPlacementFetchPolicy() {
 
         internal companion object {
             fun create() = ReturnCacheDataElseLoad()
@@ -24,7 +24,7 @@ public sealed class AdaptyPlacementFetchPolicy {
         }
     }
 
-    public class ReturnCacheDataIfNotExpiredElseLoad private constructor(public val maxAgeMillis: Long) : AdaptyPlacementFetchPolicy() {
+    internal class ReturnCacheDataIfNotExpiredElseLoad private constructor(public val maxAgeMillis: Long) : AdaptyPlacementFetchPolicy() {
 
         internal companion object {
             fun create(maxAgeMillis: Long) = ReturnCacheDataIfNotExpiredElseLoad(maxAgeMillis)

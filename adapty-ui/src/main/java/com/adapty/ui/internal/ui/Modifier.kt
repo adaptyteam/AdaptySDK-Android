@@ -70,7 +70,7 @@ public fun Modifier.fillWithBaseParams(element: UIElement, resolveAssets: Resolv
     val rotationProvider = rememberRotationProvider(element.baseProps)
     val scaleProvider = rememberScaleProvider(element.baseProps)
     val offsetProvider = rememberOffsetProvider(element.baseProps)
-    val opacityProvider = rememberOpacityProvider(element.baseProps)
+    val opacityProvider = LocalOpacityProvider.current ?: rememberOpacityProvider(element.baseProps)
     val boxProvider = rememberBoxProvider(element.baseProps)
     val shadowProvider = rememberShadowProvider(element.baseProps, resolveAssets)
 

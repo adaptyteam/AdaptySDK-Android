@@ -19,6 +19,8 @@ import com.adapty.internal.domain.PaywallInteractor
 import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.domain.PurchasesInteractor
 import com.adapty.internal.domain.UserAcquisitionInteractor
+import com.adapty.internal.data.cloud.BrowserLauncher
+import com.adapty.internal.utils.WebPaywallUrlCreator
 import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyConfig
 import com.google.gson.*
@@ -289,10 +291,6 @@ public object Dependencies {
                         injectInternal(named = VALIDATE_DATA),
                         config.serverCluster,
                     )
-                }),
-
-                CacheRepositoryProxy::class to singleVariantDiObject({
-                    CacheRepositoryProxy(injectInternal())
                 }),
 
                 RequestBlockingManager::class to singleVariantDiObject({
@@ -605,6 +603,8 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
                         config.allowLocalPAL,
                     )
                 }),
@@ -678,6 +678,14 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                     )
+                }),
+
+                BrowserLauncher::class to singleVariantDiObject({
+                    BrowserLauncher()
+                }),
+
+                WebPaywallUrlCreator::class to singleVariantDiObject({
+                    WebPaywallUrlCreator(injectInternal())
                 }),
 
                 AdaptyInternal::class to singleVariantDiObject({

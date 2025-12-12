@@ -5,6 +5,7 @@ package com.adapty.ui.internal.mapping.attributes
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.adaptyError
+import com.adapty.models.AdaptyWebPresentation
 import com.adapty.ui.internal.ui.element.Action
 import com.adapty.ui.internal.ui.element.Condition
 import com.adapty.ui.internal.utils.DEFAULT_PRODUCT_GROUP
@@ -34,13 +35,9 @@ internal class InteractiveAttributeMapper {
                         message = "Couldn't find 'product_id' for a 'select_product' action",
                         adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                     )
-                val groupId = (item["group_id"] as? String) ?: DEFAULT_PRODUCT_GROUP
-                Action.SelectProduct(productId, groupId)
+                Action.SelectProduct(productId, mapGroupId(item))
             }
-            "unselect_product" -> {
-                val groupId = (item["group_id"] as? String) ?: DEFAULT_PRODUCT_GROUP
-                Action.UnselectProduct(groupId)
-            }
+            "unselect_product" -> Action.UnselectProduct(mapGroupId(item))
             "purchase_product" -> {
                 val productId = (item["product_id"] as? String)
                     ?: throw adaptyError(
@@ -49,9 +46,23 @@ internal class InteractiveAttributeMapper {
                     )
                 Action.PurchaseProduct(productId)
             }
-            "purchase_selected_product" -> {
-                val groupId = (item["group_id"] as? String) ?: DEFAULT_PRODUCT_GROUP
-                Action.PurchaseSelectedProduct(groupId)
+            "web_purchase_product" -> {
+                val productId = (item["product_id"] as? String)
+                    ?: throw adaptyError(
+                        message = "Couldn't find 'product_id' for a 'web_purchase_product' action",
+                        adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
+                    )
+                val presentation = mapWebPurchasePresentation(item["open_in"])
+                Action.WebPurchaseProduct(productId, presentation)
+            }
+            "web_purchase_paywall" -> {
+                val presentation = mapWebPurchasePresentation(item["open_in"])
+                Action.WebPurchasePaywall(presentation)
+            }
+            "purchase_selected_product" -> Action.PurchaseSelectedProduct(mapGroupId(item))
+            "web_purchase_selected_product" -> {
+                val presentation = mapWebPurchasePresentation(item["open_in"])
+                Action.WebPurchaseSelectedProduct(mapGroupId(item), presentation)
             }
             "restore" -> Action.RestorePurchases
             "open_screen" -> {
@@ -102,10 +113,18 @@ internal class InteractiveAttributeMapper {
                         message = "Couldn't find 'product_id' for a 'selected_product' condition",
                         adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                     )
-                val groupId = (item["group_id"] as? String) ?: DEFAULT_PRODUCT_GROUP
-                Condition.SelectedProduct(productId, groupId)
+                Condition.SelectedProduct(productId, mapGroupId(item))
             }
             else -> Condition.Unknown
         }
     }
+
+    private fun mapGroupId(item: Map<*, *>) =
+        (item["group_id"] as? String) ?: DEFAULT_PRODUCT_GROUP
+
+    private fun mapWebPurchasePresentation(item: Any?) =
+        when(item) {
+            "browser_in_app" -> AdaptyWebPresentation.Companion.InAppBrowser
+            else -> AdaptyWebPresentation.Companion.ExternalBrowser
+        }
 }

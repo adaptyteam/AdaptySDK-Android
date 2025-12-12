@@ -7,6 +7,7 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.AdaptyInternal
@@ -464,6 +465,61 @@ public object Adapty {
         Logger.log(VERBOSE) { "logout()" }
         if (!checkActivated(callback)) return
         adaptyInternal.logout(callback)
+    }
+
+
+    @JvmStatic
+    public fun createWebPaywallUrl(
+        paywall: AdaptyPaywall,
+        callback: ResultCallback<Uri>,
+    ) {
+        Logger.log(VERBOSE) { "createWebPaywallUrl(variationId = ${paywall.variationId})" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.createWebPaywallUrl(paywall, callback)
+    }
+
+    @JvmStatic
+    public fun createWebPaywallUrl(
+        product: AdaptyPaywallProduct,
+        callback: ResultCallback<Uri>,
+    ) {
+        Logger.log(VERBOSE) { "createWebPaywallUrl(variationId = ${product.variationId})" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.createWebPaywallUrl(product, callback)
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    public fun openWebPaywall(
+        activity: Activity,
+        paywall: AdaptyPaywall,
+        presentation: AdaptyWebPresentation = AdaptyWebPresentation.ExternalBrowser,
+        callback: ErrorCallback,
+    ) {
+        Logger.log(VERBOSE) { "openWebPaywall(variationId = ${paywall.variationId}, presentation = $presentation)" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.openWebPaywall(activity, paywall, presentation, callback)
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    public fun openWebPaywall(
+        activity: Activity,
+        product: AdaptyPaywallProduct,
+        presentation: AdaptyWebPresentation = AdaptyWebPresentation.ExternalBrowser,
+        callback: ErrorCallback,
+    ) {
+        Logger.log(VERBOSE) { "openWebPaywall(variationId = ${product.variationId}, presentation = $presentation)" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.openWebPaywall(activity, product, presentation, callback)
     }
 
     /**

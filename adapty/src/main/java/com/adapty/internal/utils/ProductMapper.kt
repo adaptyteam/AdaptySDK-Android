@@ -162,6 +162,7 @@ internal class ProductMapper(
             ),
             subscriptionDetails = subscriptionDetails,
             productDetails = productDetails,
+            webPurchaseUrl = paywall.webPurchaseUrl,
             payloadData = AdaptyPaywallProduct.Payload(
                 priceAmountMicros,
                 currencyCode,

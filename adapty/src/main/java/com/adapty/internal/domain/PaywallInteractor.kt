@@ -8,8 +8,10 @@ import com.adapty.errors.AdaptyErrorCode
 import com.adapty.errors.AdaptyErrorCode.NO_PRODUCT_IDS_FOUND
 import com.adapty.errors.AdaptyErrorCode.WRONG_PARAMETER
 import com.adapty.internal.data.cache.CacheRepository
+import com.adapty.internal.data.cloud.BrowserLauncher
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.StoreManager
+import com.adapty.internal.utils.WebPaywallUrlCreator
 import com.adapty.internal.data.models.PaywallDto
 import com.adapty.internal.domain.models.BackendProduct
 import com.adapty.internal.utils.DEFAULT_RETRY_COUNT
@@ -27,6 +29,7 @@ import com.adapty.internal.utils.timeout
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyPlacementFetchPolicy
+import com.adapty.models.AdaptyWebPresentation
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.FileLocation
 import com.android.billingclient.api.ProductDetails
@@ -38,6 +41,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import java.io.IOException
+import android.app.Activity
+import android.net.Uri
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class PaywallInteractor(
@@ -49,6 +54,8 @@ internal class PaywallInteractor(
     private val storeManager: StoreManager,
     private val paywallMapper: PaywallMapper,
     private val productMapper: ProductMapper,
+    private val webPaywallUrlCreator: WebPaywallUrlCreator,
+    private val browserLauncher: BrowserLauncher,
     private val allowLocalPAL: Boolean,
 ) {
 
@@ -176,5 +183,27 @@ internal class PaywallInteractor(
             message = message,
             adaptyErrorCode = NO_PRODUCT_IDS_FOUND
         )
+    }
+
+    @JvmSynthetic
+    fun createWebPaywallUrl(paywall: AdaptyPaywall): Uri =
+        webPaywallUrlCreator.create(paywall)
+
+    @JvmSynthetic
+    fun createWebPaywallUrl(product: AdaptyPaywallProduct): Uri =
+        webPaywallUrlCreator.create(product)
+
+    @JvmSynthetic
+    fun openWebPaywall(activity: Activity, paywall: AdaptyPaywall, presentation: AdaptyWebPresentation) {
+        val url = webPaywallUrlCreator.create(paywall)
+        cacheRepository.saveLastWebPaywallOpenedTime(System.currentTimeMillis())
+        browserLauncher.openUrl(activity, url, presentation)
+    }
+
+    @JvmSynthetic
+    fun openWebPaywall(activity: Activity, product: AdaptyPaywallProduct, presentation: AdaptyWebPresentation) {
+        val url = webPaywallUrlCreator.create(product)
+        cacheRepository.saveLastWebPaywallOpenedTime(System.currentTimeMillis())
+        browserLauncher.openUrl(activity, url, presentation)
     }
 }

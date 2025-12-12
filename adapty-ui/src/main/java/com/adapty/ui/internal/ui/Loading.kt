@@ -4,7 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.runtime.Composable
@@ -34,7 +34,7 @@ internal fun Loading(modifier: Modifier = Modifier) {
         }
 
         CircularProgressIndicator(
-            modifier = Modifier.width(LOADING_SIZE.dp),
+            modifier = Modifier.size(LOADING_SIZE.dp),
             color = circularColor ?: ProgressIndicatorDefaults.circularColor,
         )
     }

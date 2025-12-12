@@ -1,4 +1,5 @@
 @file:OptIn(InternalAdaptyApi::class)
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.ui
 
@@ -218,13 +219,26 @@ private fun createEventCallback(
                     is Action.PurchaseProduct -> {
                         val activity = localContext.getActivityOrNull() ?: return
                         val product = viewModel.products[action.productId] ?: return
+                        viewModel.onPurchaseInitiated(activity, product, this, observerModeHandler)
+                    }
+                    is Action.WebPurchaseProduct -> {
+                        val activity = localContext.getActivityOrNull() ?: return
+                        val product = viewModel.products[action.productId] ?: return
 
-                        viewModel.onPurchaseInitiated(
+                        viewModel.onWebPurchaseInitiated(
                             activity,
+                            action.presentation,
                             viewConfig.paywall,
                             product,
-                            this,
-                            observerModeHandler,
+                        )
+                    }
+                    is Action.WebPurchasePaywall -> {
+                        val activity = localContext.getActivityOrNull() ?: return
+
+                        viewModel.onWebPurchaseInitiated(
+                            activity,
+                            action.presentation,
+                            viewConfig.paywall,
                         )
                     }
                     is Action.PurchaseSelectedProduct -> {
@@ -233,19 +247,28 @@ private fun createEventCallback(
                         val product = viewModel.state[productGroupKey]?.let { id ->
                             viewModel.products[id]
                         } ?: return
+                        viewModel.onPurchaseInitiated(activity, product, this, observerModeHandler)
+                    }
+                    is Action.WebPurchaseSelectedProduct -> {
+                        val activity = localContext.getActivityOrNull() ?: return
+                        val productGroupKey = getProductGroupKey(action.groupId)
+                        val product = viewModel.state[productGroupKey]?.let { id ->
+                            viewModel.products[id]
+                        } ?: return
 
-                        viewModel.onPurchaseInitiated(
+                        viewModel.onWebPurchaseInitiated(
                             activity,
+                            action.presentation,
                             viewConfig.paywall,
                             product,
-                            this,
-                            observerModeHandler,
                         )
                     }
                     is Action.ClosePaywall -> eventListener.onActionPerformed(AdaptyUI.Action.Close, localContext)
                     is Action.Custom -> eventListener.onActionPerformed(AdaptyUI.Action.Custom(action.customId), localContext)
                     is Action.OpenUrl -> eventListener.onActionPerformed(AdaptyUI.Action.OpenUrl(action.url), localContext)
-                    is Action.RestorePurchases -> viewModel.onRestorePurchases(this)
+                    is Action.RestorePurchases -> {
+                        viewModel.onRestorePurchases(this, observerModeHandler)
+                    }
                     is Action.OpenScreen -> viewModel.state[OPENED_ADDITIONAL_SCREEN_KEY] = action.screenId
                     is Action.CloseCurrentScreen -> {
                         scope.launch {

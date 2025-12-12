@@ -2,7 +2,6 @@ package com.adapty.internal.utils
 
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.domain.models.BackendProduct
 import com.adapty.models.AdaptyPaywall
 import com.adapty.utils.AdaptyLogLevel
@@ -76,16 +75,3 @@ public fun extractProducts(paywall: AdaptyPaywall): List<BackendProduct> = paywa
 @JvmSynthetic @InternalAdaptyApi
 public fun errorCodeFromNetwork(responseCode: Int): AdaptyErrorCode =
     AdaptyErrorCode.fromNetwork(responseCode)
-
-/**
- * @suppress
- */
-@InternalAdaptyApi
-public class CacheRepositoryProxy internal constructor(private val cacheRepository: CacheRepository) {
-    public fun setLongValue(key: String, value: Long, isPersisted: Boolean) {
-        cacheRepository.setLongValue(key, value, isPersisted)
-    }
-    public fun getLongValue(key: String, isPersisted: Boolean): Long? {
-        return cacheRepository.getLongValue(key, isPersisted)
-    }
-}

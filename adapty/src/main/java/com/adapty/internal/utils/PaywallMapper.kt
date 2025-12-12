@@ -22,6 +22,7 @@ internal class PaywallMapper(
         id = paywallDto.id,
         snapshotAt = paywallDto.snapshotAt,
         viewConfig = paywallDto.paywallBuilder,
+        webPurchaseUrl = paywallDto.webPurchaseUrl,
         requestedLocale = requestedLocale,
         placement = placementMapper.map(paywallDto.placement),
     )

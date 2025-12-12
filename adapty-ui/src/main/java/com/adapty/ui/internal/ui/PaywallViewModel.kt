@@ -1,4 +1,5 @@
 @file:OptIn(InternalAdaptyApi::class)
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.ui
 
@@ -15,12 +16,14 @@ import com.adapty.internal.di.DIObject
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.di.Dependencies.OBSERVER_MODE
 import com.adapty.internal.domain.models.ProductType
-import com.adapty.internal.utils.CacheRepositoryProxy
+import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.PriceFormatter
 import com.adapty.internal.utils.extractProducts
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.models.AdaptyWebPresentation
+import com.adapty.utils.ErrorCallback
 import com.adapty.ui.AdaptyCustomAssets
 import com.adapty.ui.AdaptyCustomColorAsset
 import com.adapty.ui.AdaptyCustomFontAsset
@@ -62,7 +65,7 @@ internal class PaywallViewModel(
     private val flowKey: String,
     private val isObserverMode: Boolean,
     private val mediaFetchService: MediaFetchService,
-    private val cacheRepository: CacheRepositoryProxy,
+    private val cacheRepository: CacheRepository,
     private val textResolver: TextResolver,
     args: UserArgs?,
 ) : ViewModel() {
@@ -364,7 +367,6 @@ internal class PaywallViewModel(
 
     fun onPurchaseInitiated(
         activity: Activity,
-        paywall: AdaptyPaywall,
         product: AdaptyPaywallProduct,
         eventListener: EventCallback,
         observerModeHandler: AdaptyUiObserverModeHandler?,
@@ -378,8 +380,6 @@ internal class PaywallViewModel(
                 log(VERBOSE) { "$LOG_PREFIX $flowKey observerModeHandler: onPurchaseInitiated begin" }
                 observerModeHandler.onPurchaseInitiated(
                     product,
-                    paywall,
-                    activity,
                     {
                         log(VERBOSE) { "$LOG_PREFIX $flowKey observerModeHandler: onStartPurchase called" }
                         toggleLoading(true)
@@ -395,6 +395,29 @@ internal class PaywallViewModel(
             }
         }
     }
+
+    fun onWebPurchaseInitiated(
+        activity: Activity,
+        presentation: AdaptyWebPresentation,
+        paywall: AdaptyPaywall,
+        product: AdaptyPaywallProduct? = null,
+    ) {
+        log(VERBOSE) { "$LOG_PREFIX $flowKey onWebPurchaseInitiated" }
+        val callback = ErrorCallback { error ->
+            if (error != null) {
+                log(ERROR) { "$LOG_PREFIX_ERROR $flowKey openWebPaywall error: ${error.message}" }
+            } else {
+                log(VERBOSE) { "$LOG_PREFIX $flowKey openWebPaywall success" }
+            }
+        }
+
+        if (product != null) {
+            Adapty.openWebPaywall(activity, product, presentation, callback)
+        } else {
+            Adapty.openWebPaywall(activity, paywall, presentation, callback)
+        }
+    }
+
 
     private fun performMakePurchase(
         activity: Activity,
@@ -431,7 +454,36 @@ internal class PaywallViewModel(
         }
     }
 
-    fun onRestorePurchases(eventListener: EventCallback) {
+    fun onRestorePurchases(
+        eventListener: EventCallback,
+        observerModeHandler: AdaptyUiObserverModeHandler?,
+    ) {
+        if (!isObserverMode) {
+            if (observerModeHandler != null)
+                log(WARN) { "$LOG_PREFIX $flowKey You should not pass observerModeHandler if you're using Adapty in Full Mode" }
+            performRestorePurchases(eventListener)
+        } else {
+            val restoreHandler = observerModeHandler?.getRestoreHandler()
+            if (restoreHandler != null) {
+                log(VERBOSE) { "$LOG_PREFIX $flowKey observerModeHandler: onRestoreInitiated begin" }
+                restoreHandler.onRestoreInitiated(
+                    {
+                        log(VERBOSE) { "$LOG_PREFIX $flowKey observerModeHandler: onStartRestore called" }
+                        toggleLoading(true)
+                    },
+                    {
+                        log(VERBOSE) { "$LOG_PREFIX $flowKey observerModeHandler: onFinishRestore called" }
+                        toggleLoading(false)
+                    },
+                )
+            } else {
+                log(VERBOSE) { "$LOG_PREFIX $flowKey To handle restore manually in Observer Mode, implement getRestoreHandler() in observerModeHandler" }
+                performRestorePurchases(eventListener)
+            }
+        }
+    }
+
+    private fun performRestorePurchases(eventListener: EventCallback) {
         toggleLoading(true)
         log(VERBOSE) { "$LOG_PREFIX $flowKey restorePurchases begin" }
         eventListener.onRestoreStarted()
@@ -546,7 +598,7 @@ internal class PaywallViewModelArgs(
     val flowKey: String,
     val isObserverMode: Boolean,
     val mediaFetchService: MediaFetchService,
-    val cacheRepository: CacheRepositoryProxy,
+    val cacheRepository: CacheRepository,
     val textResolver: TextResolver,
     val userArgs: UserArgs?,
 ) {
@@ -558,7 +610,7 @@ internal class PaywallViewModelArgs(
         ) =
             runCatching {
                 val mediaFetchService = Dependencies.injectInternal<MediaFetchService>()
-                val cacheRepository = Dependencies.injectInternal<CacheRepositoryProxy>()
+                val cacheRepository = Dependencies.injectInternal<CacheRepository>()
                 val isObserverMode = Dependencies.injectInternal<Boolean>(OBSERVER_MODE)
                 val priceFormatter = Dependencies.injectInternal<PriceFormatter>(locale.toString()) {
                     DIObject({ PriceFormatter(locale) })

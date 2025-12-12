@@ -17,6 +17,8 @@ internal class PaywallDto(
     weight: Int,
     @SerializedName("paywall_builder")
     val paywallBuilder: Map<String, Any>?,
+    @SerializedName("web_purchase_url")
+    val webPurchaseUrl: String?,
     crossPlacementInfo: CrossPlacementInfo?,
     snapshotAt: Long,
 ): Variation(variationId, placement, remoteConfig, weight, crossPlacementInfo, snapshotAt)
