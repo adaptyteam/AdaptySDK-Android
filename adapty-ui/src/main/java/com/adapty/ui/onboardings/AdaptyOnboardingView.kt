@@ -1,17 +1,21 @@
 @file:OptIn(InternalAdaptyApi::class)
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.onboardings
 
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
+import android.net.Uri
 import android.net.http.SslError
+import android.os.Message
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.SslErrorHandler
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -25,8 +29,10 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
+import com.adapty.internal.data.cloud.BrowserLauncher
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.models.AdaptyWebPresentation
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.getActivityOrNull
@@ -46,6 +52,7 @@ import com.adapty.ui.onboardings.internal.util.toLog
 import com.adapty.ui.onboardings.listeners.AdaptyOnboardingEventListener
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -71,6 +78,12 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
 
     private val pendingActions: Queue<() -> Unit> = ArrayDeque()
 
+    private val browserLauncher: BrowserLauncher by lazy {
+        withAdaptyUIActivated {
+            Dependencies.injectInternal<BrowserLauncher>()
+        }
+    }
+
     private val viewModel: OnboardingViewModel? by lazy {
         val viewModelStoreOwner = findViewTreeViewModelStoreOwner()
             ?: run {
@@ -94,6 +107,7 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = false
+            settings.setSupportMultipleWindows(true)
             isFocusableInTouchMode = true
 
             addJavascriptInterface(object {
@@ -120,6 +134,64 @@ public class AdaptyOnboardingView @JvmOverloads constructor(
                 override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
                     log(ERROR) { "$LOG_PREFIX_ERROR onReceivedSslError: ${error.toLog()})" }
                     withViewModel { it.emitError(AdaptyOnboardingError.WebKit.Ssl(error)) }
+                }
+            }
+
+            webChromeClient = object : WebChromeClient() {
+                override fun onCreateWindow(
+                    view: WebView?,
+                    isDialog: Boolean,
+                    isUserGesture: Boolean,
+                    resultMsg: Message?
+                ): Boolean {
+                    if (isUserGesture) {
+                        val url = view?.hitTestResult?.extra
+                        if (url != null) {
+                            if (url.contains("://")) {
+                                openExternalUrl(url)
+                            } else {
+                                view.loadUrl(url)
+                            }
+                            return false
+                        }
+                    }
+
+                    val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
+                    val mainWebView = view
+                    val tempWebView = WebView(context).apply {
+                        webViewClient = object : WebViewClient() {
+                            override fun shouldOverrideUrlLoading(
+                                view: WebView?,
+                                request: WebResourceRequest?
+                            ): Boolean {
+                                val url = request?.url?.toString()
+                                if (url != null) {
+                                    if (isUserGesture && url.contains("://")) {
+                                        openExternalUrl(url)
+                                    } else {
+                                        mainWebView?.loadUrl(url)
+                                    }
+                                }
+                                view?.destroy()
+                                return true
+                            }
+                        }
+                    }
+                    transport.webView = tempWebView
+                    resultMsg.sendToTarget()
+                    return true
+                }
+
+                private fun openExternalUrl(url: String) {
+                    val uri = runCatching { Uri.parse(url) }.getOrNull() ?: run {
+                        log(WARN) { "$LOG_PREFIX couldn't parse url: $url" }
+                        return
+                    }
+                    withViewModel { vm ->
+                        val presentation = vm.onboardingConfig?.externalUrlsPresentation
+                            ?: AdaptyWebPresentation.InAppBrowser
+                        browserLauncher.openUrl(context, uri, presentation)
+                    }
                 }
             }
         }

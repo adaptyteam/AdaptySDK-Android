@@ -17,6 +17,7 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyOnboarding
 import com.adapty.models.AdaptyPaywall
 import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.models.AdaptyWebPresentation
 import com.adapty.ui.internal.cache.CacheCleanupService
 import com.adapty.ui.internal.cache.CacheFileManager
 import com.adapty.ui.internal.cache.MediaCacheConfigManager
@@ -186,8 +187,12 @@ public object AdaptyUI {
     }
 
     @JvmStatic
-    public fun getOnboardingConfiguration(onboarding: AdaptyOnboarding): AdaptyOnboardingConfiguration {
-        return AdaptyOnboardingConfiguration(onboarding)
+    @JvmOverloads
+    public fun getOnboardingConfiguration(
+        onboarding: AdaptyOnboarding,
+        externalUrlsPresentation: AdaptyWebPresentation = AdaptyWebPresentation.InAppBrowser,
+    ): AdaptyOnboardingConfiguration {
+        return AdaptyOnboardingConfiguration(onboarding, externalUrlsPresentation)
     }
 
     private fun preloadMedia(rawConfig: Map<String, Any>) {

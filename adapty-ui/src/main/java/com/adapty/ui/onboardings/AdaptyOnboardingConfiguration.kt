@@ -3,9 +3,11 @@
 package com.adapty.ui.onboardings
 
 import com.adapty.models.AdaptyOnboarding
+import com.adapty.models.AdaptyWebPresentation
 
 public class AdaptyOnboardingConfiguration internal constructor(
     @get:JvmSynthetic internal val onboarding: AdaptyOnboarding,
+    @get:JvmSynthetic internal val externalUrlsPresentation: AdaptyWebPresentation,
 ) {
     @get:JvmSynthetic
     internal val variationId: String get() = onboarding.variationId

@@ -10,6 +10,7 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.annotation.RestrictTo
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.concurrent.atomic.AtomicBoolean
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class ConnectivityHelper(
@@ -34,12 +35,18 @@ internal class ConnectivityHelper(
                 return@suspendCancellableCoroutine
             }
 
+            val isResumed = AtomicBoolean(false)
+
+            fun onNetworkAvailable(callback: ConnectivityManager.NetworkCallback) {
+                if (isResumed.compareAndSet(false, true)) {
+                    connectivityManager.unregisterNetworkCallbackQuietly(callback)
+                    continuation.resume(Unit) {}
+                }
+            }
+
             val callback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
-                    connectivityManager.unregisterNetworkCallbackQuietly(this)
-                    if (continuation.isActive) {
-                        continuation.resume(Unit) {}
-                    }
+                    onNetworkAvailable(this)
                 }
 
                 override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
@@ -47,18 +54,12 @@ internal class ConnectivityHelper(
                         val internetAvailable = networkCapabilities.isInternetAvailable()
 
                         if (internetAvailable) {
-                            connectivityManager.unregisterNetworkCallbackQuietly(this)
-                            if (continuation.isActive) {
-                                continuation.resume(Unit) {}
-                            }
+                            onNetworkAvailable(this)
                         }
                     } else {
                         val networkInfo = connectivityManager.getNetworkInfo(network)
                         if (networkInfo?.isConnected == true) {
-                            connectivityManager.unregisterNetworkCallbackQuietly(this)
-                            if (continuation.isActive) {
-                                continuation.resume(Unit) {}
-                            }
+                            onNetworkAvailable(this)
                         }
                     }
                 }
@@ -77,12 +78,16 @@ internal class ConnectivityHelper(
             runCatching {
                 connectivityManager.registerNetworkCallback(networkRequest, callback)
             }.onFailure {
-                continuation.resume(Unit) {}
+                if (isResumed.compareAndSet(false, true)) {
+                    continuation.resume(Unit) {}
+                }
                 return@suspendCancellableCoroutine
             }
 
             continuation.invokeOnCancellation {
-                connectivityManager.unregisterNetworkCallbackQuietly(callback)
+                if (isResumed.compareAndSet(false, true)) {
+                    connectivityManager.unregisterNetworkCallbackQuietly(callback)
+                }
             }
         }
 
