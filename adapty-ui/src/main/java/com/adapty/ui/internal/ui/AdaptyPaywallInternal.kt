@@ -230,6 +230,7 @@ private fun createEventCallback(
                             action.presentation,
                             viewConfig.paywall,
                             product,
+                            this,
                         )
                     }
                     is Action.WebPurchasePaywall -> {
@@ -239,6 +240,8 @@ private fun createEventCallback(
                             activity,
                             action.presentation,
                             viewConfig.paywall,
+                            null,
+                            this,
                         )
                     }
                     is Action.PurchaseSelectedProduct -> {
@@ -261,6 +264,7 @@ private fun createEventCallback(
                             action.presentation,
                             viewConfig.paywall,
                             product,
+                            this,
                         )
                     }
                     is Action.ClosePaywall -> eventListener.onActionPerformed(AdaptyUI.Action.Close, localContext)
@@ -338,6 +342,13 @@ private fun createEventCallback(
 
         override fun onPaywallClosed() {
             eventListener.onPaywallClosed()
+        }
+
+        override fun onFinishWebPaymentNavigation(
+            product: AdaptyPaywallProduct?,
+            error: AdaptyError?,
+        ) {
+            eventListener.onFinishWebPaymentNavigation(product, error, localContext)
         }
     }
 }

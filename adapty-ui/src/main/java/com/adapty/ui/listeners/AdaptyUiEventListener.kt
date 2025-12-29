@@ -57,6 +57,26 @@ public interface AdaptyUiEventListener {
     ): PurchaseParamsCallback.IveBeenInvoked
 
     /**
+     * This callback is invoked after attempting to navigate to the web payment url for a purchase.
+     *
+     * The [product] and [error] parameters can be in one of three states:
+     * - If the url was handled by a browser, and the web payment was for a specific product: [product] is not `null`, [error] is `null`.
+     * - If the url was handled by a browser, and the web payment was for a paywall without specifying a product: both [product] and [error] are `null`.
+     * - Otherwise: [product] is `null`, [error] is not `null`.
+     *
+     * @param[product] An [AdaptyPaywallProduct] associated with the web payment, or `null`.
+     *
+     * @param[error] An [AdaptyError] object representing the error, or `null`.
+     *
+     * @param[context] A UI [Context] within which the event occurred.
+     */
+    public fun onFinishWebPaymentNavigation(
+        product: AdaptyPaywallProduct?,
+        error: AdaptyError?,
+        context: Context,
+    )
+
+    /**
      * This callback is invoked in case of errors during the products loading process.
      *
      * @param[error] An [AdaptyError] object representing the error.

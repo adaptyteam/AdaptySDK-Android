@@ -2,7 +2,6 @@
 
 package com.adapty.ui.listeners
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -43,6 +42,12 @@ public open class AdaptyUiDefaultEventListener : AdaptyUiEventListener {
         onPurchaseParamsReceived(AdaptyPurchaseParameters.Empty)
         return AdaptyUiEventListener.PurchaseParamsCallback.IveBeenInvoked
     }
+
+    override fun onFinishWebPaymentNavigation(
+        product: AdaptyPaywallProduct?,
+        error: AdaptyError?,
+        context: Context,
+    ) {}
 
     override fun onLoadingProductsFailure(
         error: AdaptyError,

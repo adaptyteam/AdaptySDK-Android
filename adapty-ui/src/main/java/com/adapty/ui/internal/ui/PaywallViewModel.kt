@@ -400,14 +400,17 @@ internal class PaywallViewModel(
         activity: Activity,
         presentation: AdaptyWebPresentation,
         paywall: AdaptyPaywall,
-        product: AdaptyPaywallProduct? = null,
+        product: AdaptyPaywallProduct?,
+        eventListener: EventCallback,
     ) {
         log(VERBOSE) { "$LOG_PREFIX $flowKey onWebPurchaseInitiated" }
         val callback = ErrorCallback { error ->
             if (error != null) {
                 log(ERROR) { "$LOG_PREFIX_ERROR $flowKey openWebPaywall error: ${error.message}" }
+                eventListener.onFinishWebPaymentNavigation(null, error)
             } else {
                 log(VERBOSE) { "$LOG_PREFIX $flowKey openWebPaywall success" }
+                eventListener.onFinishWebPaymentNavigation(product, null)
             }
         }
 

@@ -33,4 +33,5 @@ public interface EventCallback {
     public fun timerEndAtDate(timerId: String): Date
     public fun onPaywallShown()
     public fun onPaywallClosed()
+    public fun onFinishWebPaymentNavigation(product: AdaptyPaywallProduct?, error: AdaptyError?)
 }
