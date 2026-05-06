@@ -52,8 +52,8 @@ internal class TextResolver(
                 val desiredProductId = stringId.productId?.takeIf { it.isNotEmpty() }
                     ?: state[getProductGroupKey(stringId.productGroupId)] as? String
                 val desiredLocalText = if (!desiredProductId.isNullOrEmpty()) {
-                    val product = products[desiredProductId] ?: return StringWrapper.EMPTY
-                    val paymentModeStr = when(product.firstDiscountOfferOrNull()?.paymentMode) {
+                    val product = products[desiredProductId]
+                    val paymentModeStr = when(product?.firstDiscountOfferOrNull()?.paymentMode) {
                         PaymentMode.FREE_TRIAL -> "free_trial"
                         PaymentMode.PAY_AS_YOU_GO -> "pay_as_you_go"
                         PaymentMode.PAY_UPFRONT -> "pay_up_front"
