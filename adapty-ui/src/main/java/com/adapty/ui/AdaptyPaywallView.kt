@@ -36,6 +36,8 @@ public class AdaptyPaywallView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : AbstractComposeView(context, attrs, defStyleAttr) {
 
+    private val instanceKey: String = UUID.randomUUID().toString()
+
     private val viewModel: PaywallViewModel? by lazy {
         val viewModelStoreOwner = findViewTreeViewModelStoreOwner()
             ?: run {
@@ -43,12 +45,12 @@ public class AdaptyPaywallView @JvmOverloads constructor(
                 return@lazy null
             }
         PaywallViewModelArgs.create(
-            "${UUID.randomUUID().toString().hashCode()}",
+            "${instanceKey.hashCode()}",
             null,
             context.getCurrentLocale(),
         )?.let { args ->
             val factory = PaywallViewModelFactory(args)
-            ViewModelProvider(viewModelStoreOwner, factory)[PaywallViewModel::class.java]
+            ViewModelProvider(viewModelStoreOwner, factory)[instanceKey, PaywallViewModel::class.java]
         }
     }
 
