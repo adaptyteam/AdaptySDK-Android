@@ -18,9 +18,14 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.sp
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.text.ComposeTextAttrs
@@ -28,6 +33,7 @@ import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.TextAlign
 import com.adapty.ui.internal.ui.attributes.toComposeTextAlign
+import com.adapty.ui.internal.utils.EventCallback
 
 @InternalAdaptyApi
 public abstract class BaseTextElement(
@@ -57,6 +63,8 @@ public abstract class BaseTextElement(
         onOverflow: OnOverflowMode?,
         modifier: Modifier,
         resolveAssets: ResolveAssets,
+        eventCallback: EventCallback,
+        resolveTextForActions: ResolveText,
         resolveText: @Composable () -> StringWrapper?,
     ) {
         val readyToDraw = remember {
@@ -72,32 +80,74 @@ public abstract class BaseTextElement(
                     mutableFloatStateOf(text.attrs?.fontSize ?: elementTextAttrs.fontSize ?: 14f)
                 }
                 val fontSizeSp = fontSize.floatValue.sp
-                Text(
-                    text = text.value,
-                    color = text.attrs?.textColor ?: elementTextAttrs.textColor ?: Color.Unspecified,
-                    maxLines = maxLines ?: Int.MAX_VALUE,
-                    fontFamily = text.attrs?.fontFamily ?: elementTextAttrs.fontFamily,
-                    fontSize = fontSizeSp,
-                    lineHeight = fontSizeSp,
-                    textDecoration = text.attrs?.textDecoration ?: elementTextAttrs.textDecoration,
-                    textAlign = textAlign.toComposeTextAlign(),
-                    onTextLayout = createOnTextLayoutCallback(onOverflow, fontSize, readyToDraw),
-                    overflow = TextOverflow.Ellipsis,
-                    style = LocalTextStyle.current.copy(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false),
-                    ),
-                    modifier = modifier
-                        .retainInitialHeight(initialHeightPxState)
-                        .textBackgroundOrSkip(
-                            text.attrs?.backgroundColor ?: elementTextAttrs.backgroundColor
-                        )
-                        .drawWithContent {
-                            if (readyToDraw.value) drawContent()
-                        },
-                )
+                val actionsResolved = text.actions.mapNotNull { it.resolve(resolveTextForActions) }
+                val textModifier = modifier
+                    .retainInitialHeight(initialHeightPxState)
+                    .textBackgroundOrSkip(
+                        text.attrs?.backgroundColor ?: elementTextAttrs.backgroundColor
+                    )
+                    .drawWithContent {
+                        if (readyToDraw.value) drawContent()
+                    }
+                if (actionsResolved.isNotEmpty()) {
+                    val spanStyle = SpanStyle(
+                        color = text.attrs?.textColor ?: elementTextAttrs.textColor ?: Color.Unspecified,
+                        fontSize = fontSizeSp,
+                        fontFamily = text.attrs?.fontFamily ?: elementTextAttrs.fontFamily,
+                        textDecoration = text.attrs?.textDecoration ?: elementTextAttrs.textDecoration,
+                    )
+                    val annotatedText = buildAnnotatedString {
+                        withLink(
+                            LinkAnnotation.Clickable(
+                                "action",
+                                TextLinkStyles(style = spanStyle),
+                            ) {
+                                eventCallback.onActions(actionsResolved)
+                            }
+                        ) {
+                            append(text.value)
+                        }
+                    }
+                    Text(
+                        text = annotatedText,
+                        maxLines = maxLines ?: Int.MAX_VALUE,
+                        lineHeight = fontSizeSp,
+                        textAlign = textAlign.toComposeTextAlign(),
+                        onTextLayout = createOnTextLayoutCallback(onOverflow, fontSize, readyToDraw),
+                        overflow = TextOverflow.Ellipsis,
+                        style = LocalTextStyle.current.copy(
+                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        ),
+                        modifier = textModifier,
+                    )
+                } else {
+                    Text(
+                        text = text.value,
+                        color = text.attrs?.textColor ?: elementTextAttrs.textColor ?: Color.Unspecified,
+                        maxLines = maxLines ?: Int.MAX_VALUE,
+                        fontFamily = text.attrs?.fontFamily ?: elementTextAttrs.fontFamily,
+                        fontSize = fontSizeSp,
+                        lineHeight = fontSizeSp,
+                        textDecoration = text.attrs?.textDecoration ?: elementTextAttrs.textDecoration,
+                        textAlign = textAlign.toComposeTextAlign(),
+                        onTextLayout = createOnTextLayoutCallback(onOverflow, fontSize, readyToDraw),
+                        overflow = TextOverflow.Ellipsis,
+                        style = LocalTextStyle.current.copy(
+                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        ),
+                        modifier = textModifier,
+                    )
+                }
             }
             is StringWrapper.ComplexStr -> {
-                val text = text.resolve()
+                val resolvedActionsByPart = buildMap {
+                    text.parts.forEachIndexed { index, part ->
+                        if (part !is StringWrapper.ComplexStr.ComplexStrPart.Text) return@forEachIndexed
+                        val resolved = part.str.actions.mapNotNull { it.resolve(resolveTextForActions) }
+                        if (resolved.isNotEmpty()) put(index, resolved)
+                    }
+                }
+                val text = text.resolve(resolvedActionsByPart) { actions -> eventCallback.onActions(actions) }
                 val elementTextAttrs = ComposeTextAttrs.from(textAttrs, resolveAssets())
                 val fontSize = remember {
                     mutableFloatStateOf(elementTextAttrs.fontSize ?: 14f)

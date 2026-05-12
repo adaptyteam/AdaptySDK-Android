@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyWebPresentation
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
@@ -112,7 +113,7 @@ public sealed class Condition {
 
 @InternalAdaptyApi
 public sealed class Action {
-    public class OpenUrl internal constructor(internal val url: String): Action()
+    public class OpenUrl internal constructor(internal val url: String, internal val presentation: AdaptyWebPresentation = AdaptyWebPresentation.Companion.ExternalBrowser): Action()
     public class Custom internal constructor(internal val customId: String): Action()
     public class SelectProduct internal constructor(internal val productId: String, internal val groupId: String): Action()
     public class UnselectProduct internal constructor(internal val groupId: String): Action()
@@ -132,12 +133,14 @@ public sealed class Action {
     internal fun resolve(resolveText: ResolveText): Action? {
         return when(this) {
             is OpenUrl -> {
+                if (kotlin.runCatching { url.toUri() }.getOrNull()?.scheme != null)
+                    return OpenUrl(url, presentation)
                 val actualUrl = kotlin.runCatching { url.toStringId() }.getOrElse { e ->
-                    log(ERROR) { "$LOG_PREFIX_ERROR couldn't extract value for${url}: ${e.localizedMessage})" }
+                    log(ERROR) { "$LOG_PREFIX_ERROR couldn't extract value for ${url}: ${e.localizedMessage})" }
                     null
                 }?.let { resolveText(it, null) }?.toPlainString()
-                return if (actualUrl != null)
-                    OpenUrl(actualUrl)
+                if (actualUrl != null)
+                    OpenUrl(actualUrl, presentation)
                 else {
                     log(ERROR) { "$LOG_PREFIX_ERROR couldn't find a string value for this id (${url})" }
                     null

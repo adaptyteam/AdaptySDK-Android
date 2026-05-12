@@ -31,6 +31,8 @@ public class TextElement internal constructor(
             onOverflow,
             modifier,
             resolveAssets,
+            eventCallback,
+            resolveText,
         ) {
             resolveText(stringId, attributes)
         }

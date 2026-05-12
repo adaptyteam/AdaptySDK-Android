@@ -19,7 +19,7 @@ internal class InteractiveAttributeMapper {
                         message = "Couldn't find 'url' for an 'open_url' action",
                         adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
                     )
-                Action.OpenUrl(url)
+                Action.OpenUrl(url, mapWebPurchasePresentation(item["open_in"]))
             }
             "custom" -> {
                 val customId = (item["custom_id"] as? String)

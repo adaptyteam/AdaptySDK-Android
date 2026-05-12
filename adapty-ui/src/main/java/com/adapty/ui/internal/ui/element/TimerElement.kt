@@ -303,6 +303,8 @@ public class TimerElement internal constructor(
             OnOverflowMode.SCALE,
             modifier,
             resolveAssets,
+            callback,
+            resolveText,
         ) {
             timerValueStr
         }

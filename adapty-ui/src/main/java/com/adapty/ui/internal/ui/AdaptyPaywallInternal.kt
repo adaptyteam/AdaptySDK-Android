@@ -269,7 +269,7 @@ private fun createEventCallback(
                     }
                     is Action.ClosePaywall -> eventListener.onActionPerformed(AdaptyUI.Action.Close, localContext)
                     is Action.Custom -> eventListener.onActionPerformed(AdaptyUI.Action.Custom(action.customId), localContext)
-                    is Action.OpenUrl -> eventListener.onActionPerformed(AdaptyUI.Action.OpenUrl(action.url), localContext)
+                    is Action.OpenUrl -> eventListener.onActionPerformed(AdaptyUI.Action.OpenUrl(action.url, action.presentation), localContext)
                     is Action.RestorePurchases -> {
                         viewModel.onRestorePurchases(this, observerModeHandler)
                     }

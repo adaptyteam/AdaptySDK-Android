@@ -1,11 +1,13 @@
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 @file:OptIn(InternalAdaptyApi::class)
 
 package com.adapty.ui.listeners
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import com.adapty.errors.AdaptyError
+import com.adapty.internal.data.cloud.BrowserLauncher
+import com.adapty.internal.di.Dependencies
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
@@ -23,11 +25,11 @@ public open class AdaptyUiDefaultEventListener : AdaptyUiEventListener {
         when (action) {
             AdaptyUI.Action.Close -> context.getActivityOrNull()?.onBackPressed()
             is AdaptyUI.Action.OpenUrl -> {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(action.url))
-                try {
-                    context.startActivity(Intent.createChooser(intent, ""))
-                } catch (e: Throwable) {
-                    log(ERROR) { "$LOG_PREFIX_ERROR couldn't find an app that can process this url" }
+                runCatching {
+                    Dependencies.injectInternal<BrowserLauncher>()
+                        .openUrl(context, action.url.toUri(), action.presentation)
+                }.getOrElse { e ->
+                    log(ERROR) { "$LOG_PREFIX_ERROR couldn't process this url (${action.url}): (${e.localizedMessage})" }
                 }
             }
             is AdaptyUI.Action.Custom -> Unit

@@ -204,7 +204,7 @@ public object AdaptyUI {
 
     public sealed class Action {
         public object Close : Action()
-        public class OpenUrl(public val url: String) : Action()
+        public class OpenUrl(public val url: String, public val presentation: AdaptyWebPresentation = AdaptyWebPresentation.ExternalBrowser) : Action()
         public class Custom(public val customId: String): Action()
     }
 
@@ -352,9 +352,9 @@ public object AdaptyUI {
             internal constructor(item: Item): this(listOf(item))
 
             public sealed class Item(internal val attrs: Attributes?) {
-                public class Text internal constructor(internal val text: String, attrs: Attributes?): Item(attrs)
+                public class Text internal constructor(internal val text: String, attrs: Attributes?, internal val actions: List<com.adapty.ui.internal.ui.element.Action> = emptyList()): Item(attrs)
                 public class Image internal constructor(internal val imageAssetId: String, attrs: Attributes?): Item(attrs)
-                public class Tag internal constructor(internal val tag: String, attrs: Attributes?): Item(attrs)
+                public class Tag internal constructor(internal val tag: String, attrs: Attributes?, internal val actions: List<com.adapty.ui.internal.ui.element.Action> = emptyList()): Item(attrs)
             }
 
             internal class Attributes(
@@ -487,7 +487,7 @@ public object AdaptyUI {
                         adaptyUiVideoAccessor.createVideoElementMapperOrNull(commonAttributeMapper)
                     ViewConfigurationMapper(
                         ViewConfigurationAssetMapper(),
-                        ViewConfigurationTextMapper(),
+                        ViewConfigurationTextMapper(interactiveAttributeMapper),
                         ViewConfigurationScreenMapper(
                             UIElementFactory(
                                 mutableListOf<UIElementMapper>(

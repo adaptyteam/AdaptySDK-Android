@@ -9,8 +9,12 @@ import com.adapty.internal.utils.adaptyError
 import com.adapty.internal.utils.getAs
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.RichText
 import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.TextItem
+import com.adapty.ui.internal.mapping.attributes.InteractiveAttributeMapper
+import com.adapty.ui.internal.ui.element.Action
 
-internal class ViewConfigurationTextMapper {
+internal class ViewConfigurationTextMapper(
+    private val interactiveAttributeMapper: InteractiveAttributeMapper,
+) {
 
     private companion object {
         const val LOCALIZATIONS = "localizations"
@@ -27,6 +31,7 @@ internal class ViewConfigurationTextMapper {
         const val COLOR = "color"
         const val BACKGROUND = "background"
         const val TINT = "tint"
+        const val ACTION = "action"
         const val STRINGS = "strings"
         const val FALLBACK = "fallback"
     }
@@ -99,15 +104,24 @@ internal class ViewConfigurationTextMapper {
         if (image != null)
             return RichText.Item.Image(image, attrs)
 
+        val actions = mapRichTextItemActions(rawRichTextItem)
+
         val tag = rawRichTextItem.getAs<String?>(TAG)
         if (tag != null)
-            return RichText.Item.Tag(tag, attrs)
+            return RichText.Item.Tag(tag, attrs, actions)
 
         val text = rawRichTextItem.getAs<String?>(TEXT)
         if (text != null)
-            return RichText.Item.Text(text, attrs)
+            return RichText.Item.Text(text, attrs, actions)
 
         return null
+    }
+
+    private fun mapRichTextItemActions(rawItem: Map<*, *>): List<Action> {
+        return (rawItem[ACTION] as? Iterable<*>)
+            ?.mapNotNull { item -> (item as? Map<*, *>)?.let(interactiveAttributeMapper::mapAction) }
+            ?: (rawItem[ACTION] as? Map<*, *>)?.let(interactiveAttributeMapper::mapAction)?.let { listOf(it) }
+                .orEmpty()
     }
 
     private fun mapRichTextAttrs(rawRichTextAttrs: JsonObject): RichText.Attributes {

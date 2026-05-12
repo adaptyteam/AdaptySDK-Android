@@ -175,7 +175,7 @@ internal class TextResolver(
         textElementAttrs: Attributes?,
         assets: Assets,
     ): StringWrapper.Str {
-        return StringWrapper.Str(item.text, item.attrs?.let { ComposeTextAttrs.from(it, textElementAttrs, assets) })
+        return StringWrapper.Str(item.text, item.attrs?.let { ComposeTextAttrs.from(it, textElementAttrs, assets) }, item.actions)
     }
 
     @Composable
@@ -187,8 +187,16 @@ internal class TextResolver(
         assets: Assets,
         products: Products,
     ): StringWrapper.Single {
-        return tagResolver.tryResolveProductTag(item, productId, textElementAttrs, assets, products)
+        val resolved = tagResolver.tryResolveProductTag(item, productId, textElementAttrs, assets, products)
             ?: tagResolver.tryResolveTimerTag(item, textElementAttrs, assets)
             ?: tagResolver.tryResolveCustomTag(item, textElementAttrs, assets, ignoreMissingCustomTag)
+
+        if (item.actions.isEmpty()) return resolved
+        if (resolved === StringWrapper.PRODUCT_NOT_FOUND || resolved === StringWrapper.CUSTOM_TAG_NOT_FOUND) return resolved
+
+        return when (resolved) {
+            is StringWrapper.Str -> StringWrapper.Str(resolved.value, resolved.attrs, item.actions)
+            is StringWrapper.TimerSegmentStr -> StringWrapper.TimerSegmentStr(resolved.value, resolved.timerSegment, resolved.attrs, item.actions)
+        }
     }
 }
