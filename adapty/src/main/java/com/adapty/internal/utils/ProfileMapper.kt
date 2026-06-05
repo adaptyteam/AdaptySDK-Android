@@ -5,6 +5,7 @@ import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.ProductPALMappings
 import com.adapty.internal.data.models.ProfileDto
+import com.adapty.models.AdaptyAttributionSource
 import com.adapty.models.AdaptyProfile
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -32,6 +33,7 @@ internal class ProfileMapper(
                 mapSub(sub)
             }.orEmpty().immutableWithInterop(),
             customAttributes = dto.customAttributes.orEmpty().immutableWithInterop(),
+            appliedAttributionSources = mapAttributionSources(dto.appliedAttributionSources),
             isTestUser = dto.isTestUser ?: false,
         )
 
@@ -85,9 +87,14 @@ internal class ProfileMapper(
             accessLevels = accessLevels.orEmpty().immutableWithInterop(),
             subscriptions = subscriptions.orEmpty().immutableWithInterop(),
             customAttributes = dto.customAttributes.orEmpty().immutableWithInterop(),
+            appliedAttributionSources = mapAttributionSources(dto.appliedAttributionSources),
             isTestUser = dto.isTestUser ?: false,
         )
     }
+
+    private fun mapAttributionSources(sources: List<String?>?) =
+        sources?.mapNotNull { source -> source?.let(::AdaptyAttributionSource) }
+            .orEmpty().immutableWithInterop()
 
     private val dateFormatter: DateFormat by lazy {
         SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'000'Z", Locale.US).apply {

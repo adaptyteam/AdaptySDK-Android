@@ -23,6 +23,8 @@ internal class ProfileDto(
     val nonSubscriptions: HashMap<String, ArrayList<NonSubscriptionDto>>?,
     @SerializedName("custom_attributes")
     val customAttributes: HashMap<String, Any>?,
+    @SerializedName("applied_attribution_sources")
+    val appliedAttributionSources: ArrayList<String>?,
 ) {
 
     override fun equals(other: Any?): Boolean {
@@ -39,6 +41,7 @@ internal class ProfileDto(
         if (subscriptions != other.subscriptions) return false
         if (nonSubscriptions != other.nonSubscriptions) return false
         if (customAttributes != other.customAttributes) return false
+        if (appliedAttributionSources != other.appliedAttributionSources) return false
 
         return true
     }
@@ -52,6 +55,7 @@ internal class ProfileDto(
         result = 31 * result + (subscriptions?.hashCode() ?: 0)
         result = 31 * result + (nonSubscriptions?.hashCode() ?: 0)
         result = 31 * result + (customAttributes?.hashCode() ?: 0)
+        result = 31 * result + (appliedAttributionSources?.hashCode() ?: 0)
         return result
     }
 

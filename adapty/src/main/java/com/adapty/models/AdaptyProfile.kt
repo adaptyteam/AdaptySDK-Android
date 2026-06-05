@@ -6,6 +6,8 @@ import com.adapty.utils.ImmutableMap
 /**
  * @property[accessLevels] The keys are access level identifiers configured by you in Adapty Dashboard.
  * The values are Can be null if the customer has no access levels.
+ * @property[appliedAttributionSources] Identifiers of attribution sources applied to the profile
+ * and available for segmentation.
  * @property[customAttributes] Previously set user custom attributes with [.updateProfile][com.adapty.Adapty.updateProfile] method.
  * @property[customerUserId] An identifier of a user in your system.
  * @property[nonSubscriptions] The keys are product ids from the store. The values are lists of
@@ -20,6 +22,7 @@ public class AdaptyProfile internal constructor(
     public val subscriptions: ImmutableMap<String, Subscription>,
     public val nonSubscriptions: ImmutableMap<String, ImmutableList<NonSubscription>>,
     public val customAttributes: ImmutableMap<String, Any>,
+    public val appliedAttributionSources: ImmutableList<AdaptyAttributionSource>,
     private val isTestUser: Boolean,
 ) {
     override fun equals(other: Any?): Boolean {
@@ -34,6 +37,7 @@ public class AdaptyProfile internal constructor(
         if (subscriptions != other.subscriptions) return false
         if (nonSubscriptions != other.nonSubscriptions) return false
         if (customAttributes != other.customAttributes) return false
+        if (appliedAttributionSources != other.appliedAttributionSources) return false
 
         return true
     }
@@ -45,11 +49,12 @@ public class AdaptyProfile internal constructor(
         result = 31 * result + subscriptions.hashCode()
         result = 31 * result + nonSubscriptions.hashCode()
         result = 31 * result + customAttributes.hashCode()
+        result = 31 * result + appliedAttributionSources.hashCode()
         return result
     }
 
     override fun toString(): String {
-        return "AdaptyProfile(profileId=$profileId, customerUserId=$customerUserId, accessLevels=$accessLevels, subscriptions=$subscriptions, nonSubscriptions=$nonSubscriptions, customAttributes=$customAttributes)"
+        return "AdaptyProfile(profileId=$profileId, customerUserId=$customerUserId, accessLevels=$accessLevels, subscriptions=$subscriptions, nonSubscriptions=$nonSubscriptions, customAttributes=$customAttributes, appliedAttributionSources=$appliedAttributionSources)"
     }
 
     /**
