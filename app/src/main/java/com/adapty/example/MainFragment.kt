@@ -8,6 +8,7 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.adapty.Adapty
 import com.adapty.listeners.OnProfileUpdatedListener
+import com.adapty.models.AdaptyAttributionSource
 import com.adapty.models.AdaptyProfile
 import com.adapty.models.AdaptyProfileParameters
 import com.adapty.utils.AdaptyResult
@@ -41,7 +42,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         val lastResponseResult = view.findViewById<TextView>(R.id.last_response_result)
         val restorePurchases = view.findViewById<View>(R.id.restore_purchases)
         val getProfile = view.findViewById<View>(R.id.get_profile)
-        val getPaywallById = view.findViewById<View>(R.id.get_paywall_by_id)
+        val getFlowById = view.findViewById<View>(R.id.get_flow_by_id)
         val placementId = view.findViewById<EditText>(R.id.placement_id)
         val updateProfile = view.findViewById<View>(R.id.update_profile)
         val updateCustomAttribution = view.findViewById<View>(R.id.update_custom_attribution)
@@ -72,25 +73,25 @@ class MainFragment : Fragment(R.layout.fragment_main) {
             }
         }
 
-        getPaywallById.setOnClickListener {
+        getFlowById.setOnClickListener {
             progressDialog.show()
 
-            Adapty.getPaywall(placementId.text.toString()) { result ->
+            Adapty.getFlow(placementId.text.toString()) { result ->
                 when (result) {
                     is AdaptyResult.Success -> {
-                        val paywall = result.value
-                        Adapty.getPaywallProducts(paywall) { productResult ->
+                        val flow = result.value
+                        Adapty.getPaywallProducts(flow) { productResult ->
                             progressDialog.cancel()
 
                             when (productResult) {
                                 is AdaptyResult.Success -> {
                                     lastResponseResult.text =
-                                        "Paywall: $paywall\n\nProducts: ${productResult.value}"
+                                        "Flow: $flow\n\nProducts: ${productResult.value}"
 
-                                    Adapty.logShowPaywall(paywall)
+                                    Adapty.logShowFlow(flow)
 
                                     (activity as? MainActivity)?.addFragment(
-                                        ProductListFragment.newInstance(paywall, productResult.value),
+                                        ProductListFragment.newInstance(flow, productResult.value),
                                         true
                                     )
                                 }
@@ -139,7 +140,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 "ad_set" to "adapty ad_set",
                 "creative" to "12312312312312"
             )
-            Adapty.updateAttribution(attribution, "custom") { error ->
+            Adapty.updateAttribution(attribution, AdaptyAttributionSource("custom")) { error ->
                 lastResponseResult.text = error?.message ?: "success"
             }
         }

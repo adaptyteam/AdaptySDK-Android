@@ -11,9 +11,8 @@ internal class SetIntegrationIdRequest(
     internal companion object {
         fun create(
             profileId: String,
-            key: String,
-            value: String,
+            keyValues: Map<String, String>,
         ) =
-            SetIntegrationIdRequest(mapOf(key to value, "profile_id" to profileId))
+            SetIntegrationIdRequest(keyValues + ("profile_id" to profileId))
     }
 }

@@ -99,4 +99,38 @@ internal fun Align.toComposeAlignment(): Alignment {
     }
 }
 
+internal fun Align.toComposeVerticalAlignment(): Alignment.Vertical {
+    return when (this) {
+        Align.TOP_START, Align.TOP_CENTER, Align.TOP_END, Align.TOP_LEFT, Align.TOP_RIGHT -> Alignment.Top
+        Align.CENTER_START, Align.CENTER, Align.CENTER_END, Align.CENTER_LEFT, Align.CENTER_RIGHT -> Alignment.CenterVertically
+        Align.BOTTOM_START, Align.BOTTOM_CENTER, Align.BOTTOM_END, Align.BOTTOM_LEFT, Align.BOTTOM_RIGHT -> Alignment.Bottom
+    }
+}
+
+internal fun Align.toComposeHorizontalAlignment(): Alignment.Horizontal {
+    return when (this) {
+        Align.TOP_START, Align.CENTER_START, Align.BOTTOM_START -> Alignment.Start
+        Align.TOP_CENTER, Align.CENTER, Align.BOTTOM_CENTER -> Alignment.CenterHorizontally
+        Align.TOP_END, Align.CENTER_END, Align.BOTTOM_END -> Alignment.End
+        Align.TOP_LEFT, Align.CENTER_LEFT, Align.BOTTOM_LEFT -> AbsoluteAlignment.Left
+        Align.TOP_RIGHT, Align.CENTER_RIGHT, Align.BOTTOM_RIGHT -> AbsoluteAlignment.Right
+    }
+}
+
+internal fun Alignment.toVerticalAlignmentOrCenter(): Alignment.Vertical = when (this) {
+    Alignment.TopStart, Alignment.TopCenter, Alignment.TopEnd,
+    AbsoluteAlignment.TopLeft, AbsoluteAlignment.TopRight -> Alignment.Top
+    Alignment.BottomStart, Alignment.BottomCenter, Alignment.BottomEnd,
+    AbsoluteAlignment.BottomLeft, AbsoluteAlignment.BottomRight -> Alignment.Bottom
+    else -> Alignment.CenterVertically
+}
+
+internal fun Alignment.toHorizontalAlignmentOrCenter(): Alignment.Horizontal = when (this) {
+    Alignment.TopStart, Alignment.CenterStart, Alignment.BottomStart -> Alignment.Start
+    Alignment.TopEnd, Alignment.CenterEnd, Alignment.BottomEnd -> Alignment.End
+    AbsoluteAlignment.TopLeft, AbsoluteAlignment.CenterLeft, AbsoluteAlignment.BottomLeft -> AbsoluteAlignment.Left
+    AbsoluteAlignment.TopRight, AbsoluteAlignment.CenterRight, AbsoluteAlignment.BottomRight -> AbsoluteAlignment.Right
+    else -> Alignment.CenterHorizontally
+}
+
 internal val LocalContentAlignment = compositionLocalOf { Alignment.Center }

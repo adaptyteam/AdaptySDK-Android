@@ -39,8 +39,8 @@ internal class CloudRepository(
     ): Response<Variations> =
         httpClient.newCall(
             when (variationType) {
-                VariationType.Paywall -> mainRequestFactory.getPaywallVariationsRequest(id, locale, segmentId)
                 VariationType.Onboarding -> mainRequestFactory.getOnboardingVariationsRequest(id, locale, segmentId)
+                VariationType.Flow -> mainRequestFactory.getFlowVariationsRequest(id, segmentId)
             },
             Variations::class.java,
         )
@@ -54,8 +54,8 @@ internal class CloudRepository(
     ): Response<Variation> =
         httpClient.newCall(
             when (variationType) {
-                VariationType.Paywall -> mainRequestFactory.getPaywallByVariationIdRequest(id, locale, segmentId, variationId)
                 VariationType.Onboarding -> mainRequestFactory.getOnboardingByVariationIdRequest(id, locale, segmentId, variationId)
+                VariationType.Flow -> mainRequestFactory.getFlowByVariationIdRequest(id, variationId)
             },
             Variation::class.java,
         )
@@ -74,8 +74,8 @@ internal class CloudRepository(
         try {
             httpClient.newCall(
                 when (variationType) {
-                    VariationType.Paywall -> auxRequestFactory.getPaywallVariationsFallbackRequest(id, locale)
                     VariationType.Onboarding -> auxRequestFactory.getOnboardingVariationsFallbackRequest(id, locale)
+                    VariationType.Flow -> auxRequestFactory.getFlowVariationsFallbackRequest(id)
                 },
                 Variations::class.java,
             )
@@ -91,8 +91,8 @@ internal class CloudRepository(
         try {
             httpClient.newCall(
                 when (variationType) {
-                    VariationType.Paywall -> auxRequestFactory.getPaywallByVariationIdFallbackRequest(id, locale, variationId)
                     VariationType.Onboarding -> auxRequestFactory.getOnboardingByVariationIdFallbackRequest(id, locale, variationId)
+                    VariationType.Flow -> auxRequestFactory.getFlowByVariationIdFallbackRequest(id, variationId)
                 },
                 Variation::class.java,
             )
@@ -108,8 +108,8 @@ internal class CloudRepository(
         try {
             httpClient.newCall(
                 when (variationType) {
-                    VariationType.Paywall -> auxRequestFactory.getPaywallVariationsUntargetedRequest(id, locale)
                     VariationType.Onboarding -> auxRequestFactory.getOnboardingVariationsUntargetedRequest(id, locale)
+                    VariationType.Flow -> auxRequestFactory.getFlowVariationsUntargetedRequest(id)
                 },
                 Variations::class.java,
             )
@@ -121,25 +121,17 @@ internal class CloudRepository(
             }
         }
 
-    fun getViewConfiguration(variationId: String, locale: String): Response<Map<String, Any>> =
+    fun getFlowViewConfiguration(flowId: String, viewConfigurationId: String): Response<Map<String, Any>> =
         httpClient.newCall(
-            mainRequestFactory.getViewConfigurationRequest(variationId, locale),
+            mainRequestFactory.getFlowViewConfigurationRequest(flowId, viewConfigurationId),
             object : TypeToken<Map<String, Any>>() {}.type
         )
 
-    fun getViewConfigurationFallback(paywallId: String, locale: String): Response<Map<String, Any>> =
-        try {
-            httpClient.newCall(
-                auxRequestFactory.getViewConfigurationFallbackRequest(paywallId, locale),
-                object : TypeToken<Map<String, Any>>() {}.type
-            )
-        } catch (error: Response.Error) {
-            when {
-                error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
-                    getViewConfigurationFallback(paywallId, DEFAULT_PLACEMENT_LOCALE)
-                else -> throw error
-            }
-        }
+    fun getFlowViewConfigurationFallback(flowId: String, viewConfigurationId: String): Response<Map<String, Any>> =
+        httpClient.newCall(
+            auxRequestFactory.getFlowViewConfigurationFallbackRequest(flowId, viewConfigurationId),
+            object : TypeToken<Map<String, Any>>() {}.type
+        )
 
     fun createProfile(
         identityParams: IdentityParams?,
@@ -192,9 +184,9 @@ internal class CloudRepository(
             ProfileDto::class.java
         )
 
-    fun setIntegrationId(key: String, value: String) {
+    fun setIntegrationIdentifiers(keyValues: Map<String, String>) {
         httpClient.newCall<Any>(
-            mainRequestFactory.setIntegrationIdRequest(key, value),
+            mainRequestFactory.setIntegrationIdentifiersRequest(keyValues),
             Any::class.java
         )
     }

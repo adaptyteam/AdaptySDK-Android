@@ -28,17 +28,13 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
     ANALYTICS_DISABLED(3000),
     WRONG_PARAMETER(3001),
     PROFILE_WAS_CHANGED(3006),
-    LOGGING_OUT_UNIDENTIFIED_USER(3020);
+    LOGGING_OUT_UNIDENTIFIED_USER(3020),
+    WRONG_ASSET_TYPE(4104),
+    JS_EXCEPTION(4105),
+    NAVIGATOR_NOT_FOUND(4106),
+    INVALID_ACTION_URL(4107);
 
     public companion object {
-        @Deprecated(
-            "This constant has been deprecated, please replace it with 'WRONG_PARAMETER'",
-            ReplaceWith("AdaptyErrorCode.WRONG_PARAMETER"),
-            DeprecationLevel.ERROR,
-        )
-        @JvmField
-        public val INVALID_JSON: AdaptyErrorCode = WRONG_PARAMETER
-
         @JvmSynthetic
         internal fun fromNetwork(responseCode: Int): AdaptyErrorCode = when (responseCode) {
             429, 499, in 500..599 -> SERVER_ERROR

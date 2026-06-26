@@ -7,7 +7,6 @@ import android.content.ContentResolver
 import android.net.Uri
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
-import com.adapty.errors.AdaptyErrorCode
 import com.adapty.errors.AdaptyErrorCode.LOGGING_OUT_UNIDENTIFIED_USER
 import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
 import com.adapty.errors.AdaptyErrorCode.WRONG_PARAMETER
@@ -15,6 +14,7 @@ import com.adapty.internal.data.cloud.AnalyticsTracker
 import com.adapty.internal.data.models.AnalyticsEvent.SDKMethodRequestData
 import com.adapty.internal.data.models.AnalyticsEvent.SDKMethodResponseData
 import com.adapty.internal.domain.AuthInteractor
+import com.adapty.internal.domain.FlowInteractor
 import com.adapty.internal.domain.OnboardingInteractor
 import com.adapty.internal.domain.PaywallInteractor
 import com.adapty.internal.domain.ProfileInteractor
@@ -46,12 +46,11 @@ internal class AdaptyInternal(
     private val lifecycleAwareRequestRunner: LifecycleAwareRequestRunner,
     private val lifecycleManager: LifecycleManager,
     private val adaptyUiAccessor: AdaptyUiAccessor,
+    private val flowInteractor: FlowInteractor,
     private val isObserverMode: Boolean,
     private val ipAddressCollectionDisabled: Boolean,
 ) {
 
-    @get:JvmSynthetic
-    @set:JvmSynthetic
     var onProfileUpdatedListener: OnProfileUpdatedListener? = null
         set(value) {
             execute {
@@ -91,8 +90,6 @@ internal class AdaptyInternal(
         lifecycleManager.init()
     }
 
-
-    @JvmSynthetic
     fun getProfile(
         callback: ResultCallback<AdaptyProfile>
     ) {
@@ -111,7 +108,6 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
     fun updateProfile(
         params: AdaptyProfileParameters,
         callback: ErrorCallback
@@ -131,7 +127,6 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
     fun activate(
         customerUserId: String?,
         obfuscatedAccountId: String?,
@@ -164,7 +159,6 @@ internal class AdaptyInternal(
         execute { paywallInteractor.getProductsOnStart().catch { }.collect() }
     }
 
-    @JvmSynthetic
     fun identify(customerUserId: String, obfuscatedAccountId: String?, callback: ErrorCallback) {
         val requestEvent = SDKMethodRequestData.create("identify")
         analyticsTracker.trackSystemEvent(requestEvent)
@@ -188,9 +182,9 @@ internal class AdaptyInternal(
             return
         }
 
-        execute {
-            authInteractor.prepareAuthDataToSync(customerUserId, obfuscatedAccountId)
+        authInteractor.prepareAuthDataToSync(customerUserId, obfuscatedAccountId)
 
+        execute {
             authInteractor
                 .activateOrIdentify()
                 .onSingleResult { result ->
@@ -203,7 +197,6 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
     fun logout(callback: ErrorCallback) {
         if (authInteractor.getCustomerUserId() == null) {
             val requestEvent = SDKMethodRequestData.create("logout")
@@ -223,7 +216,6 @@ internal class AdaptyInternal(
         activate(null, null, callback, false)
     }
 
-    @JvmSynthetic
     fun makePurchase(
         activity: Activity,
         product: AdaptyPaywallProduct,
@@ -244,7 +236,6 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
     fun restorePurchases(callback: ResultCallback<AdaptyProfile>) {
         val requestEvent = SDKMethodRequestData.create("restore_purchases")
         analyticsTracker.trackSystemEvent(requestEvent)
@@ -261,23 +252,18 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
-    fun getPaywall(
+    fun getFlow(
         id: String,
-        locale: String,
         fetchPolicy: AdaptyPlacementFetchPolicy,
         loadTimeout: TimeInterval,
-        callback: ResultCallback<AdaptyPaywall>
+        callback: ResultCallback<AdaptyFlow>
     ) {
-        val requestEvent = SDKMethodRequestData.GetPaywall.create(id, locale, fetchPolicy, loadTimeout.toMillis())
+        val requestEvent = SDKMethodRequestData.GetFlow.create(id, fetchPolicy, loadTimeout.toMillis())
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
-            paywallInteractor
-                .getPaywall(id, locale, fetchPolicy, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT).toMillis())
+            flowInteractor
+                .getFlow(id, fetchPolicy, loadTimeout.coerceAtLeast(MIN_PLACEMENT_TIMEOUT).toMillis())
                 .onSingleResult { result ->
-                    if (result is AdaptyResult.Success) {
-                        result.value.viewConfig?.let { config -> adaptyUiAccessor.preloadMedia(config) }
-                    }
                     analyticsTracker.trackSystemEvent(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())
                     )
@@ -287,22 +273,17 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
-    fun getPaywallForDefaultAudience(
+    fun getFlowForDefaultAudience(
         id: String,
-        locale: String,
         fetchPolicy: AdaptyPlacementFetchPolicy,
-        callback: ResultCallback<AdaptyPaywall>
+        callback: ResultCallback<AdaptyFlow>
     ) {
-        val requestEvent = SDKMethodRequestData.GetUntargetedPaywall.create(id, locale, fetchPolicy)
+        val requestEvent = SDKMethodRequestData.create("get_flow_for_default_audience")
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
-            paywallInteractor
-                .getPaywallUntargeted(id, locale, fetchPolicy)
+            flowInteractor
+                .getFlowUntargeted(id, fetchPolicy)
                 .onSingleResult { result ->
-                    if (result is AdaptyResult.Success) {
-                        result.value.viewConfig?.let { config -> adaptyUiAccessor.preloadMedia(config) }
-                    }
                     analyticsTracker.trackSystemEvent(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())
                     )
@@ -312,16 +293,16 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
-    fun getViewConfiguration(
-        paywall: AdaptyPaywall,
+    fun getFlowViewConfiguration(
+        flow: AdaptyFlow,
+        locale: String?,
         loadTimeout: TimeInterval,
         callback: ResultCallback<Map<String, Any>>
     ) {
-        val requestEvent = SDKMethodRequestData.create("get_paywall_builder")
+        val requestEvent = SDKMethodRequestData.create("get_flow_builder")
         analyticsTracker.trackSystemEvent(requestEvent)
-        if (!paywall.hasViewConfiguration) {
-            val errorMessage = "View configuration has not been found for the requested paywall"
+        if (!flow.hasViewConfiguration) {
+            val errorMessage = "View configuration has not been found for the requested flow"
             Logger.log(ERROR) { errorMessage }
             val e = AdaptyError(
                 message = errorMessage,
@@ -334,8 +315,50 @@ internal class AdaptyInternal(
             return
         }
         execute {
-            paywallInteractor
-                .getViewConfiguration(paywall, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT).toMillis())
+            flowInteractor
+                .getViewConfiguration(flow, locale, loadTimeout.coerceAtLeast(MIN_PLACEMENT_TIMEOUT).toMillis())
+                .onSingleResult { result ->
+                    if (result is AdaptyResult.Success) {
+                        adaptyUiAccessor.preloadMedia(result.value)
+                    }
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result)
+                }
+                .collect()
+        }
+    }
+
+    fun <T> getFlowViewConfiguration(
+        flow: AdaptyFlow,
+        locale: String?,
+        loadTimeout: TimeInterval,
+        transform: (Map<String, Any>) -> T,
+        callback: ResultCallback<T>,
+    ) {
+        val requestEvent = SDKMethodRequestData.create("get_flow_builder")
+        analyticsTracker.trackSystemEvent(requestEvent)
+        if (!flow.hasViewConfiguration) {
+            val errorMessage = "View configuration has not been found for the requested flow"
+            Logger.log(ERROR) { errorMessage }
+            val e = AdaptyError(
+                message = errorMessage,
+                adaptyErrorCode = WRONG_PARAMETER
+            )
+            analyticsTracker.trackSystemEvent(
+                SDKMethodResponseData.create(requestEvent, e)
+            )
+            callback.onResult(AdaptyResult.Error(e))
+            return
+        }
+        execute {
+            flowInteractor
+                .getViewConfiguration(flow, locale, loadTimeout.coerceAtLeast(MIN_PLACEMENT_TIMEOUT).toMillis())
+                .map { rawConfig ->
+                    adaptyUiAccessor.preloadMedia(rawConfig)
+                    transform(rawConfig)
+                }
                 .onSingleResult { result ->
                     analyticsTracker.trackSystemEvent(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())
@@ -346,9 +369,54 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
+    fun logShowFlow(flow: AdaptyFlow, callback: ErrorCallback?) {
+        analyticsTracker.trackEvent(
+            "flow_showed",
+            mutableMapOf<String, Any>(
+                "variation_id" to flow.variationId
+            ),
+            completion = callback,
+        )
+    }
+
+    fun logFlowEvent(
+        flow: AdaptyFlow,
+        viewConfigurationId: String,
+        eventProperties: Map<String, Any>,
+        callback: ErrorCallback?,
+    ) {
+        analyticsTracker.trackEvent(
+            "flow_event",
+            mutableMapOf<String, Any>(
+                "variation_id" to flow.variationId,
+                "flow_version_id" to viewConfigurationId,
+                "event_properties" to eventProperties,
+            ),
+            completion = callback,
+        )
+    }
+
     fun getPaywallProducts(
-        paywall: AdaptyPaywall,
+        flow: AdaptyFlow,
+        callback: ResultCallback<List<AdaptyPaywallProduct>>
+    ) {
+        val requestEvent = SDKMethodRequestData.GetPaywallProducts.create(flow.placement.id)
+        analyticsTracker.trackSystemEvent(requestEvent)
+        execute {
+            paywallInteractor
+                .getPaywallProducts(flow)
+                .onSingleResult { result ->
+                    analyticsTracker.trackSystemEvent(
+                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
+                    )
+                    callback.onResult(result)
+                }
+                .collect()
+        }
+    }
+
+    fun getPaywallProducts(
+        paywall: AdaptyFlowPaywall,
         callback: ResultCallback<List<AdaptyPaywallProduct>>
     ) {
         val requestEvent = SDKMethodRequestData.GetPaywallProducts.create(paywall.placement.id)
@@ -366,7 +434,6 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
     fun getOnboarding(
         id: String,
         locale: String,
@@ -378,7 +445,7 @@ internal class AdaptyInternal(
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             onboardingInteractor
-                .getOnboarding(id, locale, fetchPolicy, loadTimeout.coerceAtLeast(MIN_PAYWALL_TIMEOUT).toMillis())
+                .getOnboarding(id, locale, fetchPolicy, loadTimeout.coerceAtLeast(MIN_PLACEMENT_TIMEOUT).toMillis())
                 .onSingleResult { result ->
                     analyticsTracker.trackSystemEvent(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())
@@ -389,7 +456,6 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
     fun getOnboardingForDefaultAudience(
         id: String,
         locale: String,
@@ -411,7 +477,6 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
     fun setFallback(source: FileLocation, callback: ErrorCallback?) {
         val requestEvent = SDKMethodRequestData.create("set_fallback")
         analyticsTracker.trackSystemEvent(requestEvent)
@@ -445,19 +510,6 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
-    fun logShowPaywall(paywall: AdaptyPaywall, additionalFields: Map<String, Any>?, callback: ErrorCallback?) {
-        analyticsTracker.trackEvent(
-            "paywall_showed",
-            mutableMapOf<String, Any>(
-                "variation_id" to paywall.variationId
-            ).apply {
-                additionalFields?.let(::putAll)
-            },
-            completion = callback,
-        )
-    }
-
     fun logShowOnboardingInternal(
         onboarding: AdaptyOnboarding,
         screenName: String?,
@@ -467,17 +519,31 @@ internal class AdaptyInternal(
         onboardingInteractor.logShowOnboardingInternal(onboarding, screenName, screenOrder, isLastScreen)
     }
 
-    @JvmSynthetic
     fun updateAttribution(
-        attribution: Any,
+        attribution: Map<String, Any>,
         source: String,
-        callback: ErrorCallback
+        callback: ErrorCallback,
+    ) {
+        updateAttribution(source, callback) { profileInteractor.updateAttribution(attribution, source) }
+    }
+
+    fun updateAttribution(
+        attributionJson: String,
+        source: String,
+        callback: ErrorCallback,
+    ) {
+        updateAttribution(source, callback) { profileInteractor.updateAttribution(attributionJson, source) }
+    }
+
+    private fun updateAttribution(
+        source: String,
+        callback: ErrorCallback,
+        updateFlow: () -> Flow<Unit>,
     ) {
         val requestEvent = SDKMethodRequestData.UpdateAttribution.create(source)
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
-            profileInteractor
-                .updateAttribution(attribution, source)
+            updateFlow()
                 .onSingleResult { result ->
                     analyticsTracker.trackSystemEvent(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())
@@ -488,13 +554,12 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
-    fun setIntegrationId(key: String, value: String, callback: ErrorCallback) {
-        val requestEvent = SDKMethodRequestData.SetIntegrationId.create(key, value)
+    fun setIntegrationIdentifiers(identifiers: List<AdaptyIntegrationIdentifier>, callback: ErrorCallback) {
+        val requestEvent = SDKMethodRequestData.SetIntegrationId.create(identifiers.toKeyValueMap())
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             profileInteractor
-                .setIntegrationId(key, value)
+                .setIntegrationIdentifiers(identifiers)
                 .onSingleResult { result ->
                     analyticsTracker.trackSystemEvent(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())
@@ -505,7 +570,6 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
     fun getCurrentInstallationStatus(callback: ResultCallback<AdaptyInstallationStatus>) {
         val requestEvent = SDKMethodRequestData.create("get_current_installation_status")
         analyticsTracker.trackSystemEvent(requestEvent)
@@ -522,7 +586,6 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
     fun reportTransaction(
         transactionInfo: TransactionInfo,
         variationId: String?,
@@ -585,20 +648,6 @@ internal class AdaptyInternal(
         }
     }
 
-    @JvmSynthetic
-    fun createWebPaywallUrl(
-        paywall: AdaptyPaywall,
-        callback: ResultCallback<Uri>,
-    ) {
-        runCatching {
-            val url = paywallInteractor.createWebPaywallUrl(paywall)
-            callback.onResult(AdaptyResult.Success(url))
-        }.getOrElse { e ->
-            callback.onResult(AdaptyResult.Error(AdaptyError(originalError = e, message = e.localizedMessage ?: e.message.orEmpty(), adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED)))
-        }
-    }
-
-    @JvmSynthetic
     fun createWebPaywallUrl(
         product: AdaptyPaywallProduct,
         callback: ResultCallback<Uri>,
@@ -607,30 +656,10 @@ internal class AdaptyInternal(
             val url = paywallInteractor.createWebPaywallUrl(product)
             callback.onResult(AdaptyResult.Success(url))
         }.getOrElse { e ->
-            callback.onResult(AdaptyResult.Error(AdaptyError(originalError = e, message = e.localizedMessage ?: e.message.orEmpty(), adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED)))
+            callback.onResult(AdaptyResult.Error(e.asAdaptyError()))
         }
     }
 
-    @JvmSynthetic
-    fun openWebPaywall(
-        activity: Activity,
-        paywall: AdaptyPaywall,
-        presentation: AdaptyWebPresentation,
-        callback: ErrorCallback,
-    ) {
-        runCatching {
-            paywallInteractor.openWebPaywall(activity, paywall, presentation)
-        }.exceptionOrNull()
-            .let { e ->
-                callback.onResult(
-                    e?.let {
-                        AdaptyError(originalError = e, message = e.localizedMessage ?: e.message.orEmpty(), adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED)
-                    }
-                )
-            }
-    }
-
-    @JvmSynthetic
     fun openWebPaywall(
         activity: Activity,
         product: AdaptyPaywallProduct,
@@ -641,11 +670,33 @@ internal class AdaptyInternal(
             paywallInteractor.openWebPaywall(activity, product, presentation)
         }.exceptionOrNull()
             .let { e ->
-                callback.onResult(
-                    e?.let {
-                        AdaptyError(originalError = e, message = e.localizedMessage ?: e.message.orEmpty(), adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED)
-                    }
-                )
+                callback.onResult(e?.asAdaptyError())
+            }
+    }
+
+    fun createWebPaywallUrl(
+        paywall: AdaptyFlowPaywall,
+        callback: ResultCallback<Uri>,
+    ) {
+        runCatching {
+            val url = paywallInteractor.createWebPaywallUrl(paywall)
+            callback.onResult(AdaptyResult.Success(url))
+        }.getOrElse { e ->
+            callback.onResult(AdaptyResult.Error(e.asAdaptyError()))
+        }
+    }
+
+    fun openWebPaywall(
+        activity: Activity,
+        paywall: AdaptyFlowPaywall,
+        presentation: AdaptyWebPresentation,
+        callback: ErrorCallback,
+    ) {
+        runCatching {
+            paywallInteractor.openWebPaywall(activity, paywall, presentation)
+        }.exceptionOrNull()
+            .let { e ->
+                callback.onResult(e?.asAdaptyError())
             }
     }
 

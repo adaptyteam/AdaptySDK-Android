@@ -20,7 +20,6 @@ internal class BaseHttpClient(
 ) : HttpClient {
 
     @WorkerThread
-    @JvmSynthetic
     override fun <T> newCall(request: Request, typeOfT: Type): Response<T> {
         Logger.log(VERBOSE) {
             "${request.method.name} ${request.url}${

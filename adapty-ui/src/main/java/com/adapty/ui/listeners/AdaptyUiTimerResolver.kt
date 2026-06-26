@@ -4,7 +4,7 @@ import com.adapty.ui.internal.utils.HOUR_MILLIS
 import java.util.Date
 
 /**
- * Implement this interface to to use custom timer functionality
+ * Implement this interface to use custom timer functionality
  */
 public fun interface AdaptyUiTimerResolver {
     /**
@@ -18,7 +18,7 @@ public fun interface AdaptyUiTimerResolver {
 
     public companion object {
         @JvmField
-        public val DEFAULT: AdaptyUiTimerResolver =
+        public val Default: AdaptyUiTimerResolver =
             AdaptyUiTimerResolver { _ -> Date(System.currentTimeMillis() + HOUR_MILLIS) }
     }
 }

@@ -8,7 +8,7 @@ import androidx.annotation.RestrictTo
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.TypefaceCompat
 import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import java.util.Locale
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)

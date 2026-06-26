@@ -5,7 +5,7 @@ import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
-import com.adapty.models.AdaptyPaywall
+import com.adapty.models.AdaptyFlowPaywall
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProductDiscountPhase
 import java.util.Locale
@@ -15,15 +15,6 @@ internal class WebPaywallUrlCreator(
     private val cacheRepository: CacheRepository,
 ) {
 
-    fun create(paywall: AdaptyPaywall): Uri {
-        val webPurchaseUrl = paywall.webPurchaseUrl
-            ?: throw AdaptyError(
-                message = "Web purchase URL is missing",
-                adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER
-            )
-        return buildUri(webPurchaseUrl, paywall.variationId, null)
-    }
-
     fun create(product: AdaptyPaywallProduct): Uri {
         val webPurchaseUrl = product.webPurchaseUrl
             ?: throw AdaptyError(
@@ -31,6 +22,15 @@ internal class WebPaywallUrlCreator(
                 adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER
             )
         return buildUri(webPurchaseUrl, product.variationId, product)
+    }
+
+    fun create(paywall: AdaptyFlowPaywall): Uri {
+        val webPurchaseUrl = paywall.webPurchaseUrl
+            ?: throw AdaptyError(
+                message = "Web purchase URL is missing",
+                adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER
+            )
+        return buildUri(webPurchaseUrl, paywall.variationId, null)
     }
 
     private fun buildUri(

@@ -18,7 +18,6 @@ internal class ProfileMapper(
     private val metaInfoRetriever: MetaInfoRetriever,
 ) {
 
-    @JvmSynthetic
     fun map(dto: ProfileDto) =
         AdaptyProfile(
             profileId = dto.profileId,

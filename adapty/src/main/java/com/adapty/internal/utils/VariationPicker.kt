@@ -27,7 +27,7 @@ internal class VariationPicker(
         for (variation in sortedVariations) {
             val weight = variation.weight
             cumulativeWeight += weight
-            if (cumulativeWeight >= desiredWeight) {
+            if (cumulativeWeight > desiredWeight) {
                 desiredVariation = variation
                 break
             }

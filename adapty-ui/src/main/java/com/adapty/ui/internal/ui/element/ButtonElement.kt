@@ -1,3 +1,5 @@
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+
 package com.adapty.ui.internal.ui.element
 
 import androidx.compose.foundation.clickable
@@ -6,79 +8,53 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.ui.internal.ui.attributes.toComposeShape
-import com.adapty.ui.internal.ui.clickIndication
-import com.adapty.ui.internal.utils.EventCallback
-import com.adapty.ui.internal.utils.handleInitialProductSelection
+import com.adapty.ui.internal.store.Message
+import com.adapty.ui.internal.ui.buttonPressDim
 import com.adapty.ui.internal.ui.rememberOpacityProvider
 import androidx.compose.runtime.CompositionLocalProvider
-import com.adapty.ui.internal.ui.ClearCompositionLocalProvider
 import com.adapty.ui.internal.ui.LocalOpacityProvider
-import com.adapty.ui.internal.utils.getProductGroupKey
+import com.adapty.ui.internal.ui.LocalScreenInstance
+import com.adapty.ui.internal.ui.LocalUiEnabled
+import com.adapty.ui.internal.utils.DISABLED_ALPHA
 
 @InternalAdaptyApi
 public class ButtonElement internal constructor(
     internal val actions: List<Action>,
-    internal val normal: UIElement,
-    internal val selected: UIElement?,
-    internal val selectedCondition: Condition?,
+    internal val content: UIElement,
     override val baseProps: BaseProps,
 ) : UIElement {
 
+    override val layoutRelevantProps: BaseProps get() = when (val c = content) {
+        is SectionElement -> c.content.firstOrNull()?.layoutRelevantProps ?: BaseProps.EMPTY
+        else -> c.layoutRelevantProps
+    }
+
     override fun toComposable(
-        resolveAssets: ResolveAssets,
-        resolveText: ResolveText,
-        resolveState: ResolveState,
-        eventCallback: EventCallback,
+        dispatch: (Message) -> Unit,
         modifier: Modifier,
     ): @Composable () -> Unit = {
-        val state = resolveState()
-        val item = when {
-            selected == null -> normal
-            selectedCondition is Condition.SelectedSection -> {
-                val sectionKey = SectionElement.getKey(selectedCondition.sectionId)
-                if (state[sectionKey] as? Int == selectedCondition.index)
-                    selected
-                else
-                    normal
-            }
-            selectedCondition is Condition.SelectedProduct -> {
-                val productGroupKey = getProductGroupKey(selectedCondition.groupId)
-                (state[productGroupKey] as? String == selectedCondition.productId)
-                    .also { isSelected ->
-                        handleInitialProductSelection(
-                            selectedCondition.productId,
-                            selectedCondition.groupId,
-                            isSelected,
-                            eventCallback,
-                        )
-                    }
-                    .let { isSelected -> if (isSelected) selected else normal }
-            }
-            else -> normal
-        }
-        val shape = item.baseProps.shape?.type?.toComposeShape()
-        val actionsResolved = actions.mapNotNull { action -> action.resolve(resolveText) }
         val opacityProvider = rememberOpacityProvider(baseProps)
+        val screen = LocalScreenInstance.current
+        val interactionSource = remember { MutableInteractionSource() }
+        val enabled = LocalUiEnabled.current
         CompositionLocalProvider(LocalOpacityProvider provides opacityProvider) {
+            val baseModifier = if (enabled) modifier else modifier.alpha(DISABLED_ALPHA)
             Box(
-                modifier
+                Modifier
+                    .buttonPressDim(interactionSource)
+                    .then(baseModifier)
                     .clickable(
-                        indication = shape?.let { clickIndication() },
-                        interactionSource = remember { MutableInteractionSource() },
-                        enabled = opacityProvider.alpha.value > 0f,
+                        indication = null,
+                        interactionSource = interactionSource,
+                        enabled = opacityProvider.alpha.value > 0f && enabled,
                     ) {
-                        eventCallback.onActions(actionsResolved)
+                        dispatch(Message.ActionsRequested(actions, screen))
                     }
             ) {
-                ClearCompositionLocalProvider(LocalOpacityProvider) {
-                    item.render(
-                        resolveAssets,
-                        resolveText,
-                        resolveState,
-                        eventCallback,
-                    )
+                CompositionLocalProvider(LocalOpacityProvider provides null) {
+                    content.render(dispatch)
                 }
             }
         }

@@ -3,12 +3,13 @@
 package com.adapty.ui.internal.ui.attributes
 
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.utils.VisualValue
 
 internal class PagerAnimation(
     internal val startDelayMillis: Long,
     internal val afterInteractionDelayMillis: Long,
-    internal val pageTransition: Transition.Slide,
-    internal val repeatTransition: Transition.Slide?,
+    internal val pageTransition: Transition,
+    internal val repeatTransition: Transition?,
 )
 
 internal enum class InteractionBehavior {
@@ -21,8 +22,8 @@ internal class PagerIndicator(
     val padding: EdgeEntities,
     val dotSize: Float,
     val spacing: Float,
-    val color: Shape.Fill?,
-    val selectedColor: Shape.Fill?,
+    val color: VisualValue?,
+    val selectedColor: VisualValue?,
 ) {
     enum class Layout {
         STACKED, OVERLAID

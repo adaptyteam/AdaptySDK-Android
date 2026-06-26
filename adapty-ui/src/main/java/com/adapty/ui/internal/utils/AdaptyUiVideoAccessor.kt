@@ -7,8 +7,8 @@ import androidx.annotation.RestrictTo
 import com.adapty.internal.di.DIObject
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.getClassForNameOrNull
-import com.adapty.ui.internal.mapping.attributes.CommonAttributeMapper
-import com.adapty.ui.internal.mapping.element.UIElementMapper
+import com.adapty.ui.internal.mapping.element.Assets
+import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import kotlin.reflect.KClass
 
@@ -16,19 +16,25 @@ import kotlin.reflect.KClass
 internal class AdaptyUiVideoAccessor {
 
     private val videoElementMapperClass: Class<*>? by lazy {
-        getClassForNameOrNull("com.adapty.ui.internal.mapping.element.VideoElementMapper")
+        getClassForNameOrNull("com.adapty.ui.internal.mapping.element.VideoElementMapperKt")
     }
 
     private val utilClass: Class<*>? by lazy {
         getClassForNameOrNull("com.adapty.ui.internal.utils.VideoUtils")
     }
 
-    fun createVideoElementMapperOrNull(commonAttributeMapper: CommonAttributeMapper): UIElementMapper? =
+    fun createVideoMapperFnOrNull(): ((Map<*, *>, Assets) -> UIElement)? =
         kotlin.runCatching {
-            videoElementMapperClass
-                ?.getDeclaredConstructor(CommonAttributeMapper::class.java)
-                ?.newInstance(commonAttributeMapper)
-        }.getOrNull() as? UIElementMapper
+            val cls = videoElementMapperClass ?: return null
+            val method = cls.getDeclaredMethod("toVideoElement", Map::class.java, Map::class.java)
+            val fn: (Map<*, *>, Assets) -> UIElement = { config, assets ->
+                method.invoke(null, config, assets) as UIElement
+            }
+            fn
+        }.getOrElse { e ->
+            log(ERROR) { "$LOG_PREFIX_ERROR couldn't find toVideoElement: (${e.localizedMessage})" }
+            null
+        }
 
     fun provideDeps(context: Context): Iterable<Pair<KClass<*>, Map<String?, DIObject<*>>>>? {
         val utilClass = utilClass ?: return null

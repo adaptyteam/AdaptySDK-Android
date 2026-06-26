@@ -38,7 +38,7 @@ android {
     namespace 'com.adapty.ui'
 }
 
-def composeBom = '2024.09.02'
+def composeBom = '2025.04.01'
 
 dependencies {
 
@@ -50,7 +50,10 @@ dependencies {
     implementation platform("androidx.compose:compose-bom:$composeBom")
     api 'androidx.compose.ui:ui'
     implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.activity:activity-compose:1.8.2'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0'
+    implementation 'androidx.javascriptengine:javascriptengine:1.0.0'
+    compileOnly 'com.google.code.gson:gson:2.11.0'
 
     debugCompileOnly 'androidx.compose.ui:ui-tooling'
     debugCompileOnly 'androidx.compose.ui:ui-test-manifest'

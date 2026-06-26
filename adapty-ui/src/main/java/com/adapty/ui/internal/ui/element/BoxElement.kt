@@ -1,3 +1,5 @@
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+
 package com.adapty.ui.internal.ui.element
 
 import androidx.compose.foundation.layout.Box
@@ -11,7 +13,9 @@ import com.adapty.ui.internal.ui.attributes.Align
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.LocalContentAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
-import com.adapty.ui.internal.utils.EventCallback
+import com.adapty.ui.internal.ui.attributes.toHorizontalAlignmentOrCenter
+import com.adapty.ui.internal.ui.attributes.toVerticalAlignmentOrCenter
+import com.adapty.ui.internal.store.Message
 
 @InternalAdaptyApi
 public class BoxElement internal constructor(
@@ -21,17 +25,15 @@ public class BoxElement internal constructor(
 ) : UIElement, SingleContainer {
 
     override fun toComposable(
-        resolveAssets: ResolveAssets,
-        resolveText: ResolveText,
-        resolveState: ResolveState,
-        eventCallback: EventCallback,
+        dispatch: (Message) -> Unit,
         modifier: Modifier
     ): @Composable () -> Unit = {
+        val parentAlignment = LocalContentAlignment.current
         var localModifier: Modifier = Modifier
         if (baseProps.widthSpec is DimSpec.Specified)
-            localModifier = localModifier.wrapContentWidth(unbounded = true)
+            localModifier = localModifier.wrapContentWidth(parentAlignment.toHorizontalAlignmentOrCenter(), unbounded = true)
         if (baseProps.heightSpec is DimSpec.Specified)
-            localModifier = localModifier.wrapContentHeight(unbounded = true)
+            localModifier = localModifier.wrapContentHeight(parentAlignment.toVerticalAlignmentOrCenter(), unbounded = true)
         val contentAlignment = align.toComposeAlignment()
         Box(
             contentAlignment = contentAlignment,
@@ -40,12 +42,7 @@ public class BoxElement internal constructor(
             CompositionLocalProvider(
                 LocalContentAlignment provides contentAlignment,
             ) {
-                content.render(
-                    resolveAssets,
-                    resolveText,
-                    resolveState,
-                    eventCallback,
-                )
+                content.render(dispatch)
             }
         }
     }

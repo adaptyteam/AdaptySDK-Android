@@ -29,7 +29,6 @@ internal class AuthInteractor(
     private val profileStateChangeChecker: ProfileStateChangeChecker,
 ) {
 
-    @JvmSynthetic
     fun activateOrIdentify() =
         lifecycleManager.onActivateAllowed()
             .flatMapConcat { createProfileIfNeeded() }
@@ -91,12 +90,10 @@ internal class AuthInteractor(
         }
     }
 
-    @JvmSynthetic
     fun clearDataOnLogout() {
         cacheRepository.clearOnLogout()
     }
 
-    @JvmSynthetic
     fun handleAppKey(appKey: String) {
         val keyHash = hashingHelper.sha256(appKey)
         val cachedHash = cacheRepository.getAppKey()
@@ -108,11 +105,9 @@ internal class AuthInteractor(
         }
     }
 
-    @JvmSynthetic
     fun getCustomerUserId() =
         cacheRepository.getCustomerUserId()
 
-    @JvmSynthetic
     fun createInstallationMeta(isCreatingProfile: Boolean) =
         combine(
             adIdRetriever.getAdIdIfAvailable(),
@@ -122,13 +117,11 @@ internal class AuthInteractor(
             installationMetaCreator.create(adId, appSetId, storeCountry)
         }
 
-    @JvmSynthetic
     fun prepareAuthDataToSync(newCustomerUserId: String?, newObfuscatedAccountId: String?) {
         cacheRepository.prepareProfileIdToSync()
         cacheRepository.prepareIdentityParamsToSync(IdentityParams.from(newCustomerUserId, newObfuscatedAccountId))
     }
 
-    @JvmSynthetic
     fun <T> runWhenAuthDataSynced(
         maxAttemptCount: Long = DEFAULT_RETRY_COUNT,
         switchIfProfileCreationFailed: (() -> T?)? = null,

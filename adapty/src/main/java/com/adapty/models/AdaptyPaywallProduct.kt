@@ -13,12 +13,12 @@ import java.math.BigDecimal
  * @property[localizedDescription] A description of the product.
  * @property[localizedTitle] The name of the product.
  * @property[paywallABTestName] Same as [abTestName][AdaptyPlacement.abTestName] property of the parent paywall's [AdaptyPlacement].
- * @property[paywallName] Same as [name][AdaptyPaywall.name] property of the parent [AdaptyPaywall].
+ * @property[paywallName] Same as [name][AdaptyFlowPaywall.name] property of the parent [AdaptyFlowPaywall].
  * @property[price] The [price][Price] of the product in the local currency.
  * @property[productDetails] Underlying system representation of the product.
  * @property[productType] The type of the product.
  * @property[subscriptionDetails] Consolidates all subscription-related properties if the product is a subscription, otherwise `null`.
- * @property[variationId] Same as [variationId][AdaptyPaywall.variationId] property of the parent [AdaptyPaywall].
+ * @property[variationId] Same as [variationId][AdaptyFlow.variationId] property of the parent [AdaptyFlow].
  * @property[vendorProductId] Unique identifier of a product from App Store Connect or Google Play Console.
  */
 public class AdaptyPaywallProduct internal constructor(
@@ -116,5 +116,5 @@ public class AdaptyPaywallProduct internal constructor(
         }
     }
 
-    internal class Payload internal constructor(val priceAmountMicros: Long, val currencyCode: String, val type: String, val subscriptionData: SubscriptionData?, val paywallProductIndex: Int, val adaptyProductId: String)
+    internal class Payload internal constructor(val priceAmountMicros: Long, val currencyCode: String, val type: String, val subscriptionData: SubscriptionData?, val paywallProductIndex: Int, val adaptyProductId: String, val flowProductId: String?)
 }

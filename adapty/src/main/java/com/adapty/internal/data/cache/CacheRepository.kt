@@ -45,7 +45,6 @@ internal class CacheRepository(
 
     private val cache = ConcurrentHashMap<String, Any>(32)
 
-    @JvmSynthetic
     suspend fun updateDataOnCreateProfile(
         profile: ProfileDto,
         installationMeta: InstallationMeta,
@@ -70,7 +69,6 @@ internal class CacheRepository(
         saveLastSentInstallationMeta(installationMeta)
     }
 
-    @JvmSynthetic
     suspend fun updateOnProfileReceived(
         profile: ProfileDto,
         profileIdWhenRequestSent: String?,
@@ -90,24 +88,19 @@ internal class CacheRepository(
             saveData(PROFILE, profile)
         }
 
-    @JvmSynthetic
     fun subscribeOnProfileChanges() =
         currentProfile
 
-    @JvmSynthetic
     fun subscribeOnInstallRegistration() =
         installRegistration
             .take(1)
 
-    @JvmSynthetic
     fun getAppKey() = preferenceManager.getString(APP_KEY)
 
-    @JvmSynthetic
     fun saveAppKey(appKey: String) {
         preferenceManager.saveString(APP_KEY, appKey)
     }
 
-    @JvmSynthetic
     fun getProfileId() = (cache.getAs<String>(UNSYNCED_PROFILE_ID) ?: getString(PROFILE_ID))
         ?.takeIf(String::isNotEmpty) ?: generateUuid().also { cache[UNSYNCED_PROFILE_ID] = it }
 
@@ -128,12 +121,11 @@ internal class CacheRepository(
                 PROFILE_RESPONSE,
                 PROFILE_RESPONSE_HASH,
             ),
-            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART),
+            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART, ONBOARDING_RESPONSE_START_PART, FLOW_RESPONSE_START_PART),
         )
         saveProfileId(newProfileId)
     }
 
-    @JvmSynthetic
     fun getCustomerUserId() = getIdentityParams()?.customerUserId
 
     fun getIdentityParams(): IdentityParams? {
@@ -148,7 +140,6 @@ internal class CacheRepository(
         ) as? IdentityParams
     }
 
-    @JvmSynthetic
     fun getUnsyncedAuthData(): Pair<String?, IdentityParams?> {
         return cache.getAs<String>(UNSYNCED_PROFILE_ID) to cache.getAs<IdentityParams>(UNSYNCED_IDENTITY_PARAMS)
     }
@@ -173,7 +164,6 @@ internal class CacheRepository(
             preferenceManager.clearData(setOf(GP_OBFUSCATED_ACCOUNT_ID))
     }
 
-    @JvmSynthetic
     fun prepareIdentityParamsToSync(newIdentityParams: IdentityParams?) {
         if (newIdentityParams == null) {
             cache.remove(UNSYNCED_IDENTITY_PARAMS)
@@ -182,7 +172,6 @@ internal class CacheRepository(
         }
     }
 
-    @JvmSynthetic
     fun prepareProfileIdToSync() {
         if (cache[UNSYNCED_PROFILE_ID] == null && getString(PROFILE_ID).isNullOrEmpty()) {
             cache[UNSYNCED_PROFILE_ID] = generateUuid()
@@ -191,7 +180,6 @@ internal class CacheRepository(
 
     private val installationMetaLock = ReentrantReadWriteLock()
 
-    @JvmSynthetic
     fun getInstallationMetaId(): String {
         try {
             installationMetaLock.readLock().lock()
@@ -221,11 +209,9 @@ internal class CacheRepository(
         preferenceManager.saveString(INSTALLATION_META_ID, installationMetaId)
     }
 
-    @JvmSynthetic
     fun getInstallationMeta() =
         getData(LAST_SENT_INSTALLATION_META, InstallationMeta::class.java)
 
-    @JvmSynthetic
     fun saveLastSentInstallationMeta(installationMeta: InstallationMeta) {
         saveData(LAST_SENT_INSTALLATION_META, installationMeta)
     }
@@ -243,72 +229,59 @@ internal class CacheRepository(
         cache[LAST_SENT_IP] = (profileId ?: getProfileId()) to ip
     }
 
-    @JvmSynthetic
     fun getPurchasesHaveBeenSynced() =
         cache.safeGetOrPut(
             PURCHASES_HAVE_BEEN_SYNCED,
             { preferenceManager.getBoolean(PURCHASES_HAVE_BEEN_SYNCED, false) }) as? Boolean
             ?: false
 
-    @JvmSynthetic
     fun setPurchasesHaveBeenSynced(synced: Boolean) {
         cache[PURCHASES_HAVE_BEEN_SYNCED] = synced
         preferenceManager.saveBoolean(PURCHASES_HAVE_BEEN_SYNCED, synced)
     }
 
-    @JvmSynthetic
     fun getExternalAnalyticsEnabled() =
         cache.safeGetOrPut(
             EXTERNAL_ANALYTICS_ENABLED,
             { preferenceManager.getBoolean(EXTERNAL_ANALYTICS_ENABLED, null) }) as? Boolean
 
-    @JvmSynthetic
     fun saveExternalAnalyticsEnabled(enabled: Boolean) {
         cache[EXTERNAL_ANALYTICS_ENABLED] = enabled
         preferenceManager.saveBoolean(EXTERNAL_ANALYTICS_ENABLED, enabled)
     }
 
-    @JvmSynthetic
     fun getLastAppOpenedTime() =
         cache.safeGetOrPut(
             APP_OPENED_TIME,
             { preferenceManager.getLong(APP_OPENED_TIME, 0L) }) as? Long ?: 0L
 
-    @JvmSynthetic
     fun saveLastAppOpenedTime(timeMillis: Long) {
         cache[APP_OPENED_TIME] = timeMillis
         preferenceManager.saveLong(APP_OPENED_TIME, timeMillis)
     }
 
-    @JvmSynthetic
     fun getLastWebPaywallOpenedTime() = cache[WEB_PAYWALL_OPENED_TIME] as? Long ?: 0L
 
-    @JvmSynthetic
     fun saveLastWebPaywallOpenedTime(timeMillis: Long) {
         cache[WEB_PAYWALL_OPENED_TIME] = timeMillis
     }
 
-    @JvmSynthetic
     fun getLastWebPaywallProfileRefreshStartTime() = cache[WEB_PAYWALL_PROFILE_REFRESH_START_TIME] as? Long ?: 0L
 
-    @JvmSynthetic
     fun saveLastWebPaywallProfileRefreshStartTime(timeMillis: Long) {
         cache[WEB_PAYWALL_PROFILE_REFRESH_START_TIME] = timeMillis
     }
 
-    @JvmSynthetic
     fun getLastRequestedCrossPlacementInfoTime() =
         cache.safeGetOrPut(
             CROSSPLACEMENT_INFO_REQUESTED_TIME,
             { preferenceManager.getLong(CROSSPLACEMENT_INFO_REQUESTED_TIME, 0L) }) as? Long ?: 0L
 
-    @JvmSynthetic
     fun saveLastRequestedCrossPlacementInfoTime(timeMillis: Long) {
         cache[CROSSPLACEMENT_INFO_REQUESTED_TIME] = timeMillis
         preferenceManager.saveLong(CROSSPLACEMENT_INFO_REQUESTED_TIME, timeMillis)
     }
 
-    @JvmSynthetic
     fun clearLastRequestedCrossPlacementInfoTime() {
         clearData(
             containsKeys = setOf(CROSSPLACEMENT_INFO_REQUESTED_TIME),
@@ -316,37 +289,35 @@ internal class CacheRepository(
         )
     }
 
-    @JvmSynthetic
     fun getProfile() =
         getData(PROFILE, ProfileDto::class.java)
 
-    @JvmSynthetic
     fun getPaywallVariationsFallback(placementId: String): FallbackVariations? {
         val fallbackPaywallsInfo = getFallbackPaywallsMetaInfo() ?: return null
         if (placementId !in fallbackPaywallsInfo.meta.developerIds) return null
         return fallbackPaywallRetriever.getPaywall(fallbackPaywallsInfo.source, placementId)
     }
 
-    @JvmSynthetic
+    fun getFlowViewConfigFallback(viewConfigurationId: String): Map<String, Any>? {
+        val fallbackPaywallsInfo = getFallbackPaywallsMetaInfo() ?: return null
+        return fallbackPaywallRetriever.getUiSchema(fallbackPaywallsInfo.source, viewConfigurationId)
+    }
+
     fun getFallbackPaywallsSnapshotAt() =
         getFallbackPaywallsMetaInfo()?.meta?.snapshotAt
 
     private fun getFallbackPaywallsMetaInfo() = cache[FALLBACK_FILE] as? FallbackPaywallsInfo
 
-    @JvmSynthetic
     fun getSyncedPurchases() =
         getData<HashSet<SyncedPurchase>>(SYNCED_PURCHASES).orEmpty()
 
-    @JvmSynthetic
     fun saveSyncedPurchases(data: Set<SyncedPurchase>) {
         saveData(SYNCED_PURCHASES, data)
     }
 
-    @JvmSynthetic
     fun getAnalyticsData(isSystemLog: Boolean) =
         getData<AnalyticsData>(getAnalyticsKey(isSystemLog)) ?: AnalyticsData.DEFAULT
 
-    @JvmSynthetic
     fun saveAnalyticsData(data: AnalyticsData, isSystemLog: Boolean) {
         saveData(getAnalyticsKey(isSystemLog), data)
     }
@@ -357,21 +328,18 @@ internal class CacheRepository(
     @Volatile
     var netConfig = NetConfig.createDefault(serverCluster)
 
-    fun getPaywall(id: String, locale: String, maxAgeMillis: Long? = null) =
-        getVariation(id, setOf(locale), VariationType.Paywall, maxAgeMillis) as? PaywallDto
-
     fun getVariation(id: String, locales: Set<String>, variationType: VariationType, maxAgeMillis: Long? = null): Variation? {
         val cacheKey: String
         val cacheVersion: Int
 
         when (variationType) {
-            VariationType.Paywall -> {
-                cacheKey = getPaywallCacheKey(id)
-                cacheVersion = CURRENT_CACHED_PAYWALL_VERSION
-            }
             VariationType.Onboarding -> {
                 cacheKey = getOnboardingCacheKey(id)
                 cacheVersion = CURRENT_CACHED_ONBOARDING_VERSION
+            }
+            VariationType.Flow -> {
+                cacheKey = getFlowCacheKey(id)
+                cacheVersion = CURRENT_CACHED_FLOW_VERSION
             }
         }
 
@@ -386,24 +354,40 @@ internal class CacheRepository(
 
     fun saveVariation(id: String, variation: Variation) {
         when (variation) {
-            is PaywallDto -> savePaywall(id, variation)
             is Onboarding -> saveOnboarding(id, variation)
+            is FlowDto -> saveFlow(id, variation)
         }
-    }
-
-    private fun savePaywall(id: String, paywallDto: PaywallDto) {
-        saveData(getPaywallCacheKey(id), CacheEntity(paywallDto, CURRENT_CACHED_PAYWALL_VERSION))
     }
 
     private fun saveOnboarding(id: String, onboarding: Onboarding) {
         saveData(getOnboardingCacheKey(id), CacheEntity(onboarding, CURRENT_CACHED_ONBOARDING_VERSION))
     }
 
-    private fun getPaywallCacheKey(id: String) =
-        getVariationCacheKey(id, PAYWALL_RESPONSE_START_PART)
+    private fun saveFlow(id: String, flow: FlowDto) {
+        saveData(getFlowCacheKey(id), CacheEntity(flow, CURRENT_CACHED_FLOW_VERSION))
+    }
 
     private fun getOnboardingCacheKey(id: String) =
         getVariationCacheKey(id, ONBOARDING_RESPONSE_START_PART)
+
+    private fun getFlowCacheKey(id: String) =
+        getVariationCacheKey(id, FLOW_RESPONSE_START_PART)
+
+    fun getFlowViewConfig(flowId: String, viewConfigurationId: String): Map<String, Any>? =
+        getData<CacheEntity<FlowViewConfig>>(getFlowViewConfigCacheKey(flowId))?.let { (viewConfig, version, _) ->
+            if (version < CURRENT_CACHED_FLOW_BUILDER_VERSION) return@let null
+            viewConfig.takeIf { it.viewConfigurationId == viewConfigurationId }?.config
+        }
+
+    fun saveFlowViewConfig(flowId: String, viewConfigurationId: String, config: Map<String, Any>) {
+        saveData(
+            getFlowViewConfigCacheKey(flowId),
+            CacheEntity(FlowViewConfig(viewConfigurationId, config), CURRENT_CACHED_FLOW_BUILDER_VERSION),
+        )
+    }
+
+    private fun getFlowViewConfigCacheKey(flowId: String) =
+        "$FLOW_BUILDER_RESPONSE_START_PART${flowId}$VARIATION_RESPONSE_END_PART"
 
     private fun getVariationCacheKey(id: String, startPart: String) =
         "$startPart${id}$VARIATION_RESPONSE_END_PART"
@@ -415,12 +399,10 @@ internal class CacheRepository(
         preferenceManager.saveString(ONBOARDING_VARIATION_ID, onboardingVariationId)
     }
 
-    @JvmSynthetic
     fun saveFallback(source: FileLocation) {
         cache[FALLBACK_FILE] = fallbackPaywallRetriever.getMetaInfo(source)
     }
 
-    @JvmSynthetic
     fun getCrossPlacementInfo() =
         try {
             crossPlacementInfoLock.readLock().lock()
@@ -561,14 +543,12 @@ internal class CacheRepository(
             SESSION_COUNT,
             { preferenceManager.getLong(SESSION_COUNT, 0L) }) as? Long ?: 0L
 
-    @JvmSynthetic
     fun incrementSessionCount() {
         val sessionCount = getSessionCount() + 1
         cache[SESSION_COUNT] = sessionCount
         preferenceManager.saveLong(SESSION_COUNT, sessionCount)
     }
 
-    @JvmSynthetic
     fun clearOnLogout() {
         clearData(
             containsKeys = setOf(
@@ -587,11 +567,10 @@ internal class CacheRepository(
                 PROFILE_RESPONSE_HASH,
                 CROSS_PLACEMENT_INFO,
             ),
-            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART),
+            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART, ONBOARDING_RESPONSE_START_PART, FLOW_RESPONSE_START_PART),
         )
     }
 
-    @JvmSynthetic
     fun clearSyncedPurchases() {
         clearData(
             containsKeys = setOf(
@@ -602,7 +581,6 @@ internal class CacheRepository(
         )
     }
 
-    @JvmSynthetic
     fun clearOnAppKeyChanged() {
         clearData(
             containsKeys = setOf(
@@ -626,7 +604,7 @@ internal class CacheRepository(
                 YET_UNPROCESSED_VALIDATE_PRODUCT_INFO,
                 EXTERNAL_ANALYTICS_ENABLED,
             ),
-            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART),
+            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART, ONBOARDING_RESPONSE_START_PART, FLOW_RESPONSE_START_PART),
         )
     }
 
@@ -637,11 +615,9 @@ internal class CacheRepository(
         preferenceManager.clearData(keysToRemove)
     }
 
-    @JvmSynthetic
     internal fun getString(key: String) =
         cache.safeGetOrPut(key, { preferenceManager.getString(key) }) as? String
 
-    @JvmSynthetic
     internal fun saveRequestOrResponseLatestData(map: Map<String, String>) {
         map.forEach { (key, value) ->
             cache[key] = value
@@ -649,10 +625,8 @@ internal class CacheRepository(
         preferenceManager.saveStrings(map)
     }
 
-    @JvmSynthetic
     fun getSessionId() = cache.safeGetOrPut(SESSION_ID) { generateUuid() } as? String
 
-    @JvmSynthetic
     fun hasLocalProfile() = preferenceManager.contains(PROFILE)
 
     private inline fun <reified T> getData(key: String, classOfT: Class<T>? = null): T? =
@@ -669,7 +643,8 @@ internal class CacheRepository(
 
     private companion object {
         private const val CURRENT_CACHED_ONBOARDING_VERSION = 1
-        private const val CURRENT_CACHED_PAYWALL_VERSION = 3
+        private const val CURRENT_CACHED_FLOW_VERSION = 1
+        private const val CURRENT_CACHED_FLOW_BUILDER_VERSION = 1
         private const val CURRENT_CACHED_PRODUCT_PAL_MAPPING_VERSION = 2
     }
 

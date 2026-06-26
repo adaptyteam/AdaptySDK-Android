@@ -4,8 +4,10 @@ import androidx.annotation.RestrictTo
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.Response
+import com.adapty.internal.data.models.AttributionData
 import com.adapty.internal.data.models.ProfileDto
 import com.adapty.internal.utils.*
+import com.adapty.models.AdaptyIntegrationIdentifier
 import com.adapty.models.AdaptyProfile
 import com.adapty.models.AdaptyProfileParameters
 import kotlinx.coroutines.flow.*
@@ -23,7 +25,6 @@ internal class ProfileInteractor(
     private val allowLocalPAL: Boolean,
 ) {
 
-    @JvmSynthetic
     fun getProfile(maxAttemptCount: Long = DEFAULT_RETRY_COUNT): Flow<AdaptyProfile> {
         val baseProfileFlow = authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
             cloudRepository.getProfile()
@@ -58,7 +59,6 @@ internal class ProfileInteractor(
         }
     }
 
-    @JvmSynthetic
     fun updateProfile(params: AdaptyProfileParameters?, maxAttemptCount: Long = DEFAULT_RETRY_COUNT) =
         validateCustomAttributes(params?.customAttributes?.map)
             .flatMapConcat { authInteractor.createInstallationMeta(false) }
@@ -108,20 +108,25 @@ internal class ProfileInteractor(
             emit(Unit)
         }
 
-    @JvmSynthetic
     fun getProfileOnStart() =
         getProfile(INFINITE_RETRY)
 
-    @JvmSynthetic
     fun syncMetaOnStart() =
         updateProfile(params = null, INFINITE_RETRY)
 
-    @JvmSynthetic
-    fun updateAttribution(attribution: Any, source: String) =
+    fun updateAttribution(attribution: Map<String, Any>, source: String) =
+        updateAttribution {
+            attributionHelper.createAttributionData(attribution, source, cacheRepository.getProfileId())
+        }
+
+    fun updateAttribution(attributionJson: String, source: String) =
+        updateAttribution {
+            attributionHelper.createAttributionData(attributionJson, source, cacheRepository.getProfileId())
+        }
+
+    private fun updateAttribution(attributionData: () -> AttributionData) =
         authInteractor.runWhenAuthDataSynced {
-            cloudRepository.updateAttribution(
-                attributionHelper.createAttributionData(attribution, source, cacheRepository.getProfileId())
-            )
+            cloudRepository.updateAttribution(attributionData())
         }
             .map { (profile, request) ->
                 cacheRepository.updateOnProfileReceived(
@@ -131,13 +136,11 @@ internal class ProfileInteractor(
                 Unit
             }
 
-    @JvmSynthetic
-    fun setIntegrationId(key: String, value: String) =
+    fun setIntegrationIdentifiers(identifiers: List<AdaptyIntegrationIdentifier>) =
         authInteractor.runWhenAuthDataSynced {
-            cloudRepository.setIntegrationId(key, value)
+            cloudRepository.setIntegrationIdentifiers(identifiers.toKeyValueMap())
         }
 
-    @JvmSynthetic
     fun syncCrossPlacementInfo(replacementProfileId: String? = null) =
         authInteractor.runWhenAuthDataSynced {
             cloudRepository.getCrossPlacementInfo(replacementProfileId).data
@@ -146,7 +149,6 @@ internal class ProfileInteractor(
                 cacheRepository.saveCrossPlacementInfo(crossPlacementInfo)
             }
 
-    @JvmSynthetic
     fun subscribeOnProfileChanges() =
         if (allowLocalPAL) {
             cacheRepository.subscribeOnProfileChanges()
@@ -159,7 +161,6 @@ internal class ProfileInteractor(
         }
             .distinctUntilChanged()
 
-    @JvmSynthetic
     fun subscribeOnEventsForStartRequests() =
         cacheRepository.subscribeOnProfileChanges()
             .distinctUntilChanged()

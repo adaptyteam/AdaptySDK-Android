@@ -5,16 +5,20 @@ package com.adapty.ui.internal.text
 import android.content.Context
 import androidx.annotation.ColorInt
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.RichText
+import com.adapty.ui.AdaptyUI.FlowConfiguration.RichText
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.ui.element.BaseTextElement
+import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.getAsset
+import com.adapty.ui.internal.utils.parseColorInt
+import com.adapty.ui.internal.utils.resolve
 
 internal class ComposeTextAttrs(
     val textColor: Color?,
@@ -22,6 +26,9 @@ internal class ComposeTextAttrs(
     val fontSize: Float?,
     val textDecoration: TextDecoration?,
     val fontFamily: FontFamily?,
+    val typeface: android.graphics.Typeface?,
+    val letterSpacing: Float?,
+    val lineHeight: Float?,
 ) {
     companion object {
         @Composable
@@ -31,14 +38,17 @@ internal class ComposeTextAttrs(
             assets: Assets,
         ): ComposeTextAttrs {
             return from(
-                textColorAssetId = richTextAttrs.textColorAssetId
-                    ?: textElementAttrs?.textColor?.assetId,
-                backgroundColorAssetId = richTextAttrs.backgroundAssetId,
+                textColor = richTextAttrs.textColor
+                    ?: textElementAttrs?.textColor,
+                backgroundColor = richTextAttrs.background,
                 fontAssetId = richTextAttrs.fontAssetId,
                 fontSize = richTextAttrs.size
                     ?: Float.NaN,
                 underline = richTextAttrs.underline,
                 strikethrough = richTextAttrs.strikethrough,
+                letterSpacing = richTextAttrs.letterSpacing
+                    ?: textElementAttrs?.letterSpacing,
+                lineHeight = textElementAttrs?.lineHeight,
                 assets = assets,
             )
         }
@@ -46,42 +56,63 @@ internal class ComposeTextAttrs(
         @Composable
         fun from(elementAttrs: BaseTextElement.Attributes, assets: Assets): ComposeTextAttrs {
             return from(
-                textColorAssetId = elementAttrs.textColor?.assetId,
-                backgroundColorAssetId = elementAttrs.background?.assetId,
+                textColor = elementAttrs.textColor,
+                backgroundColor = elementAttrs.background,
                 fontAssetId = elementAttrs.fontId,
                 fontSize = elementAttrs.fontSize,
                 underline = elementAttrs.underline,
                 strikethrough = elementAttrs.strikethrough,
+                letterSpacing = elementAttrs.letterSpacing,
+                lineHeight = elementAttrs.lineHeight,
                 assets = assets,
             )
         }
 
         @Composable
         private fun from(
-            textColorAssetId: String?,
-            backgroundColorAssetId: String?,
-            fontAssetId: String?,
+            textColor: VisualValue?,
+            backgroundColor: VisualValue?,
+            fontAssetId: VisualValue?,
             fontSize: Float?,
             underline: Boolean,
             strikethrough: Boolean,
+            letterSpacing: Float? = null,
+            lineHeight: Float? = null,
             assets: Assets,
         ): ComposeTextAttrs {
             val context = LocalContext.current
             val fontAsset = resolveFontAsset(fontAssetId, assets)
+            val typeface = resolveTypeface(fontAsset, context)
             return ComposeTextAttrs(
-                resolveColorAsset(textColorAssetId, assets) ?: resolveColor(fontAsset?.color),
-                resolveColorAsset(backgroundColorAssetId, assets),
+                resolveColor(textColor, assets) ?: resolveColor(fontAsset?.color),
+                resolveColor(backgroundColor, assets),
                 (fontSize ?: fontAsset?.size)?.takeIf { !it.isNaN() },
                 resolveTextDecoration(underline, strikethrough),
-                resolveFontFamily(fontAsset, context),
+                typeface?.let { FontFamily(it) },
+                typeface,
+                letterSpacing ?: fontAsset?.letterSpacing,
+                lineHeight ?: fontAsset?.lineHeight,
             )
         }
-
         @Composable
-        private fun resolveColorAsset(assetId: String?, assets: Assets): Color? {
-            return assetId
-                ?.let { assets.getAsset<AdaptyUI.LocalizedViewConfiguration.Asset.Color>(assetId) }
-                ?.let { asset -> Color(asset.main.value) }
+        private fun resolveColor(visualValue: VisualValue?, assets: Assets): Color? {
+            if (visualValue == null) return null
+            return visualValue.source.resolve()
+                ?.let { value ->
+                    visualValue.orderedTypes
+                        .firstOrNull { it.condition(value) }
+                        ?.let { type ->
+                            when (type) {
+                                VisualValue.Type.ColorLiteral -> remember(value) {
+                                    Color(value.parseColorInt())
+                                }
+                                VisualValue.Type.AssetId -> {
+                                    assets.getAsset<AdaptyUI.FlowConfiguration.Asset.Color>(value)
+                                        ?.let { asset -> resolveColor(asset.main.value) }
+                                }
+                            }
+                        }
+                }
         }
 
         private fun resolveColor(@ColorInt color: Int?): Color? {
@@ -100,13 +131,15 @@ internal class ComposeTextAttrs(
             }
         }
 
-        private fun resolveFontAsset(assetId: String?, assets: Assets): AdaptyUI.LocalizedViewConfiguration.Asset.Font? {
-            return assetId
-                ?.let { assets[assetId] as? AdaptyUI.LocalizedViewConfiguration.Asset.Font }
+        @Composable
+        private fun resolveFontAsset(fontAssetId: VisualValue?, assets: Assets): AdaptyUI.FlowConfiguration.Asset.Font? {
+            if (fontAssetId == null) return null
+            return fontAssetId.source.resolve()
+                ?.let { assetId -> assets[assetId] as? AdaptyUI.FlowConfiguration.Asset.Font }
         }
 
-        private fun resolveFontFamily(font: AdaptyUI.LocalizedViewConfiguration.Asset.Font?, context: Context): FontFamily? {
-            return font?.let { FontFamily(TypefaceHolder.getOrPut(context, font)) }
+        private fun resolveTypeface(font: AdaptyUI.FlowConfiguration.Asset.Font?, context: Context): android.graphics.Typeface? {
+            return font?.let { TypefaceHolder.getOrPut(context, font) }
         }
     }
 }

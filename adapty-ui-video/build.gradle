@@ -38,7 +38,7 @@ android {
     namespace 'com.adapty.ui.video'
 }
 
-def composeBom = '2024.09.02'
+def composeBom = '2025.04.01'
 
 def exoplayerVersion = '1.4.1'
 

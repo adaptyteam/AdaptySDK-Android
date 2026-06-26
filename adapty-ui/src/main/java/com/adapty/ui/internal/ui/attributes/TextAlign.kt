@@ -12,7 +12,7 @@ public enum class TextAlign {
 internal fun TextAlign.toComposeTextAlign() =
     when(this) {
         TextAlign.CENTER -> androidx.compose.ui.text.style.TextAlign.Center
-        TextAlign.JUSTIFY -> androidx.compose.ui.text.style.TextAlign.Justify
+        TextAlign.JUSTIFY -> androidx.compose.ui.text.style.TextAlign.Center
         TextAlign.START -> androidx.compose.ui.text.style.TextAlign.Start
         TextAlign.END -> androidx.compose.ui.text.style.TextAlign.End
         TextAlign.LEFT -> androidx.compose.ui.text.style.TextAlign.Left

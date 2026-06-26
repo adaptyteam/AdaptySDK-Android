@@ -6,7 +6,7 @@ import android.net.Uri
 import androidx.annotation.RestrictTo
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset.Image
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.log
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
@@ -29,7 +29,7 @@ internal class MediaFetchService(
     }
 
     fun loadImage(
-        remoteImage: AdaptyUI.LocalizedViewConfiguration.Asset.RemoteImage,
+        remoteImage: AdaptyUI.FlowConfiguration.Asset.RemoteImage,
         handlePreview: ((preview: Image) -> Unit)?,
         handleResult: ((image: Image) -> Unit)?,
     ) {

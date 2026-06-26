@@ -62,7 +62,6 @@ internal class StoreManager(
 
     private var makePurchaseCallback: MakePurchaseCallback? = null
 
-    @JvmSynthetic
     fun getPurchaseHistoryDataToRestore(maxAttemptCount: Long): Flow<List<PurchaseRecordModel>> =
         getPurchaseHistoryDataToRestoreForType(SUBS, maxAttemptCount)
             .flatMapConcat { subsHistoryList ->
@@ -151,7 +150,6 @@ internal class StoreManager(
         }.retryOnConnectionError(maxAttemptCount)
     }
 
-    @JvmSynthetic
     fun queryProductDetails(
         productList: List<String>,
         maxAttemptCount: Long,
@@ -243,7 +241,6 @@ internal class StoreManager(
         }
     }
 
-    @JvmSynthetic
     fun queryInfoForProduct(productId: String, type: String) =
         onConnected {
             storeHelper.queryProductDetailsForType(listOf(productId), extractGoogleType(type))
@@ -255,7 +252,6 @@ internal class StoreManager(
                 )
         }
 
-    @JvmSynthetic
     fun makePurchase(
         activity: Activity,
         purchaseableProduct: PurchaseableProduct,
@@ -344,7 +340,6 @@ internal class StoreManager(
                 )
             }
 
-    @JvmSynthetic
     fun acknowledgeOrConsume(purchase: Purchase, product: PurchaseableProduct) =
         onConnected {
             if (product.type == Consumable.NAME) {
@@ -355,7 +350,6 @@ internal class StoreManager(
         }
             .retryOnConnectionError(DEFAULT_RETRY_COUNT)
 
-    @JvmSynthetic
     fun getStoreCountry() =
         onConnected {
             val params = GetBillingConfigParams.newBuilder().build()
@@ -367,7 +361,6 @@ internal class StoreManager(
             }
             .map { config -> config?.countryCode }
 
-    @JvmSynthetic
     fun findActivePurchaseForProduct(
         productId: String,
         type: String,
@@ -479,7 +472,6 @@ private class StoreHelper(
     private val analyticsTracker: AnalyticsTracker,
 ) {
 
-    @JvmSynthetic
     fun queryProductDetailsForType(productList: List<String>, @BillingClient.ProductType productType: String) =
         flow {
             val requestEvent = GoogleAPIRequestData.QueryProductDetails.create(productList, productType)
@@ -504,7 +496,6 @@ private class StoreHelper(
             }
         }
 
-    @JvmSynthetic
     fun queryActivePurchasesForType(@BillingClient.ProductType type: String) =
         flow {
             val requestEvent = GoogleAPIRequestData.QueryActivePurchases.create(type)
@@ -523,7 +514,6 @@ private class StoreHelper(
             }
         }
 
-    @JvmSynthetic
     fun queryPurchaseHistoryForType(@BillingClient.ProductType type: String) =
         flow {
             val requestEvent = GoogleAPIRequestData.QueryPurchaseHistory.create(type)
@@ -547,7 +537,6 @@ private class StoreHelper(
             }
         }
 
-    @JvmSynthetic
     fun queryAllPurchasesForType(@BillingClient.ProductType type: String) =
         queryPurchaseHistoryForType(type)
             .flatMapConcat { historyRecords ->
@@ -557,12 +546,10 @@ private class StoreHelper(
                     }
             }
 
-    @JvmSynthetic
     fun queryActivePurchasesForTypeWithSync(@BillingClient.ProductType type: String) =
         queryAllPurchasesForType(type)
             .map { (_, activePurchases) -> activePurchases }
 
-    @JvmSynthetic
     fun acknowledgePurchase(purchase: Purchase) =
         flow {
             val requestEvent = GoogleAPIRequestData.AcknowledgePurchase.create(purchase)
@@ -581,7 +568,6 @@ private class StoreHelper(
             }
         }
 
-    @JvmSynthetic
     fun consumePurchase(purchase: Purchase) =
         flow {
             val requestEvent = GoogleAPIRequestData.ConsumePurchase.create(purchase)
@@ -600,7 +586,6 @@ private class StoreHelper(
             }
         }
 
-    @JvmSynthetic
     fun getBillingConfig(params: GetBillingConfigParams) =
         flow {
             val (result, config) = getBillingConfigSync(params)
@@ -621,7 +606,6 @@ private class StoreHelper(
         }
     }
 
-    @JvmSynthetic
     fun errorMessageFromBillingResult(billingResult: BillingResult, where: String) =
         "Play Market request failed $where: responseCode=${billingResult.responseCode}${
             billingResult.debugMessage.takeIf(String::isNotEmpty)?.let { msg -> ", debugMessage=$msg" }.orEmpty()

@@ -5,7 +5,8 @@ import android.content.Context
 import android.net.ConnectivityManager
 import androidx.annotation.RestrictTo
 import com.adapty.internal.AdaptyInternal
-import com.adapty.internal.data.cache.CacheEntityTypeAdapterFactory
+import com.adapty.internal.data.serialization.*
+import com.adapty.internal.data.serialization.extractors.*
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cache.PreferenceManager
 import com.adapty.internal.data.cache.ResponseCacheKeyProvider
@@ -14,6 +15,7 @@ import com.adapty.internal.data.models.*
 import com.adapty.internal.data.models.requests.SendEventRequest
 import com.adapty.internal.domain.AuthInteractor
 import com.adapty.internal.domain.BasePlacementFetcher
+import com.adapty.internal.domain.FlowInteractor
 import com.adapty.internal.domain.OnboardingInteractor
 import com.adapty.internal.domain.PaywallInteractor
 import com.adapty.internal.domain.ProfileInteractor
@@ -164,11 +166,11 @@ public object Dependencies {
                                 AdaptyResponseTypeAdapterFactory(
                                     TypeToken.get(Variation::class.java),
                                     { typeToken, gson, typeAdapterFactory ->
-                                        val paywallAdapter =
-                                            gson.getDelegateAdapter(typeAdapterFactory, TypeToken.get(PaywallDto::class.java))
-
                                         val onboardingAdapter =
                                             gson.getDelegateAdapter(typeAdapterFactory, TypeToken.get(Onboarding::class.java))
+
+                                        val flowAdapter =
+                                            gson.getDelegateAdapter(typeAdapterFactory, TypeToken.get(FlowDto::class.java))
 
                                         val elementAdapter = gson.getAdapter(JsonElement::class.java)
 
@@ -176,8 +178,8 @@ public object Dependencies {
 
                                             override fun write(out: JsonWriter, value: Variation) {
                                                 when (value) {
-                                                    is PaywallDto -> paywallAdapter.write(out, value)
                                                     is Onboarding -> onboardingAdapter.write(out, value)
+                                                    is FlowDto -> flowAdapter.write(out, value)
                                                 }
                                             }
 
@@ -187,7 +189,7 @@ public object Dependencies {
                                                 }
                                                 val delegateAdapter = when  {
                                                     (jsonElement as? JsonObject)?.has("onboarding_id") == true -> onboardingAdapter
-                                                    else -> paywallAdapter
+                                                    else -> flowAdapter
                                                 }
                                                 return delegateAdapter.fromJsonTree(jsonElement)
                                             }
@@ -505,8 +507,8 @@ public object Dependencies {
                     PlacementMapper()
                 }),
 
-                PaywallMapper::class to singleVariantDiObject({
-                    PaywallMapper(injectInternal(), injectInternal())
+                FlowMapper::class to singleVariantDiObject({
+                    FlowMapper(injectInternal(), injectInternal(), injectInternal())
                 }),
 
                 ProductMapper::class to singleVariantDiObject({
@@ -602,9 +604,6 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
-                        injectInternal(),
-                        injectInternal(),
-                        injectInternal(),
                         config.allowLocalPAL,
                     )
                 }),
@@ -614,6 +613,16 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(named = BASE),
+                        injectInternal(),
+                    )
+                }),
+
+                FlowInteractor::class to singleVariantDiObject({
+                    FlowInteractor(
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(),
                         injectInternal(),
                     )
                 }),
@@ -697,6 +706,7 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(named = BASE),
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),

@@ -1,312 +1,156 @@
+@file:OptIn(InternalAdaptyApi::class)
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+
 package com.adapty.ui.internal.ui.element
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.AdaptyUI.FlowConfiguration
+import com.adapty.ui.AdaptyUI.FlowConfiguration.RichText
+import com.adapty.ui.AdaptyUI.FlowConfiguration.TextItem
+import com.adapty.ui.internal.text.ConverterSpec
 import com.adapty.ui.internal.text.StringId
-import com.adapty.ui.internal.text.StringWrapper
-import com.adapty.ui.internal.text.TimerSegment
+import com.adapty.ui.internal.text.TagConverter
+import com.adapty.ui.internal.text.TagValueSource
+import com.adapty.ui.internal.ui.LocalScreenInstance
+import com.adapty.ui.internal.ui.LocalTexts
+import com.adapty.ui.internal.ui.LocalTimerCommands
 import com.adapty.ui.internal.ui.attributes.TextAlign
-import com.adapty.ui.internal.ui.element.TimerElement.LaunchType.Duration.StartBehavior
-import com.adapty.ui.internal.utils.EventCallback
+import com.adapty.ui.internal.ui.resolveText
+import com.adapty.ui.internal.store.Message
+import com.adapty.ui.internal.utils.StringSource
 import kotlinx.coroutines.delay
-import kotlin.random.Random
-import kotlin.time.Duration.Companion.days
-import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
+
+internal const val TIMER_TAG = "TIMER"
 
 @InternalAdaptyApi
 public class TimerElement internal constructor(
     internal val id: String,
     internal val actions: List<Action>,
-    internal val launchType: LaunchType,
     internal val format: Format,
     textAlign: TextAlign,
     attributes: Attributes,
+    internal val maxRows: Int?,
+    internal val onOverflowMode: OnOverflowMode?,
     baseProps: BaseProps,
 ) : BaseTextElement(textAlign, attributes, baseProps) {
-
-    public sealed class LaunchType {
-        public class EndAtTime internal constructor(internal val endTimestamp: Long): LaunchType()
-        public class Duration internal constructor(internal val seconds: Long, internal val startBehavior: StartBehavior): LaunchType() {
-            internal enum class StartBehavior {
-                START_AT_EVERY_APPEAR,
-                START_AT_FIRST_APPEAR,
-                START_AT_FIRST_APPEAR_PERSISTED,
-            }
-        }
-        public object Custom: LaunchType()
-    }
 
     internal class Format(val formatItemsDesc: List<FormatItem>)
 
     internal class FormatItem(val fromSeconds: Long, val stringId: StringId)
 
     override fun toComposable(
-        resolveAssets: ResolveAssets,
-        resolveText: ResolveText,
-        resolveState: ResolveState,
-        eventCallback: EventCallback,
+        dispatch: (Message) -> Unit,
         modifier: Modifier,
     ): @Composable () -> Unit = lambda@{
-        val timerFormatStrs = format.formatItemsDesc
-            .map { it.fromSeconds to resolveText(it.stringId, attributes) }
-            .takeIf { it.isNotEmpty() }
-            ?: return@lambda
+        val texts = LocalTexts.current
+        val timerCommands = LocalTimerCommands.current
+        val timerCommand = timerCommands[id]
+        val screen = LocalScreenInstance.current
 
-        var currentIndex by remember {
-            mutableIntStateOf(0)
+        val updatesPerSecond by remember(format, texts) {
+            derivedStateOf { computeUpdatesPerSecond(format, texts) }
+        }
+        val tickIntervalMs by remember(updatesPerSecond) {
+            derivedStateOf { (1000L / updatesPerSecond.coerceAtLeast(1)).coerceAtLeast(1L) }
         }
 
-        val nextSecondsThreshold by remember {
-            derivedStateOf {
-                timerFormatStrs.getOrNull(currentIndex+1)?.first ?: Long.MIN_VALUE
-            }
-        }
-
-        val timerFormatStr = timerFormatStrs.getOrNull(currentIndex)?.second ?: return@lambda
-
-        renderTimerInternal(
-            timerFormatStr,
-            eventCallback,
-            resolveAssets,
-            resolveText,
-            modifier,
-            onInitialSecondsLeft = { secondsLeft ->
-                if (nextSecondsThreshold >= secondsLeft) {
-                    var i = currentIndex
-                    while (i < timerFormatStrs.lastIndex && timerFormatStrs[i + 1].first >= secondsLeft)
-                        i++
-                    currentIndex = i
-                }
-            },
-            onTick = { secondsLeft ->
-                if (nextSecondsThreshold == secondsLeft)
-                    currentIndex++
-            },
-        )
-    }
-
-    private fun getCurrentTimestamp() = System.currentTimeMillis() / 1000L
-
-    @Composable
-    internal fun renderTimerInternal(
-        timerFormat: StringWrapper,
-        callback: EventCallback,
-        resolveAssets: ResolveAssets,
-        resolveText: ResolveText,
-        modifier: Modifier,
-        onInitialSecondsLeft: (secondsLeft: Long) -> Unit,
-        onTick: (secondsLeft: Long) -> Unit,
-    ) {
-        var timerValue by rememberSaveable {
+        var timerMillis by rememberSaveable(timerCommand?.endAtSeconds) {
             mutableLongStateOf(
-                (when(launchType) {
-                    is LaunchType.Duration -> {
-                        val duration = launchType.seconds
-                        when (val startBehavior = launchType.startBehavior) {
-                            StartBehavior.START_AT_EVERY_APPEAR ->  duration.also(onInitialSecondsLeft)
-                            StartBehavior.START_AT_FIRST_APPEAR, StartBehavior.START_AT_FIRST_APPEAR_PERSISTED -> {
-                                val isPersisted = startBehavior == StartBehavior.START_AT_FIRST_APPEAR_PERSISTED
-                                val previousStartTimestamp = callback.getTimerStartTimestamp(id, isPersisted)
-                                if (previousStartTimestamp == null) {
-                                    duration.also {
-                                        callback.setTimerStartTimestamp(id, getCurrentTimestamp(), isPersisted)
-                                    }
-                                } else {
-                                    (duration - (getCurrentTimestamp() - previousStartTimestamp))
-                                        .coerceAtLeast(0L)
-                                        .also(onInitialSecondsLeft)
-                                }
-                            }
-                        }
-                    }
-                    is LaunchType.EndAtTime -> {
-                        (launchType.endTimestamp - getCurrentTimestamp())
-                            .coerceAtLeast(0L)
-                            .also(onInitialSecondsLeft)
-                    }
-                    is LaunchType.Custom -> {
-                        ((callback.timerEndAtDate(id).time - System.currentTimeMillis()) / 1000L)
-                            .coerceAtLeast(0L)
-                            .also(onInitialSecondsLeft)
-                    }
-                }) * 1000L
+                if (timerCommand != null)
+                    (timerCommand.endAtSeconds * 1000L - System.currentTimeMillis()).coerceAtLeast(0L)
+                else 0L
             )
         }
 
-        val actionsResolved = actions.mapNotNull { action -> action.resolve(resolveText) }
-
-        val lastTimeSegment by remember(timerFormat) {
-            mutableStateOf(
-                when (timerFormat) {
-                    is StringWrapper.TimerSegmentStr -> timerFormat.timerSegment
-                    is StringWrapper.ComplexStr -> timerFormat.parts
-                        .filterIsInstance<StringWrapper.ComplexStr.ComplexStrPart.Text>().map { it.str }
-                        .filterIsInstance<StringWrapper.TimerSegmentStr>().lastOrNull()?.timerSegment
-                    else -> null
-                }
-            )
-        }
-
-        val countdownSegments by remember {
-            mutableStateOf(listOf(TimerSegment.MILLISECONDS, TimerSegment.CENTISECONDS, TimerSegment.DECISECONDS))
-        }
-
-        val isCountdown by remember(lastTimeSegment) {
-            derivedStateOf { lastTimeSegment in countdownSegments }
-        }
-
-        LaunchedEffect(isCountdown) {
-            while(timerValue > 0L) {
-                when (lastTimeSegment) {
-                    TimerSegment.DECISECONDS, TimerSegment.CENTISECONDS, TimerSegment.MILLISECONDS -> {
-                        val subtrahend = 125L
-                        delay(subtrahend.milliseconds)
-                        timerValue -= subtrahend
-                        val divisor = 1000L
-                        if (timerValue % divisor == 0L) {
-                            onTick(timerValue / divisor)
-                        }
-                    }
-                    else -> {
-                        delay(1.seconds)
-                        timerValue -= 1000L
-                        onTick(timerValue / 1000L)
-                    }
-                }
+        LaunchedEffect(timerCommand?.endAtSeconds, tickIntervalMs) {
+            if (timerCommand == null) return@LaunchedEffect
+            val endAtMillis = timerCommand.endAtSeconds * 1000L
+            while (true) {
+                val remainingMillis = (endAtMillis - System.currentTimeMillis()).coerceAtLeast(0L)
+                timerMillis = remainingMillis
+                if (remainingMillis == 0L) break
+                delay(remainingMillis % tickIntervalMs + 1)
             }
-            if (timerValue == 0L)
-                callback.onActions(actionsResolved)
+            dispatch(Message.TimerCompleted(id, actions, screen))
         }
 
-        val timerValueStr by remember(timerFormat) {
-            derivedStateOf {
-                var timerMillisLeft = timerValue.milliseconds
-                when (timerFormat) {
-                    is StringWrapper.Str -> timerFormat
-                    is StringWrapper.TimerSegmentStr -> {
-                        val currentFormattedString: String
-                        when (timerFormat.timerSegment) {
-                            TimerSegment.UNKNOWN -> {
-                                currentFormattedString = timerFormat.value
-                            }
-                            TimerSegment.DAYS -> {
-                                val days = timerMillisLeft.inWholeDays
-                                currentFormattedString = timerFormat.value.format(days)
-                                timerMillisLeft -= days.days
-                            }
-                            TimerSegment.HOURS -> {
-                                val hours = timerMillisLeft.inWholeHours
-                                currentFormattedString = timerFormat.value.format(hours)
-                                timerMillisLeft -= hours.hours
-                            }
-                            TimerSegment.MINUTES -> {
-                                val minutes = timerMillisLeft.inWholeMinutes
-                                currentFormattedString = timerFormat.value.format(minutes)
-                                timerMillisLeft -= minutes.minutes
-                            }
-                            TimerSegment.SECONDS -> {
-                                val seconds = timerMillisLeft.inWholeSeconds
-                                currentFormattedString = timerFormat.value.format(seconds)
-                                timerMillisLeft -= seconds.seconds
-                            }
-                            TimerSegment.DECISECONDS -> {
-                                val deciseconds = timerMillisLeft.inWholeMilliseconds / 100
-                                currentFormattedString = timerFormat.value.format(deciseconds)
-                            }
-                            TimerSegment.CENTISECONDS -> {
-                                val centiseconds = timerMillisLeft.inWholeMilliseconds / 10 + Random.nextLong(10L)
-                                currentFormattedString = timerFormat.value.format(centiseconds)
-                            }
-                            TimerSegment.MILLISECONDS -> {
-                                val milliseconds = timerMillisLeft.inWholeMilliseconds + Random.nextLong(100L)
-                                currentFormattedString = timerFormat.value.format(milliseconds)
-                            }
-                        }
-                        StringWrapper.Str(currentFormattedString, timerFormat.attrs)
-                    }
+        val wholeSecondsLeft = timerMillis / 1000L
+        val currentIndex = format.formatItemsDesc
+            .indexOfFirst { it.fromSeconds <= wholeSecondsLeft }
+            .takeIf { it != -1 }
+            ?: format.formatItemsDesc.lastIndex
 
-                    is StringWrapper.ComplexStr -> {
-                        val mappedParts = timerFormat.parts.map { part ->
-                            when (part) {
-                                is StringWrapper.ComplexStr.ComplexStrPart.Text -> {
-                                    when (val str = part.str) {
-                                        is StringWrapper.Str -> StringWrapper.ComplexStr.ComplexStrPart.Text(str)
-                                        is StringWrapper.TimerSegmentStr -> {
-                                            val currentFormattedString: String
-                                            when (str.timerSegment) {
-                                                TimerSegment.UNKNOWN -> return@map StringWrapper.ComplexStr.ComplexStrPart.Text(str)
-                                                TimerSegment.DAYS -> {
-                                                    val days = timerMillisLeft.inWholeDays
-                                                    currentFormattedString = str.value.format(days)
-                                                    timerMillisLeft -= days.days
-                                                }
-                                                TimerSegment.HOURS -> {
-                                                    val hours = timerMillisLeft.inWholeHours
-                                                    currentFormattedString = str.value.format(hours)
-                                                    timerMillisLeft -= hours.hours
-                                                }
-                                                TimerSegment.MINUTES -> {
-                                                    val minutes = timerMillisLeft.inWholeMinutes
-                                                    currentFormattedString = str.value.format(minutes)
-                                                    timerMillisLeft -= minutes.minutes
-                                                }
-                                                TimerSegment.SECONDS -> {
-                                                    val seconds = timerMillisLeft.inWholeSeconds
-                                                    currentFormattedString = str.value.format(seconds)
-                                                    timerMillisLeft -= seconds.seconds
-                                                }
-                                                TimerSegment.DECISECONDS -> {
-                                                    val deciseconds = timerMillisLeft.inWholeMilliseconds / 100
-                                                    currentFormattedString = str.value.format(deciseconds)
-                                                }
-                                                TimerSegment.CENTISECONDS -> {
-                                                    val centiseconds = timerMillisLeft.inWholeMilliseconds / 10 + Random.nextLong(10L)
-                                                    currentFormattedString = str.value.format(centiseconds)
-                                                }
-                                                TimerSegment.MILLISECONDS -> {
-                                                    val milliseconds = timerMillisLeft.inWholeMilliseconds + Random.nextLong(100L)
-                                                    currentFormattedString = str.value.format(milliseconds)
-                                                }
-                                            }
-                                            StringWrapper.ComplexStr.ComplexStrPart.Text(
-                                                StringWrapper.Str(currentFormattedString, str.attrs)
-                                            )
-                                        }
-                                    }
-                                }
-                                is StringWrapper.ComplexStr.ComplexStrPart.Image -> part
-                            }
-                        }
-                        StringWrapper.ComplexStr(mappedParts)
-                    }
-                }
-            }
-        }
+        val currentItem = format.formatItemsDesc.getOrNull(currentIndex) ?: return@lambda
+        val secondsLeft = timerMillis / 1000.0
+
+        val withTimerTag = injectTimerTag(currentItem.stringId, secondsLeft)
+        val displayText = resolveText(withTimerTag, attributes) ?: return@lambda
 
         renderTextInternal(
             attributes,
             textAlign,
-            1,
-            OnOverflowMode.SCALE,
+            maxRows,
+            onOverflowMode,
             modifier,
-            resolveAssets,
-            callback,
-            resolveText,
+            dispatch,
         ) {
-            timerValueStr
+            displayText
         }
     }
+}
+
+private val DEFAULT_TIMER_TICK_RATE = 1
+private val FALLBACK_BINDING_TICK_RATE = 1
+
+private fun injectTimerTag(stringId: StringId, secondsLeft: Double): StringId {
+    if (stringId !is StringId.Str) return stringId
+    val tagValues = (stringId.tagValues?.toMutableMap() ?: mutableMapOf()).apply {
+        put(TIMER_TAG, TagValueSource.Literal(secondsLeft))
+    }
+    return StringId.Str(stringId.source, tagValues)
+}
+
+private fun computeUpdatesPerSecond(
+    format: TimerElement.Format,
+    texts: Map<String, TextItem>,
+): Int {
+    var maxRate = DEFAULT_TIMER_TICK_RATE
+    for (item in format.formatItemsDesc) {
+        val rate = inspectFormatItemUpdateRate(item.stringId, texts)
+        if (rate > maxRate) maxRate = rate
+    }
+    return maxRate
+}
+
+private fun inspectFormatItemUpdateRate(stringId: StringId, texts: Map<String, TextItem>): Int {
+    if (stringId !is StringId.Str) return DEFAULT_TIMER_TICK_RATE
+    val source = stringId.source
+    if (source !is StringSource.Value) return FALLBACK_BINDING_TICK_RATE
+    val textItem = texts[source.value] ?: return DEFAULT_TIMER_TICK_RATE
+    return maxOf(
+        inspectRichTextUpdateRate(textItem.value),
+        textItem.fallback?.let(::inspectRichTextUpdateRate) ?: DEFAULT_TIMER_TICK_RATE,
+    )
+}
+
+private fun inspectRichTextUpdateRate(richText: RichText): Int {
+    var rate = DEFAULT_TIMER_TICK_RATE
+    for (richTextItem in richText.items) {
+        if (richTextItem !is RichText.Item.Tag) continue
+        if (richTextItem.tag != TIMER_TAG) continue
+        val name = richTextItem.converterName ?: continue
+        val converter = TagConverter.fromJson(ConverterSpec(name, richTextItem.converterParams))
+            as? TagConverter.Timer ?: continue
+        if (converter.updatesPerSecond > rate) rate = converter.updatesPerSecond
+    }
+    return rate
 }

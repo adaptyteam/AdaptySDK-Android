@@ -30,23 +30,24 @@ internal class ProductMapper(
     private val priceFormatter: PriceFormatter,
 ) {
 
-    @JvmSynthetic
     fun map(
         products: List<BackendProduct>,
         billingInfo: Map<String, ProductDetails>,
-        paywall: AdaptyPaywall,
+        paywall: AdaptyFlowPaywall,
     ) =
         products.mapNotNull { product ->
             billingInfo[product.vendorProductId]?.let { productDetails ->
-                map(product, productDetails, paywall)
+                map(product, productDetails, paywall.name, paywall.placement.abTestName, paywall.variationId, paywall.webPurchaseUrl)
             }
         }
 
-    @JvmSynthetic
-    fun map(
+    private fun map(
         product: BackendProduct,
         productDetails: ProductDetails,
-        paywall: AdaptyPaywall,
+        paywallName: String,
+        paywallABTestName: String,
+        variationId: String,
+        webPurchaseUrl: String?,
     ) : AdaptyPaywallProduct? {
 
         val priceAmountMicros: Long
@@ -149,9 +150,9 @@ internal class ProductMapper(
             vendorProductId = product.vendorProductId,
             localizedTitle = productDetails.name,
             localizedDescription = productDetails.description,
-            paywallName = paywall.name,
-            paywallABTestName = paywall.placement.abTestName,
-            variationId = paywall.variationId,
+            paywallName = paywallName,
+            paywallABTestName = paywallABTestName,
+            variationId = variationId,
             accessLevelId = product.accessLevelId,
             productType = product.declaredProductType,
             price = AdaptyPaywallProduct.Price(
@@ -162,7 +163,7 @@ internal class ProductMapper(
             ),
             subscriptionDetails = subscriptionDetails,
             productDetails = productDetails,
-            webPurchaseUrl = paywall.webPurchaseUrl,
+            webPurchaseUrl = webPurchaseUrl,
             payloadData = AdaptyPaywallProduct.Payload(
                 priceAmountMicros,
                 currencyCode,
@@ -170,15 +171,14 @@ internal class ProductMapper(
                 subscriptionData,
                 product.paywallProductIndex,
                 product.id,
+                product.flowProductId,
             ),
         )
     }
 
-    @JvmSynthetic
     fun map(productDtos: List<ProductDto>) =
         productDtos.map { productDto -> map(productDto) }
 
-    @JvmSynthetic
     fun map(productDto: ProductDto) =
         BackendProduct(
             id = productDto.id ?: throw AdaptyError(
@@ -204,9 +204,9 @@ internal class ProductMapper(
             declaredProductType = productDto.productType,
             duration = Duration.fromProductType(productDto.productType),
             timestamp = productDto.timestamp.orDefault(),
+            flowProductId = productDto.flowProductId,
         )
 
-    @JvmSynthetic
     fun mapToPurchaseableProduct(
         product: AdaptyPaywallProduct,
         productDetails: ProductDetails,
@@ -231,7 +231,6 @@ internal class ProductMapper(
         )
     }
 
-    @JvmSynthetic
     fun mapToRestore(
         purchaseRecord: PurchaseRecordModel,
         productDetails: ProductDetails?,
@@ -243,7 +242,6 @@ internal class ProductMapper(
             productDetails = productDetails?.let(PurchasedProductDetails.Companion::create)
         )
 
-    @JvmSynthetic
     fun mapToSyncedPurchase(purchaseRecord: PurchaseRecordModel) =
         SyncedPurchase(
             purchaseToken = purchaseRecord.purchaseToken,

@@ -2,17 +2,17 @@
 
 package com.adapty.ui.internal.ui.attributes
 
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeContent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.utils.LocalScreenDimensions
+import com.adapty.ui.internal.utils.SafeAreaInsets
+import com.adapty.ui.internal.utils.ScreenDimensions
 import com.adapty.ui.internal.utils.getInsets
-import com.adapty.ui.internal.utils.getScreenHeightDp
-import com.adapty.ui.internal.utils.getScreenWidthDp
 
 @Composable
 internal fun DimUnit.toExactDp(axis: DimSpec.Axis): Dp {
@@ -36,10 +36,9 @@ internal fun DimUnit.toExactDp(axis: DimSpec.Axis): Dp {
             }
         }
         is DimUnit.ScreenFraction -> {
-            val maxAvailableWidth = getScreenWidthDp()
-            val maxAvailableHeight = getScreenHeightDp()
+            val screenDimensions = LocalScreenDimensions.current
             val screenSize =
-                if (axis == DimSpec.Axis.Y) maxAvailableHeight else maxAvailableWidth
+                if (axis == DimSpec.Axis.Y) screenDimensions.heightDp else screenDimensions.widthDp
 
             return (this.fraction * screenSize).dp
         }
@@ -56,5 +55,32 @@ public sealed class DimUnit {
 
     public companion object {
         public val Zero: DimUnit = Exact(0f)
+    }
+}
+
+internal fun DimUnit.toExactDpInLayout(
+    axis: DimSpec.Axis,
+    safeAreaInsets: SafeAreaInsets,
+    screenDimensions: ScreenDimensions,
+    layoutDirection: LayoutDirection,
+): Dp {
+    when (this) {
+        is DimUnit.Exact -> return this.value.dp
+        is DimUnit.SafeArea -> {
+            return when (this.side) {
+                DimUnit.SafeArea.Side.START -> when (axis) {
+                    DimSpec.Axis.X -> if (layoutDirection == LayoutDirection.Rtl) safeAreaInsets.end else safeAreaInsets.start
+                    DimSpec.Axis.Y -> safeAreaInsets.top
+                }
+                DimUnit.SafeArea.Side.END -> when (axis) {
+                    DimSpec.Axis.X -> if (layoutDirection == LayoutDirection.Rtl) safeAreaInsets.start else safeAreaInsets.end
+                    DimSpec.Axis.Y -> safeAreaInsets.bottom
+                }
+            }
+        }
+        is DimUnit.ScreenFraction -> {
+            val screenSize = if (axis == DimSpec.Axis.Y) screenDimensions.heightDp else screenDimensions.widthDp
+            return (this.fraction * screenSize).dp
+        }
     }
 }

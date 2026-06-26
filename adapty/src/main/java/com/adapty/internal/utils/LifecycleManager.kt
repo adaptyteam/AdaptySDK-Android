@@ -22,14 +22,12 @@ internal class LifecycleManager(private val app: Application, cacheRepository: C
     }
 
     @JvmField
-    @JvmSynthetic
     var stateCallback: StateCallback? = null
 
     private var isFirstStart = true
 
     private val isActivateAllowed = MutableStateFlow(!cacheRepository.hasLocalProfile())
 
-    @JvmSynthetic
     fun init() {
         if (Thread.currentThread() == Looper.getMainLooper().thread) {
             initInternal()
@@ -54,19 +52,16 @@ internal class LifecycleManager(private val app: Application, cacheRepository: C
         }
     }
 
-    @JvmSynthetic
     override fun onStart(owner: LifecycleOwner) {
         super.onStart(owner)
         stateCallback?.onGoForeground()
     }
 
-    @JvmSynthetic
     override fun onStop(owner: LifecycleOwner) {
         stateCallback?.onGoBackground()
         super.onStop(owner)
     }
 
-    @JvmSynthetic
     fun onActivateAllowed() =
         isActivateAllowed
             .filter { it }

@@ -1,3 +1,5 @@
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+
 package com.adapty.ui.internal.ui.element
 
 import androidx.compose.foundation.layout.Box
@@ -8,68 +10,53 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
-import com.adapty.ui.internal.ui.attributes.Shape
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.script.get
+import com.adapty.ui.internal.ui.LocalScreenInstance
+import com.adapty.ui.internal.ui.LocalUiEnabled
 import com.adapty.ui.internal.ui.attributes.toComposeFill
-import com.adapty.ui.internal.utils.EventCallback
-import com.adapty.ui.internal.utils.handleInitialProductSelection
-import com.adapty.ui.internal.utils.getAsset
-import com.adapty.ui.internal.utils.getProductGroupKey
+import com.adapty.ui.internal.ui.resolveState
+import com.adapty.ui.internal.store.Message
+import com.adapty.ui.internal.utils.DISABLED_ALPHA
+import com.adapty.ui.internal.utils.TwoWayBinding
+import com.adapty.ui.internal.utils.VisualValue
+import com.adapty.ui.internal.utils.resolveAsset
 
 @InternalAdaptyApi
 public class ToggleElement internal constructor(
-    internal val onActions: List<Action>,
-    internal val offActions: List<Action>,
-    internal val onCondition: Condition,
-    internal val color: Shape.Fill?,
+    internal val value: TwoWayBinding,
+    internal val color: VisualValue?,
     override val baseProps: BaseProps,
 ) : UIElement {
 
     override fun toComposable(
-        resolveAssets: ResolveAssets,
-        resolveText: ResolveText,
-        resolveState: ResolveState,
-        eventCallback: EventCallback,
+        dispatch: (Message) -> Unit,
         modifier: Modifier,
     ): @Composable () -> Unit = {
         val state = resolveState()
-        val fill = color?.assetId?.let { assetId -> resolveAssets().getAsset<Asset.Color>(assetId) }
-        val colors = if (fill != null)
-            SwitchDefaults.colors(checkedTrackColor = fill.toComposeFill().color)
-        else
+        val fill = color?.resolveAsset<Asset.Color>()
+        val colors = if (fill != null) {
+            val accent = fill.toComposeFill().color
+            SwitchDefaults.colors(
+                checkedTrackColor = accent,
+                disabledCheckedTrackColor = accent.copy(alpha = DISABLED_ALPHA),
+            )
+        } else {
             SwitchDefaults.colors()
+        }
 
         Box(
             Modifier
                 .fillMaxWidth(),
             contentAlignment = Alignment.CenterEnd,
         ) {
-            val onActionsResolved = onActions.mapNotNull { action -> action.resolve(resolveText) }
-            val offActionsResolved = offActions.mapNotNull { action -> action.resolve(resolveText) }
-
+            val screen = LocalScreenInstance.current
             Switch(
-                checked = when (onCondition) {
-                    is Condition.SelectedSection -> {
-                        val sectionKey = SectionElement.getKey(onCondition.sectionId)
-                        state[sectionKey] as? Int == onCondition.index
-                    }
-                    is Condition.SelectedProduct -> {
-                        val productGroupKey = getProductGroupKey(onCondition.groupId)
-                        (state[productGroupKey] as? String == onCondition.productId)
-                            .also { isChecked ->
-                                handleInitialProductSelection(
-                                    onCondition.productId,
-                                    onCondition.groupId,
-                                    isChecked,
-                                    eventCallback,
-                                )
-                            }
-                    }
-                    else -> false
-                },
+                checked = state[value] as? Boolean ?: false,
                 onCheckedChange = { checked ->
-                    eventCallback.onActions(if (checked) onActionsResolved else offActionsResolved)
+                    dispatch(Message.ToggleChanged(value, checked, screen))
                 },
+                enabled = LocalUiEnabled.current,
                 colors = colors,
                 modifier = modifier,
             )

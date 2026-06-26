@@ -36,13 +36,13 @@ public data class Animation<T> internal constructor(
     }
 
     public enum class Role {
-        Offset, Scale, Rotation, Opacity, Background, Border, Box, Shadow
+        Offset, Scale, Rotation, Opacity, Background, Border, Box, Shadow, InnerShadow, Blur
     }
 }
 
 internal sealed class Interpolator {
-    class Named(val name: String): Interpolator()
-    class CubicBezier(
+    data class Named(val name: String): Interpolator()
+    data class CubicBezier(
         val a: Float,
         val b: Float,
         val c: Float,
@@ -50,9 +50,9 @@ internal sealed class Interpolator {
     ): Interpolator()
 }
 
-internal val Animation<*>.easing: Easing
-    get() = when (interpolator) {
-        is Interpolator.Named -> when (interpolator.name) {
+internal fun Interpolator.toEasing(): Easing =
+    when (this) {
+        is Interpolator.Named -> when (name) {
             "ease_in_out" -> EaseInOut
             "ease_in" -> EaseIn
             "ease_out" -> EaseOut
@@ -66,5 +66,8 @@ internal val Animation<*>.easing: Easing
             else -> EaseInOut
         }
         is Interpolator.CubicBezier ->
-            CubicBezierEasing(interpolator.a, interpolator.b, interpolator.c, interpolator.d)
+            CubicBezierEasing(a, b, c, d)
     }
+
+internal val Animation<*>.easing: Easing
+    get() = interpolator.toEasing()

@@ -11,9 +11,11 @@ import com.adapty.internal.data.models.FallbackVariations
 import com.adapty.utils.AdaptyLogLevel
 import com.adapty.utils.FileLocation
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import java.io.InputStream
+import java.io.Reader
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class FallbackPaywallRetriever(
@@ -79,54 +81,7 @@ internal class FallbackPaywallRetriever(
     private fun getPaywall(placementId: String, createInputStream: () -> InputStream?): FallbackVariations? {
         return try {
             createInputStream()?.reader()?.use { reader ->
-                val jsonReader = object : JsonReader(reader) {
-                    var currentDepth = 0
-                    var skippingMode = false
-
-                    override fun beginObject() {
-                        super.beginObject()
-                        currentDepth++
-
-                        if (skippingMode) {
-                            var nextToken = peek()
-                            while (nextToken != JsonToken.END_OBJECT) {
-                                skipValue()
-                                nextToken = peek()
-                            }
-                            skippingMode = false
-                        }
-                    }
-
-                    override fun beginArray() {
-                        super.beginArray()
-                        currentDepth++
-
-                        if (skippingMode) {
-                            var nextToken = peek()
-                            while (nextToken != JsonToken.END_ARRAY) {
-                                skipValue()
-                                nextToken = peek()
-                            }
-                            skippingMode = false
-                        }
-                    }
-
-                    override fun endObject() {
-                        super.endObject()
-                        currentDepth--
-                    }
-
-                    override fun endArray() {
-                        super.endArray()
-                        currentDepth--
-                    }
-
-                    override fun nextName(): String {
-                        val name = super.nextName()
-                        skippingMode = (currentDepth == 1 && name != "data") || (currentDepth == 2 && name != placementId)
-                        return name
-                    }
-                }
+                val jsonReader = createFilteringReader(reader, "data", placementId)
 
                 jsonReader.use {
                     jsonReader.isLenient = true
@@ -152,7 +107,96 @@ internal class FallbackPaywallRetriever(
         }
     }
 
+    fun getUiSchema(source: FileLocation, viewConfigurationId: String): Map<String, Any>? {
+        return when (source) {
+            is FileLocation.Uri -> getUiSchema(viewConfigurationId) {
+                appContext.contentResolver.openInputStream(source.uri)
+            }
+            is FileLocation.Asset -> getUiSchema(viewConfigurationId) {
+                appContext.assets?.open(source.relativePath)
+            }
+        }
+    }
+
+    private fun getUiSchema(viewConfigurationId: String, createInputStream: () -> InputStream?): Map<String, Any>? {
+        return try {
+            createInputStream()?.reader()?.use { reader ->
+                val jsonReader = createFilteringReader(reader, "ui_builder", viewConfigurationId)
+
+                jsonReader.use {
+                    jsonReader.isLenient = true
+                    val type = object : TypeToken<Map<String, Any>>() {}.type
+                    val root: Map<String, Any> = gson.fromJson(jsonReader, type)
+                    @Suppress("UNCHECKED_CAST")
+                    (root["ui_builder"] as? Map<*, *>)?.get(viewConfigurationId) as? Map<String, Any>
+                }
+            }
+        } catch (e: Exception) {
+            Logger.log(AdaptyLogLevel.ERROR) { "Couldn't retrieve fallback ui schema (viewConfigurationId: $viewConfigurationId). $e" }
+            null
+        }
+    }
+
+    private fun createFilteringReader(reader: Reader, topLevelName: String, nestedName: String): JsonReader =
+        object : JsonReader(reader) {
+            var currentDepth = 0
+            var skippingMode = false
+
+            override fun beginObject() {
+                super.beginObject()
+                currentDepth++
+
+                if (skippingMode) {
+                    var nextToken = peek()
+                    while (nextToken != JsonToken.END_OBJECT) {
+                        skipValue()
+                        nextToken = peek()
+                    }
+                    skippingMode = false
+                }
+            }
+
+            override fun beginArray() {
+                super.beginArray()
+                currentDepth++
+
+                if (skippingMode) {
+                    var nextToken = peek()
+                    while (nextToken != JsonToken.END_ARRAY) {
+                        skipValue()
+                        nextToken = peek()
+                    }
+                    skippingMode = false
+                }
+            }
+
+            override fun endObject() {
+                super.endObject()
+                currentDepth--
+            }
+
+            override fun endArray() {
+                super.endArray()
+                currentDepth--
+            }
+
+            override fun nextName(): String {
+                val name = super.nextName()
+                skippingMode = (currentDepth == 1 && name != topLevelName) || (currentDepth == 2 && name != nestedName)
+                return name
+            }
+
+            private fun consumeSkippingMode() { skippingMode = false }
+
+            override fun nextString(): String = super.nextString().also { consumeSkippingMode() }
+            override fun nextBoolean(): Boolean = super.nextBoolean().also { consumeSkippingMode() }
+            override fun nextInt(): Int = super.nextInt().also { consumeSkippingMode() }
+            override fun nextLong(): Long = super.nextLong().also { consumeSkippingMode() }
+            override fun nextDouble(): Double = super.nextDouble().also { consumeSkippingMode() }
+            override fun nextNull() { super.nextNull(); consumeSkippingMode() }
+        }
+
     private companion object {
-        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 9
+        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 10
     }
 }

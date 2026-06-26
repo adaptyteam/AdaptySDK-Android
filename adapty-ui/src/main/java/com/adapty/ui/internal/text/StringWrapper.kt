@@ -15,38 +15,42 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.store.Message
+import com.adapty.ui.internal.ui.NavigationEntry
 import com.adapty.ui.internal.ui.element.Action
 
 @InternalAdaptyApi
 public sealed class StringWrapper {
     internal sealed class Single(val value: String, val attrs: ComposeTextAttrs?, val actions: List<Action> = emptyList()): StringWrapper()
     internal class Str internal constructor(value: String, attrs: ComposeTextAttrs? = null, actions: List<Action> = emptyList()): Single(value, attrs, actions)
-    internal class TimerSegmentStr internal constructor(
-        value: String,
-        val timerSegment: TimerSegment,
-        attrs: ComposeTextAttrs? = null,
-        actions: List<Action> = emptyList(),
-    ) : Single(value, attrs, actions)
 
     internal class ComplexStr internal constructor(val parts: List<ComplexStrPart>): StringWrapper() {
         sealed class ComplexStrPart {
             class Text(val str: Single): ComplexStrPart()
-            class Image(val id: String, val inlineContent: InlineTextContent): ComplexStrPart()
+            class Image(val id: String, val inlineContent: InlineTextContent, val actions: List<Action> = emptyList()): ComplexStrPart()
         }
 
-        fun resolve(
-            resolvedActionsByPart: Map<Int, List<Action>> = emptyMap(),
-            onActions: ((List<Action>) -> Unit)? = null,
-        ): AnnotatedStr {
+        fun resolve(dispatch: ((Message) -> Unit)? = null, screen: NavigationEntry? = null): AnnotatedStr {
             val inlineContent = mutableMapOf<String, InlineTextContent>()
             val annotatedString = buildAnnotatedString {
-                parts.forEachIndexed { index, part ->
+                parts.forEach { part ->
                     when (part) {
                         is ComplexStrPart.Text -> {
-                            append(part.str, resolvedActionsByPart[index], onActions)
+                            append(part.str, dispatch, screen)
                         }
                         is ComplexStrPart.Image -> {
-                            appendInlineContent(part.id, " ")
+                            if (part.actions.isNotEmpty() && dispatch != null && screen != null) {
+                                val actions = part.actions
+                                withLink(
+                                    LinkAnnotation.Clickable("action") {
+                                        dispatch(Message.ActionsRequested(actions, screen))
+                                    }
+                                ) {
+                                    appendInlineContent(part.id, " ")
+                                }
+                            } else {
+                                appendInlineContent(part.id, " ")
+                            }
                             inlineContent[part.id] = part.inlineContent
                         }
                     }
@@ -69,24 +73,20 @@ internal fun StringWrapper.toPlainString() =
         is StringWrapper.ComplexStr -> resolve().value.text
     }
 
-internal class AnnotatedStr(
-    val value: AnnotatedString,
-    val inlineContent: Map<String, InlineTextContent>,
-)
+internal class AnnotatedStr(val value: AnnotatedString, val inlineContent: Map<String, InlineTextContent>)
 
-private fun AnnotatedString.Builder.append(
-    processedItem: StringWrapper.Single,
-    resolvedActions: List<Action>? = null,
-    onActions: ((List<Action>) -> Unit)? = null,
-) {
-    val spanStyle = processedItem.attrs?.let { createSpanStyle(it) }
-    if (!resolvedActions.isNullOrEmpty() && onActions != null) {
+private fun AnnotatedString.Builder.append(processedItem: StringWrapper.Single, dispatch: ((Message) -> Unit)? = null, screen: NavigationEntry? = null) {
+    val attrs = processedItem.attrs
+    val spanStyle = attrs?.let { createSpanStyle(it) }
+
+    if (processedItem.actions.isNotEmpty() && dispatch != null && screen != null) {
+        val actions = processedItem.actions
         withLink(
             LinkAnnotation.Clickable(
                 "action",
                 TextLinkStyles(style = spanStyle),
             ) {
-                onActions(resolvedActions)
+                dispatch(Message.ActionsRequested(actions, screen))
             }
         ) {
             append(processedItem.value)
@@ -107,5 +107,6 @@ private fun createSpanStyle(attrs: ComposeTextAttrs): SpanStyle {
         fontFamily = attrs.fontFamily,
         background = attrs.backgroundColor ?: Color.Unspecified,
         textDecoration = attrs.textDecoration,
+        letterSpacing = attrs.letterSpacing?.sp ?: TextUnit.Unspecified,
     )
 }
