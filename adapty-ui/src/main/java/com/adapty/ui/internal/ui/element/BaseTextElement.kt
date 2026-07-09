@@ -111,7 +111,6 @@ public abstract class BaseTextElement(
                     Text(
                         text = annotatedText,
                         maxLines = maxLines ?: Int.MAX_VALUE,
-                        lineHeight = fontSizeSp,
                         textAlign = textAlign.toComposeTextAlign(),
                         onTextLayout = createOnTextLayoutCallback(onOverflow, fontSize, readyToDraw),
                         overflow = TextOverflow.Ellipsis,
@@ -127,7 +126,6 @@ public abstract class BaseTextElement(
                         maxLines = maxLines ?: Int.MAX_VALUE,
                         fontFamily = text.attrs?.fontFamily ?: elementTextAttrs.fontFamily,
                         fontSize = fontSizeSp,
-                        lineHeight = fontSizeSp,
                         textDecoration = text.attrs?.textDecoration ?: elementTextAttrs.textDecoration,
                         textAlign = textAlign.toComposeTextAlign(),
                         onTextLayout = createOnTextLayoutCallback(onOverflow, fontSize, readyToDraw),
@@ -160,7 +158,6 @@ public abstract class BaseTextElement(
                     maxLines = maxLines ?: Int.MAX_VALUE,
                     fontFamily = elementTextAttrs.fontFamily,
                     fontSize = fontSizeSp,
-                    lineHeight = fontSizeSp,
                     textDecoration = elementTextAttrs.textDecoration,
                     textAlign = textAlign.toComposeTextAlign(),
                     onTextLayout = createOnTextLayoutCallback(onOverflow, fontSize, readyToDraw),
