@@ -96,8 +96,8 @@ public class OverlayContainerElement internal constructor(
                     val height = mainPlaceable.height
 
                     fun OverlayItem.alignedConstraints(): Constraints {
-                        val widthSpec = content.baseProps.widthSpec
-                        val heightSpec = content.baseProps.heightSpec
+                        val widthSpec = content.layoutRelevantProps.widthSpec
+                        val heightSpec = content.layoutRelevantProps.heightSpec
                         val widthIsFlexible = widthSpec is DimSpec.FillMax || widthSpec == null
                         return Constraints(
                             minWidth = if (widthSpec is DimSpec.FillMax) width else 0,

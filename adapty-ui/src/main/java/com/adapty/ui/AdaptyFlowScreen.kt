@@ -19,8 +19,10 @@ import com.adapty.ui.internal.ui.FlowViewModelFactory
 import com.adapty.ui.internal.ui.UserArgs
 import com.adapty.ui.internal.utils.FlowMode
 import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
+import com.adapty.ui.internal.utils.adoptFlowStateForConfigChange
+import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.getCurrentLocale
-import com.adapty.ui.internal.utils.setInitialStateAsync
+import com.adapty.ui.internal.utils.initializeFlowStateAsync
 import com.adapty.ui.internal.utils.withAdaptyUIActivated
 import com.adapty.ui.listeners.AdaptyFlowDefaultEventListener
 import com.adapty.ui.listeners.AdaptyFlowEventListener
@@ -32,7 +34,7 @@ import java.util.UUID
 /**
  * Flow screen composable representation
  *
- * @param[viewConfiguration] An [AdaptyUI.FlowConfiguration] object containing information
+ * @param[flowConfiguration] An [AdaptyUI.FlowConfiguration] object containing information
  * about the visual part of the flow. To load it, use the [AdaptyUI.getFlowConfiguration] method.
  *
  * @param[products] Optional [AdaptyPaywallProduct] list. Pass this value in order to optimize
@@ -56,7 +58,7 @@ import java.util.UUID
  */
 @Composable
 public fun AdaptyFlowScreen(
-    viewConfiguration: AdaptyUI.FlowConfiguration,
+    flowConfiguration: AdaptyUI.FlowConfiguration,
     products: List<AdaptyPaywallProduct>?,
     eventListener: AdaptyFlowEventListener,
     insets: AdaptyFlowInsets = AdaptyFlowInsets.Unspecified,
@@ -74,19 +76,19 @@ public fun AdaptyFlowScreen(
     } ?: return
 
     val viewModel: FlowViewModel = viewModel(
-        key = viewConfiguration.id,
+        key = flowConfiguration.id,
         factory = FlowViewModelFactory(vmArgs)
     )
     val vmId = System.identityHashCode(viewModel)
 
-    DisposableEffect(viewConfiguration.id) {
+    DisposableEffect(flowConfiguration) {
         val stateHandler = withAdaptyUIActivated {
             Dependencies.injectInternal<StateHandler>()
         }
         fun pushData() {
             viewModel.setNewData(
                 UserArgs.create(
-                    viewConfiguration,
+                    flowConfiguration,
                     eventListener,
                     insets,
                     customAssets,
@@ -99,20 +101,34 @@ public fun AdaptyFlowScreen(
             )
         }
 
-        if (viewModel.dataState.value?.viewConfig?.id == viewConfiguration.id && viewModel.state != null) {
+        val previousConfig = viewModel.dataState.value?.viewConfig
+        val configChangeHandoff = viewModel.configChangeHandoffPending
+        viewModel.configChangeHandoffPending = false
+        if (previousConfig === flowConfiguration && viewModel.state != null) {
             pushData()
         } else {
-            val sdkEnvJson = SDKGlobals.buildSDKEnvJson(vmArgs.metaInfoRetriever, context, viewConfiguration.mode, viewConfiguration.locale, viewConfiguration.localizationId, viewConfiguration.isRtl)
-            val mode = viewConfiguration.mode
+            if (configChangeHandoff && previousConfig != null &&
+                previousConfig.id == flowConfiguration.id && viewModel.state != null
+            ) {
+                stateHandler.adoptFlowStateForConfigChange(previousConfig, flowConfiguration)
+            }
+            if (stateHandler.stateOwner !== flowConfiguration) {
+                viewModel.dataState.value = null
+            }
+            val sdkEnvJson = SDKGlobals.buildSDKEnvJson(vmArgs.metaInfoRetriever, context, flowConfiguration.mode, flowConfiguration.locale, flowConfiguration.localizationId, flowConfiguration.isRtl)
+            val mode = flowConfiguration.mode
             val sdkProductsJson = if (mode is FlowMode.Live)
                 SDKGlobals.buildStaticSDKProductsJson(mode.flow)
             else
                 SDKGlobals.buildSDKProductsJson(emptyMap())
-            stateHandler.setInitialStateAsync(viewConfiguration.initialScript, sdkEnvJson, sdkProductsJson) {
+            stateHandler.initializeFlowStateAsync(flowConfiguration, sdkEnvJson, sdkProductsJson) {
                 pushData()
             }
         }
         onDispose {
+            if (context.getActivityOrNull()?.isChangingConfigurations == true) {
+                viewModel.configChangeHandoffPending = true
+            }
         }
     }
 

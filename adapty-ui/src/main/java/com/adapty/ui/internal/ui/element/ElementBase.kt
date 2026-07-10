@@ -145,9 +145,10 @@ public class Action internal constructor(
     internal val scope: Scope,
 )
 
+@Composable
 internal fun RowScope.fillModifierWithScopedParams(element: UIElement, modifier: Modifier): Modifier {
     var modifier = modifier
-    val props = element.layoutRelevantProps
+    val props = element.layoutRelevantPropsResolved()
     val weight = props.weight
     if (weight != null)
         modifier = modifier.weight(weight)
@@ -156,9 +157,10 @@ internal fun RowScope.fillModifierWithScopedParams(element: UIElement, modifier:
     return modifier
 }
 
+@Composable
 internal fun ColumnScope.fillModifierWithScopedParams(element: UIElement, modifier: Modifier): Modifier {
     var modifier = modifier
-    val props = element.layoutRelevantProps
+    val props = element.layoutRelevantPropsResolved()
     val weight = props.weight
     if (weight != null)
         modifier = modifier.weight(weight)
@@ -182,6 +184,45 @@ internal fun UIElement.isVerticallyFlexible(): Boolean {
         is BoxWithoutContentElement -> true
         is SingleContainer -> content.isVerticallyFlexible()
         is MultiContainer -> content.any { it.isVerticallyFlexible() }
+        else -> false
+    }
+}
+
+internal fun UIElement.hugBoxChainEndsInText(): Boolean = when (this) {
+    is TextElement -> onOverflow == null
+    is TimerElement -> onOverflowMode == null
+    is BoxElement -> baseProps.heightSpec.let {
+        it == null || it is DimSpec.Min || it is DimSpec.Shrink
+    } && content.hugBoxChainEndsInText()
+    else -> false
+}
+
+@OptIn(InternalAdaptyApi::class)
+internal fun UIElement.fillsColumnMainAxis(): Boolean {
+    when (layoutRelevantProps.heightSpec) {
+        is DimSpec.Specified, is DimSpec.Shrink, is DimSpec.Min -> return false
+        is DimSpec.FillMax -> return true
+        null -> Unit
+    }
+    return when (this) {
+        is BoxWithoutContentElement -> true
+        is SingleContainer -> content.fillsColumnMainAxis()
+        else -> false
+    }
+}
+
+@OptIn(InternalAdaptyApi::class)
+@Composable
+internal fun UIElement.fillsColumnMainAxisResolved(): Boolean {
+    when (layoutRelevantPropsResolved().heightSpec) {
+        is DimSpec.Specified, is DimSpec.Shrink, is DimSpec.Min -> return false
+        is DimSpec.FillMax -> return true
+        null -> Unit
+    }
+    return when (this) {
+        is BoxWithoutContentElement -> true
+        is SectionElement -> activeSlotOrNull()?.fillsColumnMainAxisResolved() ?: false
+        is SingleContainer -> content.fillsColumnMainAxisResolved()
         else -> false
     }
 }

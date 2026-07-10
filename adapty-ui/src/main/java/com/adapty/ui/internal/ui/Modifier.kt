@@ -56,9 +56,8 @@ import androidx.compose.ui.unit.isSpecified
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.ui.attributes.DimSpec
-import com.adapty.ui.internal.ui.attributes.LocalContentAlignment
-import com.adapty.ui.internal.ui.attributes.toHorizontalAlignmentOrCenter
-import com.adapty.ui.internal.ui.attributes.toVerticalAlignmentOrCenter
+import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorHorizontal
+import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorVertical
 import com.adapty.ui.internal.ui.attributes.EdgeEntities
 import com.adapty.ui.internal.ui.attributes.hasAnyNegative
 import com.adapty.ui.internal.ui.attributes.Offset
@@ -544,17 +543,17 @@ internal fun Modifier.sizeAndMarginsOrSkip(
 
 @Composable
 internal fun Modifier.allowVerticalOverflow(): Modifier {
-    val parentAlignment = LocalContentAlignment.current
+    val anchor = LocalOverflowAnchorVertical.current
     return Modifier
-        .wrapContentHeight(parentAlignment.toVerticalAlignmentOrCenter(), unbounded = true)
+        .wrapContentHeight(anchor, unbounded = true)
         .then(this)
 }
 
 @Composable
 internal fun Modifier.allowHorizontalOverflow(): Modifier {
-    val parentAlignment = LocalContentAlignment.current
+    val anchor = LocalOverflowAnchorHorizontal.current
     return Modifier
-        .wrapContentWidth(parentAlignment.toHorizontalAlignmentOrCenter(), unbounded = true)
+        .wrapContentWidth(anchor, unbounded = true)
         .then(this)
 }
 
@@ -567,6 +566,22 @@ internal fun Modifier.fillBoundedHeightOrIntrinsic(): Modifier = this.layout { m
         } catch (e: IllegalStateException) {
             null
         }
+    }
+    val placeable =
+        if (targetHeight != null)
+            measurable.measure(constraints.copy(minHeight = targetHeight, maxHeight = targetHeight))
+        else
+            measurable.measure(constraints)
+    layout(placeable.width, placeable.height) {
+        placeable.place(0, 0)
+    }
+}
+
+internal fun Modifier.intrinsicHeightOrHug(): Modifier = this.layout { measurable, constraints ->
+    val targetHeight = try {
+        measurable.minIntrinsicHeight(constraints.maxWidth)
+    } catch (e: IllegalStateException) {
+        null
     }
     val placeable =
         if (targetHeight != null)

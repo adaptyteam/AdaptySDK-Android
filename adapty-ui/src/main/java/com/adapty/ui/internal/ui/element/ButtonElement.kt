@@ -26,10 +26,13 @@ public class ButtonElement internal constructor(
     override val baseProps: BaseProps,
 ) : UIElement {
 
-    override val layoutRelevantProps: BaseProps get() = when (val c = content) {
-        is SectionElement -> c.content.firstOrNull()?.layoutRelevantProps ?: BaseProps.EMPTY
-        else -> c.layoutRelevantProps
-    }
+    override val layoutRelevantProps: BaseProps get() = content.layoutRelevantProps
+
+    @Composable
+    override fun layoutRelevantPropsResolved(): BaseProps = content.layoutRelevantPropsResolved()
+
+    override fun anyLayoutVariant(predicate: (UIElement) -> Boolean): Boolean =
+        content.anyLayoutVariant(predicate)
 
     override fun toComposable(
         dispatch: (Message) -> Unit,

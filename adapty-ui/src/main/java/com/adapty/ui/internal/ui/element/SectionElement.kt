@@ -32,6 +32,22 @@ public class SectionElement internal constructor(
     override val baseProps: BaseProps = BaseProps.EMPTY,
 ): UIElement, MultiContainer {
 
+    override val layoutRelevantProps: BaseProps get() = content.firstOrNull()?.layoutRelevantProps ?: BaseProps.EMPTY
+
+    @Composable
+    override fun layoutRelevantPropsResolved(): BaseProps =
+        activeSlotOrNull()?.layoutRelevantPropsResolved() ?: BaseProps.EMPTY
+
+    override fun anyLayoutVariant(predicate: (UIElement) -> Boolean): Boolean =
+        content.any { it.anyLayoutVariant(predicate) }
+
+    @Composable
+    internal fun activeSlotOrNull(): UIElement? {
+        val state = resolveState()
+        val currentIndex = state[index].toJsInt() ?: 0
+        return content.getOrNull(currentIndex)
+    }
+
     internal companion object {
         fun getKey(sectionId: String) = "section_$sectionId"
     }

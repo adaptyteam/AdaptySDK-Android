@@ -12,10 +12,9 @@ import androidx.compose.ui.Modifier
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.ui.attributes.Align
 import com.adapty.ui.internal.ui.attributes.DimSpec
-import com.adapty.ui.internal.ui.attributes.LocalContentAlignment
+import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorHorizontal
+import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorVertical
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
-import com.adapty.ui.internal.ui.attributes.toHorizontalAlignmentOrCenter
-import com.adapty.ui.internal.ui.attributes.toVerticalAlignmentOrCenter
 import com.adapty.ui.internal.store.Message
 
 @InternalAdaptyApi
@@ -28,15 +27,18 @@ public class BoxWithoutContentElement internal constructor(
         dispatch: (Message) -> Unit,
         modifier: Modifier
     ): @Composable () -> Unit = {
-        val parentAlignment = LocalContentAlignment.current
+        val overflowAnchorH = LocalOverflowAnchorHorizontal.current
+        val overflowAnchorV = LocalOverflowAnchorVertical.current
         var localModifier: Modifier = Modifier
         if (baseProps.widthSpec is DimSpec.Specified)
-            localModifier = localModifier.wrapContentWidth(parentAlignment.toHorizontalAlignmentOrCenter(), unbounded = true)
+            localModifier = localModifier.wrapContentWidth(overflowAnchorH, unbounded = true)
         if (baseProps.heightSpec is DimSpec.Specified)
-            localModifier = localModifier.wrapContentHeight(parentAlignment.toVerticalAlignmentOrCenter(), unbounded = true)
+            localModifier = localModifier.wrapContentHeight(overflowAnchorV, unbounded = true)
         Box(
             contentAlignment = align.toComposeAlignment(),
-            modifier = localModifier.then(modifier).fillMaxWidth().fillMaxHeight(),
+            modifier = localModifier.then(modifier)
+                .let { if (baseProps.widthSpec is DimSpec.Specified) it else it.fillMaxWidth() }
+                .let { if (baseProps.heightSpec is DimSpec.Specified) it else it.fillMaxHeight() },
         ) { }
     }
 }

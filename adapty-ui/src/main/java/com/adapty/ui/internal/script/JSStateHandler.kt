@@ -2,6 +2,7 @@
 
 package com.adapty.ui.internal.script
 
+import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -15,6 +16,9 @@ import com.adapty.ui.internal.utils.log
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.google.gson.Gson
+import kotlinx.coroutines.CancellationException
+import java.lang.ref.WeakReference
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
 internal class JSStateHandler(
@@ -22,13 +26,63 @@ internal class JSStateHandler(
     private val gson: Gson,
 ) : StateHandler {
 
+    internal companion object {
+        private val COLLECT_STATE_SCRIPT = """
+            (function() {
+                var result = {};
+                var g = (typeof globalThis !== 'undefined') ? globalThis : this;
+                var skip = (typeof __adapty_baseline_keys__ !== 'undefined')
+                    ? __adapty_baseline_keys__
+                    : {'SDK':1,'console':1,'undefined':1,'NaN':1,'Infinity':1,
+                       'window':1,'self':1,'globalThis':1,'document':1,
+                       'navigator':1,'location':1,'history':1,'screen':1,
+                       'postToHost':1,'log':1};
+                skip['SDKEnv'] = 1;
+                skip['SDKProducts'] = 1;
+                function collect(obj, name) {
+                    result[name] = {};
+                    var keys = Object.keys(obj);
+                    for (var j = 0; j < keys.length; j++) {
+                        try {
+                            var v = obj[keys[j]];
+                            if (typeof v !== 'function' && v !== g) {
+                                result[name][keys[j]] = v;
+                            }
+                        } catch(e) {}
+                    }
+                }
+                var names = Object.getOwnPropertyNames(g);
+                for (var i = 0; i < names.length; i++) {
+                    var key = names[i];
+                    if (skip[key]) continue;
+                    try {
+                        var val_ = g[key];
+                        if (val_ === null || val_ === undefined || val_ === g) continue;
+                        if (typeof val_ === 'function') continue;
+                        if (typeof val_ === 'object' && !Array.isArray(val_)) {
+                            collect(val_, key);
+                        } else {
+                            result[key] = val_;
+                        }
+                    } catch(e) {}
+                }
+                try { if (typeof Legacy !== 'undefined' && !result['Legacy']) collect(Legacy, 'Legacy'); } catch(e) {}
+                return result;
+            })()
+        """.trimIndent()
+    }
+
     private val stateAccessor = JSStateAccessor()
 
     override var onStateRefreshed: (() -> Unit)? = null
 
     private val stateCells = ConcurrentHashMap<String, MutableState<Any?>>()
 
-    private val staticKeys = ConcurrentHashMap.newKeySet<String>()
+    private val staticKeys = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        ConcurrentHashMap.newKeySet<String>()
+    } else {
+        Collections.newSetFromMap(ConcurrentHashMap())
+    }
 
     private val setterExistsCache = ConcurrentHashMap<String, Boolean>()
 
@@ -45,8 +99,65 @@ internal class JSStateHandler(
         staticKeys.clear()
         setterExistsCache.clear()
         stateMachine.reset()
+        stateOwnerRef = null
     }
-    
+
+    private var stateOwnerRef: WeakReference<Any>? = null
+
+    init {
+        stateMachine.onEngineStateLost = { stateOwnerRef = null }
+    }
+
+    override var stateOwner: Any?
+        get() = stateOwnerRef?.get()
+        set(value) {
+            stateOwnerRef = value?.let { WeakReference(it) }
+        }
+
+    override suspend fun collectStateSnapshot(): Map<String, Any?>? {
+        val result = stateMachine.getValue(COLLECT_STATE_SCRIPT) as? Map<*, *> ?: return null
+        return result.entries.associate { (key, value) -> key.toString() to value }
+    }
+
+    override suspend fun applyStateSnapshot(snapshot: Map<String, Any?>) {
+        val snapshotJson = gson.toJson(snapshot)
+        val applyScript = """
+            (function(saved) {
+                var g = (typeof globalThis !== 'undefined') ? globalThis : this;
+                function mergeInto(target, source) {
+                    for (var p in source) {
+                        if (Object.prototype.hasOwnProperty.call(source, p)) target[p] = source[p];
+                    }
+                }
+                for (var key in saved) {
+                    if (!Object.prototype.hasOwnProperty.call(saved, key)) continue;
+                    var v = saved[key];
+                    if (key === 'Legacy') {
+                        try {
+                            if (typeof Legacy !== 'undefined' && v !== null && typeof v === 'object' && !Array.isArray(v)) {
+                                mergeInto(Legacy, v);
+                                continue;
+                            }
+                        } catch (e) {}
+                    }
+                    var cur = g[key];
+                    if (v !== null && typeof v === 'object' && !Array.isArray(v)
+                            && cur !== null && cur !== undefined && typeof cur === 'object' && !Array.isArray(cur)) {
+                        mergeInto(cur, v);
+                    } else {
+                        g[key] = v;
+                    }
+                }
+            })($snapshotJson)
+        """.trimIndent()
+        stateMachine.executeScript(applyScript)
+        refreshStateCache()
+    }
+
+    override suspend fun setActionsSuppressed(suppressed: Boolean) {
+        stateMachine.executeScript("globalThis.__adapty_suppress_actions__ = $suppressed")
+    }
+
     override suspend fun loadScript(script: String) {
         stateMachine.loadScript(script)
         refreshStateCache()
@@ -206,57 +317,13 @@ internal class JSStateHandler(
     override fun setActionHandler(handler: ActionHandler?) {
         stateMachine.setActionHandler(handler)
     }
-    
+
     private suspend fun refreshStateCache() {
         try {
-            val stateScript = """
-                (function() {
-                    var result = {};
-                    var g = (typeof globalThis !== 'undefined') ? globalThis : this;
-                    var skip = (typeof __adapty_baseline_keys__ !== 'undefined')
-                        ? __adapty_baseline_keys__
-                        : {'SDK':1,'console':1,'undefined':1,'NaN':1,'Infinity':1,
-                           'window':1,'self':1,'globalThis':1,'document':1,
-                           'navigator':1,'location':1,'history':1,'screen':1,
-                           'postToHost':1,'log':1};
-                    skip['SDKEnv'] = 1;
-                    skip['SDKProducts'] = 1;
-                    function collect(obj, name) {
-                        result[name] = {};
-                        var keys = Object.keys(obj);
-                        for (var j = 0; j < keys.length; j++) {
-                            try {
-                                var v = obj[keys[j]];
-                                if (typeof v !== 'function' && v !== g) {
-                                    result[name][keys[j]] = v;
-                                }
-                            } catch(e) {}
-                        }
-                    }
-                    var names = Object.getOwnPropertyNames(g);
-                    for (var i = 0; i < names.length; i++) {
-                        var key = names[i];
-                        if (skip[key]) continue;
-                        try {
-                            var val_ = g[key];
-                            if (val_ === null || val_ === undefined || val_ === g) continue;
-                            if (typeof val_ === 'function') continue;
-                            if (typeof val_ === 'object' && !Array.isArray(val_)) {
-                                collect(val_, key);
-                            } else {
-                                result[key] = val_;
-                            }
-                        } catch(e) {}
-                    }
-                    try { if (typeof Legacy !== 'undefined' && !result['Legacy']) collect(Legacy, 'Legacy'); } catch(e) {}
-                    return result;
-                })()
-            """.trimIndent()
+            val result = stateMachine.getValue(COLLECT_STATE_SCRIPT) as? Map<*, *> ?: return
 
-            val result = stateMachine.getValue(stateScript) as? Map<*, *>
-
-            val newKeys = HashSet<String>(result?.size ?: 0)
-            result?.forEach { (key, value) ->
+            val newKeys = HashSet<String>(result.size)
+            result.forEach { (key, value) ->
                 val k = key.toString()
                 newKeys.add(k)
                 cell(k).value = value
@@ -266,11 +333,13 @@ internal class JSStateHandler(
             }
 
             onStateRefreshed?.invoke()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log(ERROR) { "$LOG_PREFIX_ERROR Error refreshing state cache: ${e.localizedMessage}" }
         }
     }
-    
+
     private inner class JSStateAccessor : StateAccessor {
 
         override operator fun get(key: String): Any? {

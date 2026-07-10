@@ -14,7 +14,6 @@ public class AdaptyFlow internal constructor(
     public val paywalls: ImmutableList<AdaptyFlowPaywall>,
     @get:JvmSynthetic internal val viewConfigurationId: String?,
     @get:JvmSynthetic internal val viewConfig: Map<String, Any>?,
-    @get:JvmSynthetic internal val requestedLocale: String,
     @get:JvmSynthetic internal val snapshotAt: Long,
 ) {
 

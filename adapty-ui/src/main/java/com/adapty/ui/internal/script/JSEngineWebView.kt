@@ -189,6 +189,8 @@ internal class JSEngineWebView(
             val cleaned = stripJsResult(raw)
             if (cleaned == "null" || cleaned.isEmpty()) return null
             gson.fromJson(cleaned, Any::class.java)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log(ERROR) { "$LOG_PREFIX_ERROR Error executing JS: '$jsExpr': ${e.localizedMessage}" }
             null
@@ -224,6 +226,8 @@ internal class JSEngineWebView(
             }
             val cleaned = stripJsResult(raw)
             cleaned == "true"
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log(ERROR) { "$LOG_PREFIX_ERROR Error checking has('$name'): ${e.localizedMessage}" }
             false
@@ -240,6 +244,8 @@ internal class JSEngineWebView(
             val cleaned = stripJsResult(raw)
             if (cleaned == "null" || cleaned.isEmpty()) return null
             gson.fromJson(cleaned, Any::class.java)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log(ERROR) { "$LOG_PREFIX_ERROR Error getting '$name': ${e.localizedMessage}" }
             null

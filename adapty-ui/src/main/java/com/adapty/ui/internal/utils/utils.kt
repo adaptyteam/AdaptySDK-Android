@@ -26,6 +26,7 @@ import com.adapty.ui.internal.script.StateAccessor
 import com.adapty.ui.internal.script.StateHandler
 import com.adapty.utils.AdaptyLogLevel
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
+import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -142,28 +143,58 @@ private fun Assets.resolveFallbackChain(asset: Asset?): Asset? {
     return current
 }
 
-internal fun StateHandler.setInitialStateAsync(
-    initialScript: String,
+internal fun StateHandler.initializeFlowStateAsync(
+    viewConfiguration: AdaptyUI.FlowConfiguration,
     sdkEnvJson: String,
     sdkProductsJson: String,
     callback: () -> Unit,
 ) {
     suspend {
-        setInitialState(initialScript, sdkEnvJson, sdkProductsJson)
+        initializeFlowState(viewConfiguration, sdkEnvJson, sdkProductsJson)
     }.startCoroutine(Continuation(EmptyCoroutineContext) { callback() })
 }
 
-internal suspend fun StateHandler.setInitialState(
-    initialScript: String,
+internal suspend fun StateHandler.initializeFlowState(
+    viewConfiguration: AdaptyUI.FlowConfiguration,
     sdkEnvJson: String,
     sdkProductsJson: String,
 ) {
+    if (stateOwner === viewConfiguration) {
+        log(VERBOSE) { "$LOG_PREFIX initializeFlowState: VM already holds this flow's state, keeping it" }
+        return
+    }
+    (stateOwner as? AdaptyUI.FlowConfiguration)?.let { previousOwner ->
+        collectStateSnapshot()?.let { snapshot ->
+            log(VERBOSE) { "$LOG_PREFIX initializeFlowState: snapshotting outgoing flow state (${snapshot.size} keys)" }
+            previousOwner.runtimeState.jsSnapshot = snapshot
+        }
+    }
+    stateOwner = null
+
+    val snapshot = viewConfiguration.runtimeState.jsSnapshot
+    val restoring = snapshot != null && viewConfiguration.runtimeState.restorableNavigation != null
     reset()
     injectSDKGlobals(sdkEnvJson, sdkProductsJson)
-    loadScript(initialScript)
+    if (restoring) setActionsSuppressed(true)
+    loadScript(viewConfiguration.initialScript)
     if (sdkProductsJson != "{}") {
         sendSDKEvent("""{"name":"productsLoaded"}""")
     }
+    if (snapshot != null) {
+        log(VERBOSE) { "$LOG_PREFIX initializeFlowState: restoring saved flow state (${snapshot.size} keys)" }
+        applyStateSnapshot(snapshot)
+    }
+    if (restoring) setActionsSuppressed(false)
+    stateOwner = viewConfiguration
+}
+
+internal fun StateHandler.adoptFlowStateForConfigChange(
+    previous: AdaptyUI.FlowConfiguration,
+    next: AdaptyUI.FlowConfiguration,
+) {
+    log(VERBOSE) { "$LOG_PREFIX adoptFlowStateForConfigChange: handing flow state over to the re-created configuration instance" }
+    next.runtimeState.adoptFrom(previous.runtimeState)
+    if (stateOwner === previous) stateOwner = next
 }
 
 private val logExecutor = Executors.newSingleThreadExecutor()

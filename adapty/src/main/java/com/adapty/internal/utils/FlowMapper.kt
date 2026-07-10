@@ -34,7 +34,6 @@ internal class FlowMapper(
                 )
             }.immutableWithInterop(),
             viewConfig = null,
-            requestedLocale = DEFAULT_PLACEMENT_LOCALE,
             snapshotAt = flowDto.snapshotAt,
         )
     }

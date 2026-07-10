@@ -127,10 +127,19 @@ internal object JSPathUtils {
     fun generateSetValueScript(path: List<PathComponent>, valueJson: String): String {
         require(path.isNotEmpty()) { "Path must not be empty for set value" }
 
-        val sb = StringBuilder("(function(){var g=typeof globalThis!==\"undefined\"?globalThis:this;")
+        if (path.size == 1) {
+            val key = "\"${escapeJsString(path[0].value)}\""
+            return "(function(){var g=typeof globalThis!==\"undefined\"?globalThis:this;" +
+                "g[$key]=$valueJson;})()"
+        }
 
-        var accessor = "g"
-        for (i in 0 until path.size - 1) {
+        val sb = StringBuilder("(function(){")
+        sb.append(prologueStatements(path[0]))
+        val firstKey = "\"${escapeJsString(path[0].value)}\""
+        sb.append("if(r===undefined||r===null)r=g[$firstKey]={};")
+
+        var accessor = "r"
+        for (i in 1 until path.size - 1) {
             val key = "\"${escapeJsString(path[i].value)}\""
             val next = "$accessor[$key]"
             sb.append("if($next===undefined||$next===null)$accessor[$key]={};")

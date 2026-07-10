@@ -44,6 +44,7 @@ internal data class ConfigState(
 internal data class ProductsState(
     val items: Map<String, AdaptyPaywallProduct>,
     val loadingStatus: LoadingStatus,
+    val pendingSelectedProductIds: Set<String> = emptySet(),
 )
 
 internal sealed interface LoadingStatus {

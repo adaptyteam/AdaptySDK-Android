@@ -53,6 +53,7 @@ dependencies {
     implementation 'androidx.activity:activity-compose:1.8.2'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0'
     implementation 'androidx.javascriptengine:javascriptengine:1.0.0'
+    implementation 'com.google.android.play:review:2.0.2'
     compileOnly 'com.google.code.gson:gson:2.11.0'
 
     debugCompileOnly 'androidx.compose.ui:ui-tooling'

@@ -3,6 +3,8 @@
 package com.adapty.ui
 
 import android.content.Context
+import android.os.Parcel
+import android.os.Parcelable
 import android.util.AttributeSet
 import android.view.View
 import androidx.annotation.UiThread
@@ -23,9 +25,11 @@ import com.adapty.ui.internal.ui.UserArgs
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.FlowMode
 import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
+import com.adapty.ui.internal.utils.adoptFlowStateForConfigChange
+import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.getCurrentLocale
 import com.adapty.ui.internal.utils.log
-import com.adapty.ui.internal.utils.setInitialStateAsync
+import com.adapty.ui.internal.utils.initializeFlowStateAsync
 import com.adapty.ui.internal.utils.withAdaptyUIActivated
 import com.adapty.ui.listeners.AdaptyFlowDefaultEventListener
 import com.adapty.ui.listeners.AdaptyFlowEventListener
@@ -34,6 +38,7 @@ import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.adapty.ui.listeners.AdaptyUiTimerResolver
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import java.util.UUID
 
 public class AdaptyFlowView @JvmOverloads constructor(
@@ -42,6 +47,20 @@ public class AdaptyFlowView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : AbstractComposeView(context, attrs, defStyleAttr) {
 
+    private var instanceId: String? = null
+
+    private fun resolveViewModelKey(): String? {
+        instanceId?.let { return it }
+        if (id == View.NO_ID) {
+            log(WARN) {
+                "$LOG_PREFIX AdaptyFlowView (${hashCode()}) has no stable id; falling back to a shared ViewModel. " +
+                        "Set a stable id to give each paywall its own ViewModel that survives configuration changes."
+            }
+            return null
+        }
+        return UUID.randomUUID().toString().also { instanceId = it }
+    }
+
     private val viewModelArgs: FlowViewModelArgs? by lazy {
         FlowViewModelArgs.create(
             "${UUID.randomUUID().toString().hashCode()}",
@@ -49,7 +68,7 @@ public class AdaptyFlowView @JvmOverloads constructor(
         )
     }
 
-    private val viewModel: FlowViewModel? by lazy {
+    private val viewModelLazy = lazy<FlowViewModel?> {
         val viewModelStoreOwner = findViewTreeViewModelStoreOwner()
             ?: run {
                 log(ERROR) { "$LOG_PREFIX AdaptyFlowView (${hashCode()}) rendering error: No ViewModelStoreOwner found" }
@@ -57,9 +76,15 @@ public class AdaptyFlowView @JvmOverloads constructor(
             }
         viewModelArgs?.let { args ->
             val factory = FlowViewModelFactory(args)
-            ViewModelProvider(viewModelStoreOwner, factory)[FlowViewModel::class.java]
+            val provider = ViewModelProvider(viewModelStoreOwner, factory)
+            when (val key = resolveViewModelKey()) {
+                null -> provider[FlowViewModel::class.java]
+                else -> provider[key, FlowViewModel::class.java]
+            }
+
         }
     }
+    private val viewModel: FlowViewModel? by viewModelLazy
 
     /**
      * Should be called only on UI thread
@@ -67,7 +92,7 @@ public class AdaptyFlowView @JvmOverloads constructor(
      * If the [AdaptyFlowView] has been created by calling [AdaptyUI.getFlowView],
      * calling this method is unnecessary.
      *
-     * @param[viewConfiguration] An [AdaptyUI.FlowConfiguration] object containing information
+     * @param[flowConfiguration] An [AdaptyUI.FlowConfiguration] object containing information
      * about the visual part of the flow. To load it, use the [AdaptyUI.getFlowConfiguration] method.
      *
      * @param[products] Optional [AdaptyPaywallProduct] list. Pass this value in order to optimize
@@ -91,7 +116,7 @@ public class AdaptyFlowView @JvmOverloads constructor(
      */
     @UiThread
     public fun showFlow(
-        viewConfiguration: AdaptyUI.FlowConfiguration,
+        flowConfiguration: AdaptyUI.FlowConfiguration,
         products: List<AdaptyPaywallProduct>?,
         eventListener: AdaptyFlowEventListener,
         insets: AdaptyFlowInsets = AdaptyFlowInsets.Unspecified,
@@ -101,39 +126,54 @@ public class AdaptyFlowView @JvmOverloads constructor(
         observerModeHandler: AdaptyUiObserverModeHandler? = null,
     ) {
         val args = viewModelArgs ?: return
-        val vm = viewModel ?: return
 
-        fun pushData() {
-            runOnceWhenAttached {
-                vm.setNewData(
-                    UserArgs.create(
-                        viewConfiguration,
-                        eventListener,
-                        insets,
-                        customAssets,
-                        tagResolver,
-                        timerResolver,
-                        observerModeHandler,
-                        products,
-                        ProductLoadingFailureCallback { error -> eventListener.onLoadingProductsFailure(error, context) },
+        runOnceWhenAttached {
+            val vm = viewModel ?: return@runOnceWhenAttached
+
+            fun pushData() {
+                runOnceWhenAttached {
+                    vm.setNewData(
+                        UserArgs.create(
+                            flowConfiguration,
+                            eventListener,
+                            insets,
+                            customAssets,
+                            tagResolver,
+                            timerResolver,
+                            observerModeHandler,
+                            products,
+                            ProductLoadingFailureCallback { error -> eventListener.onLoadingProductsFailure(error, context) },
+                        )
                     )
-                )
+                }
             }
-        }
 
-        if (vm.dataState.value?.viewConfig?.id == viewConfiguration.id && vm.state != null) {
-            pushData()
-            return
-        }
+            val previousConfig = vm.dataState.value?.viewConfig
+            val configChangeHandoff = vm.configChangeHandoffPending
+            vm.configChangeHandoffPending = false
+            if (previousConfig === flowConfiguration && vm.state != null) {
+                pushData()
+                return@runOnceWhenAttached
+            }
 
-        val sdkEnvJson = SDKGlobals.buildSDKEnvJson(args.metaInfoRetriever, context, viewConfiguration.mode, viewConfiguration.locale, viewConfiguration.localizationId, viewConfiguration.isRtl)
-        val mode = viewConfiguration.mode
-        val sdkProductsJson = if (mode is FlowMode.Live)
-            SDKGlobals.buildStaticSDKProductsJson(mode.flow)
-        else
-            SDKGlobals.buildSDKProductsJson(emptyMap())
-        stateHandler.setInitialStateAsync(viewConfiguration.initialScript, sdkEnvJson, sdkProductsJson) {
-            pushData()
+            if (configChangeHandoff && previousConfig != null &&
+                previousConfig.id == flowConfiguration.id && vm.state != null
+            ) {
+                stateHandler.adoptFlowStateForConfigChange(previousConfig, flowConfiguration)
+            }
+
+            if (stateHandler.stateOwner !== flowConfiguration) {
+                vm.dataState.value = null
+            }
+            val sdkEnvJson = SDKGlobals.buildSDKEnvJson(args.metaInfoRetriever, context, flowConfiguration.mode, flowConfiguration.locale, flowConfiguration.localizationId, flowConfiguration.isRtl)
+            val mode = flowConfiguration.mode
+            val sdkProductsJson = if (mode is FlowMode.Live)
+                SDKGlobals.buildStaticSDKProductsJson(mode.flow)
+            else
+                SDKGlobals.buildSDKProductsJson(emptyMap())
+            stateHandler.initializeFlowStateAsync(flowConfiguration, sdkEnvJson, sdkProductsJson) {
+                pushData()
+            }
         }
     }
 
@@ -145,6 +185,21 @@ public class AdaptyFlowView @JvmOverloads constructor(
         }
     }
 
+    override fun onSaveInstanceState(): Parcelable {
+        val superState = super.onSaveInstanceState()
+        val id = if (id != View.NO_ID) instanceId else null
+        return SavedState(superState, id)
+    }
+
+    override fun onRestoreInstanceState(state: Parcelable?) {
+        if (state is SavedState) {
+            instanceId = state.instanceId
+            super.onRestoreInstanceState(state.superState)
+        } else {
+            super.onRestoreInstanceState(state)
+        }
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         log(VERBOSE) { "$LOG_PREFIX AdaptyFlowView (${hashCode()}) onAttachedToWindow" }
@@ -152,6 +207,11 @@ public class AdaptyFlowView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         log(VERBOSE) { "$LOG_PREFIX AdaptyFlowView (${hashCode()}) onDetachedFromWindow" }
+        if (viewModelLazy.isInitialized() &&
+            context.getActivityOrNull()?.isChangingConfigurations == true
+        ) {
+            viewModelLazy.value?.configChangeHandoffPending = true
+        }
         super.onDetachedFromWindow()
     }
 
@@ -175,6 +235,31 @@ public class AdaptyFlowView @JvmOverloads constructor(
     private val stateHandler: StateHandler by lazy {
         withAdaptyUIActivated {
             Dependencies.injectInternal<StateHandler>()
+        }
+    }
+
+    private class SavedState : View.BaseSavedState {
+        val instanceId: String?
+
+        constructor(superState: Parcelable?, instanceId: String?) : super(superState) {
+            this.instanceId = instanceId
+        }
+
+        constructor(source: Parcel) : super(source) {
+            instanceId = source.readString()
+        }
+
+        override fun writeToParcel(out: Parcel, flags: Int) {
+            super.writeToParcel(out, flags)
+            out.writeString(instanceId)
+        }
+
+        companion object {
+            @JvmField
+            val CREATOR = object : Parcelable.Creator<SavedState> {
+                override fun createFromParcel(source: Parcel) = SavedState(source)
+                override fun newArray(size: Int) = arrayOfNulls<SavedState>(size)
+            }
         }
     }
 }

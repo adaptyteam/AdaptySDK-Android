@@ -13,4 +13,4 @@ public sealed class DimSpec(internal val axis: Axis) {
     public class Shrink internal constructor(internal val min: DimUnit, internal val maxValue: DimUnit?, axis: Axis): DimSpec(axis)
 }
 
-internal val LocalParentImposesHeight = compositionLocalOf { false }
+internal val LocalParentImposesHeight = compositionLocalOf { true }

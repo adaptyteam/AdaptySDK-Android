@@ -39,6 +39,7 @@ import com.adapty.ui.internal.store.ListenerEffectHandler
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.store.ObserverModeEffectHandler
 import com.adapty.ui.internal.store.FlowState
+import com.adapty.ui.internal.store.NavigationState
 import com.adapty.ui.internal.store.PurchaseEffectHandler
 import com.adapty.ui.internal.store.TimerCallbackScheduler
 import com.adapty.ui.internal.store.TimerEffectHandler
@@ -86,6 +87,8 @@ internal class FlowViewModel(
     private val _state: MutableState<FlowState?> = mutableStateOf(null)
     val state: FlowState? get() = _state.value
 
+    var configChangeHandoffPending = false
+
     var activityProvider: (() -> Activity)? = null
 
     internal var contextAwareListener: ContextAwareEventListener? = null
@@ -108,12 +111,29 @@ internal class FlowViewModel(
         }
         val (newState, effects) = reduce(currentState, message)
         _state.value = newState
+        if (newState.navigation.entries.isNotEmpty() &&
+            (newState.navigation.entries !== currentState.navigation.entries ||
+                newState.ui.timerCommands !== currentState.ui.timerCommands)
+        ) {
+            newState.config.viewConfig.runtimeState.let { runtime ->
+                runtime.navigation = NavigationState(entries = newState.navigation.entries)
+                runtime.timerCommands = newState.ui.timerCommands
+            }
+        }
         effects.forEach { effect -> handleEffect(effect) }
     }
 
     fun setNewData(newData: UserArgs) {
-        if (_state.value == null) {
-            _state.value = buildInitialState(newData, isObserverMode, null)
+        if (_state.value?.config?.viewConfig !== newData.viewConfig) {
+            var initial = buildInitialState(newData, isObserverMode, null)
+            val runtime = newData.viewConfig.runtimeState
+            runtime.restorableNavigation?.let { restoredNav ->
+                initial = initial.copy(
+                    navigation = restoredNav,
+                    ui = initial.ui.copy(timerCommands = runtime.timerCommands),
+                )
+            }
+            _state.value = initial
         }
         dataState.value = newData
         dispatch(Message.DataUpdated(newData))

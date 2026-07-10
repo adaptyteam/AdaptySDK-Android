@@ -14,6 +14,7 @@ import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.INFO
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.google.gson.Gson
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -82,6 +83,8 @@ internal class JSEngineAndroidx(
         val gen = sandboxGeneration
         return try {
             block(isolate)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             if (isSandboxDead(e)) {
                 log(WARN) { "$LOG_PREFIX Sandbox died during $operationName, re-initializing…: ${e.localizedMessage}" }

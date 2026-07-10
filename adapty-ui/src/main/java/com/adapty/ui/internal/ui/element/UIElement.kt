@@ -16,6 +16,11 @@ public interface UIElement {
     public val baseProps: BaseProps
     public val layoutRelevantProps: BaseProps get() = baseProps
 
+    @Composable
+    public fun layoutRelevantPropsResolved(): BaseProps = layoutRelevantProps
+
+    public fun anyLayoutVariant(predicate: (UIElement) -> Boolean): Boolean = predicate(this)
+
     public fun toComposable(
         dispatch: (Message) -> Unit,
         modifier: Modifier,

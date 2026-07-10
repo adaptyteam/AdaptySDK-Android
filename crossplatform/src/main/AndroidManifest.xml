@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.adapty.internal.crossplatform">
+
+    <application>
+        <activity
+            android:name=".ui.AdaptyUiActivity"
+            android:configChanges="layoutDirection|locale|uiMode"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:theme="@style/AdaptyVisualPaywallTheme" />
+
+        <activity
+            android:name=".ui.AdaptyUiOnboardingActivity"
+            android:configChanges="layoutDirection|locale|uiMode"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:theme="@style/AdaptyVisualPaywallTheme" />
+    </application>
+
+</manifest>

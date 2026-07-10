@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isFinite
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.ui.attributes.ComposeFill
@@ -208,57 +209,51 @@ public class PagerElement internal constructor(
                 }
             }
             else -> {
-                Column {
-                    when (pagerIndicator.vAlign) {
-                        VerticalAlign.TOP -> {
-                            renderHorizontalPagerIndicator(
-                                pagerState = pagerState,
-                                data = pagerIndicator,
-                                modifier = Modifier.align(Alignment.CenterHorizontally)
-                            )
-                            BoxWithConstraints(
-                                Modifier
-                                    .weight(1f)
-                                    .graphicsLayer { clip = true }
-                                    .then(ZeroIntrinsicsModifier),
-                                Alignment.Center,
-                            ) {
-                                renderHorizontalPager(
-                                    maxWidth,
-                                    maxHeight,
-                                    pagerState,
-                                    interactionBehavior,
-                                    dispatch,
-                                    modifier,
-                                    pages,
+                BoxWithConstraints(ZeroIntrinsicsModifier) {
+                    val hasBoundedHeight = constraints.hasBoundedHeight
+                    Column(modifier) {
+                        val viewportModifier = (if (hasBoundedHeight) Modifier.weight(1f) else Modifier)
+                            .graphicsLayer { clip = true }
+                            .then(ZeroIntrinsicsModifier)
+                        when (pagerIndicator.vAlign) {
+                            VerticalAlign.TOP -> {
+                                renderHorizontalPagerIndicator(
+                                    pagerState = pagerState,
+                                    data = pagerIndicator,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                                )
+                                BoxWithConstraints(viewportModifier, Alignment.Center) {
+                                    renderHorizontalPager(
+                                        maxWidth,
+                                        maxHeight,
+                                        pagerState,
+                                        interactionBehavior,
+                                        dispatch,
+                                        Modifier,
+                                        pages,
+                                    )
+                                }
+                            }
+                            VerticalAlign.BOTTOM -> {
+                                BoxWithConstraints(viewportModifier, Alignment.Center) {
+                                    renderHorizontalPager(
+                                        maxWidth,
+                                        maxHeight,
+                                        pagerState,
+                                        interactionBehavior,
+                                        dispatch,
+                                        Modifier,
+                                        pages,
+                                    )
+                                }
+                                renderHorizontalPagerIndicator(
+                                    pagerState = pagerState,
+                                    data = pagerIndicator,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally)
                                 )
                             }
+                            else -> Unit
                         }
-                        VerticalAlign.BOTTOM -> {
-                            BoxWithConstraints(
-                                Modifier
-                                    .weight(1f)
-                                    .graphicsLayer { clip = true }
-                                    .then(ZeroIntrinsicsModifier),
-                                Alignment.Center,
-                            ) {
-                                renderHorizontalPager(
-                                    maxWidth,
-                                    maxHeight,
-                                    pagerState,
-                                    interactionBehavior,
-                                    dispatch,
-                                    modifier,
-                                    pages,
-                                )
-                            }
-                            renderHorizontalPagerIndicator(
-                                pagerState = pagerState,
-                                data = pagerIndicator,
-                                modifier = Modifier.align(Alignment.CenterHorizontally)
-                            )
-                        }
-                        else -> Unit
                     }
                 }
             }
@@ -286,7 +281,7 @@ public class PagerElement internal constructor(
         val pageHeight = when (val ph = pageHeight) {
             is PageSize.Unit -> (ph.value.toExactDp(DimSpec.Axis.Y) - verticalPagePadding).coerceAtLeast(0.dp)
             is PageSize.PageFraction ->
-                if (ph.fraction != 1f) (maxAvailableHeight * ph.fraction - verticalPagePadding).coerceAtLeast(0.dp) else null
+                if (ph.fraction != 1f && maxAvailableHeight.isFinite) (maxAvailableHeight * ph.fraction - verticalPagePadding).coerceAtLeast(0.dp) else null
         }
         val pagerContentPadding: PaddingValues
         val pagerModifier: Modifier
@@ -324,17 +319,19 @@ public class PagerElement internal constructor(
             pageSize = androidx.compose.foundation.pager.PageSize.Fixed(pageWidth),
             pageSpacing = spacing,
             contentPadding = pagerContentPadding,
+            beyondViewportPageCount = if (!maxAvailableHeight.isFinite) pages.size else 0,
             verticalAlignment = if (pageHeight != null) Alignment.Top else Alignment.CenterVertically,
             state = pagerState,
             userScrollEnabled = interactionBehavior != NONE,
             modifier = if (pageHeight != null) pagerModifier.fillMaxHeight() else pagerModifier,
         ) { i ->
-            if (pageHeight == null)
+            Box(
+                if (pageHeight != null) Modifier.width(pageWidth).height(pageHeight)
+                else Modifier.width(pageWidth),
+                contentAlignment = Alignment.Center,
+            ) {
                 pages[i].render(dispatch)
-            else
-                Box(Modifier.height(pageHeight)) {
-                    pages[i].render(dispatch)
-                }
+            }
         }
     }
 

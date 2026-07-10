@@ -14,13 +14,21 @@ import com.adapty.ui.internal.utils.log
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 
 internal interface StateHandler {
-    
+
     @Composable
     fun observeState(): StateAccessor
 
     suspend fun reset()
-    
+
     suspend fun loadScript(script: String)
+
+    var stateOwner: Any?
+
+    suspend fun collectStateSnapshot(): Map<String, Any?>?
+
+    suspend fun applyStateSnapshot(snapshot: Map<String, Any?>)
+
+    suspend fun setActionsSuppressed(suppressed: Boolean)
 
     var onStateRefreshed: (() -> Unit)?
 
@@ -29,7 +37,7 @@ internal interface StateHandler {
     suspend fun setValue(binding: TwoWayBinding, value: Any?, screen: NavigationEntry)
 
     suspend fun executeAction(func: String, params: Map<String, Any?>, scope: Scope, screen: NavigationEntry)
-    
+
     suspend fun invokeTimerCallback(timerId: String)
 
     suspend fun sendSDKEvent(eventJson: String)

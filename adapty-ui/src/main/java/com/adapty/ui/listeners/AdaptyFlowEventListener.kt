@@ -255,8 +255,8 @@ public interface AdaptyFlowEventListener {
     /**
      * This callback is invoked when the flow requests an app-rating prompt.
      *
-     * The [default][AdaptyFlowDefaultEventListener.onShowAppRate] implementation is a no-op —
-     * override it to present an app-rating prompt (e.g. via the Play In-App Review `ReviewManager`).
+     * The [default][AdaptyFlowDefaultEventListener.onShowAppRate] implementation presents the
+     * Play In-App Review prompt via `ReviewManager`. Override it to customize or suppress this.
      *
      * @param[context] A UI [Context] within which the event occurred.
      */

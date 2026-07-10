@@ -102,8 +102,8 @@ public class ImageElement internal constructor(
             modifier = Modifier
                 .then(if (aspectRatio == AspectRatio.FILL) Modifier else Modifier.clipToBounds())
                 .then(ImageIntrinsicsModifier(
-                    naturalWidth = naturalSize?.first ?: 0,
-                    naturalHeight = naturalSize?.second ?: 0,
+                    naturalWidth = if (aspectRatio == AspectRatio.FILL) 0 else (naturalSize?.first ?: 0),
+                    naturalHeight = if (aspectRatio == AspectRatio.FILL) 0 else (naturalSize?.second ?: 0),
                 ))
         ) {
             val imageBitmap = remember(constraints.maxWidth, constraints.maxHeight, image?.main?.source?.key, isSystemInDarkTheme) {

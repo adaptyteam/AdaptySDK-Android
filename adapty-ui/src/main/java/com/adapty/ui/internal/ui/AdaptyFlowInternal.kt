@@ -214,6 +214,8 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
                         }
                     }
 
+                    ForceAdjustResize()
+
                     createActionHandler(viewModel, dispatch)
 
                     val navigatorConfigs = viewConfig.navigators

@@ -31,6 +31,7 @@ import com.adapty.ui.internal.script.JSStateHandler
 import com.adapty.ui.internal.script.JSStateMachine
 import com.adapty.ui.internal.script.JSActionBridge
 import com.adapty.ui.internal.script.StateHandler
+import com.adapty.ui.internal.store.FlowRuntimeState
 import com.adapty.ui.internal.ui.element.BoxElement
 import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.utils.AdaptyUiVideoAccessor
@@ -70,7 +71,7 @@ public object AdaptyUI {
      *
      * @param[activity] An [Activity] instance.
      *
-     * @param[viewConfiguration] A [FlowConfiguration] object containing information
+     * @param[flowConfiguration] A [FlowConfiguration] object containing information
      * about the visual part of the flow. To load it, use the [AdaptyUI.getFlowConfiguration] method.
      *
      * @param[products] Optional [AdaptyPaywallProduct] list. Pass this value in order to optimize
@@ -99,7 +100,7 @@ public object AdaptyUI {
     @UiThread
     public fun getFlowView(
         activity: Activity,
-        viewConfiguration: FlowConfiguration,
+        flowConfiguration: FlowConfiguration,
         products: List<AdaptyPaywallProduct>?,
         eventListener: AdaptyFlowEventListener,
         insets: AdaptyFlowInsets = AdaptyFlowInsets.Unspecified,
@@ -109,10 +110,9 @@ public object AdaptyUI {
         observerModeHandler: AdaptyUiObserverModeHandler? = null,
     ): AdaptyFlowView {
         return AdaptyFlowView(activity).apply {
-            id = View.generateViewId()
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
             showFlow(
-                viewConfiguration,
+                flowConfiguration,
                 products,
                 eventListener,
                 insets,
@@ -216,6 +216,15 @@ public object AdaptyUI {
         @get:JvmSynthetic internal val showRestoreLoader: Boolean,
         @get:JvmSynthetic internal val isLegacyFormat: Boolean = false,
     ) {
+        @get:JvmSynthetic internal val runtimeState: FlowRuntimeState = FlowRuntimeState()
+
+        public fun prepareForReuse() {
+            runtimeState.clear()
+            runCatching { Dependencies.injectInternal<StateHandler>() }.getOrNull()?.let { handler ->
+                if (handler.stateOwner === this) handler.stateOwner = null
+            }
+        }
+
         /**
          * @suppress
          */

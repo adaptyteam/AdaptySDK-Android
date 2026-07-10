@@ -10,11 +10,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.ui.attributes.DimSpec
+import com.adapty.ui.internal.ui.attributes.LocalParentImposesHeight
 import com.adapty.ui.internal.ui.attributes.VerticalAlign
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
 import com.adapty.ui.internal.ui.allowHorizontalOverflow
 import com.adapty.ui.internal.ui.fillBoundedHeightOrIntrinsic
 import com.adapty.ui.internal.ui.fillWithBaseParams
+import com.adapty.ui.internal.ui.intrinsicHeightOrHug
 import com.adapty.ui.internal.store.Message
 
 @InternalAdaptyApi
@@ -32,15 +34,20 @@ public class HStackElement internal constructor(
         val spacing = spacing?.dp
         val rowModifier =
             if (content.none {
-                    it.layoutRelevantProps.widthSpec is DimSpec.FillMax ||
-                        it.layoutRelevantProps.widthSpec == null ||
-                        it.layoutRelevantProps.weight != null ||
+                    val props = it.layoutRelevantPropsResolved()
+                    props.widthSpec is DimSpec.FillMax ||
+                        props.widthSpec == null ||
+                        props.weight != null ||
                         it is SizeDrivenElement
                 })
                 modifier.allowHorizontalOverflow()
             else modifier
         val hasFlexibleChild = content.any { it.isVerticallyFlexible() }
-        val crossAxisModifier = if (hasFlexibleChild) Modifier.fillBoundedHeightOrIntrinsic() else Modifier
+        val crossAxisModifier = when {
+            !hasFlexibleChild -> Modifier
+            LocalParentImposesHeight.current -> Modifier.fillBoundedHeightOrIntrinsic()
+            else -> Modifier.intrinsicHeightOrHug()
+        }
         Row(
             horizontalArrangement = when {
                 spacing != null -> Arrangement.spacedBy(spacing)

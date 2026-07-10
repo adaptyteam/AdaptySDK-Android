@@ -9,11 +9,16 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.ui.attributes.Align
 import com.adapty.ui.internal.ui.attributes.DimSpec
+import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorHorizontal
+import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorVertical
+import com.adapty.ui.internal.ui.attributes.LocalParentImposesHeight
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
+import com.adapty.ui.internal.ui.attributes.toComposeHorizontalAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeVerticalAlignment
 import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.store.Message
@@ -33,6 +38,20 @@ public class GridItem internal constructor(
         else
             baseProps.copy(heightSpec = sideSpec)
 
+    @Composable
+    private fun provideOverflowAnchors(
+        horizontal: Boolean,
+        vertical: Boolean,
+        content: @Composable () -> Unit,
+    ) {
+        val provided = buildList {
+            add(LocalParentImposesHeight provides true)
+            if (horizontal) add(LocalOverflowAnchorHorizontal provides align.toComposeHorizontalAlignment())
+            if (vertical) add(LocalOverflowAnchorVertical provides align.toComposeVerticalAlignment())
+        }
+        CompositionLocalProvider(*provided.toTypedArray(), content = content)
+    }
+
     override fun toComposable(
         dispatch: (Message) -> Unit,
         modifier: Modifier,
@@ -41,7 +60,9 @@ public class GridItem internal constructor(
             contentAlignment = align.toComposeAlignment(),
             modifier = modifier.fillMaxSize(),
         ) {
-            content.render(dispatch)
+            provideOverflowAnchors(horizontal = true, vertical = true) {
+                content.render(dispatch)
+            }
         }
     }
 
@@ -53,17 +74,22 @@ public class GridItem internal constructor(
             contentAlignment = align.toComposeAlignment(),
             modifier = modifier.fillMaxWidth(),
         ) {
-            content.withActiveAnimations(dispatch) {
-                content.run {
-                    render(
-                        this@toComposableInColumn.toComposableInColumn(
-                            dispatch,
-                            this@toComposableInColumn.fillModifierWithScopedParams(
-                                content,
-                                Modifier.fillWithBaseParams(content)
-                            ),
+            provideOverflowAnchors(
+                horizontal = true,
+                vertical = baseProps.heightSpec != null || baseProps.weight != null,
+            ) {
+                content.withActiveAnimations(dispatch) {
+                    content.run {
+                        render(
+                            this@toComposableInColumn.toComposableInColumn(
+                                dispatch,
+                                this@toComposableInColumn.fillModifierWithScopedParams(
+                                    content,
+                                    Modifier.fillWithBaseParams(content)
+                                ),
+                            )
                         )
-                    )
+                    }
                 }
             }
         }
@@ -80,17 +106,22 @@ public class GridItem internal constructor(
                 if (content.explicitlyFillsRowHeight()) Modifier.fillMaxHeight() else Modifier.align(verticalAlignment)
             ),
         ) {
-            content.withActiveAnimations(dispatch) {
-                content.run {
-                    render(
-                        this@toComposableInRow.toComposableInRow(
-                            dispatch,
-                            this@toComposableInRow.fillModifierWithScopedParams(
-                                content,
-                                Modifier.fillWithBaseParams(content)
-                            ),
+            provideOverflowAnchors(
+                horizontal = baseProps.widthSpec != null || baseProps.weight != null,
+                vertical = content.explicitlyFillsRowHeight(),
+            ) {
+                content.withActiveAnimations(dispatch) {
+                    content.run {
+                        render(
+                            this@toComposableInRow.toComposableInRow(
+                                dispatch,
+                                this@toComposableInRow.fillModifierWithScopedParams(
+                                    content,
+                                    Modifier.fillWithBaseParams(content)
+                                ),
+                            )
                         )
-                    )
+                    }
                 }
             }
         }

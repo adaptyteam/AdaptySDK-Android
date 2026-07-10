@@ -215,8 +215,19 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
     is Message.JSCallback.CloseAll ->
         state to listOf(Effect.NotifyListener.ActionPerformed(AdaptyUI.Action.Close))
     is Message.JSCallback.SelectProduct -> {
-        val product = state.products.items[message.productId] ?: return state to emptyList()
-        state to listOf(Effect.NotifyListener.ProductSelected(product))
+        val product = state.products.items[message.productId]
+        val isLegacy = state.config.viewConfig.isLegacyFormat
+        when {
+            product != null && (!isLegacy || state.ui.flowShown) ->
+                state to listOf(Effect.NotifyListener.ProductSelected(product))
+            isLegacy ->
+                state.copy(
+                    products = state.products.copy(
+                        pendingSelectedProductIds = state.products.pendingSelectedProductIds + message.productId,
+                    )
+                ) to emptyList()
+            else -> state to emptyList()
+        }
     }
     is Message.JSCallback.OpenScreen -> {
         val navigators = state.config.viewConfig.navigators
@@ -430,17 +441,20 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
             state.assets.items[customId]?.let { mergedAssets[customId] = it }
         }
 
+        val (resolvedProductsState, selectionEffects) = state.products.copy(
+            items = mergedProducts,
+            loadingStatus = if (mergedProducts.isNotEmpty()) LoadingStatus.Loaded else state.products.loadingStatus,
+        ).resolvePendingSelections(state.ui.flowShown)
+
         val newState = state.copy(
             config = newConfig,
-            products = state.products.copy(
-                items = mergedProducts,
-                loadingStatus = if (mergedProducts.isNotEmpty()) LoadingStatus.Loaded else state.products.loadingStatus,
-            ),
+            products = resolvedProductsState,
             assets = AssetsState(mergedAssets),
             texts = TextsState(viewConfig.texts),
         )
 
         val effects = mutableListOf<Effect>()
+        effects.addAll(selectionEffects)
         val customAssets = newData.customAssets
 
         if (mode.isLive() && mergedProducts.isEmpty()) {
@@ -495,8 +509,11 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
     }
     is Message.ProductsLoaded -> {
         val mergedProducts = state.products.items + message.products
-        state.copy(products = state.products.copy(items = mergedProducts, loadingStatus = LoadingStatus.Loaded),
-            ui = state.ui.copy(isLoading = false)) to listOf(Effect.UpdateJSProducts(mergedProducts), Effect.SendSDKEvent.ProductsLoaded)
+        val (productsState, selectionEffects) = state.products
+            .copy(items = mergedProducts, loadingStatus = LoadingStatus.Loaded)
+            .resolvePendingSelections(state.ui.flowShown)
+        state.copy(products = productsState, ui = state.ui.copy(isLoading = false)) to
+            (listOf(Effect.UpdateJSProducts(mergedProducts), Effect.SendSDKEvent.ProductsLoaded) + selectionEffects)
     }
     is Message.ProductsLoadFailed -> {
         state.copy(products = state.products.copy(loadingStatus = LoadingStatus.Error(message.error)),
@@ -521,10 +538,11 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
         val effects = mutableListOf<Effect>(Effect.NotifyListener.FlowShown)
         if (state.config.viewConfig.mode.isLive() && state.config.viewConfig.isLegacyFormat)
             effects.add(0, Effect.LogShowFlow(state.config.viewConfig.mode.flow))
-        state.copy(ui = state.ui.copy(flowShown = true)) to effects
+        val (productsState, selectionEffects) = state.products.resolvePendingSelections(flowShown = true)
+        state.copy(products = productsState, ui = state.ui.copy(flowShown = true)) to (effects + selectionEffects)
     }
     is Message.FlowExited ->
-        state.copy(navigation = NavigationState()) to
+        state.copy(navigation = NavigationState(), ui = state.ui.copy(flowShown = false)) to
             listOf(Effect.ClearActionHandler, Effect.NotifyListener.FlowClosed)
 
     is Message.AlertDialogResolved -> {
@@ -581,6 +599,14 @@ private fun extractPlainText(richText: AdaptyUI.FlowConfiguration.RichText): Str
         .filterIsInstance<AdaptyUI.FlowConfiguration.RichText.Item.Text>()
         .joinToString("") { it.text }
         .takeIf { it.isNotEmpty() }
+}
+
+private fun ProductsState.resolvePendingSelections(flowShown: Boolean): Pair<ProductsState, List<Effect>> {
+    if (!flowShown || pendingSelectedProductIds.isEmpty()) return this to emptyList()
+    val resolvedIds = pendingSelectedProductIds.filter { it in items }
+    if (resolvedIds.isEmpty()) return this to emptyList()
+    val effects = resolvedIds.map { Effect.NotifyListener.ProductSelected(items.getValue(it)) }
+    return copy(pendingSelectedProductIds = pendingSelectedProductIds - resolvedIds.toSet()) to effects
 }
 
 private fun findFlowProductId(

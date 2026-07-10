@@ -489,9 +489,14 @@ private fun buildLegacyScript(
     val productCalls = if (selectedProducts.isNullOrEmpty()) {
         ""
     } else {
+        val notifiedProductIds = mutableSetOf<String>()
         selectedProducts.mapNotNull { (groupId, productId) ->
             if (productId is String) {
-                """Legacy.productGroup["$groupId"] = "$productId";"""
+                if (notifiedProductIds.add(productId)) {
+                    """Legacy.selectProduct({ productId: "$productId", groupId: "$groupId" });"""
+                } else {
+                    """Legacy.productGroup["$groupId"] = "$productId";"""
+                }
             } else null
         }.joinToString("\n")
     }

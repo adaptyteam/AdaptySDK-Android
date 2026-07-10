@@ -2,7 +2,6 @@
 
 package com.adapty.ui.internal.ui
 
-import android.os.Build
 import android.view.WindowManager
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalOverscrollConfiguration
@@ -59,8 +58,7 @@ import com.adapty.ui.internal.utils.getActivityOrNull
 import kotlinx.coroutines.flow.first
 
 @Composable
-private fun ForceAdjustResizeOnLegacyApi() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) return
+internal fun ForceAdjustResize() {
     val context = LocalContext.current
     DisposableEffect(Unit) {
         val window = context.getActivityOrNull()?.window
@@ -132,7 +130,6 @@ internal fun renderHeroLayoutScreen(
     screen: Screen.Hero,
     dispatch: (Message) -> Unit,
 ) {
-    ForceAdjustResizeOnLegacyApi()
     val measuredContentHeightPxState = remember { mutableIntStateOf(0) }
     val measuredFooterHeightPxState = remember { mutableIntStateOf(0) }
 
@@ -303,7 +300,6 @@ internal fun renderFlatLayoutScreen(
     screen: Screen.Flat,
     dispatch: (Message) -> Unit,
 ) {
-    ForceAdjustResizeOnLegacyApi()
     val measuredContentHeightPxState = remember { mutableIntStateOf(0) }
     val measuredFooterHeightPxState = remember { mutableIntStateOf(0) }
 
@@ -436,7 +432,6 @@ internal fun renderTransparentLayoutScreen(
     screen: Screen.Transparent,
     dispatch: (Message) -> Unit,
 ) {
-    ForceAdjustResizeOnLegacyApi()
     Box(
         contentAlignment = Alignment.TopStart,
         modifier = Modifier.fillMaxSize(),

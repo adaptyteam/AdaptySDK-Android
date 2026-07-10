@@ -15,6 +15,7 @@ import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.google.gson.Gson
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +31,9 @@ internal class JSStateMachine(
     private val scope = CoroutineScope(Dispatchers.Default)
     private val initialized = CompletableDeferred<Unit>()
     @Volatile private var freshlyInitialized = false
-    
+
+    var onEngineStateLost: (() -> Unit)? = null
+
     fun setActionHandler(handler: ActionHandler?) {
         jsActionBridge.actionHandler = handler
     }
@@ -49,6 +52,7 @@ internal class JSStateMachine(
                 androidx.also { js ->
                     js.onSandboxDied = {
                         log(WARN) { "$LOG_PREFIX Sandbox died — re-setting up bridge functions" }
+                        onEngineStateLost?.invoke()
                         setupBridgeFunctions()
                     }
                 }
@@ -59,6 +63,7 @@ internal class JSStateMachine(
                 JSEngineWebView(context, jsActionBridge, gson).also { js ->
                     js.onRendererGone = {
                         log(WARN) { "$LOG_PREFIX WebView renderer died — re-setting up bridge functions" }
+                        onEngineStateLost?.invoke()
                         setupBridgeFunctions()
                     }
                     js.initialize()
@@ -88,7 +93,7 @@ internal class JSStateMachine(
             log(ERROR) { "$LOG_PREFIX_ERROR Error resetting JS engine: ${e.localizedMessage}" }
         }
     }
-    
+
     suspend fun loadScript(script: String) {
         initialized.await()
         freshlyInitialized = false
@@ -311,6 +316,29 @@ internal class JSStateMachine(
                 }
             }
 
+            // Restore-replay gate: while a saved flow state is being restored,
+            // the initial script is re-run only to re-create its functions and
+            // classes — its top-level SDK side effects (openScreen, setTimer, ...)
+            // must not fire. Gating inside the SDK functions (rather than dropping
+            // RPCs on the Kotlin side) keeps the window race-free: the flag flips
+            // in the same JS execution sequence as the script replay.
+            var __adapty_suppress_actions__ = false;
+            (function() {
+                var gated = ['openUrl','userCustomAction','purchaseProduct','webPurchaseProduct',
+                             'restorePurchases','closeAll','onSelectProduct','openScreen','closeScreen',
+                             'moveScroll','changeFocus','setTimer','sendAnalyticsEvent','sendEvents',
+                             'showAppRate','showAlertDialog','showRequestPermission'];
+                for (var i = 0; i < gated.length; i++) {
+                    (function(name) {
+                        var real = SDK[name];
+                        SDK[name] = function(params) {
+                            if (__adapty_suppress_actions__) return;
+                            return real(params);
+                        };
+                    })(gated[i]);
+                }
+            })();
+
             // Snapshot global keys before user script loads so refreshStateCache
             // can distinguish user-defined variables from browser/engine built-ins.
             var __adapty_baseline_keys__ = {};
@@ -352,6 +380,8 @@ internal class JSStateMachine(
             val result = jsEngine.execute(key)
             if (reportJsErrorIfPresent(result, "getValue")) return null
             result
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log(ERROR) { "$LOG_PREFIX_ERROR Error in getValue: ${e.localizedMessage}" }
             null

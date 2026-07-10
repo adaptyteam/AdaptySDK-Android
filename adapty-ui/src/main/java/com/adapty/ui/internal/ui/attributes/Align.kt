@@ -134,3 +134,6 @@ internal fun Alignment.toHorizontalAlignmentOrCenter(): Alignment.Horizontal = w
 }
 
 internal val LocalContentAlignment = compositionLocalOf { Alignment.Center }
+
+internal val LocalOverflowAnchorVertical = compositionLocalOf<Alignment.Vertical> { Alignment.CenterVertically }
+internal val LocalOverflowAnchorHorizontal = compositionLocalOf<Alignment.Horizontal> { Alignment.CenterHorizontally }

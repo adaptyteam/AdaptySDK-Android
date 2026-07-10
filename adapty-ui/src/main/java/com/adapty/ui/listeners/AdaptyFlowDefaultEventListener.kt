@@ -14,16 +14,34 @@ import com.adapty.models.AdaptyProfile
 import com.adapty.models.AdaptyPurchaseParameters
 import com.adapty.models.AdaptyPurchaseResult
 import com.adapty.ui.AdaptyUI
+import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.log
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
+import com.google.android.play.core.review.ReviewManagerFactory
 
 public open class AdaptyFlowDefaultEventListener : AdaptyFlowEventListener {
 
     override fun onAnalyticEvent(name: String, params: Map<String, Any?>, context: Context) {}
 
-    override fun onShowAppRate(context: Context) {}
+    override fun onShowAppRate(context: Context) {
+        val activity = context.getActivityOrNull() ?: return
+        runCatching {
+            val manager = ReviewManagerFactory.create(context)
+            manager.requestReviewFlow().addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    runCatching { manager.launchReviewFlow(activity, task.result) }
+                        .onFailure { e ->
+                            log(WARN) { "$LOG_PREFIX couldn't launch app review: (${e.localizedMessage})" }
+                        }
+                }
+            }
+        }.getOrElse { e ->
+            log(WARN) { "$LOG_PREFIX couldn't request app review: (${e.localizedMessage})" }
+        }
+    }
 
     override fun onShowRequestPermission(
         permission: String?,
