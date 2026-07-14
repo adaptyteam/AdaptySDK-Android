@@ -22,6 +22,21 @@ internal class PayloadProvider(
         return hashingHelper.md5(payload)
     }
 
+    fun getPayloadHashForFlowVariationsRequest(
+        segmentId: String,
+        builderVersion: String,
+        crossPlacementEligibility: Boolean,
+    ): String {
+        val payload =
+            "{\"builder_version\":\"$builderVersion\",${if (crossPlacementEligibility) "\"cross_placement_eligibility\":true," else ""}\"segment_hash\":\"$segmentId\",\"store\":\"${metaInfoRetriever.store}\"}"
+        return hashingHelper.md5(payload)
+    }
+
+    fun getPayloadHashForFlowRequest(builderVersion: String): String {
+        val payload = "{\"builder_version\":\"$builderVersion\",\"store\":\"${metaInfoRetriever.store}\"}"
+        return hashingHelper.md5(payload)
+    }
+
     fun getPayloadHashForPaywallBuilderRequest(locale: String, builderVersion: String): String {
         val payload = "{\"builder_version\":\"$builderVersion\",\"locale\":\"${locale.lowercase(Locale.ENGLISH)}\"}"
         return hashingHelper.md5(payload)

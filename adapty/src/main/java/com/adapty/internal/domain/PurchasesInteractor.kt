@@ -54,7 +54,6 @@ internal class PurchasesInteractor(
         }
     }
 
-    @JvmSynthetic
     fun makePurchase(
         activity: Activity,
         product: AdaptyPaywallProduct,
@@ -188,14 +187,12 @@ internal class PurchasesInteractor(
             .catch { error -> syncValidateDataSemaphore.releaseQuietly(); throw error }
     }
 
-    @JvmSynthetic
     fun restorePurchases() =
         syncPurchasesInternal(maxAttemptCount = DEFAULT_RETRY_COUNT, byUser = true)
 
     private val syncPurchasesSemaphore = Semaphore(1)
     private val syncValidateDataSemaphore = Semaphore(1)
 
-    @JvmSynthetic
     suspend fun syncPurchasesIfNeeded(): Flow<AdaptyProfile?> {
         if (cacheRepository.getPurchasesHaveBeenSynced()) {
             return flowOf(null)
@@ -212,7 +209,6 @@ internal class PurchasesInteractor(
         }
     }
 
-    @JvmSynthetic
     suspend fun syncPurchasesOnStart(): Flow<AdaptyProfile> {
         syncPurchasesSemaphore.acquire()
         return syncPurchasesInternal(maxAttemptCount = DEFAULT_RETRY_COUNT)
@@ -281,7 +277,6 @@ internal class PurchasesInteractor(
             }
     }
 
-    @JvmSynthetic
     fun reportTransaction(transactionInfo: TransactionInfo, variationId: String?) =
         if (variationId != null) {
             (when (transactionInfo) {

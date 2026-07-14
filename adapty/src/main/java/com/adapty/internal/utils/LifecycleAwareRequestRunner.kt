@@ -47,7 +47,6 @@ internal class LifecycleAwareRequestRunner(
 
     private val appOpenedHandlingExecutor = Executors.newSingleThreadExecutor()
 
-    @JvmSynthetic
     fun restart() {
         cancelScheduledRequests()
         areRequestsAllowed.set(true)
@@ -60,7 +59,6 @@ internal class LifecycleAwareRequestRunner(
         }
     }
 
-    @JvmSynthetic
     override fun onGoForeground() {
         if (areRequestsAllowed.get()) {
             handleAppOpenedEvent()
@@ -85,7 +83,6 @@ internal class LifecycleAwareRequestRunner(
         }
     }
 
-    @JvmSynthetic
     override fun onGoBackground() {
         cancelScheduledRequests()
     }

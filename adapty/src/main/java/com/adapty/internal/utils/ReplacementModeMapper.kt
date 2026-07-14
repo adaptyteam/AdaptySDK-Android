@@ -8,7 +8,6 @@ import com.android.billingclient.api.BillingFlowParams.SubscriptionUpdateParams.
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class ReplacementModeMapper {
 
-    @JvmSynthetic
     fun map(replacementMode: AdaptySubscriptionUpdateParameters.ReplacementMode) = when (replacementMode) {
         WITH_TIME_PRORATION -> ReplacementMode.WITH_TIME_PRORATION
         WITHOUT_PRORATION -> ReplacementMode.WITHOUT_PRORATION

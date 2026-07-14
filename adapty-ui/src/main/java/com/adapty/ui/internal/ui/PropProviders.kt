@@ -17,8 +17,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
@@ -51,6 +53,13 @@ import com.adapty.ui.internal.ui.element.borderThicknessBehaviour
 import kotlinx.coroutines.delay
 import com.adapty.ui.internal.ui.element.widthBehaviour
 import com.adapty.ui.internal.ui.element.heightBehaviour
+import com.adapty.ui.internal.ui.element.blurBehaviour
+import com.adapty.ui.internal.ui.element.BlurProvider
+import com.adapty.ui.internal.ui.element.InnerShadowProvider
+import com.adapty.ui.internal.ui.element.LocalRoleSequences
+import com.adapty.ui.internal.ui.element.innerShadowBlurRadiusBehaviour
+import com.adapty.ui.internal.ui.element.innerShadowColorBehaviour
+import com.adapty.ui.internal.ui.element.innerShadowOffsetBehaviour
 import com.adapty.ui.internal.ui.element.shadowBlurRadiusBehaviour
 import com.adapty.ui.internal.ui.element.shadowColorBehaviour
 import com.adapty.ui.internal.ui.element.shadowOffsetBehaviour
@@ -61,17 +70,35 @@ internal fun <T> rememberAnimatedValue(
     behavior: AnimationBehavior<T>,
     converter: TwoWayConverter<T, out AnimationVector>
 ): State<T> {
-    return when (behavior) {
-        is AnimationBehavior.Static -> rememberUpdatedState(behavior.value)
-
-        is AnimationBehavior.Animated -> rememberAnimatedValueWithRunner(
-            animations = behavior.singleValueAnimsOrdered,
-            initialValue = behavior.singleValueAnimsOrdered.firstOrNull()?.start ?: behavior.defaultValue,
-            converter = converter
-        )
-
-        is AnimationBehavior.None -> rememberUpdatedState(behavior.zero)
+    val (animations, initialValue) = when (behavior) {
+        is AnimationBehavior.Static -> emptyList<Animation<T>>() to behavior.value
+        is AnimationBehavior.Animated ->
+            behavior.singleValueAnimsOrdered to
+                (behavior.singleValueAnimsOrdered.firstOrNull()?.start ?: behavior.defaultValue)
+        is AnimationBehavior.None -> emptyList<Animation<T>>() to behavior.zero
     }
+    return rememberAnimatedValueWithRunner(animations, initialValue, converter)
+}
+
+@Composable
+private fun <T> rememberBindableAnimatedValue(
+    behavior: AnimationBehavior<T>,
+    converter: TwoWayConverter<T, out AnimationVector>,
+): State<T> {
+    val animatedValue = rememberAnimatedValue(behavior, converter)
+    val cellWritten = remember { mutableStateOf(false) }
+    val behaviorIsAnimated = behavior is AnimationBehavior.Animated &&
+        behavior.singleValueAnimsOrdered.isNotEmpty()
+    val staticFallback = when (behavior) {
+        is AnimationBehavior.Static -> behavior.value
+        is AnimationBehavior.Animated -> behavior.defaultValue
+        is AnimationBehavior.None -> behavior.zero
+    }
+    val staticState = rememberUpdatedState(staticFallback)
+    if (behaviorIsAnimated && !cellWritten.value) {
+        cellWritten.value = true
+    }
+    return if (cellWritten.value || behaviorIsAnimated) animatedValue else staticState
 }
 
 @Composable
@@ -80,16 +107,51 @@ internal fun <T> rememberAnimatedValueWithRunner(
     initialValue: T,
     converter: TwoWayConverter<T, out AnimationVector>,
 ): State<T> {
-    val runner = remember(animations) { AnimationRunner(animations) }
+    val seq = animations.firstOrNull()?.role
+        ?.let { role -> LocalRoleSequences.current[role] } ?: -1L
+    val runner = remember(animations, seq) {
+        if (animations.isEmpty()) null else AnimationRunner(animations)
+    }
+
+    val hasFiniteEnd = remember(animations) {
+        animations.isNotEmpty() && animations.all { it.repeatMaxCount != Int.MAX_VALUE }
+    }
+
     val anim = remember { Animatable(initialValue, converter) }
     val context = LocalContext.current
     val animationsDisabled = remember(context) {
         context.areAnimationsDisabled()
     }
 
+    val playedSequences = rememberSaveable(
+        saver = androidx.compose.runtime.saveable.listSaver<MutableSet<Long>, Long>(
+            save = { it.toList() },
+            restore = { it.toMutableSet() },
+        ),
+    ) { mutableSetOf<Long>() }
+
     LaunchedEffect(runner, animationsDisabled) {
+        val activeRunner = runner ?: return@LaunchedEffect
+
+        val isReplay = seq >= 0L && seq in playedSequences
+        if (isReplay && hasFiniteEnd) {
+            val longest = animations.maxByOrNull { it.startDelayMillis + it.durationMillis }
+            val snapValue = when {
+                longest == null -> initialValue
+                longest.repeatMode == Animation.RepeatMode.PingPong -> longest.start
+                else -> longest.end
+            }
+            anim.snapTo(snapValue)
+            return@LaunchedEffect
+        }
+        if (seq >= 0L) playedSequences.add(seq)
+
+        val firstStart = animations.minByOrNull { it.startDelayMillis }?.start
+        if (firstStart != null && firstStart != anim.value) {
+            anim.snapTo(firstStart)
+        }
         while (true) {
-            val step = runner.next() ?: break
+            val step = activeRunner.next() ?: break
             val primitive = step.primitive
 
             if (primitive.isSnap) {
@@ -228,7 +290,7 @@ internal data class AnimationPrimitive<T>(
 
 @Composable
 internal fun rememberOffsetProvider(baseProps: BaseProps): OffsetProvider {
-    val offset = rememberAnimatedValue(baseProps.offsetBehaviour, OffsetVectorConverter)
+    val offset = rememberBindableAnimatedValue(baseProps.offsetBehaviour, OffsetVectorConverter)
     return OffsetProvider(offset)
 }
 
@@ -264,51 +326,65 @@ private val RotationVectorConverter: TwoWayConverter<Rotation, AnimationVector3D
 
 @Composable
 internal fun rememberBoxProvider(baseProps: BaseProps): BoxProvider {
-    val width = rememberAnimatedValue(baseProps.widthBehaviour(), DpVectorConverter)
-    val height = rememberAnimatedValue(baseProps.heightBehaviour(), DpVectorConverter)
+    val width = rememberBindableAnimatedValue(baseProps.widthBehaviour(), DpVectorConverter)
+    val height = rememberBindableAnimatedValue(baseProps.heightBehaviour(), DpVectorConverter)
     return BoxProvider(width, height)
 }
 
 @Composable
 internal fun rememberScaleProvider(baseProps: BaseProps): ScaleProvider {
-    val scale = rememberAnimatedValue(baseProps.scaleBehaviour, ScaleVectorConverter)
+    val scale = rememberBindableAnimatedValue(baseProps.scaleBehaviour, ScaleVectorConverter)
     return ScaleProvider(scale)
 }
 
 @Composable
 internal fun rememberRotationProvider(baseProps: BaseProps): RotationProvider {
-    val rotation = rememberAnimatedValue(baseProps.rotationBehaviour, RotationVectorConverter)
+    val rotation = rememberBindableAnimatedValue(baseProps.rotationBehaviour, RotationVectorConverter)
     return RotationProvider(rotation)
 }
 
 @Composable
 internal fun rememberOpacityProvider(baseProps: BaseProps): OpacityProvider {
-    val alpha = rememberAnimatedValue(baseProps.opacityBehaviour, Float.VectorConverter)
+    val alpha = rememberBindableAnimatedValue(baseProps.opacityBehaviour, Float.VectorConverter)
     return OpacityProvider(alpha)
 }
 
 @Composable
-internal fun rememberColorProvider(baseProps: BaseProps, resolveAssets: ResolveAssets): State<Color> =
-    rememberAnimatedValue(baseProps.colorBehaviour(resolveAssets), Color.VectorConverter(ColorSpaces.Srgb))
+internal fun rememberColorProvider(baseProps: BaseProps): State<Color> =
+    rememberBindableAnimatedValue(baseProps.colorBehaviour(), Color.VectorConverter(ColorSpaces.Srgb))
 
 @Composable
-internal fun rememberBorderColorProvider(baseProps: BaseProps, resolveAssets: ResolveAssets): State<Color> =
-    rememberAnimatedValue(baseProps.borderColorBehaviour(resolveAssets), Color.VectorConverter(ColorSpaces.Srgb))
+internal fun rememberBorderColorProvider(baseProps: BaseProps): State<Color> =
+    rememberBindableAnimatedValue(baseProps.borderColorBehaviour(), Color.VectorConverter(ColorSpaces.Srgb))
 
 @Composable
 internal fun rememberBorderThicknessProvider(baseProps: BaseProps): State<Dp> =
-    rememberAnimatedValue(baseProps.borderThicknessBehaviour(), DpVectorConverter)
+    rememberBindableAnimatedValue(baseProps.borderThicknessBehaviour(), DpVectorConverter)
 
 @Composable
-internal fun rememberBorderGradientProvider(baseProps: BaseProps, resolveAssets: ResolveAssets): BrushProvider =
-    rememberGradientProvider(baseProps, resolveAssets, Animation.Role.Border)
+internal fun rememberBorderGradientProvider(baseProps: BaseProps): BrushProvider =
+    rememberGradientProvider(baseProps, Animation.Role.Border)
 
 @Composable
-internal fun rememberShadowProvider(baseProps: BaseProps, resolveAssets: ResolveAssets): ShadowProvider {
-    val color = rememberAnimatedValue(baseProps.shadowColorBehaviour(resolveAssets), Color.VectorConverter(ColorSpaces.Srgb))
-    val blurRadius = rememberAnimatedValue(baseProps.shadowBlurRadiusBehaviour(), Float.VectorConverter)
-    val offset = rememberAnimatedValue(baseProps.shadowOffsetBehaviour(), OffsetVectorConverter)
+internal fun rememberBlurProvider(baseProps: BaseProps): BlurProvider {
+    val radius = rememberBindableAnimatedValue(baseProps.blurBehaviour, Float.VectorConverter)
+    return BlurProvider(radius)
+}
+
+@Composable
+internal fun rememberShadowProvider(baseProps: BaseProps): ShadowProvider {
+    val color = rememberBindableAnimatedValue(baseProps.shadowColorBehaviour(), Color.VectorConverter(ColorSpaces.Srgb))
+    val blurRadius = rememberBindableAnimatedValue(baseProps.shadowBlurRadiusBehaviour(), Float.VectorConverter)
+    val offset = rememberBindableAnimatedValue(baseProps.shadowOffsetBehaviour(), OffsetVectorConverter)
     return ShadowProvider(color, blurRadius, offset)
+}
+
+@Composable
+internal fun rememberInnerShadowProvider(baseProps: BaseProps): InnerShadowProvider {
+    val color = rememberBindableAnimatedValue(baseProps.innerShadowColorBehaviour(), Color.VectorConverter(ColorSpaces.Srgb))
+    val blurRadius = rememberBindableAnimatedValue(baseProps.innerShadowBlurRadiusBehaviour(), Float.VectorConverter)
+    val offset = rememberBindableAnimatedValue(baseProps.innerShadowOffsetBehaviour(), OffsetVectorConverter)
+    return InnerShadowProvider(color, blurRadius, offset)
 }
 
 internal val LocalOpacityProvider = androidx.compose.runtime.compositionLocalOf<OpacityProvider?> { null }

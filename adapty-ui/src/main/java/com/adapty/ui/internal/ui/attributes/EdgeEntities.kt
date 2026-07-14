@@ -13,7 +13,7 @@ internal data class EdgeEntities(
     val end: DimUnit,
     val bottom: DimUnit,
 ) {
-    constructor(horizontal: DimUnit, vertical: DimUnit): this(horizontal, vertical, horizontal, vertical)
+    constructor(vertical: DimUnit, horizontal: DimUnit): this(horizontal, vertical, horizontal, vertical)
     constructor(all: DimUnit): this(all, all)
     constructor(all: Float): this(DimUnit.Exact(all))
 }
@@ -28,6 +28,16 @@ internal fun EdgeEntities.toPaddingValues(): PaddingValues {
     )
 }
 
+@Composable
+internal fun EdgeEntities.toPositivePaddingValues(): PaddingValues {
+    return PaddingValues(
+        start.toExactDp(DimSpec.Axis.X).coerceAtLeast(0.dp),
+        top.toExactDp(DimSpec.Axis.Y).coerceAtLeast(0.dp),
+        end.toExactDp(DimSpec.Axis.X).coerceAtLeast(0.dp),
+        bottom.toExactDp(DimSpec.Axis.Y).coerceAtLeast(0.dp),
+    )
+}
+
 internal val EdgeEntities.horizontalSum @Composable get() = start.toExactDp(DimSpec.Axis.X) + end.toExactDp(
     DimSpec.Axis.X
 )
@@ -37,3 +47,12 @@ internal val EdgeEntities.verticalSum @Composable get() = top.toExactDp(DimSpec.
 
 internal val EdgeEntities?.horizontalSumOrDefault @Composable get() = this?.horizontalSum ?: 0.dp
 internal val EdgeEntities?.verticalSumOrDefault @Composable get() = this?.verticalSum ?: 0.dp
+
+internal val EdgeEntities.hasAnyNegative: Boolean
+    get() = start.isNegative() || top.isNegative() || end.isNegative() || bottom.isNegative()
+
+private fun DimUnit.isNegative(): Boolean = when (this) {
+    is DimUnit.Exact -> value < 0f
+    is DimUnit.ScreenFraction -> fraction < 0f
+    is DimUnit.SafeArea -> false
+}

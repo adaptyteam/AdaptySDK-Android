@@ -115,7 +115,6 @@ public class ImmutableMap<K, V>(@get:JvmSynthetic internal val map: Map<K, V>) {
         }
 
         internal companion object {
-            @JvmSynthetic
             fun <K, V> from(mapEntry: Map.Entry<K, V>) = Entry(mapEntry)
         }
     }

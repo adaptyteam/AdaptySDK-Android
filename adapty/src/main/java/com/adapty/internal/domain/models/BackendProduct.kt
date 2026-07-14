@@ -19,6 +19,7 @@ public class BackendProduct internal constructor(
     public val accessLevelId: String,
     public val declaredProductType: String,
     public val duration: Duration,
+    public val flowProductId: String?,
 ) {
     public class SubscriptionData(
         public val basePlanId: String,

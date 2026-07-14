@@ -15,7 +15,6 @@ internal class CrossplatformMetaRetriever {
         getClassForNameOrNull("com.adapty.internal.crossplatform.MetaInfo")
     }
 
-    @get:JvmSynthetic
     val crossplatformNameAndVersion: Pair<String, String>?
         get() {
             val meta = getDeclaredFieldOrNull<Any>(crossplatformClass, "meta", crossplatformClass) ?: return null

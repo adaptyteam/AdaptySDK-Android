@@ -74,6 +74,7 @@ internal class AnalyticsEvent(
             const val API_RESPONSE_PREFIX = "api_response_"
             const val GOOGLE_REQUEST_PREFIX = "google_request_"
             const val GOOGLE_RESPONSE_PREFIX = "google_response_"
+            const val INTERNAL_PREFIX = "internal_"
         }
 
         fun resetFlowId() {
@@ -174,6 +175,35 @@ internal class AnalyticsEvent(
             }
         }
 
+        class GetFlow private constructor(
+            val placementId: String,
+            val fetchPolicy: Map<String, Any>,
+            val loadTimeout: Double,
+            methodName: String
+        ) : SDKMethodRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    placementId: String,
+                    fetchPolicy: AdaptyPlacementFetchPolicy,
+                    loadTimeoutMillis: Int,
+                ) =
+                    GetFlow(
+                        placementId,
+                        when (fetchPolicy) {
+                            is AdaptyPlacementFetchPolicy.ReloadRevalidatingCacheData -> mapOf("type" to "reload_revalidating_cache_data")
+                            is AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad -> mapOf("type" to "return_cache_data_else_load")
+                            is AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad -> mapOf(
+                                "type" to "return_cache_data_else_load",
+                                "max_age" to fetchPolicy.maxAgeMillis / 1000.0,
+                            )
+                        },
+                        loadTimeoutMillis / 1000.0,
+                        "get_flow",
+                    )
+            }
+        }
+
         class MakePurchase private constructor(
             val paywallName: String,
             val variationId: String,
@@ -214,9 +244,9 @@ internal class AnalyticsEvent(
         ) : SDKMethodRequestData(methodName) {
 
             companion object {
-                fun create(key: String, value: String) =
+                fun create(data: Map<String, String>) =
                     SetIntegrationId(
-                        mapOf(key to value),
+                        data,
                         "set_integration_identifier",
                     )
             }
@@ -480,6 +510,66 @@ internal class AnalyticsEvent(
             }
         }
 
+        class GetFallbackFlowVariations private constructor(
+            val apiPrefix: String,
+            val placementId: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    apiPrefix: String,
+                    placementId: String,
+                ) =
+                    GetFallbackFlowVariations(
+                        apiPrefix,
+                        placementId,
+                        "get_fallback_flow_variations",
+                    )
+            }
+        }
+
+        class GetFallbackFlow private constructor(
+            val apiPrefix: String,
+            val placementId: String,
+            val variationId: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    apiPrefix: String,
+                    placementId: String,
+                    variationId: String,
+                ) =
+                    GetFallbackFlow(
+                        apiPrefix,
+                        placementId,
+                        variationId,
+                        "get_fallback_flow",
+                    )
+            }
+        }
+
+        class GetFallbackFlowBuilder private constructor(
+            val flowId: String,
+            val viewConfigurationId: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    flowId: String,
+                    viewConfigurationId: String,
+                ) =
+                    GetFallbackFlowBuilder(
+                        flowId,
+                        viewConfigurationId,
+                        "get_fallback_flow_builder",
+                    )
+            }
+        }
+
         class GetFallbackPaywallBuilder private constructor(
             val apiPrefix: String,
             val paywallInstanceId: String,
@@ -641,6 +731,72 @@ internal class AnalyticsEvent(
             }
         }
 
+        class GetFlow private constructor(
+            val apiPrefix: String,
+            val placementId: String,
+            val variationId: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    apiPrefix: String,
+                    placementId: String,
+                    variationId: String,
+                ) =
+                    GetFlow(
+                        apiPrefix,
+                        placementId,
+                        variationId,
+                        "get_flow",
+                    )
+            }
+        }
+
+        class GetFlowVariations private constructor(
+            val apiPrefix: String,
+            val placementId: String,
+            val segmentId: String,
+            val md5: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    apiPrefix: String,
+                    placementId: String,
+                    segmentId: String,
+                    md5: String,
+                ) =
+                    GetFlowVariations(
+                        apiPrefix,
+                        placementId,
+                        segmentId,
+                        md5,
+                        "get_flow_variations",
+                    )
+            }
+        }
+
+        class GetFlowBuilder private constructor(
+            val flowId: String,
+            val viewConfigurationId: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    flowId: String,
+                    viewConfigurationId: String,
+                ) =
+                    GetFlowBuilder(
+                        flowId,
+                        viewConfigurationId,
+                        "get_flow_builder",
+                    )
+            }
+        }
+
         class GetUntargetedOnboardingVariations private constructor(
             val apiPrefix: String,
             val placementId: String,
@@ -659,6 +815,25 @@ internal class AnalyticsEvent(
                         placementId,
                         languageCode,
                         "get_untargeted_onboarding_variations",
+                    )
+            }
+        }
+
+        class GetUntargetedFlowVariations private constructor(
+            val apiPrefix: String,
+            val placementId: String,
+            methodName: String,
+        ) : BackendAPIRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    apiPrefix: String,
+                    placementId: String,
+                ) =
+                    GetUntargetedFlowVariations(
+                        apiPrefix,
+                        placementId,
+                        "get_untargeted_flow_variations",
                     )
             }
         }
@@ -799,9 +974,9 @@ internal class AnalyticsEvent(
         ) : BackendAPIRequestData(methodName) {
 
             companion object {
-                fun create(key: String, value: String) =
+                fun create(data: Map<String, String>) =
                     SetIntegrationId(
-                        mapOf(key to value),
+                        data,
                         "set_integration_identifier",
                     )
             }
@@ -1173,6 +1348,16 @@ internal class AnalyticsEvent(
                     )
                 }
             }
+        }
+    }
+
+    class InternalEventData private constructor(
+        eventName: String,
+        val error: String?,
+    ) : CustomData("${INTERNAL_PREFIX}${eventName}", null) {
+
+        companion object {
+            fun create(eventName: String, error: String? = null) = InternalEventData(eventName, error)
         }
     }
 

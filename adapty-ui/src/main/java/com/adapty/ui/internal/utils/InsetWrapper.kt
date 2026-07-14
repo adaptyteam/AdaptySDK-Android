@@ -1,12 +1,19 @@
 package com.adapty.ui.internal.utils
 
+import android.view.View
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeContent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
-import com.adapty.ui.AdaptyPaywallInsets
+import androidx.compose.ui.unit.dp
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import com.adapty.ui.AdaptyFlowInsets
 
 internal sealed class InsetWrapper {
     abstract fun getTop(density: Density): Int
@@ -47,7 +54,7 @@ internal sealed class InsetWrapper {
         }
     }
 
-    class Custom(internal val insets: AdaptyPaywallInsets): InsetWrapper() {
+    class Custom(internal val insets: AdaptyFlowInsets): InsetWrapper() {
         override fun getBottom(density: Density): Int {
             return insets.bottom
         }
@@ -81,12 +88,56 @@ internal sealed class InsetWrapper {
 
 internal fun WindowInsets.wrap() = InsetWrapper.System(this)
 
-internal fun AdaptyPaywallInsets.wrap() = InsetWrapper.Custom(this)
+internal fun AdaptyFlowInsets.wrap() = InsetWrapper.Custom(this)
 
 internal val LocalCustomInsets = staticCompositionLocalOf<InsetWrapper.Custom> {
-    AdaptyPaywallInsets.UNSPECIFIED.wrap()
+    AdaptyFlowInsets.Unspecified.wrap()
 }
 
 @Composable
-internal fun getInsets() = LocalCustomInsets.current.takeIf { it.insets != AdaptyPaywallInsets.UNSPECIFIED }
+internal fun getInsets() = LocalCustomInsets.current.takeIf { it.insets != AdaptyFlowInsets.Unspecified }
     ?: WindowInsets.safeContent.wrap()
+
+internal fun View.rootBarOrCutoutInsets(): Insets? =
+    ViewCompat.getRootWindowInsets(this)?.getInsets(
+        WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+    )
+
+@Stable
+internal data class SafeAreaInsets(
+    val start: Dp,
+    val top: Dp,
+    val end: Dp,
+    val bottom: Dp,
+) {
+    companion object {
+        val Zero = SafeAreaInsets(0.dp, 0.dp, 0.dp, 0.dp)
+    }
+}
+
+@Stable
+internal data class ScreenDimensions(
+    val widthDp: Float,
+    val heightDp: Float,
+) {
+    companion object {
+        val Zero = ScreenDimensions(0f, 0f)
+    }
+}
+
+internal val LocalSafeAreaInsets = staticCompositionLocalOf { SafeAreaInsets.Zero }
+
+internal val LocalScreenDimensions = staticCompositionLocalOf { ScreenDimensions.Zero }
+
+@Composable
+internal fun computeSafeAreaInsets(density: Density, layoutDirection: LayoutDirection): SafeAreaInsets {
+    val insets = getInsets()
+    return with(density) {
+        SafeAreaInsets(
+            start = insets.getLeft(density, layoutDirection).toDp(),
+            top = insets.getTop(density).toDp(),
+            end = insets.getRight(density, layoutDirection).toDp(),
+            bottom = insets.getBottom(density).toDp(),
+        )
+    }
+}

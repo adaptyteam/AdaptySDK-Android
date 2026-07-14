@@ -1,2 +1,2 @@
-include ':app', ':adapty', ':adapty-ui', ':adapty-ui-video'
+include ':app', ':adapty', ':adapty-ui', ':adapty-ui-video', ':crossplatform'
 rootProject.name='AdaptyExample'

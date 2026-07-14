@@ -7,9 +7,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
 import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset.Image.Dimension
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset.Image.ScaleType
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image.Dimension
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image.ScaleType
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import java.io.InputStream
 
@@ -28,6 +28,42 @@ internal fun getBitmap(context: Context, image: Asset.Composite<Asset.Image>, bo
         reqDim = boundsH
     }
     return getBitmap(context, image, reqDim, dim)
+}
+
+internal fun getImageNaturalSize(context: Context, image: Asset.Composite<Asset.Image>): Pair<Int, Int>? {
+    return runCatching { getImageNaturalSize(context, image.main) }.getOrNull()
+        ?: image.fallback?.let { runCatching { getImageNaturalSize(context, it) }.getOrNull() }
+}
+
+private fun getImageNaturalSize(context: Context, image: Asset.Image): Pair<Int, Int>? {
+    return when (val source = image.source) {
+        is Asset.Image.Source.Base64Str -> {
+            if (source.imageBase64 == null) return null
+            val byteArray = runCatching { Base64.decode(source.imageBase64, Base64.DEFAULT) }.getOrNull()
+                ?: return null
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size, options)
+            if (options.outWidth > 0 && options.outHeight > 0)
+                options.outWidth to options.outHeight
+            else null
+        }
+        is Asset.Image.Source.Bitmap -> {
+            val bmp = source.bitmap
+            if (bmp.width > 0 && bmp.height > 0) bmp.width to bmp.height else null
+        }
+        is Asset.Image.Source.AndroidAsset -> {
+            runCatching {
+                context.assets?.open(source.path)?.use { input ->
+                    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeStream(input, null, options)
+                    if (options.outWidth > 0 && options.outHeight > 0)
+                        options.outWidth to options.outHeight
+                    else null
+                }
+            }.getOrNull()
+        }
+        is Asset.Image.Source.Uri -> null
+    }
 }
 
 internal fun getBitmap(context: Context, image: Asset.Composite<Asset.Image>, reqDim: Int = 0, dim: Dimension = Dimension.WIDTH) : Bitmap? {

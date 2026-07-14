@@ -23,11 +23,11 @@ internal class RectWithArcShape(private val arcHeight: Float, private val segmen
             arcHeight > 0f -> {
                 val yOffset = bounds.top + arcHeight
                 path.lineTo(bounds.left, yOffset)
-                addParabola(path, bounds, yOffset, bounds.top, segments)
+                addParabola(path, bounds, yOffset, bounds.top + arcHeight / 2f, segments)
             }
             arcHeight < 0f -> {
                 path.lineTo(bounds.left, bounds.top)
-                addParabola(path, bounds, bounds.top, bounds.top - arcHeight, segments)
+                addParabola(path, bounds, bounds.top, bounds.top - arcHeight / 2f, segments)
             }
             else -> {
                 path.lineTo(bounds.left, bounds.top)

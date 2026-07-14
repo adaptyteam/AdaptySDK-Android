@@ -7,10 +7,10 @@
     android:orientation="vertical">
 
     <Button
-        android:id="@+id/presentPaywall"
+        android:id="@+id/presentFlow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Present paywall"
+        android:text="Present flow"
         android:textAllCaps="false" />
 
     <androidx.recyclerview.widget.RecyclerView

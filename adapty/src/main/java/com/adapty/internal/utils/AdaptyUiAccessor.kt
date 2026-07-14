@@ -16,13 +16,14 @@ internal class AdaptyUiAccessor {
         getClassForNameOrNull("com.adapty.ui.AdaptyUI")
     }
 
-    @get:JvmSynthetic
     val adaptyUiVersion: String?
         get() = getDeclaredFieldOrNull<String>(adaptyUiConstClass, "VERSION_NAME", adaptyUiConstClass)
 
-    @get:JvmSynthetic
     val builderVersion: String
         get() = getDeclaredFieldOrNull<String>(adaptyUiConstClass, "BUILDER_VERSION", adaptyUiConstClass) ?: "3"
+
+    val builderSchemaVersion: String?
+        get() = getDeclaredFieldOrNull<String>(adaptyUiConstClass, "CONFIGURATION_FORMAT_VERSION", adaptyUiConstClass)
 
     fun preloadMedia(rawConfig: Map<String, Any>) {
         try {

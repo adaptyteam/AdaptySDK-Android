@@ -93,7 +93,6 @@ public class AdaptyProfileParameters private constructor(
         }
 
         internal companion object {
-            @JvmSynthetic
             fun from(params: AdaptyProfileParameters) = Builder(
                 params.email,
                 params.phoneNumber,

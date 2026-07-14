@@ -174,16 +174,16 @@ internal class MainRequestFactory(
             }
         }
 
-    fun setIntegrationIdRequest(key: String, value: String) =
+    fun setIntegrationIdentifiersRequest(keyValues: Map<String, String>) =
         cacheRepository.getProfileId().let { profileId ->
             buildRequest(POST) {
                 body = gson.toJson(
-                    SetIntegrationIdRequest.create(profileId, key, value)
+                    SetIntegrationIdRequest.create(profileId, keyValues)
                 )
                 endPoint = "$integrationPrefix/profile/set/integration-identifiers/"
                     .also { endpointTemplate = it }
                 headers += listOf(Request.Header("Content-type", "application/json"))
-                systemLog = BackendAPIRequestData.SetIntegrationId.create(key, value)
+                systemLog = BackendAPIRequestData.SetIntegrationId.create(keyValues)
             }
         }
 
@@ -264,34 +264,6 @@ internal class MainRequestFactory(
         systemLog = BackendAPIRequestData.GetProducts.create()
     }
 
-    fun getPaywallVariationsRequest(id: String, locale: String, segmentId: String) =
-        cacheRepository.getProfileId().let { profileId ->
-            buildRequest(GET) {
-                val builderVersion = metaInfoRetriever.builderVersion
-                val crossPlacementEligibility =
-                    cacheRepository.getCrossPlacementInfo()?.placementWithVariationMap?.isEmpty() ?: false
-                val payloadHash = payloadProvider.getPayloadHashForPaywallRequest(
-                    locale,
-                    segmentId,
-                    builderVersion,
-                    crossPlacementEligibility,
-                )
-                endPoint = "$inappsPrefix/$apiKeyPrefix/paywall/variations/$id/$payloadHash/${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
-                endpointTemplate = "$inappsPrefix/$apiKeyPrefix/paywall/variations/id/payloadHash/"
-                headers += listOfNotNull(
-                    Request.Header("adapty-paywall-locale", locale),
-                    Request.Header("adapty-paywall-builder-version", builderVersion),
-                    Request.Header("adapty-profile-segment-hash", segmentId),
-                    Request.Header("adapty-cross-placement-eligibility", "$crossPlacementEligibility"),
-                    metaInfoRetriever.adaptyUiVersionOrNull?.let { adaptyUiVersion ->
-                        Request.Header("adapty-ui-version", adaptyUiVersion)
-                    },
-                )
-                currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
-                systemLog = BackendAPIRequestData.GetPaywallVariations.create(apiKeyPrefix, id, locale, segmentId, payloadHash)
-            }
-        }
-
     fun getOnboardingVariationsRequest(id: String, locale: String, segmentId: String) =
         cacheRepository.getProfileId().let { profileId ->
             buildRequest(GET) {
@@ -311,32 +283,6 @@ internal class MainRequestFactory(
                 )
                 currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
                 systemLog = BackendAPIRequestData.GetOnboardingVariations.create(apiKeyPrefix, id, locale, segmentId, payloadHash)
-            }
-        }
-
-    fun getPaywallByVariationIdRequest(id: String, locale: String, segmentId: String, variationId: String) =
-        cacheRepository.getProfileId().let { profileId ->
-            buildRequest(GET) {
-                val builderVersion = metaInfoRetriever.builderVersion
-                val crossPlacementEligibility =
-                    cacheRepository.getCrossPlacementInfo()?.placementWithVariationMap?.isEmpty() ?: false
-                val payloadHash = payloadProvider.getPayloadHashForPaywallRequest(
-                    locale,
-                    segmentId,
-                    builderVersion,
-                    crossPlacementEligibility,
-                )
-                endPoint = "$inappsPrefix/$apiKeyPrefix/paywall/variations/$id/$payloadHash/$variationId/${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
-                endpointTemplate = "$inappsPrefix/$apiKeyPrefix/paywall/variations/id/payloadHash/variationId/"
-                headers += listOfNotNull(
-                    Request.Header("adapty-paywall-locale", locale),
-                    Request.Header("adapty-paywall-builder-version", builderVersion),
-                    metaInfoRetriever.adaptyUiVersionOrNull?.let { adaptyUiVersion ->
-                        Request.Header("adapty-ui-version", adaptyUiVersion)
-                    },
-                )
-                currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
-                systemLog = BackendAPIRequestData.GetPaywall.create(apiKeyPrefix, id, locale, variationId)
             }
         }
 
@@ -360,18 +306,61 @@ internal class MainRequestFactory(
             }
         }
 
-    fun getViewConfigurationRequest(variationId: String, locale: String) = buildRequest(GET) {
-        val adaptyUiVersion = metaInfoRetriever.adaptyUiVersion
+    fun getFlowVariationsRequest(id: String, segmentId: String) =
+        cacheRepository.getProfileId().let { profileId ->
+            buildRequest(GET) {
+                val builderVersion = metaInfoRetriever.builderVersion
+                val crossPlacementEligibility =
+                    cacheRepository.getCrossPlacementInfo()?.placementWithVariationMap?.isEmpty() ?: false
+                val payloadHash = payloadProvider.getPayloadHashForFlowVariationsRequest(
+                    segmentId,
+                    builderVersion,
+                    crossPlacementEligibility,
+                )
+                endPoint = "$inappsPrefix/$apiKeyPrefix/flow/variations/$id/$payloadHash/${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
+                endpointTemplate = "$inappsPrefix/$apiKeyPrefix/flow/variations/id/payloadHash/"
+                headers += listOfNotNull(
+                    Request.Header("adapty-builder-version", builderVersion),
+                    metaInfoRetriever.builderSchemaVersion?.let { schemaVersion ->
+                        Request.Header("adapty-builder-schema-version", schemaVersion)
+                    },
+                    Request.Header("adapty-profile-segment-hash", segmentId),
+                    Request.Header("adapty-cross-placement-eligibility", "$crossPlacementEligibility"),
+                )
+                currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
+                systemLog = BackendAPIRequestData.GetFlowVariations.create(apiKeyPrefix, id, segmentId, payloadHash)
+            }
+        }
+
+    fun getFlowByVariationIdRequest(id: String, variationId: String) =
+        cacheRepository.getProfileId().let { profileId ->
+            buildRequest(GET) {
+                val builderVersion = metaInfoRetriever.builderVersion
+                val payloadHash = payloadProvider.getPayloadHashForFlowRequest(builderVersion)
+                endPoint = "$inappsPrefix/$apiKeyPrefix/flow/variations/$id/$payloadHash/$variationId/${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
+                endpointTemplate = "$inappsPrefix/$apiKeyPrefix/flow/variations/id/payloadHash/variationId/"
+                headers += listOfNotNull(
+                    Request.Header("adapty-builder-version", builderVersion),
+                    metaInfoRetriever.builderSchemaVersion?.let { schemaVersion ->
+                        Request.Header("adapty-builder-schema-version", schemaVersion)
+                    },
+                )
+                currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
+                systemLog = BackendAPIRequestData.GetFlow.create(apiKeyPrefix, id, variationId)
+            }
+        }
+
+    fun getFlowViewConfigurationRequest(flowId: String, viewConfigurationId: String) = buildRequest(GET) {
         val builderVersion = metaInfoRetriever.builderVersion
-        val payloadHash = payloadProvider.getPayloadHashForPaywallBuilderRequest(locale, builderVersion)
-        endPoint = "$inappsPrefix/$apiKeyPrefix/paywall-builder/$variationId/$payloadHash/${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
-        endpointTemplate = "$inappsPrefix/$apiKeyPrefix/paywall-builder/variationId/payloadHash/"
-        headers += listOf(
-            Request.Header("adapty-paywall-builder-locale", locale),
-            Request.Header("adapty-paywall-builder-version", builderVersion),
-            Request.Header("adapty-ui-version", adaptyUiVersion),
+        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/$flowId/version/$viewConfigurationId/config/${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
+        endpointTemplate = "$inappsPrefix/$apiKeyPrefix/flow/flowId/version/viewConfigurationId/config/"
+        headers += listOfNotNull(
+            Request.Header("adapty-builder-version", builderVersion),
+            metaInfoRetriever.builderSchemaVersion?.let { schemaVersion ->
+                Request.Header("adapty-builder-schema-version", schemaVersion)
+            },
         )
-        systemLog = BackendAPIRequestData.GetPaywallBuilder.create(variationId)
+        systemLog = BackendAPIRequestData.GetFlowBuilder.create(flowId, viewConfigurationId)
     }
 
     fun updateAttributionRequest(
@@ -483,16 +472,12 @@ internal class AuxRequestFactory(
             Request.Header("adapty-sdk-profile-id", cacheRepository.getProfileId()),
             Request.Header("adapty-sdk-device-id", metaInfoRetriever.installationMetaId),
             Request.Header("adapty-sdk-version", VERSION_NAME),
+            metaInfoRetriever.appBuildAndVersion.let { (_, appVersion) ->
+                Request.Header("adapty-app-version", appVersion)
+            },
             Request.Header(AUTHORIZATION_KEY, "$API_KEY_PREFIX${adaptyConfig.apiKey}"),
         )
         systemLog = BackendAPIRequestData.RegisterInstall.create(retryAttempt, maxRetries)
-    }
-
-    fun getPaywallVariationsFallbackRequest(id: String, locale: String) = buildRequest(serverCluster.fallbackBaseUrl, GET) {
-        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PLACEMENT_LOCALE
-        val builderVersion = metaInfoRetriever.builderVersion
-        endPoint = "$inappsPrefix/$apiKeyPrefix/paywall/variations/$id/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
-        systemLog = BackendAPIRequestData.GetFallbackPaywallVariations.create(apiKeyPrefix, id, languageCode)
     }
 
     fun getOnboardingVariationsFallbackRequest(id: String, locale: String) = buildRequest(serverCluster.fallbackBaseUrl, GET) {
@@ -501,24 +486,26 @@ internal class AuxRequestFactory(
         systemLog = BackendAPIRequestData.GetFallbackOnboardingVariations.create(apiKeyPrefix, id, languageCode)
     }
 
-    fun getPaywallByVariationIdFallbackRequest(id: String, locale: String, variationId: String) = buildRequest(serverCluster.fallbackBaseUrl, GET) {
-        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PLACEMENT_LOCALE
-        val builderVersion = metaInfoRetriever.builderVersion
-        endPoint = "$inappsPrefix/$apiKeyPrefix/paywall/variations/$id/${variationId}/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
-        systemLog = BackendAPIRequestData.GetFallbackPaywall.create(apiKeyPrefix, id, languageCode, variationId)
-    }
-
     fun getOnboardingByVariationIdFallbackRequest(id: String, locale: String, variationId: String) = buildRequest(serverCluster.fallbackBaseUrl, GET) {
         val languageCode = extractLanguageCode(locale) ?: DEFAULT_PLACEMENT_LOCALE
         endPoint = "$inappsPrefix/$apiKeyPrefix/onboarding/variations/$id/${variationId}/$languageCode/fallback.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
         systemLog = BackendAPIRequestData.GetFallbackOnboarding.create(apiKeyPrefix, id, languageCode, variationId)
     }
 
-    fun getPaywallVariationsUntargetedRequest(id: String, locale: String) = buildRequest(serverCluster.configsCdnBaseUrl, GET) {
-        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PLACEMENT_LOCALE
+    fun getFlowVariationsFallbackRequest(id: String) = buildRequest(serverCluster.fallbackBaseUrl, GET) {
+        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/variations/$id/${metaInfoRetriever.store}/fallback.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
+        systemLog = BackendAPIRequestData.GetFallbackFlowVariations.create(apiKeyPrefix, id)
+    }
+
+    fun getFlowByVariationIdFallbackRequest(id: String, variationId: String) = buildRequest(serverCluster.fallbackBaseUrl, GET) {
+        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/variations/$id/${variationId}/${metaInfoRetriever.store}/fallback.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
+        systemLog = BackendAPIRequestData.GetFallbackFlow.create(apiKeyPrefix, id, variationId)
+    }
+
+    fun getFlowViewConfigurationFallbackRequest(flowId: String, viewConfigurationId: String) = buildRequest(serverCluster.fallbackBaseUrl, GET) {
         val builderVersion = metaInfoRetriever.builderVersion
-        endPoint = "$inappsPrefix/$apiKeyPrefix/paywall/variations/$id/${metaInfoRetriever.store}/$languageCode/$builderVersion/fallback.json"
-        systemLog = BackendAPIRequestData.GetUntargetedPaywallVariations.create(apiKeyPrefix, id, languageCode)
+        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/$flowId/version/$viewConfigurationId/$builderVersion/config.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
+        systemLog = BackendAPIRequestData.GetFallbackFlowBuilder.create(flowId, viewConfigurationId)
     }
 
     fun getOnboardingVariationsUntargetedRequest(id: String, locale: String) = buildRequest(serverCluster.configsCdnBaseUrl, GET) {
@@ -527,11 +514,9 @@ internal class AuxRequestFactory(
         systemLog = BackendAPIRequestData.GetUntargetedOnboardingVariations.create(apiKeyPrefix, id, languageCode)
     }
 
-    fun getViewConfigurationFallbackRequest(paywallId: String, locale: String) = buildRequest(serverCluster.fallbackBaseUrl, GET) {
-        val builderVersion = metaInfoRetriever.builderVersion
-        val languageCode = extractLanguageCode(locale) ?: DEFAULT_PLACEMENT_LOCALE
-        endPoint = "$inappsPrefix/$apiKeyPrefix/paywall-builder/$paywallId/$builderVersion/$languageCode/fallback.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
-        systemLog = BackendAPIRequestData.GetFallbackPaywallBuilder.create(apiKeyPrefix, paywallId, builderVersion, languageCode)
+    fun getFlowVariationsUntargetedRequest(id: String) = buildRequest(serverCluster.configsCdnBaseUrl, GET) {
+        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/variations/$id/${metaInfoRetriever.store}/fallback.json"
+        systemLog = BackendAPIRequestData.GetUntargetedFlowVariations.create(apiKeyPrefix, id)
     }
 
     fun fetchNetConfigRequest() = buildRequest(serverCluster.fallbackBaseUrl, GET) {

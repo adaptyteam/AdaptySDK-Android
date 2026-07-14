@@ -1,3 +1,5 @@
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+
 package com.adapty.ui.internal.ui.element
 
 import androidx.compose.foundation.layout.Box
@@ -7,13 +9,19 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.ui.attributes.Align
 import com.adapty.ui.internal.ui.attributes.DimSpec
+import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorHorizontal
+import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorVertical
+import com.adapty.ui.internal.ui.attributes.LocalParentImposesHeight
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
+import com.adapty.ui.internal.ui.attributes.toComposeHorizontalAlignment
+import com.adapty.ui.internal.ui.attributes.toComposeVerticalAlignment
 import com.adapty.ui.internal.ui.fillWithBaseParams
-import com.adapty.ui.internal.utils.EventCallback
+import com.adapty.ui.internal.store.Message
 
 @InternalAdaptyApi
 public class GridItem internal constructor(
@@ -30,78 +38,91 @@ public class GridItem internal constructor(
         else
             baseProps.copy(heightSpec = sideSpec)
 
+    @Composable
+    private fun provideOverflowAnchors(
+        horizontal: Boolean,
+        vertical: Boolean,
+        content: @Composable () -> Unit,
+    ) {
+        val provided = buildList {
+            add(LocalParentImposesHeight provides true)
+            if (horizontal) add(LocalOverflowAnchorHorizontal provides align.toComposeHorizontalAlignment())
+            if (vertical) add(LocalOverflowAnchorVertical provides align.toComposeVerticalAlignment())
+        }
+        CompositionLocalProvider(*provided.toTypedArray(), content = content)
+    }
+
     override fun toComposable(
-        resolveAssets: ResolveAssets,
-        resolveText: ResolveText,
-        resolveState: ResolveState,
-        eventCallback: EventCallback,
+        dispatch: (Message) -> Unit,
         modifier: Modifier,
     ): @Composable () -> Unit = {
         Box(
             contentAlignment = align.toComposeAlignment(),
             modifier = modifier.fillMaxSize(),
         ) {
-            content.render(
-                resolveAssets,
-                resolveText,
-                resolveState,
-                eventCallback,
-            )
+            provideOverflowAnchors(horizontal = true, vertical = true) {
+                content.render(dispatch)
+            }
         }
     }
 
     override fun ColumnScope.toComposableInColumn(
-        resolveAssets: ResolveAssets,
-        resolveText: ResolveText,
-        resolveState: ResolveState,
-        eventCallback: EventCallback,
+        dispatch: (Message) -> Unit,
         modifier: Modifier,
     ): @Composable () -> Unit = {
         Box(
             contentAlignment = align.toComposeAlignment(),
             modifier = modifier.fillMaxWidth(),
         ) {
-            content.run {
-                render(
-                    this@toComposableInColumn.toComposableInColumn(
-                        resolveAssets,
-                        resolveText,
-                        resolveState,
-                        eventCallback,
-                        this@toComposableInColumn.fillModifierWithScopedParams(
-                            content,
-                            Modifier.fillWithBaseParams(content, resolveAssets)
-                        ),
-                    )
-                )
+            provideOverflowAnchors(
+                horizontal = true,
+                vertical = baseProps.heightSpec != null || baseProps.weight != null,
+            ) {
+                content.withActiveAnimations(dispatch) {
+                    content.run {
+                        render(
+                            this@toComposableInColumn.toComposableInColumn(
+                                dispatch,
+                                this@toComposableInColumn.fillModifierWithScopedParams(
+                                    content,
+                                    Modifier.fillWithBaseParams(content)
+                                ),
+                            )
+                        )
+                    }
+                }
             }
         }
     }
 
     override fun RowScope.toComposableInRow(
-        resolveAssets: ResolveAssets,
-        resolveText: ResolveText,
-        resolveState: ResolveState,
-        eventCallback: EventCallback,
+        dispatch: (Message) -> Unit,
         modifier: Modifier,
     ): @Composable () -> Unit = {
+        val verticalAlignment = align.toComposeVerticalAlignment()
         Box(
             contentAlignment = align.toComposeAlignment(),
-            modifier = modifier.fillMaxHeight(),
+            modifier = modifier.then(
+                if (content.explicitlyFillsRowHeight()) Modifier.fillMaxHeight() else Modifier.align(verticalAlignment)
+            ),
         ) {
-            content.run {
-                render(
-                    this@toComposableInRow.toComposableInRow(
-                        resolveAssets,
-                        resolveText,
-                        resolveState,
-                        eventCallback,
-                        this@toComposableInRow.fillModifierWithScopedParams(
-                            content,
-                            Modifier.fillWithBaseParams(content, resolveAssets)
-                        ),
-                    )
-                )
+            provideOverflowAnchors(
+                horizontal = baseProps.widthSpec != null || baseProps.weight != null,
+                vertical = content.explicitlyFillsRowHeight(),
+            ) {
+                content.withActiveAnimations(dispatch) {
+                    content.run {
+                        render(
+                            this@toComposableInRow.toComposableInRow(
+                                dispatch,
+                                this@toComposableInRow.fillModifierWithScopedParams(
+                                    content,
+                                    Modifier.fillWithBaseParams(content)
+                                ),
+                            )
+                        )
+                    }
+                }
             }
         }
     }

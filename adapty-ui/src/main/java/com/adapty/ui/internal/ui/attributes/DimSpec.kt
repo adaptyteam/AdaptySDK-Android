@@ -1,5 +1,6 @@
 package com.adapty.ui.internal.ui.attributes
 
+import androidx.compose.runtime.compositionLocalOf
 import com.adapty.internal.utils.InternalAdaptyApi
 
 @InternalAdaptyApi
@@ -11,3 +12,5 @@ public sealed class DimSpec(internal val axis: Axis) {
     public class Specified internal constructor(internal val value: DimUnit, axis: Axis): DimSpec(axis)
     public class Shrink internal constructor(internal val min: DimUnit, internal val maxValue: DimUnit?, axis: Axis): DimSpec(axis)
 }
+
+internal val LocalParentImposesHeight = compositionLocalOf { true }

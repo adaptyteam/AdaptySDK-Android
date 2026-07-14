@@ -1,0 +1,49 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+}
+
+def artefactId = "crossplatform"
+def versionForMaven = "4.0.0-beta.2"
+
+android {
+    compileSdk 35
+
+    defaultConfig {
+        minSdk 21
+        targetSdk 35
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = '11'
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+
+    libraryVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "${artefactId}-${versionForMaven}.aar"
+        }
+    }
+    namespace 'com.adapty.internal.crossplatform'
+}
+
+dependencies {
+    compileOnly project(':adapty')
+    compileOnly project(':adapty-ui')
+    compileOnly 'androidx.compose.ui:ui:1.7.2'
+    compileOnly 'com.google.code.gson:gson:2.11.0'
+    implementation 'com.android.billingclient:billing:8.0.0'
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.activity:activity:1.8.2'
+    testImplementation 'junit:junit:4.13.2'
+}

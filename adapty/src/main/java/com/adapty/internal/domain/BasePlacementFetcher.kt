@@ -10,17 +10,17 @@ import com.adapty.internal.data.cloud.AnalyticsTracker
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.Response
 import com.adapty.internal.data.models.BackendError.Companion.INCORRECT_SEGMENT_HASH_ERROR
+import com.adapty.internal.data.models.FlowDto
 import com.adapty.internal.data.models.Onboarding
-import com.adapty.internal.data.models.PaywallDto
 import com.adapty.internal.data.models.Variation
 import com.adapty.internal.data.models.Variations
 import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
 import com.adapty.internal.utils.DEFAULT_RETRY_COUNT
-import com.adapty.internal.utils.INF_PAYWALL_TIMEOUT_MILLIS
+import com.adapty.internal.utils.INF_PLACEMENT_TIMEOUT_MILLIS
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.LifecycleManager
 import com.adapty.internal.utils.Logger
-import com.adapty.internal.utils.PAYWALL_TIMEOUT_MILLIS_SHIFT
+import com.adapty.internal.utils.PLACEMENT_TIMEOUT_MILLIS_SHIFT
 import com.adapty.internal.utils.VariationPicker
 import com.adapty.internal.utils.generateUuid
 import com.adapty.internal.utils.orDefault
@@ -54,31 +54,6 @@ internal class BasePlacementFetcher(
     private val crossPlacementInfoLock: ReentrantReadWriteLock,
 ) {
 
-    fun fetchPaywall(id: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy, loadTimeout: Int): Flow<PaywallDto> {
-        val variationType = VariationType.Paywall
-        return getPaywallInternal(
-            fetchPolicy = fetchPolicy,
-            fetchFromCloud = { getPaywallFromCloud(id, locale, loadTimeout, generateUuid(), variationType) },
-            fetchFromCache = {
-                val maxAgeMillis = (fetchPolicy as? AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
-                getPaywallFromCache(id, locale, variationType, maxAgeMillis)
-            }
-        ).filterVariationByTypeOrError { "current variation is not a paywall" }
-    }
-
-    fun fetchPaywallUntargeted(id: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy): Flow<PaywallDto> {
-        val variationType = VariationType.Paywall
-        return getPaywallInternal(
-            fetchPolicy = fetchPolicy,
-            fetchFromCloud = { getPaywallUntargetedFromCloud(id, locale, variationType) },
-            fetchFromCache = {
-                val maxAgeMillis = (fetchPolicy as? AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
-                getPaywallFromCache(id, locale, variationType, maxAgeMillis)
-            }
-        )
-            .filterVariationByTypeOrError { "current variation is not a paywall" }
-    }
-
     fun fetchOnboarding(id: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy, loadTimeout: Int): Flow<Onboarding> {
         val variationType = VariationType.Onboarding
         return getPaywallInternal(
@@ -89,6 +64,31 @@ internal class BasePlacementFetcher(
                 getPaywallFromCache(id, locale, variationType, maxAgeMillis)
             }
         ).filterVariationByTypeOrError { "current variation is not an onboarding" }
+    }
+
+    fun fetchFlow(id: String, fetchPolicy: AdaptyPlacementFetchPolicy, loadTimeout: Int): Flow<FlowDto> {
+        val variationType = VariationType.Flow
+        return getPaywallInternal(
+            fetchPolicy = fetchPolicy,
+            fetchFromCloud = { getPaywallFromCloud(id, DEFAULT_PLACEMENT_LOCALE, loadTimeout, generateUuid(), variationType) },
+            fetchFromCache = {
+                val maxAgeMillis = (fetchPolicy as? AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
+                getPaywallFromCache(id, DEFAULT_PLACEMENT_LOCALE, variationType, maxAgeMillis)
+            }
+        ).filterVariationByTypeOrError { "current variation is not a flow" }
+    }
+
+    fun fetchFlowUntargeted(id: String, fetchPolicy: AdaptyPlacementFetchPolicy): Flow<FlowDto> {
+        val variationType = VariationType.Flow
+        return getPaywallInternal(
+            fetchPolicy = fetchPolicy,
+            fetchFromCloud = { getPaywallUntargetedFromCloud(id, DEFAULT_PLACEMENT_LOCALE, variationType) },
+            fetchFromCache = {
+                val maxAgeMillis = (fetchPolicy as? AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad)?.maxAgeMillis
+                getPaywallFromCache(id, DEFAULT_PLACEMENT_LOCALE, variationType, maxAgeMillis)
+            }
+        )
+            .filterVariationByTypeOrError { "current variation is not a flow" }
     }
 
     fun fetchOnboardingUntargeted(id: String, locale: String, fetchPolicy: AdaptyPlacementFetchPolicy): Flow<Onboarding> {
@@ -152,10 +152,10 @@ internal class BasePlacementFetcher(
             }
         ).flattenConcat()
 
-        return if (loadTimeout == INF_PAYWALL_TIMEOUT_MILLIS) {
+        return if (loadTimeout == INF_PLACEMENT_TIMEOUT_MILLIS) {
             baseFlow
         } else {
-            timeout(baseFlow, loadTimeout - PAYWALL_TIMEOUT_MILLIS_SHIFT)
+            timeout(baseFlow, loadTimeout - PLACEMENT_TIMEOUT_MILLIS_SHIFT)
         }
             .recoverOnReachabilityError { error ->
                 val prevCheckpoint = checkpointHolder.getAndUpdate(placementSource.placementRequestId, CheckPoint.TimeOut)
@@ -438,13 +438,17 @@ internal class BasePlacementFetcher(
     private fun sendVariationAssignedEvent(paywall: Variation, variationType: VariationType) {
         analyticsTracker.trackEvent(
             when (variationType) {
-                VariationType.Paywall -> "paywall_variation_assigned"
                 VariationType.Onboarding -> "onboarding_variation_assigned"
+                VariationType.Flow -> "flow_variation_assigned"
             },
             mutableMapOf<String, Any>(
                 "placement_audience_version_id" to paywall.placement.placementAudienceVersionId,
                 "variation_id" to paywall.variationId,
-            ),
+            ).apply {
+                (paywall as? FlowDto)?.viewConfigurationId?.let { viewConfigurationId ->
+                    put("flow_version_id", viewConfigurationId)
+                }
+            },
         )
     }
 
@@ -597,5 +601,5 @@ private sealed class PlacementSource {
 }
 
 internal enum class VariationType {
-    Paywall, Onboarding
+    Onboarding, Flow
 }

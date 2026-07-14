@@ -17,48 +17,57 @@ import androidx.compose.ui.graphics.RadialGradientShader
 import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SweepGradientShader
+import android.content.res.Resources
 import androidx.compose.ui.graphics.lerp
 import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.ui.attributes.Animation
 import com.adapty.ui.internal.ui.element.AnimationBehavior
 import com.adapty.ui.internal.ui.element.BaseProps
 import com.adapty.ui.internal.ui.element.BrushProvider
+import com.adapty.ui.internal.ui.element.LocalActiveAnimations
 import com.adapty.ui.internal.ui.element.ResolveAssets
+import com.adapty.ui.internal.ui.element.pendingAppearAnimationsFor
 import com.adapty.ui.internal.ui.element.gradientBehaviour
 import com.adapty.ui.internal.ui.element.borderGradientBehaviour
+import com.adapty.ui.internal.ui.attributes.adjustRadialColorStops
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.ui.attributes.toGradientAsset
 import com.adapty.ui.internal.ui.attributes.Border
 import com.adapty.ui.internal.utils.getAsset
+import com.adapty.ui.internal.ui.resolveAssets
+import com.adapty.ui.internal.utils.VisualValue
+import com.adapty.ui.internal.utils.color
+import com.adapty.ui.internal.utils.resolveAsset
 
 @Composable
 internal fun rememberGradientProvider(
     baseProps: BaseProps,
-    resolveAssets: ResolveAssets
 ): BrushProvider {
-    return rememberGradientProvider(baseProps, resolveAssets, Animation.Role.Background)
+    return rememberGradientProvider(baseProps, Animation.Role.Background)
 }
 
 @Composable
 internal fun rememberGradientProvider(
     baseProps: BaseProps,
-    resolveAssets: ResolveAssets,
     role: Animation.Role
 ): BrushProvider {
-    val animations = baseProps.onAppear
+    val animations = LocalActiveAnimations.current.value?.animations
         ?.filter { anim -> anim.role == role }
         ?.takeIf { it.isNotEmpty() }
         ?.sortedBy { it.startDelayMillis }
 
     return if (!animations.isNullOrEmpty()) {
-        val brush = rememberAssetBasedGradientAnimation(animations, baseProps, resolveAssets, role)
+        val brush = rememberAssetBasedGradientAnimation(animations, baseProps, role)
         BrushProvider(brush)
     } else {
+        pendingAppearStartBrush(baseProps, role)?.let { startBrush ->
+            return BrushProvider(rememberUpdatedState(startBrush))
+        }
         val staticBehavior = when (role) {
-            Animation.Role.Background -> baseProps.gradientBehaviour(resolveAssets)
-            Animation.Role.Border -> baseProps.borderGradientBehaviour(resolveAssets)
-            else -> AnimationBehavior.Static(Brush.linearGradient(listOf(Color.Transparent, Color.Transparent)))
+            Animation.Role.Background -> baseProps.gradientBehaviour()
+            Animation.Role.Border -> baseProps.borderGradientBehaviour()
+            else -> AnimationBehavior.Static(Brush.color(Color.Transparent))
         }
         when (staticBehavior) {
             is AnimationBehavior.Static -> {
@@ -66,7 +75,7 @@ internal fun rememberGradientProvider(
                 BrushProvider(brush)
             }
             else -> {
-                val brush = rememberUpdatedState(Brush.linearGradient(listOf(Color.Transparent, Color.Transparent)))
+                val brush = rememberUpdatedState(Brush.color(Color.Transparent))
                 BrushProvider(brush)
             }
         }
@@ -74,10 +83,27 @@ internal fun rememberGradientProvider(
 }
 
 @Composable
+private fun pendingAppearStartBrush(baseProps: BaseProps, role: Animation.Role): Brush? {
+    val firstPending = baseProps.pendingAppearAnimationsFor(role)?.firstOrNull() ?: return null
+    val startValue = when (role) {
+        Animation.Role.Background -> firstPending.start as? VisualValue
+        Animation.Role.Border -> (firstPending.start as? Border)?.color
+        else -> null
+    }
+    val startAsset = startValue?.resolveAsset<Asset.Filling.Local>() ?: return null
+    startAsset.castOrNull<Asset.Gradient>()?.let { gradient ->
+        return gradient.toComposeFill().shader
+    }
+    startAsset.castOrNull<Asset.Color>()?.let { color ->
+        return Brush.color(color.toComposeFill().color)
+    }
+    return null
+}
+
+@Composable
 private fun rememberAssetBasedGradientAnimation(
     animations: List<Animation<*>>,
     baseProps: BaseProps,
-    resolveAssets: ResolveAssets,
     role: Animation.Role
 ): State<Brush> {
     val assets = resolveAssets()
@@ -104,10 +130,10 @@ private fun rememberAssetBasedGradientAnimation(
 
     val firstAnim = animations.firstOrNull()
     
-    val (startAssetId, endAssetId) = when (role) {
+    val (startValue, endValue) = when (role) {
         Animation.Role.Background -> {
-            val startId = firstAnim?.start as? String
-            val endId = firstAnim?.end as? String
+            val startId = firstAnim?.start as? VisualValue
+            val endId = firstAnim?.end as? VisualValue
             startId to endId
         }
         Animation.Role.Border -> {
@@ -117,9 +143,10 @@ private fun rememberAssetBasedGradientAnimation(
         }
         else -> null to null
     }
-    
-    val startAsset = startAssetId?.let { assets.getAsset<Asset.Filling.Local>(it) }
-    val endAsset = endAssetId?.let { assets.getAsset<Asset.Filling.Local>(it) }
+
+    val startAsset: Asset.Composite<Asset.Filling.Local>? = startValue?.resolveAsset()
+
+    val endAsset: Asset.Composite<Asset.Filling.Local>? = endValue?.resolveAsset()
 
     val startAssetAsGradient = startAsset?.castOrNull<Asset.Gradient>()
     val startAssetAsColor = startAsset?.castOrNull<Asset.Color>()
@@ -143,14 +170,8 @@ private fun rememberAssetBasedGradientAnimation(
     }
     
     val fallbackGradient = when (role) {
-        Animation.Role.Background -> baseProps.shape?.fill?.assetId?.let { assetId ->
-            val fallbackAsset = assets.getAsset<Asset.Filling.Local>(assetId)
-            fallbackAsset?.castOrNull<Asset.Gradient>()
-        }
-        Animation.Role.Border -> baseProps.shape?.border?.color?.let { assetId ->
-            val fallbackAsset = assets.getAsset<Asset.Filling.Local>(assetId)
-            fallbackAsset?.castOrNull<Asset.Gradient>()
-        }
+        Animation.Role.Background -> baseProps.shape?.fill?.resolveAsset<Asset.Filling.Local>()?.castOrNull<Asset.Gradient>()
+        Animation.Role.Border -> baseProps.shape?.border?.color?.resolveAsset<Asset.Filling.Local>()?.castOrNull<Asset.Gradient>()
         else -> null
     }
 
@@ -163,7 +184,7 @@ private fun rememberAssetBasedGradientAnimation(
             } else if (fallbackGradient != null) {
                 fallbackGradient.toComposeFill().shader
             } else {
-                Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
+                Brush.color(Color.Transparent)
             }
         }
     }
@@ -180,6 +201,12 @@ private fun createInterpolatedGradientFromAssets(
     if (startData.type == endData.type &&
         startData.values.size == endData.values.size) {
         
+        if (startData.values.size < 2) {
+            val startColor = startData.values.firstOrNull()?.let { Color(it.color.value) } ?: Color.Transparent
+            val endColor = endData.values.firstOrNull()?.let { Color(it.color.value) } ?: Color.Transparent
+            return Brush.color(lerp(startColor, endColor, progress))
+        }
+
         return object : ShaderBrush() {
             override fun createShader(size: Size): Shader {
                 val startColors = startData.values.map { Color(it.color.value) }
@@ -206,13 +233,18 @@ private fun createInterpolatedGradientFromAssets(
                         )
                     }
                     Asset.Gradient.Type.RADIAL -> {
+                        val density = Resources.getSystem().displayMetrics.density
                         val center = Offset(size.width * x0, size.height * y0)
-                        val radius = (Offset(size.width * x1, size.height * y1) - center).getDistance()
+                        val (radiusPx, adjustedStops) = adjustRadialColorStops(
+                            interpolatedStops.zip(interpolatedColors).toTypedArray(),
+                            x1 * density,
+                            y1 * density,
+                        )
                         RadialGradientShader(
                             center = center,
-                            radius = radius,
-                            colors = interpolatedColors,
-                            colorStops = interpolatedStops
+                            radius = radiusPx,
+                            colors = adjustedStops.map { it.second },
+                            colorStops = adjustedStops.map { it.first },
                         )
                     }
                     Asset.Gradient.Type.CONIC -> {

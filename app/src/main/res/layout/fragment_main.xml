@@ -42,10 +42,10 @@
             app:layout_constraintTop_toBottomOf="@id/get_profile" />
 
         <Button
-            android:id="@+id/get_paywall_by_id"
+            android:id="@+id/get_flow_by_id"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Get Paywall"
+            android:text="Get Flow"
             android:textAllCaps="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@id/get_profile" />
@@ -58,7 +58,7 @@
             android:textAllCaps="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/get_paywall_by_id" />
+            app:layout_constraintTop_toBottomOf="@id/get_flow_by_id" />
 
         <Button
             android:id="@+id/update_custom_attribution"

@@ -21,4 +21,6 @@ internal class ProductDto(
     val offerId: String?,
     @SerializedName("timestamp")
     val timestamp: Long?,
+    @SerializedName("flow_product_id")
+    val flowProductId: String?,
 )

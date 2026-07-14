@@ -6,12 +6,12 @@ import android.graphics.Bitmap
 import androidx.annotation.ColorInt
 import androidx.compose.ui.geometry.Offset
 import androidx.core.net.toUri
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration
+import com.adapty.ui.AdaptyUI.FlowConfiguration
 import com.adapty.ui.AdaptyCustomImageAsset.Local
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset.Gradient
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset.Gradient.Points
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset.Gradient.Type
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset.Gradient.Value
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Gradient
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Gradient.Points
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Gradient.Type
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Gradient.Value
 import com.adapty.utils.FileLocation
 import kotlin.math.cos
 import kotlin.math.sin
@@ -65,14 +65,14 @@ public sealed class AdaptyCustomAsset
 public sealed class AdaptyCustomImageAsset<T>(
     internal val value: T,
 ): AdaptyCustomAsset() {
-    public class Remote internal constructor(value: LocalizedViewConfiguration.Asset.RemoteImage): AdaptyCustomImageAsset<LocalizedViewConfiguration.Asset.RemoteImage>(value)
-    public class Local internal constructor(value: LocalizedViewConfiguration.Asset.Image): AdaptyCustomImageAsset<LocalizedViewConfiguration.Asset.Image>(value)
+    public class Remote internal constructor(value: FlowConfiguration.Asset.RemoteImage): AdaptyCustomImageAsset<FlowConfiguration.Asset.RemoteImage>(value)
+    public class Local internal constructor(value: FlowConfiguration.Asset.Image): AdaptyCustomImageAsset<FlowConfiguration.Asset.Image>(value)
 
     public companion object {
         @JvmStatic
         public fun remote(url: String, preview: Local?): Remote {
             return Remote(
-                LocalizedViewConfiguration.Asset.RemoteImage(
+                FlowConfiguration.Asset.RemoteImage(
                     url,
                     preview?.value,
                 ),
@@ -82,20 +82,20 @@ public sealed class AdaptyCustomImageAsset<T>(
         @JvmStatic
         public fun file(fileLocation: FileLocation): Local {
             val source = when (fileLocation) {
-                is FileLocation.Asset -> LocalizedViewConfiguration.Asset.Image.Source.AndroidAsset(fileLocation.relativePath)
-                is FileLocation.Uri -> LocalizedViewConfiguration.Asset.Image.Source.Uri(fileLocation.uri)
+                is FileLocation.Asset -> FlowConfiguration.Asset.Image.Source.AndroidAsset(fileLocation.relativePath)
+                is FileLocation.Uri -> FlowConfiguration.Asset.Image.Source.Uri(fileLocation.uri)
             }
 
             return Local(
-                LocalizedViewConfiguration.Asset.Image(source),
+                FlowConfiguration.Asset.Image(source),
             )
         }
 
         @JvmStatic
         public fun bitmap(bitmap: Bitmap): Local {
             return Local(
-                LocalizedViewConfiguration.Asset.Image(
-                    LocalizedViewConfiguration.Asset.Image.Source.Bitmap(bitmap),
+                FlowConfiguration.Asset.Image(
+                    FlowConfiguration.Asset.Image.Source.Bitmap(bitmap),
                 ),
             )
         }
@@ -103,29 +103,43 @@ public sealed class AdaptyCustomImageAsset<T>(
 }
 
 public class AdaptyCustomVideoAsset internal constructor(
-    internal val value: LocalizedViewConfiguration.Asset.Video,
+    internal val value: FlowConfiguration.Asset.Video,
     internal val preview: AdaptyCustomImageAsset<*>?,
 ): AdaptyCustomAsset() {
+
+    public class Resolution(
+        public val width: Int,
+        public val height: Int,
+    )
+
     public companion object {
         @JvmStatic
-        public fun remote(url: String, preview: Local?): AdaptyCustomVideoAsset {
+        @JvmOverloads
+        public fun remote(url: String, preview: Local?, resolution: Resolution? = null): AdaptyCustomVideoAsset {
             return AdaptyCustomVideoAsset(
-                LocalizedViewConfiguration.Asset.Video(
-                    LocalizedViewConfiguration.Asset.Video.Source.Uri(url.toUri()),
+                FlowConfiguration.Asset.Video(
+                    FlowConfiguration.Asset.Video.Source.Uri(url.toUri()),
+                    vRes = resolution?.height ?: 0,
+                    hRes = resolution?.width ?: 0,
                 ),
                 preview,
             )
         }
 
         @JvmStatic
-        public fun file(fileLocation: FileLocation, preview: Local?): AdaptyCustomVideoAsset {
+        @JvmOverloads
+        public fun file(fileLocation: FileLocation, preview: Local?, resolution: Resolution? = null): AdaptyCustomVideoAsset {
             val source = when (fileLocation) {
-                is FileLocation.Asset -> LocalizedViewConfiguration.Asset.Video.Source.AndroidAsset(fileLocation.relativePath)
-                is FileLocation.Uri -> LocalizedViewConfiguration.Asset.Video.Source.Uri(fileLocation.uri)
+                is FileLocation.Asset -> FlowConfiguration.Asset.Video.Source.AndroidAsset(fileLocation.relativePath)
+                is FileLocation.Uri -> FlowConfiguration.Asset.Video.Source.Uri(fileLocation.uri)
             }
 
             return AdaptyCustomVideoAsset(
-                LocalizedViewConfiguration.Asset.Video(source),
+                FlowConfiguration.Asset.Video(
+                    source,
+                    vRes = resolution?.height ?: 0,
+                    hRes = resolution?.width ?: 0,
+                ),
                 preview,
             )
         }
@@ -136,12 +150,12 @@ public class AdaptyCustomVideoAsset internal constructor(
  * @suppress
  */
 public class AdaptyCustomColorAsset private constructor(
-    internal val value: LocalizedViewConfiguration.Asset.Color,
+    internal val value: FlowConfiguration.Asset.Color,
 ): AdaptyCustomAsset() {
 
     public companion object {
         public fun of(@ColorInt color: Int): AdaptyCustomColorAsset =
-            AdaptyCustomColorAsset(LocalizedViewConfiguration.Asset.Color(color))
+            AdaptyCustomColorAsset(FlowConfiguration.Asset.Color(color))
     }
 }
 
@@ -210,7 +224,7 @@ public class AdaptyCustomGradientAsset internal constructor(
             val values = colorStops.map { colorStop ->
                 Value(
                     colorStop.position,
-                    LocalizedViewConfiguration.Asset.Color(colorStop.color)
+                    FlowConfiguration.Asset.Color(colorStop.color)
                 )
             }
             return AdaptyCustomGradientAsset(
@@ -243,10 +257,10 @@ public class AdaptyCustomGradientAsset internal constructor(
  * @suppress
  */
 public class AdaptyCustomFontAsset internal constructor(
-    internal val value: LocalizedViewConfiguration.Asset.Font,
+    internal val value: FlowConfiguration.Asset.Font,
 ): AdaptyCustomAsset() {
     public companion object {
-        public fun of(font: LocalizedViewConfiguration.Asset.Font): AdaptyCustomFontAsset =
+        public fun of(font: FlowConfiguration.Asset.Font): AdaptyCustomFontAsset =
             AdaptyCustomFontAsset(font)
     }
 }

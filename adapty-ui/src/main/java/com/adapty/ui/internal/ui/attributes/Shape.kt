@@ -3,6 +3,7 @@
 package com.adapty.ui.internal.ui.attributes
 
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.Paint
@@ -18,24 +19,28 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SweepGradientShader
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.ui.AdaptyUI.LocalizedViewConfiguration.Asset
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.ui.CircleShape
 import com.adapty.ui.internal.ui.RectWithArcShape
+import com.adapty.ui.internal.utils.StringSource
+import com.adapty.ui.internal.utils.VisualValue
+import com.adapty.ui.internal.utils.color
 import com.adapty.ui.internal.utils.getBitmap
 import kotlin.math.roundToInt
 
 @InternalAdaptyApi
 public class Shape internal constructor(
-    internal val fill: Fill?,
+    internal val fill: VisualValue?,
     internal val type: Type,
     internal val border: Border?,
     internal val shadow: Shadow?,
+    internal val innerShadow: Shadow?,
+    internal val blurRadius: Float? = null,
 ) {
-    internal class Fill(val assetId: String)
-
     public sealed class Type {
         public class Rectangle internal constructor(internal val cornerRadius: CornerRadius?): Type()
         public object Circle: Type()
@@ -47,32 +52,26 @@ public class Shape internal constructor(
     }
 
     internal class CornerRadius(
-        topLeft: Float,
-        topRight: Float,
-        bottomRight: Float,
-        bottomLeft: Float,
+        val topLeft: Float,
+        val topRight: Float,
+        val bottomRight: Float,
+        val bottomLeft: Float,
     ) {
-        val topLeft = topLeft * MULT
-        val topRight = topRight * MULT
-        val bottomRight = bottomRight * MULT
-        val bottomLeft = bottomLeft * MULT
-
         constructor(value: Float): this(value, value, value, value)
-
-        private companion object {
-            const val MULT = 2
-        }
     }
 
     internal class Border(
-        val color: String,
+        val color: VisualValue,
         val shapeType: Type,
         val thickness: Float,
     )
 
     internal companion object {
         fun plain(assetId: String) =
-            Shape(fill = Fill(assetId), type = Type.Rectangle(null), border = null, shadow = null)
+            Shape(fill = VisualValue.assetId(assetId), type = Type.Rectangle(null), border = null, shadow = null, innerShadow = null)
+
+        fun plainAny(value: String) =
+            Shape(fill = VisualValue.any(StringSource.Value(value)), type = Type.Rectangle(null), border = null, shadow = null, innerShadow = null)
     }
 }
 
@@ -128,6 +127,11 @@ internal fun Asset.Composite<Asset.Color>.toGradientAsset(): Asset.Composite<Ass
 internal fun Asset.Composite<Asset.Gradient>.toComposeFill(): ComposeFill.Gradient {
     val gradient = this.main
     val colorStops = gradient.values.map { (point, color) -> point to Color(color.value) }.toTypedArray()
+
+    if (colorStops.size < 2) {
+        return ComposeFill.Gradient(Brush.color(colorStops.firstOrNull()?.second ?: Color.Transparent))
+    }
+
     val (x0, y0, x1, y1) = gradient.points
     val shader = when (gradient.type) {
         Asset.Gradient.Type.LINEAR -> {
@@ -148,13 +152,14 @@ internal fun Asset.Composite<Asset.Gradient>.toComposeFill(): ComposeFill.Gradie
         Asset.Gradient.Type.RADIAL -> {
             object : ShaderBrush() {
                 override fun createShader(size: Size): Shader {
+                    val density = Resources.getSystem().displayMetrics.density
                     val center = Offset(size.width * x0, size.height * y0)
-                    val radius = (Offset(size.width * x1, size.height * y1) - center).getDistance()
+                    val (radiusPx, adjustedStops) = adjustRadialColorStops(colorStops, x1 * density, y1 * density)
                     return RadialGradientShader(
                         center = center,
-                        radius = radius,
-                        colorStops = colorStops.map { it.first },
-                        colors = colorStops.map { it.second },
+                        radius = radiusPx,
+                        colorStops = adjustedStops.map { it.first },
+                        colors = adjustedStops.map { it.second },
                     )
                 }
             }
@@ -174,6 +179,43 @@ internal fun Asset.Composite<Asset.Gradient>.toComposeFill(): ComposeFill.Gradie
     }
     return ComposeFill.Gradient(shader)
 }
+
+internal fun adjustRadialColorStops(
+    colorStops: Array<Pair<Float, Color>>,
+    startRadiusPx: Float,
+    endRadiusPx: Float,
+): Pair<Float, List<Pair<Float, Color>>> {
+    val fallbackRadius = endRadiusPx.coerceAtLeast(MIN_RADIAL_RADIUS_PX)
+    if (colorStops.isEmpty()) return fallbackRadius to emptyList()
+    if (startRadiusPx == endRadiusPx) {
+        val edge = colorStops.last().second
+        return fallbackRadius to listOf(0f to edge, 1f to edge)
+    }
+    val shaderRadius = maxOf(startRadiusPx, endRadiusPx).coerceAtLeast(MIN_RADIAL_RADIUS_PX)
+    var mapped = colorStops.map { (stop, color) ->
+        (startRadiusPx + stop * (endRadiusPx - startRadiusPx)) / shaderRadius to color
+    }
+    if (endRadiusPx < startRadiusPx) mapped = mapped.reversed()
+    val result = mutableListOf<Pair<Float, Color>>()
+    for ((i, pair) in mapped.withIndex()) {
+        val (stop, color) = pair
+        if (stop <= 0f) {
+            val next = mapped.getOrNull(i + 1) ?: continue
+            if (next.first <= 0f) continue
+            result.add(0f to lerp(color, next.second, (0f - stop) / (next.first - stop)))
+        } else {
+            if (result.isEmpty()) result.add(0f to color)
+            result.add(stop to color)
+        }
+    }
+    if (result.isEmpty()) {
+        val edge = mapped.last().second
+        return shaderRadius to listOf(0f to edge, 1f to edge)
+    }
+    return shaderRadius to result
+}
+
+private const val MIN_RADIAL_RADIUS_PX = 0.001f
 
 internal fun Asset.Composite<Asset.Image>.toComposeFill(context: Context, size: Size): ComposeFill.Image? {
     if (!(size.width > 0 && size.height > 0))
@@ -211,7 +253,7 @@ internal fun Shape.Type.toComposeShape(): androidx.compose.ui.graphics.Shape {
         is Shape.Type.Rectangle -> {
             val radius = cornerRadius
             if (radius != null)
-                RoundedCornerShape(radius.topLeft, radius.topRight, radius.bottomRight, radius.bottomLeft)
+                RoundedCornerShape(radius.topLeft.dp, radius.topRight.dp, radius.bottomRight.dp, radius.bottomLeft.dp)
             else
                 RectangleShape
         }

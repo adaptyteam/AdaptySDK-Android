@@ -302,13 +302,6 @@ public class AdaptyProfile internal constructor(
         public val isRefund: Boolean
     ) {
 
-        @Deprecated(
-            message = "This property is deprecated and will be removed in future releases",
-            replaceWith = ReplaceWith("isConsumable"),
-            level = DeprecationLevel.ERROR,
-        )
-        public val isOneTime: Boolean get() = isConsumable
-
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false

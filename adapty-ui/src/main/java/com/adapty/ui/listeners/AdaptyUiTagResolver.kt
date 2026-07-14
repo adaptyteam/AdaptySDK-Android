@@ -19,7 +19,7 @@ public fun interface AdaptyUiTagResolver {
          * The default implementation that has no replacements.
          */
         @JvmField
-        public val DEFAULT: AdaptyUiTagResolver =
+        public val Default: AdaptyUiTagResolver =
             AdaptyUiTagResolver { _ -> null }
     }
 }

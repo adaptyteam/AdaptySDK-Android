@@ -1,3 +1,5 @@
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+
 package com.adapty.ui.internal.ui.element
 
 import androidx.compose.runtime.Composable
@@ -5,7 +7,8 @@ import androidx.compose.ui.Modifier
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.ui.attributes.TextAlign
-import com.adapty.ui.internal.utils.EventCallback
+import com.adapty.ui.internal.ui.resolveText
+import com.adapty.ui.internal.store.Message
 
 @InternalAdaptyApi
 public class TextElement internal constructor(
@@ -18,10 +21,7 @@ public class TextElement internal constructor(
 ) : BaseTextElement(textAlign, attributes, baseProps) {
 
     override fun toComposable(
-        resolveAssets: ResolveAssets,
-        resolveText: ResolveText,
-        resolveState: ResolveState,
-        eventCallback: EventCallback,
+        dispatch: (Message) -> Unit,
         modifier: Modifier,
     ): @Composable () -> Unit = {
         renderTextInternal(
@@ -30,9 +30,7 @@ public class TextElement internal constructor(
             maxLines,
             onOverflow,
             modifier,
-            resolveAssets,
-            eventCallback,
-            resolveText,
+            dispatch,
         ) {
             resolveText(stringId, attributes)
         }

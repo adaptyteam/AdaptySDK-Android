@@ -10,11 +10,9 @@ import java.util.concurrent.Executors
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal object Logger {
 
-    @JvmSynthetic
     @JvmField
     var logLevel = NONE
 
-    @JvmSynthetic
     @JvmField
     @Volatile
     var logHandler: AdaptyLogHandler = DefaultLogHandler()
@@ -23,7 +21,6 @@ internal object Logger {
         Executors.newSingleThreadExecutor()
     }
 
-    @JvmSynthetic
     inline fun log(
         messageLogLevel: AdaptyLogLevel,
         msg: () -> String,

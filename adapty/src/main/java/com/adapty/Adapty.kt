@@ -14,11 +14,10 @@ import com.adapty.internal.AdaptyInternal
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
-import com.adapty.internal.utils.DEFAULT_PAYWALL_TIMEOUT
+import com.adapty.internal.utils.DEFAULT_PLACEMENT_TIMEOUT
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.Logger
 import com.adapty.internal.utils.getCurrentProcessName
-import com.adapty.internal.utils.getLocaleFromViewConfig
 import com.adapty.internal.utils.getMainProcessName
 import com.adapty.listeners.OnInstallationDetailsListener
 import com.adapty.listeners.OnProfileUpdatedListener
@@ -61,43 +60,6 @@ public object Adapty {
 
         init(context, config)
         adaptyInternal.activate(config.customerUserId, config.gpObfuscatedAccountId)
-    }
-
-    /**
-     * Use this method to initialize the Adapty SDK.
-     *
-     * ### If your app starts multiple processes (not always by yourself) don't forget to check main process.
-     *
-     * @param[context] Application context.
-     *
-     * @param[appKey] You can find it in your app settings
-     * in [Adapty Dashboard](https://app.adapty.io/) _App settings_ > _General_.
-     *
-     * @param[observerMode] A boolean value controlling [Observer mode](https://adapty.io/docs/observer-vs-full-mode).
-     * Turn it on if you handle purchases and subscription status yourself and use Adapty for sending
-     * subscription events and analytics.
-     *
-     * @param[customerUserId] User identifier in your system.
-     */
-    @Deprecated(
-        message = "This method has been deprecated. Please use Adapty.activate(context: Context, config: AdaptyConfig) instead",
-        replaceWith = ReplaceWith("Adapty.activate(context, AdaptyConfig.Builder(appKey).withObserverMode(observerMode).withCustomerUserId(customerUserId).build())", "com.adapty.models.AdaptyConfig"),
-    )
-    @JvmStatic
-    @JvmOverloads
-    public fun activate(
-        context: Context,
-        appKey: String,
-        observerMode: Boolean = false,
-        customerUserId: String? = null,
-    ) {
-        activate(
-            context,
-            AdaptyConfig.Builder(appKey)
-                .withObserverMode(observerMode)
-                .withCustomerUserId(customerUserId)
-                .build()
-        )
     }
 
     /**
@@ -171,71 +133,164 @@ public object Adapty {
     }
 
     /**
-     * Fetches the paywall by the specified placement.
+     * Adapty allows you remotely configure a [Flow](https://adapty.io/docs/adapty-flow-builder)
+     * that will be displayed in your app.
      *
-     * With Adapty, you can remotely configure the products and offers in your app by simply adding
-     * them to paywalls – no need for hardcoding them.
-     * The only thing you hardcode is the placement ID.
-     *
-     * This flexibility allows you to easily update paywalls, products, and offers,
-     * or run A/B tests, all without the need for a new app release.
+     * Unlike onboardings, a flow is fetched without a locale: the locale is applied
+     * later, when the view configuration is requested via `AdaptyUI.getFlowConfiguration(flow, callback)`.
      *
      * Should not be called before [activate]
      *
-     * @param[placementId] The identifier of the desired placement. This is the value you specified when you
-     * created the placement in the Adapty Dashboard.
+     * @param[placementId] The identifier of the desired placement. This is the value you specified
+     * when you created the placement in the Adapty Dashboard.
      *
-     * @param[locale] This parameter is expected to be a language code composed of one or more subtags separated by the "-" character. The first subtag is for the language, the second one is for the region (The support for regions will be added later).
-     * Example: `"en"` means English, `"en-US"` represents US English.
-     * If the parameter is omitted, the paywall will be returned in the default locale.
-     *
-     * @param[fetchPolicy] By default SDK will try to load data from server and will return cached data in case of failure. Otherwise use [AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad] to return cached data if it exists.
+     * @param[fetchPolicy] By default SDK will try to load data from the server and will return
+     * cached data in case of failure. Otherwise use [AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad]
+     * to return cached data if it exists.
      *
      * @param[loadTimeout] This value limits the timeout for this method. If the timeout is reached,
      * cached data or local fallback will be returned. The minimum value is 1 second.
      * If a timeout is not required, you can pass [TimeInterval.INFINITE].
      *
-     * @param[callback] A result containing the [AdaptyPaywall] object. This model contains the list
-     * of the products ids, paywall’s identifier, custom payload, and several other properties.
-     *
-     * @see <a href="https://adapty.io/docs/present-remote-config-paywalls-android">Display paywalls designed with remote config</a>
-     *
-     * @see <a href="https://adapty.io/docs/android-present-paywalls">Display paywalls designed with Paywall Builder</a>
+     * @param[callback] A result containing the [AdaptyFlow] object.
      */
     @JvmStatic
     @JvmOverloads
-    public fun getPaywall(
+    public fun getFlow(
         placementId: String,
-        locale: String? = null,
         fetchPolicy: AdaptyPlacementFetchPolicy = AdaptyPlacementFetchPolicy.Default,
-        loadTimeout: TimeInterval = DEFAULT_PAYWALL_TIMEOUT,
-        callback: ResultCallback<AdaptyPaywall>,
+        loadTimeout: TimeInterval = DEFAULT_PLACEMENT_TIMEOUT,
+        callback: ResultCallback<AdaptyFlow>,
     ) {
-        Logger.log(VERBOSE) { "getPaywall(placementId = $placementId${locale?.let { ", locale = $locale" }.orEmpty()}, fetchPolicy = ${fetchPolicy}${loadTimeout.takeIf { it != TimeInterval.INFINITE }?.let { ", timeout = $it" }.orEmpty()})" }
+        Logger.log(VERBOSE) { "getFlow(placementId = $placementId, fetchPolicy = ${fetchPolicy}${loadTimeout.takeIf { it != TimeInterval.INFINITE }?.let { ", timeout = $it" }.orEmpty()})" }
         if (!isActivated) {
             logNotInitializedError()
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getPaywall(placementId, locale ?: DEFAULT_PLACEMENT_LOCALE, fetchPolicy, loadTimeout, callback)
+        adaptyInternal.getFlow(placementId, fetchPolicy, loadTimeout, callback)
     }
 
     /**
-     * Once you have an [AdaptyPaywall], fetch corresponding products list using this method.
+     * This method enables you to retrieve the flow from the Default Audience without having to
+     * wait for the Adapty SDK to send all the user information required for segmentation to the server.
      *
      * Should not be called before [activate]
      *
-     * @param[paywall] The [AdaptyPaywall] for which you want to get products.
+     * @param[placementId] The identifier of the desired placement. This is the value you specified
+     * when you created the placement in the Adapty Dashboard.
+     *
+     * @param[fetchPolicy] By default SDK will try to load data from the server and will return
+     * cached data in case of failure. Otherwise use [AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad]
+     * to return cached data if it exists.
+     *
+     * @param[callback] A result containing the [AdaptyFlow] object.
+     */
+    @JvmStatic
+    @JvmOverloads
+    public fun getFlowForDefaultAudience(
+        placementId: String,
+        fetchPolicy: AdaptyPlacementFetchPolicy = AdaptyPlacementFetchPolicy.Default,
+        callback: ResultCallback<AdaptyFlow>,
+    ) {
+        Logger.log(VERBOSE) { "getFlowForDefaultAudience(placementId = $placementId, fetchPolicy = $fetchPolicy)" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.getFlowForDefaultAudience(placementId, fetchPolicy, callback)
+    }
+
+    @JvmSynthetic
+    internal fun <T> getFlowViewConfiguration(
+        flow: AdaptyFlow,
+        locale: String?,
+        loadTimeout: TimeInterval,
+        transform: (Map<String, Any>) -> T,
+        callback: ResultCallback<T>,
+    ) {
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.getFlowViewConfiguration(flow, locale, loadTimeout, transform, callback)
+    }
+
+    /**
+     * Whenever you show a flow to your user, call `.logShowFlow(flow)` to log the event,
+     * and it will be accumulated in the flow metrics.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[flow] An [AdaptyFlow] object.
+     *
+     * @param[callback] A result containing the optional [AdaptyError].
+     */
+    @JvmStatic
+    @JvmOverloads
+    public fun logShowFlow(flow: AdaptyFlow, callback: ErrorCallback? = null) {
+        Logger.log(VERBOSE) { "logShowFlow()" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.logShowFlow(flow, callback)
+    }
+
+    @InternalAdaptyApi
+    @JvmStatic
+    @JvmOverloads
+    public fun logFlowEvent(
+        flow: AdaptyFlow,
+        viewConfigurationId: String,
+        eventProperties: Map<String, Any>,
+        callback: ErrorCallback? = null,
+    ) {
+        Logger.log(VERBOSE) { "logFlowEvent()" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.logFlowEvent(flow, viewConfigurationId, eventProperties, callback)
+    }
+
+    /**
+     * Once you have an [AdaptyFlow], fetch corresponding products list using this method.
+     *
+     * The order will be the same as in the flow's paywalls. Each product carries the
+     * attribution (variation id, name) of its own paywall inside the flow.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[flow] The [AdaptyFlow] for which you want to get products.
      *
      * @param[callback] A result containing the [AdaptyPaywallProduct] list. You can present them in your UI.
-     *
-     * @see <a href="https://adapty.io/docs/present-remote-config-paywalls-android">Display paywalls designed with remote config</a>
-     *
-     * @see <a href="https://adapty.io/docs/android-present-paywalls">Display paywalls designed with Paywall Builder</a>
      */
     @JvmStatic
     public fun getPaywallProducts(
-        paywall: AdaptyPaywall,
+        flow: AdaptyFlow,
+        callback: ResultCallback<List<AdaptyPaywallProduct>>,
+    ) {
+        Logger.log(VERBOSE) { "getPaywallProducts(placementId = ${flow.placement.id})" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.getPaywallProducts(flow, callback)
+    }
+
+    /**
+     * Once you have an [AdaptyFlowPaywall], fetch corresponding products list using this method.
+     *
+     * The order will be the same as in the paywall. Each product carries the
+     * attribution (variation id, name) of that paywall.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[paywall] The [AdaptyFlowPaywall] for which you want to get products.
+     *
+     * @param[callback] A result containing the [AdaptyPaywallProduct] list. You can present them in your UI.
+     */
+    @JvmStatic
+    public fun getPaywallProducts(
+        paywall: AdaptyFlowPaywall,
         callback: ResultCallback<List<AdaptyPaywallProduct>>,
     ) {
         Logger.log(VERBOSE) { "getPaywallProducts(placementId = ${paywall.placement.id})" }
@@ -253,7 +308,7 @@ public object Adapty {
         placementId: String,
         locale: String? = null,
         fetchPolicy: AdaptyPlacementFetchPolicy = AdaptyPlacementFetchPolicy.Default,
-        loadTimeout: TimeInterval = DEFAULT_PAYWALL_TIMEOUT,
+        loadTimeout: TimeInterval = DEFAULT_PLACEMENT_TIMEOUT,
         callback: ResultCallback<AdaptyOnboarding>,
     ) {
         Logger.log(VERBOSE) { "getOnboarding(placementId = $placementId${locale?.let { ", locale = $locale" }.orEmpty()}, fetchPolicy = ${fetchPolicy}${loadTimeout.takeIf { it != TimeInterval.INFINITE }?.let { ", timeout = $it" }.orEmpty()})" }
@@ -263,73 +318,6 @@ public object Adapty {
             return
         }
         adaptyInternal.getOnboarding(placementId, locale ?: DEFAULT_PLACEMENT_LOCALE, fetchPolicy, loadTimeout, callback)
-    }
-
-    /**
-     * @suppress
-     */
-    @Deprecated(
-        "Moved to AdaptyUI",
-        ReplaceWith("AdaptyUI.getViewConfiguration(paywall, loadTimeout, callback)", "com.adapty.ui.AdaptyUI"),
-    )
-    @InternalAdaptyApi
-    public fun getViewConfiguration(
-        paywall: AdaptyPaywall,
-        loadTimeout: TimeInterval,
-        callback: ResultCallback<Map<String, Any>>
-    ) {
-        Logger.log(VERBOSE) { "getViewConfiguration(placementId = ${paywall.placement.id}, locale = ${getLocaleFromViewConfig(paywall.viewConfig)}${loadTimeout.takeIf { it != TimeInterval.INFINITE }?.let { ", timeout = $it" }.orEmpty()})" }
-        if (!isActivated) {
-            logNotInitializedError()
-            callback.onResult(AdaptyResult.Error(notInitializedError))
-            return
-        }
-        adaptyInternal.getViewConfiguration(paywall, loadTimeout, callback)
-    }
-
-    /**
-     * To make the purchase, you have to call this method.
-     *
-     * Should not be called before [activate]
-     *
-     * @param[activity] An [Activity] instance.
-     *
-     * @param[product] An [AdaptyPaywallProduct] object retrieved from the paywall.
-     *
-     * @param[subscriptionUpdateParams] An [AdaptySubscriptionUpdateParameters] object, used when
-     * you need a subscription to be replaced with another one, [read more](https://adapty.io/docs/android-making-purchases#change-subscription-when-making-a-purchase).
-     *
-     * @param[isOfferPersonalized] Indicates whether the price is personalized, [read more](https://developer.android.com/google/play/billing/integrate#personalized-price).
-     *
-     * @param[callback] The result includes an [AdaptyPurchaseResult] object, which provides details about the purchase.
-     * If the result is [AdaptyPurchaseResult.Success], it also includes the user's profile.
-     * The profile, in turn, includes details about access levels, subscriptions, and non-subscription
-     * purchases. Generally, you have to check only access level status to determine whether the user
-     * has premium access to the app.
-     *
-     * @see <a href="https://adapty.io/docs/android-making-purchases">Make purchases in mobile app</a>
-     */
-    @Deprecated(
-        message = "This method has been deprecated. Please use Adapty.makePurchase(activity: Activity, product: AdaptyPaywallProduct, params: AdaptyPurchaseParameters) instead",
-        replaceWith = ReplaceWith("Adapty.makePurchase(activity, product, AdaptyPurchaseParameters.Builder().withSubscriptionUpdateParams(subscriptionUpdateParams).withOfferPersonalized(isOfferPersonalized).build(), callback)", "com.adapty.models.AdaptyPurchaseParameters"),
-    )
-    @JvmStatic
-    public fun makePurchase(
-        activity: Activity,
-        product: AdaptyPaywallProduct,
-        subscriptionUpdateParams: AdaptySubscriptionUpdateParameters? = null,
-        isOfferPersonalized: Boolean = false,
-        callback: ResultCallback<AdaptyPurchaseResult>,
-    ) {
-        makePurchase(
-            activity,
-            product,
-            AdaptyPurchaseParameters.Builder()
-                .withSubscriptionUpdateParams(subscriptionUpdateParams)
-                .withOfferPersonalized(isOfferPersonalized)
-                .build(),
-            callback
-        )
     }
 
     /**
@@ -390,22 +378,84 @@ public object Adapty {
         adaptyInternal.restorePurchases(callback)
     }
 
+    /**
+     * To set attribution data for the profile, use this method.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[attribution] A map containing attribution (conversion) data.
+     *
+     * @param[source] An [AdaptyAttributionSource] of the attribution.
+     *
+     * @param[callback] A result containing the optional [AdaptyError].
+     */
     @JvmStatic
     public fun updateAttribution(
-        attribution: Any,
-        source: String,
+        attribution: Map<String, Any>,
+        source: AdaptyAttributionSource,
         callback: ErrorCallback,
     ) {
         Logger.log(VERBOSE) { "updateAttribution(source = $source)" }
         if (!checkActivated(callback)) return
-        adaptyInternal.updateAttribution(attribution, source, callback)
+        adaptyInternal.updateAttribution(attribution, source.value, callback)
     }
 
+    /**
+     * To set attribution data for the profile, use this method.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[attributionJson] A JSON string containing attribution (conversion) data.
+     *
+     * @param[source] An [AdaptyAttributionSource] of the attribution.
+     *
+     * @param[callback] A result containing the optional [AdaptyError].
+     */
     @JvmStatic
-    public fun setIntegrationIdentifier(key: String, value: String, callback: ErrorCallback) {
-        Logger.log(VERBOSE) { "setIntegrationIdentifier(key = $key)" }
+    public fun updateAttribution(
+        attributionJson: String,
+        source: AdaptyAttributionSource,
+        callback: ErrorCallback,
+    ) {
+        Logger.log(VERBOSE) { "updateAttribution(source = $source)" }
         if (!checkActivated(callback)) return
-        adaptyInternal.setIntegrationId(key, value, callback)
+        adaptyInternal.updateAttribution(attributionJson, source.value, callback)
+    }
+
+    /**
+     * Sets the integration identifiers associated with the current profile.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[identifiers] A list of [AdaptyIntegrationIdentifier] to associate with the profile.
+     *
+     * @param[callback] A result containing the optional [AdaptyError].
+     */
+    @JvmStatic
+    public fun setIntegrationIdentifier(
+        identifiers: List<AdaptyIntegrationIdentifier>,
+        callback: ErrorCallback,
+    ) {
+        Logger.log(VERBOSE) { "setIntegrationIdentifier(keys = ${identifiers.map { it.key }})" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.setIntegrationIdentifiers(identifiers, callback)
+    }
+
+    /**
+     * Sets a single integration identifier associated with the current profile.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[identifier] An [AdaptyIntegrationIdentifier] to associate with the profile.
+     *
+     * @param[callback] A result containing the optional [AdaptyError].
+     */
+    @JvmStatic
+    public fun setIntegrationIdentifier(
+        identifier: AdaptyIntegrationIdentifier,
+        callback: ErrorCallback,
+    ) {
+        setIntegrationIdentifier(listOf(identifier), callback)
     }
 
     @JvmStatic
@@ -431,7 +481,7 @@ public object Adapty {
      * or an instance of the billing library [Purchase](https://developer.android.com/reference/com/android/billingclient/api/Purchase) class.
      *
      * @param[variationId] A string identifier of variation. You can get it using
-     * [variationId][AdaptyPaywall.variationId] property of [AdaptyPaywall].
+     * [variationId][AdaptyFlow.variationId] property of [AdaptyFlow].
      *
      * @param[callback] A result containing the optional [AdaptyError].
      *
@@ -470,20 +520,6 @@ public object Adapty {
 
     @JvmStatic
     public fun createWebPaywallUrl(
-        paywall: AdaptyPaywall,
-        callback: ResultCallback<Uri>,
-    ) {
-        Logger.log(VERBOSE) { "createWebPaywallUrl(variationId = ${paywall.variationId})" }
-        if (!isActivated) {
-            logNotInitializedError()
-            callback.onResult(AdaptyResult.Error(notInitializedError))
-            return
-        }
-        adaptyInternal.createWebPaywallUrl(paywall, callback)
-    }
-
-    @JvmStatic
-    public fun createWebPaywallUrl(
         product: AdaptyPaywallProduct,
         callback: ResultCallback<Uri>,
     ) {
@@ -500,19 +536,6 @@ public object Adapty {
     @JvmOverloads
     public fun openWebPaywall(
         activity: Activity,
-        paywall: AdaptyPaywall,
-        presentation: AdaptyWebPresentation = AdaptyWebPresentation.ExternalBrowser,
-        callback: ErrorCallback,
-    ) {
-        Logger.log(VERBOSE) { "openWebPaywall(variationId = ${paywall.variationId}, presentation = $presentation)" }
-        if (!checkActivated(callback)) return
-        adaptyInternal.openWebPaywall(activity, paywall, presentation, callback)
-    }
-
-    @JvmStatic
-    @JvmOverloads
-    public fun openWebPaywall(
-        activity: Activity,
         product: AdaptyPaywallProduct,
         presentation: AdaptyWebPresentation = AdaptyWebPresentation.ExternalBrowser,
         callback: ErrorCallback,
@@ -521,6 +544,34 @@ public object Adapty {
         if (!checkActivated(callback)) return
         adaptyInternal.openWebPaywall(activity, product, presentation, callback)
     }
+
+    @JvmStatic
+    public fun createWebPaywallUrl(
+        paywall: AdaptyFlowPaywall,
+        callback: ResultCallback<Uri>,
+    ) {
+        Logger.log(VERBOSE) { "createWebPaywallUrl(variationId = ${paywall.variationId})" }
+        if (!isActivated) {
+            logNotInitializedError()
+            callback.onResult(AdaptyResult.Error(notInitializedError))
+            return
+        }
+        adaptyInternal.createWebPaywallUrl(paywall, callback)
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    public fun openWebPaywall(
+        activity: Activity,
+        paywall: AdaptyFlowPaywall,
+        presentation: AdaptyWebPresentation = AdaptyWebPresentation.ExternalBrowser,
+        callback: ErrorCallback,
+    ) {
+        Logger.log(VERBOSE) { "openWebPaywall(variationId = ${paywall.variationId}, presentation = $presentation)" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.openWebPaywall(activity, paywall, presentation, callback)
+    }
+
 
     /**
      * Implement this method to receive automatic profile updates.
@@ -595,44 +646,6 @@ public object Adapty {
         adaptyInternal.setFallback(location, callback)
     }
 
-    /**
-     * Call this method to notify Adapty SDK, that particular paywall was shown to user.
-     *
-     * Adapty helps you to measure the performance of the paywalls. We automatically collect all the
-     * metrics related to purchases except for paywall views. This is because only you know when the
-     * paywall was shown to a customer.
-     *
-     * Whenever you show a paywall to your user, call `.logShowPaywall(paywall)` to log the event,
-     * and it will be accumulated in the paywall metrics.
-     *
-     * Should not be called before [activate]
-     *
-     * @param[paywall] A [AdaptyPaywall] object.
-     *
-     * @param[callback] A result containing the optional [AdaptyError].
-     *
-     * @see <a href="https://adapty.io/docs/present-remote-config-paywalls-android#track-paywall-view-events">Track paywall view events</a>
-     */
-    @JvmStatic
-    @JvmOverloads
-    public fun logShowPaywall(paywall: AdaptyPaywall, callback: ErrorCallback? = null) {
-        logShowPaywall(paywall, null, callback)
-    }
-
-    /**
-     * @suppress
-     */
-    @InternalAdaptyApi
-    public fun logShowPaywall(
-        paywall: AdaptyPaywall,
-        additionalFields: Map<String, Any>?,
-        callback: ErrorCallback? = null,
-    ) {
-        Logger.log(VERBOSE) { "logShowPaywall()" }
-        if (!checkActivated(callback)) return
-        adaptyInternal.logShowPaywall(paywall, additionalFields, callback)
-    }
-
     internal fun logShowOnboardingInternal(
         onboarding: AdaptyOnboarding,
         screenName: String?,
@@ -650,54 +663,6 @@ public object Adapty {
             screenOrder,
             isLastScreen,
         )
-    }
-
-    /**
-     * Fetches the paywall of the specified placement for the **All Users** audience.
-     *
-     * With Adapty, you can remotely configure the products and offers in your app by simply adding
-     * them to paywalls – no need for hardcoding them.
-     * The only thing you hardcode is the placement ID.
-     *
-     * This flexibility allows you to easily update paywalls, products, and offers,
-     * or run A/B tests, all without the need for a new app release.
-     *
-     * However, it’s crucial to understand that the recommended approach is to fetch the paywall
-     * through the placement ID by the [getPaywall] method.
-     * The `getPaywallForDefaultAudience` method should be a last resort due to its significant drawbacks.
-     * See [docs](https://adapty.io/docs/fetch-paywalls-and-products-android#speed-up-paywall-fetching-with-default-audience-paywall) for more details
-     *
-     * Should not be called before [activate]
-     *
-     * @param[placementId] The identifier of the desired placement. This is the value you specified when you
-     * created the placement in the Adapty Dashboard.
-     *
-     * @param[locale] This parameter is expected to be a language code composed of one or more subtags separated by the "-" character. The first subtag is for the language, the second one is for the region (The support for regions will be added later).
-     * Example: `"en"` means English, `"en-US"` represents US English.
-     * If the parameter is omitted, the paywall will be returned in the default locale.
-     *
-     * @param[fetchPolicy] By default SDK will try to load data from server and will return cached data in case of failure. Otherwise use [AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad] to return cached data if it exists.
-     *
-     * @param[callback] A result containing the [AdaptyPaywall] object. This model contains the list
-     * of the products ids, paywall’s identifier, custom payload, and several other properties.
-     *
-     * @see <a href="https://adapty.io/docs/fetch-paywalls-and-products-android#speed-up-paywall-fetching-with-default-audience-paywall">Speed up paywall fetching with default audience paywall</a>
-     */
-    @JvmStatic
-    @JvmOverloads
-    public fun getPaywallForDefaultAudience(
-        placementId: String,
-        locale: String? = null,
-        fetchPolicy: AdaptyPlacementFetchPolicy = AdaptyPlacementFetchPolicy.Default,
-        callback: ResultCallback<AdaptyPaywall>,
-    ) {
-        Logger.log(VERBOSE) { "getPaywallForDefaultAudience(placementId = $placementId${locale?.let { ", locale = $locale" }.orEmpty()}, fetchPolicy = ${fetchPolicy})" }
-        if (!isActivated) {
-            logNotInitializedError()
-            callback.onResult(AdaptyResult.Error(notInitializedError))
-            return
-        }
-        adaptyInternal.getPaywallForDefaultAudience(placementId, locale ?: DEFAULT_PLACEMENT_LOCALE, fetchPolicy, callback)
     }
 
     @JvmStatic
