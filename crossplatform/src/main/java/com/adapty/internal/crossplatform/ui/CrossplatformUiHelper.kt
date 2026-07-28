@@ -173,6 +173,7 @@ class CrossplatformUiHelper internal constructor(
     ) {
         AdaptyUI.getFlowConfiguration(
             args.flow,
+            locale = args.locale,
             loadTimeout = args.loadTimeout ?: DEFAULT_PLACEMENT_TIMEOUT,
         ) { viewConfigResult ->
             when (viewConfigResult) {

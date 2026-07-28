@@ -171,6 +171,7 @@ internal class FlowUiManager(
 
             AdaptyUI.getFlowConfiguration(
                 flow,
+                locale = createFlowViewArgs.locale,
             ) { viewConfigResult ->
                 when (viewConfigResult) {
                     is AdaptyResult.Success -> {
