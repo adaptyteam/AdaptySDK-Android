@@ -151,7 +151,8 @@ public object AdaptyUI {
      * @param[flow] The [AdaptyFlow] for which you want to get a configuration.
      *
      * @param[locale] The locale whose localization will be used for rendering. If `null`,
-     * the default localization of the view configuration is used.
+     * the `en` localization is used if present, otherwise the default localization
+     * of the view configuration.
      *
      * @param[loadTimeout] This value limits the timeout for this method. The minimum value is 1 second.
      * If a timeout is not required, you can pass [TimeInterval.INFINITE].

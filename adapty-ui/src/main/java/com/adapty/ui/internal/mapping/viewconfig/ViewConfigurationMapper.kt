@@ -168,7 +168,7 @@ internal class ViewConfigurationMapper(
             isRtl = (resolvedLocalization ?: defaultLocalization)
                 ?.getAs<Boolean>("is_right_to_left") ?: false,
             locale = converterLocale,
-            localizationId = resolvedLocaleId,
+            localizationId = (resolvedLocalization ?: defaultLocalization)?.getAs<String>(ID) ?: resolvedLocaleId,
             assets = assets,
             texts = mapTexts(config, localesOrderedDesc),
             screens = mapScreens(normalized.screensConfig, assets, screenStateMap, uiElementFactory, normalized.templates),

@@ -171,6 +171,7 @@ internal class FlowUiManager(
 
             AdaptyUI.getFlowConfiguration(
                 flow,
+                locale = createFlowViewArgs.locale,
             ) { viewConfigResult ->
                 when (viewConfigResult) {
                     is AdaptyResult.Success -> {
@@ -232,7 +233,7 @@ internal class FlowUiManager(
             viewConfig,
             products,
             createFlowViewArgs,
-            AdaptyUiFlowView(createFlowViewArgs.flow, id),
+            AdaptyUiFlowView(createFlowViewArgs.flow, id, locale = viewConfig.localizationId),
         )
         val eventListener = newFlowEventListener(
             uiData,

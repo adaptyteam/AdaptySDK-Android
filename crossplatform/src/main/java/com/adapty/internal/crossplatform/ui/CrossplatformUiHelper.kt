@@ -173,6 +173,7 @@ class CrossplatformUiHelper internal constructor(
     ) {
         AdaptyUI.getFlowConfiguration(
             args.flow,
+            locale = args.locale,
             loadTimeout = args.loadTimeout ?: DEFAULT_PLACEMENT_TIMEOUT,
         ) { viewConfigResult ->
             when (viewConfigResult) {
@@ -224,7 +225,7 @@ class CrossplatformUiHelper internal constructor(
         products: List<AdaptyPaywallProduct>? = null,
         onSuccess: Callback<AdaptyUiFlowView>,
     ) {
-        val view = AdaptyUiFlowView(args.flow)
+        val view = AdaptyUiFlowView(args.flow, locale = viewConfig.localizationId)
 
         cacheFlowUiData(
             FlowUiData(viewConfig, products, args, view)

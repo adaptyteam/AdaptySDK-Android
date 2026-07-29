@@ -7,6 +7,7 @@ import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
+import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
 import com.adapty.internal.utils.FlowMapper
 import com.adapty.internal.utils.INF_PLACEMENT_TIMEOUT_MILLIS
 import com.adapty.internal.utils.InternalAdaptyApi
@@ -39,6 +40,7 @@ internal class FlowInteractor(
             .map { flow -> flowMapper.map(flow) }
 
     fun getViewConfiguration(flow: AdaptyFlow, locale: String?, loadTimeout: Int): Flow<Map<String, Any>> {
+        val locale = locale?.trim()?.takeIf { it.isNotEmpty() } ?: DEFAULT_PLACEMENT_LOCALE
         val viewConfigurationId = flow.viewConfigurationId ?: return flow {
             throw AdaptyError(
                 message = "View configuration has not been found for the requested flow",

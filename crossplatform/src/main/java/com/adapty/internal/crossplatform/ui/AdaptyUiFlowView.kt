@@ -7,10 +7,16 @@ class AdaptyUiFlowView(
     val id: String,
     val placementId: String,
     val variationId: String,
+    val locale: String? = null,
 ) {
-    constructor(flow: AdaptyFlow, id: String = UUID.randomUUID().toString()): this(
+    constructor(
+        flow: AdaptyFlow,
+        id: String = UUID.randomUUID().toString(),
+        locale: String? = null,
+    ): this(
         id = id,
         placementId = flow.placement.id,
-        variationId = flow.variationId
+        variationId = flow.variationId,
+        locale = locale,
     )
 }
