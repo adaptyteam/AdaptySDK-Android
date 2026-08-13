@@ -27,7 +27,7 @@ public sealed class StringWrapper {
     internal class ComplexStr internal constructor(val parts: List<ComplexStrPart>): StringWrapper() {
         sealed class ComplexStrPart {
             class Text(val str: Single): ComplexStrPart()
-            class Image(val id: String, val inlineContent: InlineTextContent, val actions: List<Action> = emptyList()): ComplexStrPart()
+            class Image(val id: String, val inlineContent: InlineTextContent, val actions: List<Action> = emptyList(), val contentSignature: Int = 0): ComplexStrPart()
         }
 
         fun resolve(dispatch: ((Message) -> Unit)? = null, screen: NavigationEntry? = null): AnnotatedStr {

@@ -398,12 +398,12 @@ internal class AdaptyCallHandler(
         when (args) {
             is WebPaywallArgs.Paywall -> {
                 Adapty.createWebPaywallUrl(args.value) { result ->
-                    onResult(adaptyResult(result))
+                    onResult(adaptyResult(result.map { it.toString() }))
                 }
             }
             is WebPaywallArgs.Product -> {
                 Adapty.createWebPaywallUrl(args.value) { result ->
-                    onResult(adaptyResult(result))
+                    onResult(adaptyResult(result.map { it.toString() }))
                 }
             }
         }

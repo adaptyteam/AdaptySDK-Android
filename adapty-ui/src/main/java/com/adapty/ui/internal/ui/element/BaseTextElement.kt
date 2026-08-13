@@ -288,10 +288,22 @@ public abstract class BaseTextElement(
         var h = 1
         for (p in parts) {
             h = 31 * h + when (p) {
-                is StringWrapper.ComplexStr.ComplexStrPart.Text -> p.str.value.hashCode()
-                is StringWrapper.ComplexStr.ComplexStrPart.Image -> p.id.hashCode()
+                is StringWrapper.ComplexStr.ComplexStrPart.Text -> 31 * p.str.value.hashCode() + p.str.attrs.spanSignature()
+                is StringWrapper.ComplexStr.ComplexStrPart.Image -> 31 * p.id.hashCode() + p.contentSignature
             }
         }
+        return h
+    }
+
+    private fun ComposeTextAttrs?.spanSignature(): Int {
+        if (this == null) return 0
+        var h = 1
+        h = 31 * h + (textColor?.hashCode() ?: 0)
+        h = 31 * h + (backgroundColor?.hashCode() ?: 0)
+        h = 31 * h + (fontSize?.hashCode() ?: 0)
+        h = 31 * h + (textDecoration?.hashCode() ?: 0)
+        h = 31 * h + System.identityHashCode(typeface)
+        h = 31 * h + (letterSpacing?.hashCode() ?: 0)
         return h
     }
 }

@@ -50,6 +50,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.AdaptyFlowInsets
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
@@ -67,7 +68,10 @@ import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.getInsets
 import com.adapty.ui.internal.listeners.ContextAwareEventListener
 import com.adapty.ui.internal.utils.log
+import com.adapty.ui.internal.utils.INSETS_DELIVERY_WAIT_FRAMES
+import com.adapty.ui.internal.utils.fallbackBarOrCutoutInsets
 import com.adapty.ui.internal.utils.rootBarOrCutoutInsets
+import com.adapty.ui.internal.utils.systemInsetsDelivered
 import com.adapty.ui.internal.utils.wrap
 import com.adapty.ui.internal.script.ActionHandler
 import com.adapty.ui.internal.store.Message
@@ -101,9 +105,16 @@ public data class NavigationEntry(
 internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
     val userArgs = viewModel.dataState.value ?: return
     val viewConfig = userArgs.viewConfig
+    var insetsFallback by remember(userArgs.userInsets) { mutableStateOf<AdaptyFlowInsets?>(null) }
+    val latchedFallback = insetsFallback
+    val effectiveInsets = when {
+        latchedFallback == null -> userArgs.userInsets
+        systemInsetsDelivered() -> userArgs.userInsets
+        else -> latchedFallback
+    }
     CompositionLocalProvider(
         LocalLayoutDirection provides if (viewConfig.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
-        LocalCustomInsets provides userArgs.userInsets.wrap(),
+        LocalCustomInsets provides effectiveInsets.wrap(),
     ) {
         val insets = getInsets()
         Box {
@@ -132,6 +143,13 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
                         }
                     if (insetsNotDeliveredYet) {
                         log(VERBOSE) { "$LOG_PREFIX skipping (rootInsets: $rootInsets; $screenHeightPxFromConfig; $maxHeightPxFromConstraints)" }
+                        LaunchedEffect(Unit) {
+                            view.requestApplyInsets()
+                            repeat(INSETS_DELIVERY_WAIT_FRAMES) { withFrameNanos {} }
+                            val fallback = view.fallbackBarOrCutoutInsets(layoutDirection)
+                            log(VERBOSE) { "$LOG_PREFIX insets not delivered, falling back ($fallback)" }
+                            insetsFallback = fallback
+                        }
                         return@BoxWithConstraints
                     } else {
                         if (!loggedNonSkipping) {
@@ -143,6 +161,17 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
                     if (!loggedNonSkipping) {
                         log(VERBOSE) { "$LOG_PREFIX non-skipping (custom insets: ${(insets as? InsetWrapper.Custom)?.insets}" }
                         loggedNonSkipping = true
+                    }
+                }
+
+                if (insetsFallback != null) {
+                    LaunchedEffect(configuration, maxWidth, maxHeight, layoutDirection) {
+                        withFrameNanos {}
+                        val refreshed = view.fallbackBarOrCutoutInsets(layoutDirection)
+                        if (refreshed != insetsFallback) {
+                            log(VERBOSE) { "$LOG_PREFIX refreshing fallback insets ($refreshed)" }
+                            insetsFallback = refreshed
+                        }
                     }
                 }
 

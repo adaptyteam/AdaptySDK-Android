@@ -1,3 +1,5 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.ui.internal.utils
 
 import android.view.View
@@ -6,6 +8,8 @@ import androidx.compose.foundation.layout.safeContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -13,7 +17,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyFlowInsets
+import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 
 internal sealed class InsetWrapper {
     abstract fun getTop(density: Density): Int
@@ -102,6 +108,47 @@ internal fun View.rootBarOrCutoutInsets(): Insets? =
     ViewCompat.getRootWindowInsets(this)?.getInsets(
         WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
     )
+
+@Composable
+internal fun systemInsetsDelivered(): Boolean {
+    val insets = WindowInsets.safeContent
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    return insets.getTop(density) > 0 ||
+        insets.getBottom(density) > 0 ||
+        insets.getLeft(density, layoutDirection) > 0 ||
+        insets.getRight(density, layoutDirection) > 0
+}
+
+internal const val INSETS_DELIVERY_WAIT_FRAMES = 3
+
+internal fun View.fallbackBarOrCutoutInsets(layoutDirection: LayoutDirection): AdaptyFlowInsets {
+    val rootInsets = rootBarOrCutoutInsets() ?: return AdaptyFlowInsets.None
+    if (rootInsets == Insets.NONE) return AdaptyFlowInsets.None
+    val windowWidth = rootView.width
+    val windowHeight = rootView.height
+    val laidOut = width > 0 && height > 0 && windowWidth > 0 && windowHeight > 0
+    val location = IntArray(2)
+    if (laidOut) {
+        getLocationInWindow(location)
+    } else {
+        log(VERBOSE) { "$LOG_PREFIX fallback insets before layout, assuming a window-sized view" }
+    }
+    val viewWidth = if (laidOut) width else windowWidth
+    val viewHeight = if (laidOut) height else windowHeight
+    val gapLeft = location[0].coerceAtLeast(0)
+    val gapTop = location[1].coerceAtLeast(0)
+    val gapRight = (windowWidth - (location[0] + viewWidth)).coerceAtLeast(0)
+    val gapBottom = (windowHeight - (location[1] + viewHeight)).coerceAtLeast(0)
+    val left = (rootInsets.left - gapLeft).coerceIn(0, rootInsets.left)
+    val top = (rootInsets.top - gapTop).coerceIn(0, rootInsets.top)
+    val right = (rootInsets.right - gapRight).coerceIn(0, rootInsets.right)
+    val bottom = (rootInsets.bottom - gapBottom).coerceIn(0, rootInsets.bottom)
+    return when (layoutDirection) {
+        LayoutDirection.Rtl -> AdaptyFlowInsets.of(right, top, left, bottom)
+        else -> AdaptyFlowInsets.of(left, top, right, bottom)
+    }
+}
 
 @Stable
 internal data class SafeAreaInsets(

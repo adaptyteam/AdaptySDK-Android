@@ -9,6 +9,7 @@ import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.BrowserLauncher
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.StoreManager
+import com.adapty.internal.data.cloud.toLogString
 import com.adapty.internal.utils.WebPaywallUrlCreator
 import com.adapty.internal.domain.models.BackendProduct
 import com.adapty.internal.utils.DEFAULT_RETRY_COUNT
@@ -25,6 +26,7 @@ import com.adapty.models.AdaptyWebPresentation
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.FileLocation
 import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.UnfetchedProduct
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.flow
@@ -89,15 +91,19 @@ internal class PaywallInteractor(
             throwNoProductIdsFoundError()
         val productIds = products.map { it.vendorProductId }.distinct()
         return storeManager.queryProductDetails(productIds, maxAttemptCount)
-            .map { productDetailsList ->
+            .map { (productDetailsList, unfetchedProductList) ->
                 if (productDetailsList.isEmpty())
-                    throwNoProductIdsFoundError()
+                    throwNoProductIdsFoundError(unfetchedProductList)
                 productDetailsList.associateBy { productDetails -> productDetails.productId }
             }
     }
 
-    private fun throwNoProductIdsFoundError(): Nothing {
-        val message = "No In-App Purchase product identifiers were found."
+    private fun throwNoProductIdsFoundError(unfetchedProductList: List<UnfetchedProduct> = emptyList()): Nothing {
+        val message = "No In-App Purchase product identifiers were found.${
+            unfetchedProductList.takeIf { it.isNotEmpty() }
+                ?.let { " Requested products were not fetched by Google Play: ${it.toLogString()}" }
+                .orEmpty()
+        }"
         Logger.log(ERROR) { message }
         throw AdaptyError(
             message = message,

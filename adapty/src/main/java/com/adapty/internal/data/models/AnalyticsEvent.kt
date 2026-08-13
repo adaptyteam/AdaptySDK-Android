@@ -10,7 +10,6 @@ import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.utils.TransactionInfo
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.android.billingclient.api.PurchaseHistoryRecord
 import java.util.Locale
 import java.util.UUID
 
@@ -1082,22 +1081,6 @@ internal class AnalyticsEvent(
             }
         }
 
-        class QueryPurchaseHistory private constructor(
-            val googleProductType: String,
-            methodName: String,
-        ) : GoogleAPIRequestData(methodName) {
-
-            companion object {
-                fun create(
-                    googleProductType: String,
-                ) =
-                    QueryPurchaseHistory(
-                        googleProductType,
-                        "query_purchase_history",
-                    )
-            }
-        }
-
         class MakePurchase private constructor(
             val productId: String,
             val productType: String,
@@ -1253,41 +1236,6 @@ internal class AnalyticsEvent(
                     paired: GoogleAPIRequestData.QueryActivePurchases,
                 ) =
                     QueryActivePurchases(
-                        purchaseList.orEmpty().map { it.products.firstOrNull().orEmpty() },
-                        paired.eventName.replace(GOOGLE_REQUEST_PREFIX, GOOGLE_RESPONSE_PREFIX),
-                        paired.sdkFlowId,
-                        true,
-                        null,
-                    )
-            }
-        }
-
-        class QueryPurchaseHistory private constructor(
-            val productIds: List<String>?,
-            eventName: String,
-            flowId: String?,
-            success: Boolean,
-            error: String?,
-        ) : GoogleAPIResponseData(eventName, flowId, success, error) {
-
-            companion object {
-                fun create(
-                    error: AdaptyError,
-                    paired: GoogleAPIRequestData.QueryPurchaseHistory,
-                ) =
-                    QueryPurchaseHistory(
-                        null,
-                        paired.eventName.replace(GOOGLE_REQUEST_PREFIX, GOOGLE_RESPONSE_PREFIX),
-                        paired.sdkFlowId,
-                        false,
-                        error.message,
-                    )
-
-                fun create(
-                    purchaseList: List<PurchaseHistoryRecord>?,
-                    paired: GoogleAPIRequestData.QueryPurchaseHistory,
-                ) =
-                    QueryPurchaseHistory(
                         purchaseList.orEmpty().map { it.products.firstOrNull().orEmpty() },
                         paired.eventName.replace(GOOGLE_REQUEST_PREFIX, GOOGLE_RESPONSE_PREFIX),
                         paired.sdkFlowId,

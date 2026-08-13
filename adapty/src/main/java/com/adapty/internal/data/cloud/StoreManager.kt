@@ -99,15 +99,15 @@ internal class StoreManager(
             SUBS,
             maxAttemptCount
         )
-            .flatMapConcat { subsList ->
-                val sub = subsList.firstOrNull { it.productId == productId }
+            .flatMapConcat { subsResult ->
+                val sub = subsResult.productDetailsList.firstOrNull { it.productId == productId }
                 if (sub == null) {
                     queryProductDetailsForType(
                         productList,
                         INAPP,
                         maxAttemptCount
                     )
-                        .map { inAppList -> inAppList.firstOrNull { it.productId == productId } }
+                        .map { inAppResult -> inAppResult.productDetailsList.firstOrNull { it.productId == productId } }
                 } else {
                     flowOf(sub)
                 }
@@ -119,33 +119,16 @@ internal class StoreManager(
         maxAttemptCount: Long,
     ): Flow<List<PurchaseRecordModel>> {
         return onConnected {
-            storeHelper.queryAllPurchasesForType(type)
-                .map { (historyRecords, activePurchases) ->
-                    val purchases = mutableSetOf<PurchaseRecordModel>()
-
-                    activePurchases.forEach { purchase ->
-                        purchases.add(
-                            PurchaseRecordModel(
-                                purchase.purchaseToken,
-                                purchase.purchaseTime,
-                                purchase.products,
-                                type,
-                            )
+            storeHelper.queryActivePurchasesForTypeWithSync(type)
+                .map { activePurchases ->
+                    activePurchases.map { purchase ->
+                        PurchaseRecordModel(
+                            purchase.purchaseToken,
+                            purchase.purchaseTime,
+                            purchase.products,
+                            type,
                         )
                     }
-
-                    historyRecords.forEach { historyRecord ->
-                        purchases.add(
-                            PurchaseRecordModel(
-                                historyRecord.purchaseToken,
-                                historyRecord.purchaseTime,
-                                historyRecord.products,
-                                type,
-                            )
-                        )
-                    }
-
-                    purchases.toList()
                 }
         }.retryOnConnectionError(maxAttemptCount)
     }
@@ -153,25 +136,28 @@ internal class StoreManager(
     fun queryProductDetails(
         productList: List<String>,
         maxAttemptCount: Long,
-    ): Flow<List<ProductDetails>> =
+    ): Flow<Pair<List<ProductDetails>, List<UnfetchedProduct>>> =
         queryProductDetailsForType(
             productList,
             SUBS,
             maxAttemptCount
         )
-            .flatMapConcat { subsList ->
+            .flatMapConcat { subsResult ->
                 queryProductDetailsForType(
                     productList,
                     INAPP,
                     maxAttemptCount
-                ).map { inAppList -> concatResults(subsList, inAppList) }
+                ).map { inAppResult ->
+                    concatResults(subsResult.productDetailsList, inAppResult.productDetailsList) to
+                            concatResults(subsResult.unfetchedProductList, inAppResult.unfetchedProductList)
+                }
             }
 
     private fun queryProductDetailsForType(
         productList: List<String>,
         @BillingClient.ProductType productType: String,
         maxAttemptCount: Long,
-    ): Flow<List<ProductDetails>> {
+    ): Flow<ProductDetailsResult> {
         return onConnected {
             storeHelper.queryProductDetailsForType(productList, productType)
         }.retryOnConnectionError(maxAttemptCount)
@@ -244,8 +230,8 @@ internal class StoreManager(
     fun queryInfoForProduct(productId: String, type: String) =
         onConnected {
             storeHelper.queryProductDetailsForType(listOf(productId), extractGoogleType(type))
-        }.map { productDetailsList ->
-            productDetailsList.firstOrNull { it.productId == productId }
+        }.map { productDetailsResult ->
+            productDetailsResult.productDetailsList.firstOrNull { it.productId == productId }
                 ?: throw AdaptyError(
                     message = "This product_id was not found with this purchase type",
                     adaptyErrorCode = AdaptyErrorCode.PRODUCT_NOT_FOUND
@@ -483,9 +469,12 @@ private class StoreHelper(
             ).build()
             val productDetailsResult = billingClient.queryProductDetails(params)
             if (productDetailsResult.billingResult.responseCode == OK) {
-                emit(
-                    productDetailsResult.productDetailsList.orEmpty()
-                )
+                if (productDetailsResult.unfetchedProductList.isNotEmpty()) {
+                    Logger.log(WARN) {
+                        "Google Play did not return some of the requested $productType products: ${productDetailsResult.unfetchedProductList.toLogString()}"
+                    }
+                }
+                emit(productDetailsResult)
                 analyticsTracker.trackSystemEvent(
                     GoogleAPIResponseData.QueryProductDetails.create(productDetailsResult.productDetailsList, requestEvent)
                 )
@@ -514,41 +503,11 @@ private class StoreHelper(
             }
         }
 
-    fun queryPurchaseHistoryForType(@BillingClient.ProductType type: String) =
-        flow {
-            val requestEvent = GoogleAPIRequestData.QueryPurchaseHistory.create(type)
-            analyticsTracker.trackSystemEvent(requestEvent)
-            val params = QueryPurchaseHistoryParams.newBuilder().setProductType(type).build()
-            try {
-                val purchaseHistoryResult = billingClient.queryPurchaseHistory(params)
-                if (purchaseHistoryResult.billingResult.responseCode == OK) {
-                    emit(purchaseHistoryResult.purchaseHistoryRecordList.orEmpty())
-                    analyticsTracker.trackSystemEvent(
-                        GoogleAPIResponseData.QueryPurchaseHistory.create(purchaseHistoryResult.purchaseHistoryRecordList, requestEvent)
-                    )
-                } else {
-                    val e = createException(purchaseHistoryResult.billingResult, "on query history")
-                    analyticsTracker.trackSystemEvent(GoogleAPIResponseData.QueryPurchaseHistory.create(e, requestEvent))
-                    throw e
-                }
-            } catch (e: LinkageError) {
-                emit(listOf())
-                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.QueryPurchaseHistory.create(e.asAdaptyError(), requestEvent))
-            }
-        }
-
-    fun queryAllPurchasesForType(@BillingClient.ProductType type: String) =
-        queryPurchaseHistoryForType(type)
-            .flatMapConcat { historyRecords ->
-                queryActivePurchasesForType(type)
-                    .map { activePurchases ->
-                        historyRecords to activePurchases.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
-                    }
-            }
-
     fun queryActivePurchasesForTypeWithSync(@BillingClient.ProductType type: String) =
-        queryAllPurchasesForType(type)
-            .map { (_, activePurchases) -> activePurchases }
+        queryActivePurchasesForType(type)
+            .map { activePurchases ->
+                activePurchases.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+            }
 
     fun acknowledgePurchase(purchase: Purchase) =
         flow {

@@ -116,7 +116,7 @@ internal class SerializationHelper(
                     if (hasAdaptyUi) {
                         registerTypeAdapterFactory(AdaptyUIActionTypeAdapterFactory())
                             .registerTypeAdapterFactory(CreateFlowViewArgsTypeAdapterFactory())
-                            .registerTypeAdapter(android.net.Uri::class.java, AndroidUriAdapter())
+                            .registerTypeHierarchyAdapter(android.net.Uri::class.java, AndroidUriAdapter())
                             .registerTypeAdapter(
                                 AdaptyUI.MediaCacheConfiguration::class.java,
                                 AdaptyUIMediaCacheConfigurationDeserializer()

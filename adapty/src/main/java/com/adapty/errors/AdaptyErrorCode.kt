@@ -19,6 +19,7 @@ public enum class AdaptyErrorCode(@get:JvmSynthetic internal val value: Int) {
     ITEM_NOT_OWNED(108),
     BILLING_NETWORK_ERROR(112),
     NO_PRODUCT_IDS_FOUND(1000),
+    @Deprecated("No longer returned by restorePurchases(): when there is nothing to restore, the method completes successfully with the current profile.")
     NO_PURCHASES_TO_RESTORE(1004),
     AUTHENTICATION_ERROR(2002),
     BAD_REQUEST(2003),

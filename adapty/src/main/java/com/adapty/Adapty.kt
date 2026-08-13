@@ -359,6 +359,9 @@ public object Adapty {
     /**
      * To restore purchases, you have to call this method.
      *
+     * If there is nothing to restore, the method completes successfully with the current
+     * [AdaptyProfile], so check the access level status in the returned profile.
+     *
      * Should not be called before [activate]
      *
      * @param[callback] A result containing the [AdaptyProfile] object. This model contains info about

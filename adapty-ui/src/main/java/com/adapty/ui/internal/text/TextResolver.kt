@@ -186,7 +186,8 @@ internal class TextResolver(
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
-                    parts.add(StringWrapper.ComplexStr.ComplexStrPart.Image(id, inlineImage, item.actions))
+                    val contentSignature = 31 * System.identityHashCode(imageBitmap) + System.identityHashCode(colorFilter)
+                    parts.add(StringWrapper.ComplexStr.ComplexStrPart.Image(id, inlineImage, item.actions, contentSignature))
                 }
             }
         }
