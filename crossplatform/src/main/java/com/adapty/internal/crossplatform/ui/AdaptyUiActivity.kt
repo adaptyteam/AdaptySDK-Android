@@ -15,11 +15,13 @@ class AdaptyUiActivity : FragmentActivity() {
         internal const val VIEW_ID = "VIEW_ID"
     }
 
-    private val flowView: AdaptyFlowView by lazy(NONE) {
+    private val flowViewLazy = lazy(NONE) {
         AdaptyFlowView(this)
     }
+    private val flowView: AdaptyFlowView by flowViewLazy
 
     private val flowUiManager: FlowUiManager? by safeInject()
+    private var viewId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,6 +30,7 @@ class AdaptyUiActivity : FragmentActivity() {
             closeView()
             return
         }
+        this.viewId = viewId
 
         with(flowView) {
             setContentView(this)
@@ -71,14 +74,24 @@ class AdaptyUiActivity : FragmentActivity() {
     }
 
     private fun closeView() {
+        beginFlowExitOrCompleteDismissal()
         flowUiManager?.clearCurrentView()
         finish()
     }
 
+    private fun beginFlowExitOrCompleteDismissal() {
+        val waitsForFlowClosed = flowViewLazy.isInitialized() &&
+            flowUiManager?.beginFlowExit(flowView) == true
+        if (!waitsForFlowClosed) {
+            flowUiManager?.completeDismissalWithoutFlow(viewId)
+        }
+    }
+
     override fun onDestroy() {
         if (!isChangingConfigurations) {
-            flowUiManager?.isShown = false
+            beginFlowExitOrCompleteDismissal()
         }
         super.onDestroy()
     }
+
 }

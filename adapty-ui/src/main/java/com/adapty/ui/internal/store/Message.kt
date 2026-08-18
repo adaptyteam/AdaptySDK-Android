@@ -137,3 +137,5 @@ public sealed interface Message {
 
     public data class UIError internal constructor(val message: String, val code: AdaptyErrorCode) : Message
 }
+
+internal object FlowExitFlushed : Message

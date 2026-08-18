@@ -17,6 +17,7 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.internal.script.SDKGlobals
 import com.adapty.ui.internal.script.StateHandler
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.AdaptyFlowInternal
 import com.adapty.ui.internal.ui.FlowViewModel
 import com.adapty.ui.internal.ui.FlowViewModelArgs
@@ -129,6 +130,19 @@ public class AdaptyFlowView @JvmOverloads constructor(
 
         runOnceWhenAttached {
             val vm = viewModel ?: return@runOnceWhenAttached
+            val deferred = vm.deferUntilExitCompleted {
+                showFlow(
+                    flowConfiguration,
+                    products,
+                    eventListener,
+                    insets,
+                    customAssets,
+                    tagResolver,
+                    timerResolver,
+                    observerModeHandler,
+                )
+            }
+            if (deferred) return@runOnceWhenAttached
 
             fun pushData() {
                 runOnceWhenAttached {
@@ -151,7 +165,7 @@ public class AdaptyFlowView @JvmOverloads constructor(
             val previousConfig = vm.dataState.value?.viewConfig
             val configChangeHandoff = vm.configChangeHandoffPending
             vm.configChangeHandoffPending = false
-            if (previousConfig === flowConfiguration && vm.state != null) {
+            if (previousConfig === flowConfiguration && vm.state?.ui?.exitCompleted != true) {
                 pushData()
                 return@runOnceWhenAttached
             }
@@ -180,9 +194,28 @@ public class AdaptyFlowView @JvmOverloads constructor(
     @Composable
     override fun Content() {
         val viewModel = viewModel ?: return
-        if (viewModel.dataState.value != null) {
+        val uiState = viewModel.state?.ui
+        if (
+            viewModel.dataState.value != null &&
+            uiState?.exitStarted != true &&
+            uiState?.exitCompleted != true
+        ) {
             AdaptyFlowInternal(viewModel)
         }
+    }
+
+    internal fun clearFlow(): Boolean {
+        if (!viewModelLazy.isInitialized()) return false
+
+        return viewModelLazy.value?.let { viewModel ->
+            val uiState = viewModel.state?.ui
+            val waitsForFlowClosed = uiState?.flowShown == true || uiState?.exitStarted == true
+            if (waitsForFlowClosed) {
+                viewModel.dispatch(Message.FlowExited)
+            }
+            viewModel.dataState.value = null
+            waitsForFlowClosed
+        } ?: false
     }
 
     override fun onSaveInstanceState(): Parcelable {

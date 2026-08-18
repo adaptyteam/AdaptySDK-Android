@@ -34,6 +34,7 @@ import com.adapty.ui.internal.store.Effect
 import com.adapty.ui.internal.store.EffectHandler
 import com.adapty.ui.internal.store.EventDispatcherEffectHandler
 import com.adapty.ui.internal.store.FocusLossVerifier
+import com.adapty.ui.internal.store.FlowExitFlushed
 import com.adapty.ui.internal.store.JsEffectHandler
 import com.adapty.ui.internal.store.ListenerEffectHandler
 import com.adapty.ui.internal.store.Message
@@ -74,10 +75,6 @@ internal class FlowViewModel(
 
     internal lateinit var effectHandlers: List<EffectHandler>
     
-    init {
-        stateHandler.onStateRefreshed = { dispatch(Message.FlushPendingNavigation) }
-    }
-    
     override fun onCleared() {
         super.onCleared()
     }
@@ -100,6 +97,9 @@ internal class FlowViewModel(
 
     val eventDispatcher: EventDispatcher = EventDispatcher()
 
+    fun deferUntilExitCompleted(action: () -> Unit): Boolean =
+        stateHandler.deferUntilFlowExitCompleted(action)
+
     fun dispatch(message: Message) {
         if (Looper.getMainLooper().thread != Thread.currentThread()) {
             runOnMain { dispatch(message) }
@@ -111,6 +111,9 @@ internal class FlowViewModel(
         }
         val (newState, effects) = reduce(currentState, message)
         _state.value = newState
+        if (!currentState.ui.exitStarted && newState.ui.exitStarted) {
+            stateHandler.beginFlowExit(this)
+        }
         if (newState.navigation.entries.isNotEmpty() &&
             (newState.navigation.entries !== currentState.navigation.entries ||
                 newState.ui.timerCommands !== currentState.ui.timerCommands)
@@ -121,10 +124,17 @@ internal class FlowViewModel(
             }
         }
         effects.forEach { effect -> handleEffect(effect) }
+        if (message === FlowExitFlushed) {
+            stateHandler.completeFlowExit(this)
+        }
     }
 
     fun setNewData(newData: UserArgs) {
-        if (_state.value?.config?.viewConfig !== newData.viewConfig) {
+        stateHandler.onStateRefreshed = { dispatch(Message.FlushPendingNavigation) }
+        if (
+            _state.value?.config?.viewConfig !== newData.viewConfig ||
+            _state.value?.ui?.exitCompleted == true
+        ) {
             var initial = buildInitialState(newData, isObserverMode, null)
             val runtime = newData.viewConfig.runtimeState
             runtime.restorableNavigation?.let { restoredNav ->
@@ -145,11 +155,15 @@ internal class FlowViewModel(
 
     private fun handleEffect(effect: Effect) {
         val isClose = effect is Effect.NotifyListener.ActionPerformed && effect.action is AdaptyUI.Action.Close
+        val listenerToRelease = if (effect is Effect.NotifyListener.FlowClosed) contextAwareListener else null
         if (isClose) closeNotificationDepth++
         try {
             effectHandlers.forEach { it.handle(effect, ::dispatch) }
         } finally {
             if (isClose) closeNotificationDepth--
+            if (effect is Effect.NotifyListener.FlowClosed && contextAwareListener === listenerToRelease) {
+                contextAwareListener = null
+            }
         }
     }
 
@@ -211,7 +225,7 @@ private fun buildEffectHandlers(
 ): List<EffectHandler> {
     val scope = vm.viewModelScope
     return listOf(
-        JsEffectHandler(scope, args.stateHandler),
+        JsEffectHandler(scope, args.stateHandler, vm.eventDispatcher),
         PurchaseEffectHandler(scope, args.flowKey, { vm.activityProvider?.invoke() }, { vm.contextAwareListener }),
         ObserverModeEffectHandler(scope, args.flowKey),
         DataLoadingEffectHandler(scope, args.flowKey, args.mediaFetchService),

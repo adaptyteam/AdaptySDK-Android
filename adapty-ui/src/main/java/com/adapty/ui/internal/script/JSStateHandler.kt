@@ -114,6 +114,30 @@ internal class JSStateHandler(
             stateOwnerRef = value?.let { WeakReference(it) }
         }
 
+    private var flowExitOwner: Any? = null
+    private var deferredUntilFlowExitCompleted: (() -> Unit)? = null
+
+    override fun beginFlowExit(owner: Any) {
+        if (flowExitOwner == null) flowExitOwner = owner
+    }
+
+    override fun deferUntilFlowExitCompleted(action: () -> Unit): Boolean {
+        if (flowExitOwner == null) {
+            deferredUntilFlowExitCompleted = null
+            return false
+        }
+        deferredUntilFlowExitCompleted = action
+        return true
+    }
+
+    override fun completeFlowExit(owner: Any) {
+        if (flowExitOwner !== owner) return
+        flowExitOwner = null
+        val deferred = deferredUntilFlowExitCompleted
+        deferredUntilFlowExitCompleted = null
+        deferred?.invoke()
+    }
+
     override suspend fun collectStateSnapshot(): Map<String, Any?>? {
         val result = stateMachine.getValue(COLLECT_STATE_SCRIPT) as? Map<*, *> ?: return null
         return result.entries.associate { (key, value) -> key.toString() to value }
@@ -181,6 +205,8 @@ internal class JSStateHandler(
         stateMachine.executeAction(funcPath, paramsWithScreen)
         refreshStateCache()
     }
+
+    override suspend fun awaitRpcDrain(): Boolean = stateMachine.awaitRpcDrain()
     
     override suspend fun setValue(binding: TwoWayBinding, value: Any?, screen: NavigationEntry) {
         val resolvedValue = if (binding.converter != null) {

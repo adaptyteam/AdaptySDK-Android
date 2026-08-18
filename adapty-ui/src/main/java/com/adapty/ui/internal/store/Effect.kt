@@ -24,6 +24,10 @@ import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 internal sealed interface Effect {
     data class ExecuteJSActions(val actions: List<Action>, val screen: NavigationEntry) : Effect
     data class SetJSValue(val binding: TwoWayBinding, val value: Any?, val screen: NavigationEntry) : Effect
+    data class FlushBeforeExit(
+        val focusActions: List<ExecuteJSActions>,
+        val willDisappearActions: List<ExecuteJSActions>,
+    ) : Effect
     object RefreshStateCache : Effect
 
     data class LoadProducts(val flow: AdaptyFlow, val failureCallback: ProductLoadingFailureCallback) : Effect

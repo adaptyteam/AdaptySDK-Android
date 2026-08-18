@@ -13,6 +13,9 @@ import com.adapty.ui.AdaptyCustomImageAsset
 import com.adapty.ui.AdaptyCustomVideoAsset
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.ui.LifecycleEvent
+import com.adapty.ui.internal.ui.NavigationEntry
+import com.adapty.ui.internal.ui.resolveScreenLifecycle
 import com.adapty.ui.internal.ui.element.Action
 import com.adapty.ui.internal.utils.CUSTOM_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.DARK_THEME_ASSET_SUFFIX
@@ -25,9 +28,15 @@ import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Effect>> {
     return when (message) {
 
-    is Message.ActionsRequested -> state to listOf(Effect.ExecuteJSActions(message.actions, message.screen))
-    is Message.ToggleChanged -> state to listOf(Effect.SetJSValue(message.binding, message.value, message.screen))
-    is Message.ValueChanged -> state to listOf(Effect.SetJSValue(message.binding, message.value, message.screen))
+    is Message.ActionsRequested ->
+        if (state.ui.exitStarted) state to emptyList()
+        else state to listOf(Effect.ExecuteJSActions(message.actions, message.screen))
+    is Message.ToggleChanged ->
+        if (state.ui.exitStarted) state to emptyList()
+        else state to listOf(Effect.SetJSValue(message.binding, message.value, message.screen))
+    is Message.ValueChanged ->
+        if (state.ui.exitStarted) state to emptyList()
+        else state to listOf(Effect.SetJSValue(message.binding, message.value, message.screen))
     is Message.TimerCompleted -> {
         val effects = mutableListOf<Effect>(Effect.ExecuteJSActions(message.actions, message.screen))
         if (message.timerId != null) {
@@ -312,6 +321,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
     }
 
     is Message.JSCallback.ChangeFocus -> {
+        if (state.ui.exitStarted) return state to emptyList()
         val effects = focusChangeEffects(state, message.focusId)
         state.copy(ui = state.ui.copy(
             focusCommand = FocusCommand(message.focusId),
@@ -320,6 +330,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
     }
 
     is Message.FocusChanged -> {
+        if (state.ui.exitStarted) return state to emptyList()
         if (state.ui.currentFocusId == message.focusId) {
             state.copy(ui = state.ui.copy(focusGeneration = state.ui.focusGeneration + 1)) to emptyList()
         } else {
@@ -535,15 +546,58 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
         ) to emptyList()
 
     is Message.FlowEntered -> {
+        if (state.ui.exitStarted || state.ui.exitCompleted) return state to emptyList()
         val effects = mutableListOf<Effect>(Effect.NotifyListener.FlowShown)
         if (state.config.viewConfig.mode.isLive() && state.config.viewConfig.isLegacyFormat)
             effects.add(0, Effect.LogShowFlow(state.config.viewConfig.mode.flow))
         val (productsState, selectionEffects) = state.products.resolvePendingSelections(flowShown = true)
-        state.copy(products = productsState, ui = state.ui.copy(flowShown = true)) to (effects + selectionEffects)
+        state.copy(
+            products = productsState,
+            ui = state.ui.copy(flowShown = true, exitStarted = false, exitCompleted = false),
+        ) to (effects + selectionEffects)
     }
-    is Message.FlowExited ->
-        state.copy(navigation = NavigationState(), ui = state.ui.copy(flowShown = false)) to
+    is Message.FlowExited -> {
+        if (state.ui.exitStarted || !state.ui.flowShown) return state to emptyList()
+
+        val visibleEntries = visibleNavigationEntries(state)
+        val focusActions = if (state.ui.currentFocusId != null) {
+            focusChangeEffects(state, null, visibleEntries)
+        } else {
+            emptyList()
+        }
+        val willDisappearActions = visibleEntries.mapNotNull { (navigatorId, entry) ->
+            val navigatorConfig = state.config.viewConfig.navigators[navigatorId]
+                ?: return@mapNotNull null
+            Effect.ExecuteJSActions(
+                resolveScreenLifecycle(
+                    LifecycleEvent.WILL_DISAPPEAR,
+                    entry,
+                    state.config.viewConfig.screens,
+                    navigatorConfig,
+                ).orEmpty(),
+                entry,
+            )
+        }
+
+        state.copy(
+            ui = state.ui.copy(
+                flowShown = false,
+                exitStarted = true,
+                exitCompleted = false,
+                focusCommand = null,
+                currentFocusId = null,
+                focusGeneration = state.ui.focusGeneration + 1,
+            ),
+        ) to listOf(Effect.FlushBeforeExit(focusActions, willDisappearActions))
+    }
+    is FlowExitFlushed -> {
+        if (!state.ui.exitStarted) state to emptyList()
+        else state.copy(
+            navigation = NavigationState(),
+            ui = state.ui.copy(exitStarted = false, exitCompleted = true),
+        ) to
             listOf(Effect.ClearActionHandler, Effect.NotifyListener.FlowClosed)
+    }
 
     is Message.AlertDialogResolved -> {
         val effects = if (message.callbackId != null)
@@ -576,10 +630,14 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
 }
 }
 
-private fun focusChangeEffects(state: FlowState, newFocusId: String?): List<Effect> {
+private fun focusChangeEffects(
+    state: FlowState,
+    newFocusId: String?,
+    entries: List<Pair<String, NavigationEntry>> = state.navigation.entries.toList(),
+): List<Effect.ExecuteJSActions> {
     val focusParams = mapOf<String, Any?>("focusId" to newFocusId, "oldFocusId" to state.ui.currentFocusId)
-    val effects = mutableListOf<Effect>()
-    for ((navId, entry) in state.navigation.entries) {
+    val effects = mutableListOf<Effect.ExecuteJSActions>()
+    for ((navId, entry) in entries) {
         val navConfig = state.config.viewConfig.navigators[navId] ?: continue
         val screen = state.config.viewConfig.screens.screens[entry.screenType]
         val actions = screen?.onFocusChange ?: navConfig.onFocusChange ?: continue
@@ -587,6 +645,16 @@ private fun focusChangeEffects(state: FlowState, newFocusId: String?): List<Effe
         effects.add(Effect.ExecuteJSActions(enhanced, entry))
     }
     return effects
+}
+
+private fun visibleNavigationEntries(state: FlowState): List<Pair<String, NavigationEntry>> {
+    val active = state.navigation.entries.toList()
+    val closing = state.navigation.closingEntries.map { (navigatorId, closingNavigator) ->
+        navigatorId to closingNavigator.entry
+    }
+    return (active + closing)
+        .distinctBy { (navigatorId) -> navigatorId }
+        .sortedByDescending { (navigatorId) -> state.config.viewConfig.navigators[navigatorId]?.order ?: Int.MIN_VALUE }
 }
 
 private fun resolveTextParam(value: String, texts: Map<String, AdaptyUI.FlowConfiguration.TextItem>): String? {

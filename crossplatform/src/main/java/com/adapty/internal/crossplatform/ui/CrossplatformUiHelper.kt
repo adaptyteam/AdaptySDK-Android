@@ -67,6 +67,7 @@ class CrossplatformUiHelper internal constructor(
                             )
                             onSuccess(Unit)
                         } ?: kotlin.run {
+                            flowUiManager.isShown = false
                             onError(AdaptyUiBridgeError.ViewPresentationError(id))
                         }
                     } else {
@@ -108,7 +109,6 @@ class CrossplatformUiHelper internal constructor(
             (activity() as? FragmentActivity)?.let { activity ->
                 activity.runOnUiThread {
                     (activity.supportFragmentManager.findFragmentByTag(id) as? AdaptyUiFlowDialogFragment)?.close()
-                    flowUiManager.isShown = false
                 }
             } ?: kotlin.run {
                 flowUiManager.removePendingDismissCallback(id, onSuccess)
@@ -119,7 +119,6 @@ class CrossplatformUiHelper internal constructor(
             (flowUiManager.getCurrentView()?.context as? AdaptyUiActivity)?.let { activity ->
                 activity.runOnUiThread {
                     activity.close()
-                    flowUiManager.isShown = false
                 }
             } ?: kotlin.run {
                 flowUiManager.removePendingDismissCallback(id, onSuccess)

@@ -134,9 +134,9 @@ internal class JSEngineWebView(
                                 }
                             }
                         }
+                    } else {
+                        delay(50)
                     }
-
-                    delay(50)
                 } catch (t: Throwable) {
                     log(ERROR) { "$LOG_PREFIX_ERROR Polling error: ${t.localizedMessage}" }
                     delay(250)
@@ -286,13 +286,19 @@ internal class JSEngineWebView(
     }
 
     private suspend fun evaluateJavascriptSuspend(script: String): String =
-        suspendCoroutine { cont ->
+        suspendCancellableCoroutine { cont ->
             try {
                 webView?.evaluateJavascript(script, ValueCallback<String> { result ->
-                    if (result == null) cont.resume("null") else cont.resume(result)
-                }) ?: cont.resumeWithException(IllegalStateException("WebView is null"))
+                    if (cont.isActive) {
+                        if (result == null) cont.resume("null") else cont.resume(result)
+                    }
+                }) ?: if (cont.isActive) {
+                    cont.resumeWithException(IllegalStateException("WebView is null"))
+                } else {
+                    Unit
+                }
             } catch (e: Exception) {
-                cont.resumeWithException(e)
+                if (cont.isActive) cont.resumeWithException(e)
             }
         }
 

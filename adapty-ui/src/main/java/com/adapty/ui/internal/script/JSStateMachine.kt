@@ -20,6 +20,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 
 internal class JSStateMachine(
@@ -31,17 +32,25 @@ internal class JSStateMachine(
     private val scope = CoroutineScope(Dispatchers.Default)
     private val initialized = CompletableDeferred<Unit>()
     @Volatile private var freshlyInitialized = false
+    private var rpcBarrierSequence = 0L
+    private var pendingRpcBarrier: Pair<String, CompletableDeferred<Unit>>? = null
 
     var onEngineStateLost: (() -> Unit)? = null
 
-    fun setActionHandler(handler: ActionHandler?) {
-        jsActionBridge.actionHandler = handler
-    }
-
     init {
+        jsActionBridge.onRpcBarrier = { id ->
+            pendingRpcBarrier
+                ?.takeIf { (pendingId) -> pendingId == id }
+                ?.second
+                ?.complete(Unit)
+        }
         scope.launch {
             initialize()
         }
+    }
+
+    fun setActionHandler(handler: ActionHandler?) {
+        jsActionBridge.actionHandler = handler
     }
 
     private suspend fun initialize() {
@@ -80,15 +89,17 @@ internal class JSStateMachine(
     }
 
     suspend fun reset() {
-        jsActionBridge.reset()
+        setActionHandler(null)
         initialized.await()
         if (freshlyInitialized) {
             freshlyInitialized = false
+            jsActionBridge.reset()
             return
         }
         try {
             jsEngine?.reset()
             setupBridgeFunctions()
+            jsActionBridge.reset()
         } catch (e: Exception) {
             log(ERROR) { "$LOG_PREFIX_ERROR Error resetting JS engine: ${e.localizedMessage}" }
         }
@@ -372,6 +383,31 @@ internal class JSStateMachine(
         }
     }
 
+    suspend fun awaitRpcDrain(): Boolean {
+        initialized.await()
+        val jsEngine = this.jsEngine ?: return true
+        val barrierId = "rpc_barrier_${++rpcBarrierSequence}"
+        val completion = CompletableDeferred<Unit>()
+        pendingRpcBarrier = barrierId to completion
+        return try {
+            val script = "postToHost({ method: ${gson.toJson(JSActionBridge.RPC_BARRIER_METHOD)}, params: { id: ${gson.toJson(barrierId)} } })"
+            jsEngine.execute(script)
+            val completed = withTimeoutOrNull(RPC_BARRIER_TIMEOUT_MILLIS) {
+                completion.await()
+                true
+            } == true
+            if (!completed) {
+                log(WARN) { "$LOG_PREFIX RPC drain barrier timed out" }
+            }
+            completed
+        } catch (e: Exception) {
+            log(WARN) { "$LOG_PREFIX RPC drain barrier failed: ${e.localizedMessage}" }
+            false
+        } finally {
+            if (pendingRpcBarrier?.first == barrierId) pendingRpcBarrier = null
+        }
+    }
+
     suspend fun getValue(key: String): Any? {
         initialized.await()
         val jsEngine = this.jsEngine ?: return null
@@ -529,6 +565,8 @@ internal class JSStateMachine(
     }
 
     fun close() {
+        pendingRpcBarrier?.second?.complete(Unit)
+        pendingRpcBarrier = null
         when (val js = jsEngine) {
             is JSEngineAndroidx -> js.close()
             is JSEngineWebView -> js.close()
@@ -548,6 +586,7 @@ internal class JSStateMachine(
     }
 
     private companion object {
+        const val RPC_BARRIER_TIMEOUT_MILLIS = 2_000L
         private val webViewFallbackReported = AtomicBoolean(false)
     }
 }

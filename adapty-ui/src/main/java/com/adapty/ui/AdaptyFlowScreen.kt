@@ -79,9 +79,11 @@ public fun AdaptyFlowScreen(
         key = flowConfiguration.id,
         factory = FlowViewModelFactory(vmArgs)
     )
-    val vmId = System.identityHashCode(viewModel)
+    val exitStarted = viewModel.state?.ui?.exitStarted == true
 
-    DisposableEffect(flowConfiguration) {
+    DisposableEffect(flowConfiguration, exitStarted) {
+        if (exitStarted) return@DisposableEffect onDispose {}
+
         val stateHandler = withAdaptyUIActivated {
             Dependencies.injectInternal<StateHandler>()
         }
@@ -101,12 +103,15 @@ public fun AdaptyFlowScreen(
             )
         }
 
-        val previousConfig = viewModel.dataState.value?.viewConfig
-        val configChangeHandoff = viewModel.configChangeHandoffPending
-        viewModel.configChangeHandoffPending = false
-        if (previousConfig === flowConfiguration && viewModel.state != null) {
-            pushData()
-        } else {
+        fun initializeFlow() {
+            val previousConfig = viewModel.dataState.value?.viewConfig
+            val configChangeHandoff = viewModel.configChangeHandoffPending
+            viewModel.configChangeHandoffPending = false
+            if (previousConfig === flowConfiguration && viewModel.state?.ui?.exitCompleted != true) {
+                pushData()
+                return
+            }
+
             if (configChangeHandoff && previousConfig != null &&
                 previousConfig.id == flowConfiguration.id && viewModel.state != null
             ) {
@@ -125,14 +130,21 @@ public fun AdaptyFlowScreen(
                 pushData()
             }
         }
+
+        var disposed = false
+        if (!viewModel.deferUntilExitCompleted { if (!disposed) initializeFlow() }) {
+            initializeFlow()
+        }
         onDispose {
+            disposed = true
             if (context.getActivityOrNull()?.isChangingConfigurations == true) {
                 viewModel.configChangeHandoffPending = true
             }
         }
     }
 
-    if (viewModel.dataState.value != null) {
+    val exitCompleted = viewModel.state?.ui?.exitCompleted == true
+    if (viewModel.dataState.value != null && !exitStarted && !exitCompleted) {
         AdaptyFlowInternal(viewModel)
     }
 }

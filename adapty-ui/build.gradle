@@ -44,8 +44,10 @@ dependencies {
 
     compileOnly project(':adapty')
     testImplementation 'junit:junit:4.13.2'
+    testImplementation project(':adapty')
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    androidTestImplementation project(':adapty')
 
     implementation platform("androidx.compose:compose-bom:$composeBom")
     api 'androidx.compose.ui:ui'

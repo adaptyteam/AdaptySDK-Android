@@ -23,7 +23,6 @@ import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyPurchaseParameters
 import com.adapty.ui.AdaptyFlowView
 import com.adapty.ui.AdaptyUI
-import com.adapty.ui.internal.ui.FlowViewModel
 import com.adapty.ui.listeners.AdaptyFlowEventListener.PermissionCallback
 import com.adapty.ui.listeners.AdaptyFlowEventListener.PurchaseParamsCallback
 import com.adapty.ui.listeners.AdaptyUiObserverModeHandler
@@ -293,13 +292,15 @@ internal class FlowUiManager(
     }
 
     fun clearFlowView(flowView: AdaptyFlowView) {
-        runCatching {
-            val method = flowView::class.java.getDeclaredMethod("getViewModel")
-            method.isAccessible = true
-            (method.invoke(flowView) as? FlowViewModel)
-                ?.dataState?.value = null
-        }
+        beginFlowExit(flowView)
         flowView.setViewTreeViewModelStoreOwner(null)
+    }
+
+    fun beginFlowExit(flowView: AdaptyFlowView): Boolean = flowView.clearFlow()
+
+    fun completeDismissalWithoutFlow(viewId: String?) {
+        isShown = false
+        viewId?.let(::invokePendingDismissCallbacks)
     }
 
     fun newFlowEventListener(
@@ -317,6 +318,7 @@ internal class FlowUiManager(
             }
 
             override fun onFlowClosed() {
+                isShown = false
                 super.onFlowClosed()
                 invokePendingDismissCallbacks(currentData.view.id)
             }

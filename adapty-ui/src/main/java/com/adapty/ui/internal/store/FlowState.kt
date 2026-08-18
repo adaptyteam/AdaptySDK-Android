@@ -83,6 +83,8 @@ internal data class NavigationState(
 internal data class UiState(
     val isLoading: Boolean,
     val flowShown: Boolean,
+    val exitStarted: Boolean = false,
+    val exitCompleted: Boolean = false,
     val scrollCommand: ScrollCommand? = null,
     val timerCommands: Map<String, TimerSetCommand> = emptyMap(),
     val focusCommand: FocusCommand? = null,

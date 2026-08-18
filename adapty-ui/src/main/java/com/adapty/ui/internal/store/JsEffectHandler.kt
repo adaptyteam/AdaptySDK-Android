@@ -6,37 +6,85 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.script.SDKGlobals
 import com.adapty.ui.internal.script.StateHandler
 import com.adapty.ui.internal.ui.NavigationEntry
+import com.adapty.ui.internal.ui.event.EventDispatcher
+import com.adapty.ui.internal.ui.event.LifecyclePhase
+import com.adapty.ui.internal.ui.element.Action
+import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.Scope
+import com.adapty.ui.internal.utils.log
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 internal class JsEffectHandler(
     private val scope: CoroutineScope,
     private val stateHandler: StateHandler,
+    private val eventDispatcher: EventDispatcher,
+    private val exitFlushTimeoutMillis: Long = EXIT_FLUSH_TIMEOUT_MILLIS,
 ) : EffectHandler {
+    private var valueWriteTail: Job? = null
+    private val valueWriteParent = SupervisorJob()
+
     override fun handle(effect: Effect, dispatch: (Message) -> Unit) {
         when (effect) {
             is Effect.ExecuteJSActions -> {
-                val jsActions = mutableListOf<com.adapty.ui.internal.ui.element.Action>()
-                for (action in effect.actions) {
-                    val shortCircuited = if (action.func.startsWith("SDK.") && action.scope == Scope.Global) {
-                        sdkActionToJSCallback(action.func, action.params)
-                    } else null
-
-                    if (shortCircuited != null) {
-                        dispatch(shortCircuited)
-                    } else {
-                        jsActions.add(action)
-                    }
-                }
+                val jsActions = dispatchSdkActions(effect.actions, dispatch)
                 if (jsActions.isNotEmpty()) {
                     scope.launch {
-                        jsActions.forEach { action -> stateHandler.executeAction(action.func, action.params, action.scope, effect.screen) }
+                        executeJsActions(jsActions, effect.screen)
                     }
                 }
             }
-            is Effect.SetJSValue -> scope.launch {
-                stateHandler.setValue(effect.binding, effect.value, effect.screen)
+            is Effect.SetJSValue -> {
+                val previousWrite = valueWriteTail
+                val writeJob = scope.launch(valueWriteParent) {
+                    previousWrite?.join()
+                    stateHandler.setValue(effect.binding, effect.value, effect.screen)
+                }
+                valueWriteTail = writeJob
+            }
+            is Effect.FlushBeforeExit -> {
+                val pendingValueWrite = valueWriteTail
+                scope.launch(NonCancellable) {
+                    var rpcDrained = false
+                    val flushCompleted = withTimeoutOrNull(exitFlushTimeoutMillis) {
+                        pendingValueWrite?.join()
+                        effect.focusActions.forEach { executeActions(it, dispatch) }
+                        effect.willDisappearActions.forEach { actions ->
+                            val screen = actions.screen
+                            val willDisappearPublished = eventDispatcher
+                                .lifecycleHistoryFor(screen.screenInstanceId, screen.epoch)
+                                .any { event -> event.phase == LifecyclePhase.WILL_DISAPPEAR }
+                            if (!willDisappearPublished) {
+                                eventDispatcher.publishLifecycle(
+                                    LifecyclePhase.WILL_DISAPPEAR,
+                                    screen.screenInstanceId,
+                                    screen.transitionId,
+                                    screen.epoch,
+                                )
+                                executeActions(actions, dispatch)
+                            }
+                        }
+                        rpcDrained = awaitRpcDrain()
+                        true
+                    } == true
+                    if (!flushCompleted) {
+                        valueWriteParent.cancelChildren()
+                        valueWriteTail = null
+                        log(WARN) { "$LOG_PREFIX Flow exit flush timed out; completing Flow exit" }
+                    } else if (!rpcDrained) {
+                        log(WARN) {
+                            "$LOG_PREFIX RPC drain barrier failed after $RPC_BARRIER_MAX_ATTEMPTS attempts; completing Flow exit"
+                        }
+                    }
+                    dispatch(FlowExitFlushed)
+                }
             }
             is Effect.RefreshStateCache -> scope.launch {
                 stateHandler.refreshState()
@@ -89,9 +137,43 @@ internal class JsEffectHandler(
             }
             is Effect.ClearActionHandler -> {
                 stateHandler.setActionHandler(null)
+                stateHandler.stateOwner = null
             }
             else -> return
         }
+    }
+
+    private suspend fun executeActions(effect: Effect.ExecuteJSActions, dispatch: (Message) -> Unit) {
+        executeJsActions(dispatchSdkActions(effect.actions, dispatch), effect.screen)
+    }
+
+    private suspend fun executeJsActions(actions: List<Action>, screen: NavigationEntry) {
+        actions.forEach { action ->
+            stateHandler.executeAction(action.func, action.params, action.scope, screen)
+        }
+    }
+
+    private fun dispatchSdkActions(actions: List<Action>, dispatch: (Message) -> Unit): List<Action> {
+        val jsActions = mutableListOf<Action>()
+        for (action in actions) {
+            val shortCircuited = if (action.func.startsWith("SDK.") && action.scope == Scope.Global) {
+                sdkActionToJSCallback(action.func, action.params)
+            } else null
+
+            if (shortCircuited != null) dispatch(shortCircuited)
+            else jsActions.add(action)
+        }
+        return jsActions
+    }
+
+    private suspend fun awaitRpcDrain(): Boolean {
+        repeat(RPC_BARRIER_MAX_ATTEMPTS) { attempt ->
+            if (stateHandler.awaitRpcDrain()) return true
+            if (attempt + 1 < RPC_BARRIER_MAX_ATTEMPTS) {
+                delay(RPC_BARRIER_RETRY_DELAY_MILLIS)
+            }
+        }
+        return false
     }
 
     private fun sdkActionToJSCallback(func: String, params: Map<String, Any?>): Message.JSCallback? {
@@ -173,5 +255,11 @@ internal class JsEffectHandler(
     private fun jsonString(value: String): String {
         val escaped = value.replace("\\", "\\\\").replace("\"", "\\\"")
         return "\"$escaped\""
+    }
+
+    private companion object {
+        const val EXIT_FLUSH_TIMEOUT_MILLIS = 6_000L
+        const val RPC_BARRIER_MAX_ATTEMPTS = 2
+        const val RPC_BARRIER_RETRY_DELAY_MILLIS = 100L
     }
 }

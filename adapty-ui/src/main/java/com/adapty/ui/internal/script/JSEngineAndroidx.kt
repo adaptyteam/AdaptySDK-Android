@@ -18,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -255,7 +256,10 @@ internal class JSEngineAndroidx(
     }
 
     override suspend fun reset() {
-        tearDownIsolate()
+        pollJob?.cancelAndJoin()
+        pollJob = null
+        try { jsIsolate?.close() } catch (_: Exception) {}
+        jsIsolate = null
         addedInterfaces.clear()
         val sandbox = jsSandbox
         if (sandbox != null) {

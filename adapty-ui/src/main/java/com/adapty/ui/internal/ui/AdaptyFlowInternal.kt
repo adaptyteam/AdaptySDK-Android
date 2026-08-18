@@ -239,7 +239,6 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
                         viewModel.activityProvider = { context.getActivityOrNull()!! }
                         onDispose {
                             viewModel.activityProvider = null
-                            viewModel.setContextAwareListener(null)
                         }
                     }
 

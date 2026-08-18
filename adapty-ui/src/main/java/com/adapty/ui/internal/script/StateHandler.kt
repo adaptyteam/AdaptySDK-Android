@@ -24,6 +24,12 @@ internal interface StateHandler {
 
     var stateOwner: Any?
 
+    fun beginFlowExit(owner: Any)
+
+    fun deferUntilFlowExitCompleted(action: () -> Unit): Boolean
+
+    fun completeFlowExit(owner: Any)
+
     suspend fun collectStateSnapshot(): Map<String, Any?>?
 
     suspend fun applyStateSnapshot(snapshot: Map<String, Any?>)
@@ -37,6 +43,8 @@ internal interface StateHandler {
     suspend fun setValue(binding: TwoWayBinding, value: Any?, screen: NavigationEntry)
 
     suspend fun executeAction(func: String, params: Map<String, Any?>, scope: Scope, screen: NavigationEntry)
+
+    suspend fun awaitRpcDrain(): Boolean
 
     suspend fun invokeTimerCallback(timerId: String)
 

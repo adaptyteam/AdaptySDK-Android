@@ -26,11 +26,13 @@ class AdaptyUiFlowDialogFragment : DialogFragment() {
         }
     }
 
-    private val flowView: AdaptyFlowView by lazy(NONE) {
+    private val flowViewLazy = lazy(NONE) {
         AdaptyFlowView(requireContext())
     }
+    private val flowView: AdaptyFlowView by flowViewLazy
 
     private val flowUiManager: FlowUiManager? by safeInject()
+    private var viewId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,19 +60,23 @@ class AdaptyUiFlowDialogFragment : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val viewId = arguments?.getString(VIEW_ID) ?: kotlin.run {
+            beginFlowExitOrCompleteDismissal()
             dismissAllowingStateLoss()
             return
         }
+        this.viewId = viewId
 
         with(flowView) {
             val currentData = flowUiManager?.getData(viewId)
                 ?: kotlin.run {
                     flowUiManager?.removeData(viewId)
+                    beginFlowExitOrCompleteDismissal()
                     dismissAllowingStateLoss()
                     return@with
                 }
             flowUiManager?.setCurrentView(this)
             val eventListener = flowUiManager?.newFlowEventListener(currentData) ?: kotlin.run {
+                beginFlowExitOrCompleteDismissal()
                 dismissAllowingStateLoss()
                 return
             }
@@ -90,19 +96,29 @@ class AdaptyUiFlowDialogFragment : DialogFragment() {
     }
 
     private fun closeView() {
+        beginFlowExitOrCompleteDismissal()
         flowUiManager?.clearCurrentView()
         dismiss()
+    }
+
+    private fun beginFlowExitOrCompleteDismissal() {
+        val waitsForFlowClosed = flowViewLazy.isInitialized() &&
+            flowUiManager?.beginFlowExit(flowView) == true
+        if (!waitsForFlowClosed) {
+            flowUiManager?.completeDismissalWithoutFlow(viewId)
+        }
     }
 
     fun close() {
         closeView()
     }
 
-    override fun onDestroy() {
+    override fun onDestroyView() {
         val isChangingConfigurations = activity?.isChangingConfigurations == true
         if (!isChangingConfigurations) {
-            flowUiManager?.isShown = false
+            beginFlowExitOrCompleteDismissal()
         }
-        super.onDestroy()
+        super.onDestroyView()
     }
+
 }

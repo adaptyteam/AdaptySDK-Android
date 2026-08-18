@@ -17,6 +17,8 @@ import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 internal interface ActionHandler {
@@ -50,16 +52,29 @@ internal interface ActionHandler {
 }
 
 private class ActionHandlerSubject {
-    private val actionQueue = LinkedBlockingQueue<(ActionHandler) -> Unit>()
+    private data class QueuedAction(
+        val generation: Long,
+        val action: (ActionHandler) -> Unit,
+    )
+
+    private val actionQueue = LinkedBlockingQueue<QueuedAction>()
+    private val acceptsActions = AtomicBoolean(true)
+    private val generation = AtomicLong()
     private val handlerRef = AtomicReference<ActionHandler?>()
     private val MAX_QUEUE_SIZE = 100
 
     fun setHandler(handler: ActionHandler?) {
-        val previous = handlerRef.getAndSet(handler)
-        if (handler != null && previous == null) {
-            drainQueue(handler)
-        } else if (handler == null && previous != null) {
+        if (handler == null) {
+            acceptsActions.set(false)
+            generation.incrementAndGet()
+            handlerRef.set(null)
             clearQueue()
+            return
+        }
+
+        val previous = handlerRef.getAndSet(handler)
+        if (acceptsActions.get() && previous == null) {
+            drainQueue(handler)
         }
     }
 
@@ -75,22 +90,30 @@ private class ActionHandlerSubject {
     }
 
     fun execute(action: (ActionHandler) -> Unit) {
+        val actionGeneration = generation.get()
+        if (!acceptsActions.get()) return
+
         val handler = handlerRef.get()
         if (handler != null) {
-            executeOnMain { action(handler) }
+            executeOnMain {
+                if (acceptsActions.get() && generation.get() == actionGeneration && handlerRef.get() === handler) {
+                    action(handler)
+                }
+            }
             drainQueueIfNeeded()
         } else {
             if (actionQueue.size >= MAX_QUEUE_SIZE) {
                 log(WARN) { "$LOG_PREFIX Action queue full, dropping action" }
                 return
             }
-            actionQueue.offer(action)
+            actionQueue.offer(QueuedAction(actionGeneration, action))
             drainQueueIfNeeded()
         }
     }
 
     fun reset() {
         clearQueue()
+        acceptsActions.set(true)
     }
 
     private fun drainQueueIfNeeded() {
@@ -101,11 +124,15 @@ private class ActionHandlerSubject {
     }
 
     private fun drainQueue(handler: ActionHandler) {
-        val actions = mutableListOf<(ActionHandler) -> Unit>()
+        val actions = mutableListOf<QueuedAction>()
         actionQueue.drainTo(actions)
-        actions.forEach { action ->
+        actions.forEach { queuedAction ->
             try {
-                executeOnMain { action(handler) }
+                executeOnMain {
+                    if (acceptsActions.get() && generation.get() == queuedAction.generation && handlerRef.get() === handler) {
+                        queuedAction.action(handler)
+                    }
+                }
             } catch (e: Exception) {
                 log(ERROR) { "$LOG_PREFIX Error executing queued action: ${e.localizedMessage}" }
             }
@@ -119,6 +146,8 @@ private class ActionHandlerSubject {
 
 internal class JSActionBridge(private val gson: Gson) {
     private val actionHandlerSubject = ActionHandlerSubject()
+
+    var onRpcBarrier: ((String) -> Unit)? = null
 
     var actionHandler: ActionHandler?
         get() = actionHandlerSubject.getHandler()
@@ -143,6 +172,11 @@ internal class JSActionBridge(private val gson: Gson) {
             val method = rpcCall["method"] as? String ?: return
             val params = rpcCall["params"] as? Map<String, Any?> ?: emptyMap()
             val promiseId = rpcCall["promiseId"] as? String
+
+            if (method == RPC_BARRIER_METHOD) {
+                (params["id"] as? String)?.let { onRpcBarrier?.invoke(it) }
+                return
+            }
             
             when (method) {
                 "logMessageFromJS" -> {
@@ -285,5 +319,9 @@ internal class JSActionBridge(private val gson: Gson) {
         } catch (e: Exception) {
             log(WARN) { "$LOG_PREFIX Invalid RPC call: $jsonString: ${e.localizedMessage}" }
         }
+    }
+
+    companion object {
+        const val RPC_BARRIER_METHOD = "__adapty_rpc_barrier__"
     }
 }
