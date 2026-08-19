@@ -11,11 +11,11 @@ internal const val RTL_VARIANT_SUFFIX = "@rtl"
 internal const val CUSTOM_ASSET_SUFFIX = "\$\$custom"
 internal const val NO_SHRINK = 0b0
 internal const val HOUR_MILLIS = 3600 * 1000L
-internal const val VERSION_NAME = "4.0.2"
+internal const val VERSION_NAME = "4.1.0"
 internal const val LOG_PREFIX = "UI v${VERSION_NAME}:"
 internal const val LOG_PREFIX_ERROR = "UI v${VERSION_NAME} error:"
-internal const val CONFIGURATION_FORMAT_VERSION = "5.0.0"
-internal const val BUILDER_VERSION = "5_0"
+internal const val CONFIGURATION_FORMAT_VERSION = "5.1.0"
+internal const val BUILDER_VERSION = "5_1"
 
 internal const val FORMAT_VERSION_5_0_0 = "5.0.0"
 

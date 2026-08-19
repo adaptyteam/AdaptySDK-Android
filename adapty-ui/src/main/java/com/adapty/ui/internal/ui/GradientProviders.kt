@@ -27,6 +27,7 @@ import com.adapty.ui.internal.ui.element.BaseProps
 import com.adapty.ui.internal.ui.element.BrushProvider
 import com.adapty.ui.internal.ui.element.LocalActiveAnimations
 import com.adapty.ui.internal.ui.element.ResolveAssets
+import com.adapty.ui.internal.ui.element.hasVisualAnimations
 import com.adapty.ui.internal.ui.element.pendingAppearAnimationsFor
 import com.adapty.ui.internal.ui.element.gradientBehaviour
 import com.adapty.ui.internal.ui.element.borderGradientBehaviour
@@ -52,7 +53,8 @@ internal fun rememberGradientProvider(
     baseProps: BaseProps,
     role: Animation.Role
 ): BrushProvider {
-    val animations = LocalActiveAnimations.current.value?.animations
+    val animations = if (!baseProps.hasVisualAnimations()) null
+    else LocalActiveAnimations.current.value?.animations
         ?.filter { anim -> anim.role == role }
         ?.takeIf { it.isNotEmpty() }
         ?.sortedBy { it.startDelayMillis }

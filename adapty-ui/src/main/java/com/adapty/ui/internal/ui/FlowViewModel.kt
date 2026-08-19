@@ -120,6 +120,11 @@ internal class FlowViewModel(
                 runtime.timerCommands = newState.ui.timerCommands
             }
         }
+        if (message is Message.AssetLoaded) {
+            newState.config.viewConfig.runtimeState.let { runtime ->
+                runtime.loadedAssets = runtime.loadedAssets + (message.id to message.asset)
+            }
+        }
         effects.forEach { effect -> handleEffect(effect) }
     }
 

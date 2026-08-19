@@ -37,7 +37,7 @@ class AdaptyUiActivity : FragmentActivity() {
                     closeView()
                     return@with
                 }
-            flowUiManager?.setCurrentView(this)
+            flowUiManager?.setCurrentView(this, viewId)
             val eventListener = flowUiManager?.newFlowEventListener(currentData) ?: kotlin.run {
                     closeView()
                     return

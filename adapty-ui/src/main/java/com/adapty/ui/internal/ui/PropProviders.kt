@@ -85,20 +85,22 @@ private fun <T> rememberBindableAnimatedValue(
     behavior: AnimationBehavior<T>,
     converter: TwoWayConverter<T, out AnimationVector>,
 ): State<T> {
-    val animatedValue = rememberAnimatedValue(behavior, converter)
     val cellWritten = remember { mutableStateOf(false) }
     val behaviorIsAnimated = behavior is AnimationBehavior.Animated &&
         behavior.singleValueAnimsOrdered.isNotEmpty()
-    val staticFallback = when (behavior) {
-        is AnimationBehavior.Static -> behavior.value
-        is AnimationBehavior.Animated -> behavior.defaultValue
-        is AnimationBehavior.None -> behavior.zero
-    }
-    val staticState = rememberUpdatedState(staticFallback)
     if (behaviorIsAnimated && !cellWritten.value) {
         cellWritten.value = true
     }
-    return if (cellWritten.value || behaviorIsAnimated) animatedValue else staticState
+    return if (cellWritten.value || behaviorIsAnimated) {
+        rememberAnimatedValue(behavior, converter)
+    } else {
+        val staticFallback = when (behavior) {
+            is AnimationBehavior.Static -> behavior.value
+            is AnimationBehavior.Animated -> behavior.defaultValue
+            is AnimationBehavior.None -> behavior.zero
+        }
+        rememberUpdatedState(staticFallback)
+    }
 }
 
 @Composable

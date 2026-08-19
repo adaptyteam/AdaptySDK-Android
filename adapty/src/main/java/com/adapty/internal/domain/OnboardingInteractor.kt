@@ -27,6 +27,12 @@ internal class OnboardingInteractor(
             .map { onboarding -> onboardingMapper.map(onboarding, locale) }
     }
 
+    fun preloadOnboarding(placementId: String, locale: String, loadTimeout: Int): Flow<Unit> =
+        onboardingFetcher.preloadOnboarding(placementId, locale, loadTimeout)
+
+    fun preloadOnboardingUntargeted(placementId: String, locale: String): Flow<Unit> =
+        onboardingFetcher.preloadOnboardingUntargeted(placementId, locale)
+
     fun logShowOnboardingInternal(
         onboarding: AdaptyOnboarding,
         screenName: String?,

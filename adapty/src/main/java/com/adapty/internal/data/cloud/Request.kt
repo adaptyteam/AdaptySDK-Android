@@ -299,7 +299,7 @@ internal class MainRequestFactory(
                 endPoint = "$inappsPrefix/$apiKeyPrefix/onboarding/variations/$id/$payloadHash/$variationId/${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
                 endpointTemplate = "$inappsPrefix/$apiKeyPrefix/onboarding/variations/id/payloadHash/variationId/"
                 headers += listOfNotNull(
-                    Request.Header("adapty-paywall-locale", locale),
+                    Request.Header("adapty-onboarding-locale", locale),
                 )
                 currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
                 systemLog = BackendAPIRequestData.GetOnboarding.create(apiKeyPrefix, id, locale, variationId)
@@ -350,20 +350,21 @@ internal class MainRequestFactory(
             }
         }
 
-    fun getFlowViewConfigurationRequest(flowId: String, viewConfigurationId: String) = buildRequest(GET) {
+    fun getFlowViewConfigurationRequest(flowId: String, versionId: String, layoutId: String? = null) = buildRequest(GET) {
         val builderVersion = metaInfoRetriever.builderVersion
-        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/$flowId/version/$viewConfigurationId/config/${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
-        endpointTemplate = "$inappsPrefix/$apiKeyPrefix/flow/flowId/version/viewConfigurationId/config/"
+        val layoutSegment = layoutId?.let { "layout/$it/" }.orEmpty()
+        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/$flowId/version/$versionId/${layoutSegment}config/${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
+        endpointTemplate = "$inappsPrefix/$apiKeyPrefix/flow/flowId/version/versionId/${if (layoutId != null) "layout/layoutId/" else ""}config/"
         headers += listOfNotNull(
             Request.Header("adapty-builder-version", builderVersion),
             metaInfoRetriever.builderSchemaVersion?.let { schemaVersion ->
                 Request.Header("adapty-builder-schema-version", schemaVersion)
             },
         )
-        systemLog = BackendAPIRequestData.GetFlowBuilder.create(flowId, viewConfigurationId)
+        systemLog = BackendAPIRequestData.GetFlowBuilder.create(flowId, versionId)
     }
 
-    fun updateAttributionRequest(
+    fun updateExternalAttributionRequest(
         attributionData: AttributionData,
     ) = cacheRepository.getProfileId().let { profileId ->
         buildRequest(POST) {
@@ -372,7 +373,7 @@ internal class MainRequestFactory(
             body = gson.toJson(attributionData)
             headers += listOf(Request.Header("Content-type", "application/json"))
             currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
-            systemLog = BackendAPIRequestData.SetAttribution.create(attributionData)
+            systemLog = BackendAPIRequestData.SetExternalAttribution.create(attributionData)
         }
     }
 
@@ -493,19 +494,20 @@ internal class AuxRequestFactory(
     }
 
     fun getFlowVariationsFallbackRequest(id: String) = buildRequest(serverCluster.fallbackBaseUrl, GET) {
-        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/variations/$id/${metaInfoRetriever.store}/fallback.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
+        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/variations/$id/${metaInfoRetriever.store}/${metaInfoRetriever.builderVersion}/fallback.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
         systemLog = BackendAPIRequestData.GetFallbackFlowVariations.create(apiKeyPrefix, id)
     }
 
     fun getFlowByVariationIdFallbackRequest(id: String, variationId: String) = buildRequest(serverCluster.fallbackBaseUrl, GET) {
-        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/variations/$id/${variationId}/${metaInfoRetriever.store}/fallback.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
+        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/variations/$id/${variationId}/${metaInfoRetriever.store}/${metaInfoRetriever.builderVersion}/fallback.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
         systemLog = BackendAPIRequestData.GetFallbackFlow.create(apiKeyPrefix, id, variationId)
     }
 
-    fun getFlowViewConfigurationFallbackRequest(flowId: String, viewConfigurationId: String) = buildRequest(serverCluster.fallbackBaseUrl, GET) {
+    fun getFlowViewConfigurationFallbackRequest(flowId: String, versionId: String, layoutId: String? = null) = buildRequest(serverCluster.fallbackBaseUrl, GET) {
         val builderVersion = metaInfoRetriever.builderVersion
-        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/$flowId/version/$viewConfigurationId/$builderVersion/config.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
-        systemLog = BackendAPIRequestData.GetFallbackFlowBuilder.create(flowId, viewConfigurationId)
+        val layoutSegment = layoutId?.let { "layout/$it/" }.orEmpty()
+        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/$flowId/version/$versionId/$layoutSegment$builderVersion/config.json${cacheRepository.getDisableCacheQueryParamOrEmpty()}"
+        systemLog = BackendAPIRequestData.GetFallbackFlowBuilder.create(flowId, versionId)
     }
 
     fun getOnboardingVariationsUntargetedRequest(id: String, locale: String) = buildRequest(serverCluster.configsCdnBaseUrl, GET) {
@@ -515,7 +517,7 @@ internal class AuxRequestFactory(
     }
 
     fun getFlowVariationsUntargetedRequest(id: String) = buildRequest(serverCluster.configsCdnBaseUrl, GET) {
-        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/variations/$id/${metaInfoRetriever.store}/fallback.json"
+        endPoint = "$inappsPrefix/$apiKeyPrefix/flow/variations/$id/${metaInfoRetriever.store}/${metaInfoRetriever.builderVersion}/fallback.json"
         systemLog = BackendAPIRequestData.GetUntargetedFlowVariations.create(apiKeyPrefix, id)
     }
 

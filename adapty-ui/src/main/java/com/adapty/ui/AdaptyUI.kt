@@ -11,6 +11,7 @@ import androidx.annotation.ColorInt
 import androidx.annotation.UiThread
 import com.adapty.Adapty
 import com.adapty.internal.di.Dependencies
+import com.adapty.internal.data.models.DeviceInfo
 import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.DEFAULT_PLACEMENT_TIMEOUT
 import com.adapty.internal.utils.HashingHelper
@@ -157,6 +158,9 @@ public object AdaptyUI {
      * @param[loadTimeout] This value limits the timeout for this method. The minimum value is 1 second.
      * If a timeout is not required, you can pass [TimeInterval.INFINITE].
      *
+     * @param[customLayoutId] If the flow defines custom layouts, the id of the layout to render.
+     * If `null`, the layout is chosen automatically based on the current device.
+     *
      * @param[callback] A result containing the [FlowConfiguration] object.
      *
      * @see <a href="https://adapty.io/docs/adapty-flow-builder">Flows</a>
@@ -167,12 +171,27 @@ public object AdaptyUI {
         flow: AdaptyFlow,
         locale: String? = null,
         loadTimeout: TimeInterval = DEFAULT_PLACEMENT_TIMEOUT,
+        customLayoutId: String? = null,
         callback: ResultCallback<FlowConfiguration>
+    ) {
+        getFlowConfigurationInternal(flow, locale, loadTimeout, customLayoutId, deviceInfoOverride = null, callback = callback)
+    }
+
+    @JvmSynthetic
+    internal fun getFlowConfigurationInternal(
+        flow: AdaptyFlow,
+        locale: String?,
+        loadTimeout: TimeInterval,
+        customLayoutId: String?,
+        deviceInfoOverride: DeviceInfo?,
+        callback: ResultCallback<FlowConfiguration>,
     ) {
         Adapty.getFlowViewConfiguration(
             flow,
             locale,
             loadTimeout,
+            customLayoutId,
+            deviceInfoOverride,
             transform = { rawConfig -> viewConfigMapper.map(rawConfig, flow) },
             callback = callback,
         )
@@ -360,6 +379,9 @@ public object AdaptyUI {
             ): Asset(customId)
         }
 
+        /**
+         * @suppress
+         */
         @InternalAdaptyApi
         public class TextItem internal constructor(
             internal val value: RichText,

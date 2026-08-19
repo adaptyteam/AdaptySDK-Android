@@ -31,7 +31,6 @@ internal class SerializationFieldNamingStrategy(
         return when (f?.declaringClass) {
             AdaptyFlow::class.java -> when (f.name) {
                 "snapshotAt" -> "response_created_at"
-                "viewConfigurationId" -> "flow_version_id"
                 "paywalls" -> "variations"
                 "id" -> "flow_id"
                 "name" -> "flow_name"

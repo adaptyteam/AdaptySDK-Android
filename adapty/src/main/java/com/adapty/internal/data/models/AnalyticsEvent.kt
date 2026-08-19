@@ -94,38 +94,6 @@ internal class AnalyticsEvent(
             }
         }
 
-        class GetPaywall private constructor(
-            val placementId: String,
-            val locale: String?,
-            val fetchPolicy: Map<String, Any>,
-            val loadTimeout: Double,
-            methodName: String
-        ) : SDKMethodRequestData(methodName) {
-
-            companion object {
-                fun create(
-                    placementId: String,
-                    locale: String?,
-                    fetchPolicy: AdaptyPlacementFetchPolicy,
-                    loadTimeoutMillis: Int,
-                ) =
-                    GetPaywall(
-                        placementId,
-                        locale,
-                        when (fetchPolicy) {
-                            is AdaptyPlacementFetchPolicy.ReloadRevalidatingCacheData -> mapOf("type" to "reload_revalidating_cache_data")
-                            is AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad -> mapOf("type" to "return_cache_data_else_load")
-                            is AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad -> mapOf(
-                                "type" to "return_cache_data_else_load",
-                                "max_age" to fetchPolicy.maxAgeMillis / 1000.0,
-                            )
-                        },
-                        loadTimeoutMillis / 1000.0,
-                        "get_paywall",
-                    )
-            }
-        }
-
         class GetPaywallProducts private constructor(
             val placementId: String,
             methodName: String
@@ -203,6 +171,29 @@ internal class AnalyticsEvent(
             }
         }
 
+        class PreloadPlacements private constructor(
+            val placementIds: List<String>,
+            val locale: String?,
+            val loadTimeout: Double?,
+            methodName: String
+        ) : SDKMethodRequestData(methodName) {
+
+            companion object {
+                fun create(
+                    placementIds: List<String>,
+                    locale: String?,
+                    loadTimeoutMillis: Int?,
+                    methodName: String,
+                ) =
+                    PreloadPlacements(
+                        placementIds,
+                        locale,
+                        loadTimeoutMillis?.let { it / 1000.0 },
+                        methodName,
+                    )
+            }
+        }
+
         class MakePurchase private constructor(
             val paywallName: String,
             val variationId: String,
@@ -223,16 +214,16 @@ internal class AnalyticsEvent(
             }
         }
 
-        class UpdateAttribution private constructor(
-            val source: String,
+        class UpdateExternalAttribution private constructor(
+            val provider: String,
             methodName: String
         ) : SDKMethodRequestData(methodName) {
 
             companion object {
-                fun create(source: String) =
-                    UpdateAttribution(
-                        source,
-                        "update_attribution",
+                fun create(provider: String) =
+                    UpdateExternalAttribution(
+                        provider,
+                        "update_external_attribution",
                     )
             }
         }
@@ -291,35 +282,6 @@ internal class AnalyticsEvent(
                         },
                         variationId,
                         "report_transaction",
-                    )
-            }
-        }
-
-        class GetUntargetedPaywall private constructor(
-            val placementId: String,
-            val locale: String?,
-            val fetchPolicy: Map<String, Any>,
-            methodName: String
-        ) : SDKMethodRequestData(methodName) {
-
-            companion object {
-                fun create(
-                    placementId: String,
-                    locale: String?,
-                    fetchPolicy: AdaptyPlacementFetchPolicy,
-                ) =
-                    GetUntargetedPaywall(
-                        placementId,
-                        locale,
-                        when (fetchPolicy) {
-                            is AdaptyPlacementFetchPolicy.ReloadRevalidatingCacheData -> mapOf("type" to "reload_revalidating_cache_data")
-                            is AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad -> mapOf("type" to "return_cache_data_else_load")
-                            is AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad -> mapOf(
-                                "type" to "return_cache_data_else_load",
-                                "max_age" to fetchPolicy.maxAgeMillis / 1000.0,
-                            )
-                        },
-                        "get_untargeted_paywall",
                     )
             }
         }
@@ -462,53 +424,6 @@ internal class AnalyticsEvent(
             }
         }
 
-        class GetFallbackPaywall private constructor(
-            val apiPrefix: String,
-            val placementId: String,
-            val languageCode: String,
-            val variationId: String,
-            methodName: String,
-        ) : BackendAPIRequestData(methodName) {
-
-            companion object {
-                fun create(
-                    apiPrefix: String,
-                    placementId: String,
-                    languageCode: String,
-                    variationId: String,
-                ) =
-                    GetFallbackPaywall(
-                        apiPrefix,
-                        placementId,
-                        languageCode,
-                        variationId,
-                        "get_fallback_paywall",
-                    )
-            }
-        }
-
-        class GetFallbackPaywallVariations private constructor(
-            val apiPrefix: String,
-            val placementId: String,
-            val languageCode: String,
-            methodName: String,
-        ) : BackendAPIRequestData(methodName) {
-
-            companion object {
-                fun create(
-                    apiPrefix: String,
-                    placementId: String,
-                    languageCode: String,
-                ) =
-                    GetFallbackPaywallVariations(
-                        apiPrefix,
-                        placementId,
-                        languageCode,
-                        "get_fallback_paywall_variations",
-                    )
-            }
-        }
-
         class GetFallbackFlowVariations private constructor(
             val apiPrefix: String,
             val placementId: String,
@@ -569,31 +484,6 @@ internal class AnalyticsEvent(
             }
         }
 
-        class GetFallbackPaywallBuilder private constructor(
-            val apiPrefix: String,
-            val paywallInstanceId: String,
-            val builderVersion: String,
-            val languageCode: String,
-            methodName: String,
-        ) : BackendAPIRequestData(methodName) {
-
-            companion object {
-                fun create(
-                    apiPrefix: String,
-                    paywallInstanceId: String,
-                    builderVersion: String,
-                    languageCode: String,
-                ) =
-                    GetFallbackPaywallBuilder(
-                        apiPrefix,
-                        paywallInstanceId,
-                        builderVersion,
-                        languageCode,
-                        "get_fallback_paywall_builder",
-                    )
-            }
-        }
-
         class GetFallbackOnboarding private constructor(
             val apiPrefix: String,
             val placementId: String,
@@ -637,95 +527,6 @@ internal class AnalyticsEvent(
                         placementId,
                         languageCode,
                         "get_fallback_onboarding_variations",
-                    )
-            }
-        }
-
-        class GetUntargetedPaywallVariations private constructor(
-            val apiPrefix: String,
-            val placementId: String,
-            val languageCode: String,
-            methodName: String,
-        ) : BackendAPIRequestData(methodName) {
-
-            companion object {
-                fun create(
-                    apiPrefix: String,
-                    placementId: String,
-                    languageCode: String,
-                ) =
-                    GetUntargetedPaywallVariations(
-                        apiPrefix,
-                        placementId,
-                        languageCode,
-                        "get_untargeted_paywall_variations",
-                    )
-            }
-        }
-
-        class GetPaywall private constructor(
-            val apiPrefix: String,
-            val placementId: String,
-            val locale: String,
-            val variationId: String,
-            methodName: String,
-        ) : BackendAPIRequestData(methodName) {
-
-            companion object {
-                fun create(
-                    apiPrefix: String,
-                    placementId: String,
-                    locale: String,
-                    variationId: String,
-                ) =
-                    GetPaywall(
-                        apiPrefix,
-                        placementId,
-                        locale,
-                        variationId,
-                        "get_paywall",
-                    )
-            }
-        }
-
-        class GetPaywallVariations private constructor(
-            val apiPrefix: String,
-            val placementId: String,
-            val locale: String,
-            val segmentId: String,
-            val md5: String,
-            methodName: String,
-        ) : BackendAPIRequestData(methodName) {
-
-            companion object {
-                fun create(
-                    apiPrefix: String,
-                    placementId: String,
-                    locale: String,
-                    segmentId: String,
-                    md5: String,
-                ) =
-                    GetPaywallVariations(
-                        apiPrefix,
-                        placementId,
-                        locale,
-                        segmentId,
-                        md5,
-                        "get_paywall_variations",
-                    )
-            }
-        }
-
-        class GetPaywallBuilder private constructor(
-            val variationId: String,
-            methodName: String,
-        ) : BackendAPIRequestData(methodName) {
-
-            companion object {
-                fun create(variationId: String) =
-                    GetPaywallBuilder(
-                        variationId,
-                        "get_paywall_builder",
                     )
             }
         }
@@ -953,16 +754,16 @@ internal class AnalyticsEvent(
             }
         }
 
-        class SetAttribution private constructor(
-            val source: String,
+        class SetExternalAttribution private constructor(
+            val provider: String,
             methodName: String,
         ) : BackendAPIRequestData(methodName) {
 
             companion object {
                 fun create(attributionData: AttributionData) =
-                    SetAttribution(
-                        attributionData.source,
-                        "set_attribution",
+                    SetExternalAttribution(
+                        attributionData.provider,
+                        "set_external_attribution",
                     )
             }
         }

@@ -61,6 +61,7 @@ import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorVertical
 import com.adapty.ui.internal.ui.attributes.EdgeEntities
 import com.adapty.ui.internal.ui.attributes.hasAnyNegative
 import com.adapty.ui.internal.ui.attributes.Offset
+import com.adapty.ui.internal.ui.attributes.asDpOffset
 import com.adapty.ui.internal.ui.attributes.asTransformOrigin
 import com.adapty.ui.internal.ui.attributes.degreesIn
 import com.adapty.ui.internal.ui.attributes.horizontalSumOrDefault
@@ -98,6 +99,7 @@ import com.adapty.ui.internal.ui.element.BlurProvider
 import com.adapty.ui.internal.ui.element.InnerShadowProvider
 import com.adapty.ui.internal.ui.element.LocalActiveAnimations
 import com.adapty.ui.internal.ui.element.activeAnimationsFor
+import com.adapty.ui.internal.ui.element.hasVisualAnimations
 import com.adapty.ui.internal.ui.element.pendingAppearAnimationsFor
 import com.adapty.ui.internal.ui.element.OverlayContainerElement
 import com.adapty.ui.internal.ui.element.ShadowProvider
@@ -119,6 +121,9 @@ internal fun Modifier.fillWithBaseParams(
     isOverlayContainer: Boolean = false,
     handlesOwnFocus: Boolean = false,
 ): Modifier {
+    if (!baseProps.hasVisualAnimations()) {
+        return fillWithBaseParamsStatic(baseProps, isOverlayContainer, handlesOwnFocus)
+    }
     val rotationProvider = rememberRotationProvider(baseProps)
     val scaleProvider = rememberScaleProvider(baseProps)
     val offsetProvider = rememberOffsetProvider(baseProps)
@@ -188,6 +193,158 @@ internal fun Modifier.fillWithBaseParams(
     }
 
     return result
+}
+
+private val UnspecifiedDpState = androidx.compose.runtime.mutableStateOf(Dp.Unspecified)
+private val StaticBoxProvider = BoxProvider(UnspecifiedDpState, UnspecifiedDpState)
+
+@Composable
+private fun Modifier.fillWithBaseParamsStatic(
+    baseProps: BaseProps,
+    isOverlayContainer: Boolean,
+    handlesOwnFocus: Boolean,
+): Modifier {
+    val rotation = baseProps.rotation ?: Rotation.Default
+    val scale = baseProps.scale ?: Scale.Default
+    val alpha = LocalOpacityProvider.current?.alpha?.value ?: baseProps.opacity
+    val anchorLayoutDirection = LocalLayoutDirection.current
+    val rotationOrigin = rotation.anchor.asTransformOrigin(anchorLayoutDirection)
+    val scaleOrigin = scale.anchor.asTransformOrigin(anchorLayoutDirection)
+
+    val focusId = baseProps.focusId
+    val focusRequester =
+        if (focusId != null && !handlesOwnFocus) remember(focusId) { FocusRequester() } else null
+    val focusCommand = LocalFocusCommand.current
+
+    if (focusId != null && focusRequester != null && focusCommand?.focusId == focusId) {
+        val dispatch = LocalDispatch.current
+        LaunchedEffect(focusCommand) {
+            runCatching { focusRequester.requestFocus() }
+            dispatch(Message.FocusCommandConsumed)
+        }
+    }
+
+    val backgroundShape = baseProps.shape?.type?.toComposeShape()
+
+    val shadow = baseProps.shape?.shadow
+    val shadowColor = shadow?.color?.resolveAsset<Asset.Filling.Local>()
+        ?.castOrNull<Asset.Color>()?.toComposeFill()?.color
+        ?: androidx.compose.ui.graphics.Color.Transparent
+    val shadowBlurRadius = shadow?.blurRadius ?: 0f
+    val shadowOffset = (shadow?.offset ?: Offset.Default).asDpOffset()
+    val staticCaptureExpand =
+        if (shadowColor.alpha == 0f) 0.dp
+        else (shadowBlurRadius + maxOf(kotlin.math.abs(shadowOffset.x), kotlin.math.abs(shadowOffset.y))).dp
+
+    val staticOffset = baseProps.offset?.asDpOffset()
+    val blurRadius = baseProps.shape?.blurRadius ?: 0f
+
+    var result = this
+        .sizeAndMarginsOrSkip(baseProps, StaticBoxProvider)
+        .let {
+            if (rotation.anchor == scale.anchor && scale.x == scale.y)
+                it.graphicsLayer(
+                    rotationZ = rotation.degreesIn(anchorLayoutDirection),
+                    transformOrigin = rotationOrigin,
+                    scaleX = scale.x,
+                    scaleY = scale.y,
+                )
+            else
+                it
+                    .graphicsLayer(
+                        scaleX = scale.x,
+                        scaleY = scale.y,
+                        transformOrigin = scaleOrigin,
+                    )
+                    .graphicsLayer(
+                        rotationZ = rotation.degreesIn(anchorLayoutDirection),
+                        transformOrigin = rotationOrigin,
+                    )
+        }
+        .let {
+            if (staticOffset == null || (staticOffset.x == 0f && staticOffset.y == 0f)) it
+            else it.then(StaticOffsetElement(staticOffset.x.dp, staticOffset.y.dp))
+        }
+        .let {
+            if (isOverlayContainer || blurRadius <= 0f) it
+            else it.blur(blurRadius.dp, staticCaptureExpand)
+        }
+        .let {
+            if (isOverlayContainer) it
+            else {
+                val color =
+                    if (alpha < 1f) shadowColor.copy(alpha = shadowColor.alpha * alpha) else shadowColor
+                if (color.alpha == 0f) it
+                else it.shadow(color, backgroundShape ?: RectangleShape, shadowBlurRadius.dp, shadowOffset, rotation, scale)
+            }
+        }
+        .let { if (alpha != 1f) it.graphicsLayer(alpha = alpha) else it }
+        .clipToShapeOrSkip(backgroundShape)
+        .backgroundOrSkipStatic(baseProps)
+
+    if (focusRequester != null) {
+        result = result.focusRequester(focusRequester).focusable()
+    }
+
+    return result
+}
+
+@Composable
+private fun Modifier.backgroundOrSkipStatic(baseProps: BaseProps): Modifier {
+    val decorator = baseProps.shape ?: return this
+    var modifier = this
+    val backgroundShape = decorator.type.toComposeShape()
+    if (decorator.fill != null) {
+        val background = decorator.fill.resolveAsset<Asset.Filling.Local>()
+        if (background != null)
+            modifier = modifier.background(background, backgroundShape)
+        val innerShadow = decorator.innerShadow
+        if (innerShadow != null &&
+            (background?.main is Asset.Color || background?.main is Asset.Gradient)) {
+            val innerShadowColor = innerShadow.color?.resolveAsset<Asset.Filling.Local>()
+                ?.castOrNull<Asset.Color>()?.toComposeFill()?.color
+                ?: androidx.compose.ui.graphics.Color.Transparent
+            if (innerShadowColor.alpha != 0f) {
+                modifier = modifier.innerShadow(
+                    innerShadowColor,
+                    backgroundShape,
+                    (innerShadow.blurRadius ?: 0f).dp,
+                    (innerShadow.offset ?: Offset.Default).asDpOffset(),
+                )
+            }
+        }
+    }
+
+    if (decorator.border != null) {
+        val border = decorator.border.color.resolveAsset<Asset.Filling.Local>()
+        val borderShape = decorator.border.shapeType.toComposeShape()
+        val thickness = decorator.border.thickness.dp
+        when (border?.main) {
+            is Asset.Color -> {
+                modifier = modifier.border(
+                    thickness,
+                    border.cast<Asset.Color>().toComposeFill().color,
+                    borderShape,
+                )
+            }
+            is Asset.Gradient -> {
+                modifier = modifier.border(
+                    thickness,
+                    border.cast<Asset.Gradient>().toComposeFill().shader,
+                    borderShape,
+                )
+            }
+            is Asset.Image -> {
+                modifier = modifier.border(
+                    thickness,
+                    androidx.compose.ui.graphics.Color.Transparent,
+                    borderShape,
+                )
+            }
+            else -> Unit
+        }
+    }
+    return modifier
 }
 
 @Composable
@@ -316,7 +473,8 @@ private fun Modifier.background(
     shape: Shape,
     baseProps: BaseProps,
 ): Modifier {
-    val backgroundAnimations = activeAnimationsFor(Animation.Role.Background)
+    val backgroundAnimations = if (!baseProps.hasVisualAnimations()) null
+    else activeAnimationsFor(Animation.Role.Background)
         ?: baseProps.pendingAppearAnimationsFor(Animation.Role.Background)
 
     val hasMixedAssetTypeAnimations = backgroundAnimations?.let { animations ->
@@ -433,7 +591,8 @@ private fun Modifier.border(
     shape: Shape,
     baseProps: BaseProps,
 ): Modifier {
-    val borderAnimations = activeAnimationsFor(Animation.Role.Border)
+    val borderAnimations = if (!baseProps.hasVisualAnimations()) null
+    else activeAnimationsFor(Animation.Role.Border)
         ?: baseProps.pendingAppearAnimationsFor(Animation.Role.Border)
 
     val hasMixedAssetTypeAnimations = borderAnimations?.let { animations ->

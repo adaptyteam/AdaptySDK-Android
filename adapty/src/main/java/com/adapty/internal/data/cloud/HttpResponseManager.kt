@@ -70,7 +70,7 @@ internal class DefaultHttpResponseManager(
             request.systemLog?.let { customData ->
                 analyticsTracker.trackSystemEvent(BackendAPIResponseData.create(requestId, connection.headerFields, customData))
             }
-            return Response(bodyConverter.convert(responseStr, typeOfT), request)
+            return Response(bodyConverter.convert(responseStr, typeOfT), request, responseStr)
 
         } else {
             val responseStr = toStringUtf8(connection.errorStream, isInGzip)

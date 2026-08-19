@@ -3,7 +3,7 @@ package com.adapty.example
 import androidx.multidex.MultiDex
 import androidx.multidex.MultiDexApplication
 import com.adapty.Adapty
-import com.adapty.models.AdaptyAttributionSource
+import com.adapty.models.AdaptyExternalAttributionProvider
 import com.adapty.models.AdaptyConfig
 import com.adapty.models.AdaptyIntegrationIdentifier
 import com.adapty.utils.AdaptyLogLevel
@@ -30,7 +30,7 @@ class App : MultiDexApplication() {
                         // handle the error
                     }
                 }
-                Adapty.updateAttribution(conversionData, AdaptyAttributionSource.APPSFLYER) { error ->
+                Adapty.updateExternalAttribution(conversionData, AdaptyExternalAttributionProvider.APPSFLYER) { error ->
                     //
                 }
             }

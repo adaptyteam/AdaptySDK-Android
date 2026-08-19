@@ -62,7 +62,7 @@ internal sealed interface Effect {
 
     data class LogFlowEvent(
         val flow: AdaptyFlow,
-        val viewConfigurationId: String,
+        val versionId: String,
         val name: String,
         val params: Map<String, Any?>,
     ) : Effect

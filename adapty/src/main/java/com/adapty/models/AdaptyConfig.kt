@@ -8,6 +8,7 @@ public class AdaptyConfig private constructor(
     @get:JvmSynthetic internal val enablePendingPrepaidPlans: Boolean,
     @get:JvmSynthetic internal val ipAddressCollectionDisabled: Boolean,
     @get:JvmSynthetic internal val adIdCollectionDisabled: Boolean,
+    @get:JvmSynthetic internal val adaptyAttributionEnabled: Boolean,
     @get:JvmSynthetic internal val serverCluster: ServerCluster,
     @get:JvmSynthetic internal val customProcessName: String?,
     @get:JvmSynthetic internal val allowLocalPAL: Boolean,
@@ -30,6 +31,8 @@ public class AdaptyConfig private constructor(
         private var ipAddressCollectionDisabled = false
 
         private var adIdCollectionDisabled = false
+
+        private var adaptyAttributionEnabled = false
 
         private var allowLocalPAL = false
 
@@ -90,6 +93,16 @@ public class AdaptyConfig private constructor(
             return this
         }
 
+        /**
+         * @param[enabled] A boolean value that enables the [Adapty Attribution](https://adapty.io/docs/user-acquisition) service (install registration).
+         *
+         * Default value is `false`.
+         */
+        public fun withAdaptyAttributionEnabled(enabled: Boolean): Builder {
+            this.adaptyAttributionEnabled = enabled
+            return this
+        }
+
         public fun withServerCluster(serverCluster: ServerCluster): Builder {
             this.serverCluster = serverCluster
             return this
@@ -129,6 +142,7 @@ public class AdaptyConfig private constructor(
                 enablePendingPrepaidPlans,
                 ipAddressCollectionDisabled,
                 adIdCollectionDisabled,
+                adaptyAttributionEnabled,
                 serverCluster,
                 customProcessName,
                 allowLocalPAL,

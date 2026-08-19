@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.store.Message
@@ -88,11 +89,18 @@ public abstract class BaseTextElement(
                 }
                 val overflowAtMin = overflowAtMinState.value
                 val fontSize = if (overflowAtMin != null) autoSize?.minFontSize?.value ?: originalFontSize else originalFontSize
-                val lineHeightStyle = if (overflowAtMin?.heightOverflow == true)
-                    LineHeightStyle.Default.copy(alignment = LineHeightStyle.Alignment.Top)
-                else
-                    null
-                val resolvedLineHeight = elementTextAttrs.lineHeight?.sp ?: defaultLineHeight(autoSize, originalFontSize, elementTextAttrs.typeface)
+                val lineHeightStyle = when {
+                    overflowAtMin?.heightOverflow == true ->
+                        LineHeightStyle.Default.copy(alignment = LineHeightStyle.Alignment.Top)
+                    elementTextAttrs.lineHeight != null ->
+                        LineHeightStyle(
+                            alignment = LineHeightStyle.Alignment.Proportional,
+                            trim = LineHeightStyle.Trim.Both,
+                            mode = LineHeightStyle.Mode.Minimum,
+                        )
+                    else -> null
+                }
+                val resolvedLineHeight = resolveLineHeight(elementTextAttrs.lineHeight, autoSize, originalFontSize, elementTextAttrs.typeface)
                 val textStyle = LocalTextStyle.current.merge(
                     platformStyle = PlatformTextStyle(includeFontPadding = false),
                     color = text.attrs?.textColor ?: elementTextAttrs.textColor ?: DEFAULT_TEXT_COLOR,
@@ -158,11 +166,18 @@ public abstract class BaseTextElement(
                 }
                 val overflowAtMin = overflowAtMinState.value
                 val fontSize = if (overflowAtMin != null) autoSize?.minFontSize?.value ?: originalFontSize else originalFontSize
-                val lineHeightStyle = if (overflowAtMin?.heightOverflow == true)
-                    LineHeightStyle.Default.copy(alignment = LineHeightStyle.Alignment.Top)
-                else
-                    null
-                val resolvedLineHeight = elementTextAttrs.lineHeight?.sp ?: defaultLineHeight(autoSize, originalFontSize, elementTextAttrs.typeface)
+                val lineHeightStyle = when {
+                    overflowAtMin?.heightOverflow == true ->
+                        LineHeightStyle.Default.copy(alignment = LineHeightStyle.Alignment.Top)
+                    elementTextAttrs.lineHeight != null ->
+                        LineHeightStyle(
+                            alignment = LineHeightStyle.Alignment.Proportional,
+                            trim = LineHeightStyle.Trim.Both,
+                            mode = LineHeightStyle.Mode.Minimum,
+                        )
+                    else -> null
+                }
+                val resolvedLineHeight = resolveLineHeight(elementTextAttrs.lineHeight, autoSize, originalFontSize, elementTextAttrs.typeface)
                 val heightFit = rememberHeightFitController(contentKey, maxLines, onOverflow == null)
                 BasicText(
                     text = text.value,
@@ -250,18 +265,24 @@ public abstract class BaseTextElement(
         }
 
     @Composable
+    private fun resolveLineHeight(explicit: Float?, autoSize: TextAutoSize?, fontSize: Float, typeface: android.graphics.Typeface?): TextUnit {
+        if (explicit != null) return if (autoSize != null) (explicit / fontSize).em else explicit.sp
+        return defaultLineHeight(autoSize, fontSize, typeface)
+    }
+
+    @Composable
     private fun defaultLineHeight(autoSize: TextAutoSize?, fontSize: Float, typeface: android.graphics.Typeface?): TextUnit {
-        if (autoSize != null) return fontSize.sp
-        return remember(fontSize, typeface) {
+        val naturalSp = remember(fontSize, typeface) {
             val density = android.content.res.Resources.getSystem().displayMetrics.density
             val paint = android.text.TextPaint()
             paint.textSize = fontSize * density
             if (typeface != null) paint.typeface = typeface
             val metrics = paint.fontMetrics
             val naturalPx = metrics.descent - metrics.ascent + metrics.leading
-            val naturalSp = naturalPx / density
-            naturalSp.sp
+            naturalPx / density
         }
+        if (autoSize != null) return (naturalSp / fontSize).em
+        return naturalSp.sp
     }
 
     private fun createAutoSize(

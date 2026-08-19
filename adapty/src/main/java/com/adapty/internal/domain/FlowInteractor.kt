@@ -7,20 +7,23 @@ import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
+import com.adapty.internal.data.models.DeviceInfo
 import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
+import com.adapty.internal.utils.DeviceInfoResolver
 import com.adapty.internal.utils.FlowMapper
 import com.adapty.internal.utils.INF_PLACEMENT_TIMEOUT_MILLIS
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.PLACEMENT_TIMEOUT_MILLIS_SHIFT
+import com.adapty.internal.utils.TimeoutException
 import com.adapty.internal.utils.timeout
 import com.adapty.models.AdaptyFlow
 import com.adapty.models.AdaptyPlacementFetchPolicy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flattenConcat
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import java.util.concurrent.TimeoutException
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class FlowInteractor(
@@ -29,6 +32,7 @@ internal class FlowInteractor(
     private val authInteractor: AuthInteractor,
     private val cloudRepository: CloudRepository,
     private val cacheRepository: CacheRepository,
+    private val deviceInfoResolver: DeviceInfoResolver,
 ) {
 
     fun getFlow(placementId: String, fetchPolicy: AdaptyPlacementFetchPolicy, loadTimeout: Int): Flow<AdaptyFlow> =
@@ -39,30 +43,46 @@ internal class FlowInteractor(
         flowFetcher.fetchFlowUntargeted(placementId, fetchPolicy)
             .map { flow -> flowMapper.map(flow) }
 
-    fun getViewConfiguration(flow: AdaptyFlow, locale: String?, loadTimeout: Int): Flow<Map<String, Any>> {
+    fun preloadFlow(placementId: String, loadTimeout: Int): Flow<Unit> =
+        flowFetcher.preloadFlow(placementId, loadTimeout)
+
+    fun preloadFlowUntargeted(placementId: String): Flow<Unit> =
+        flowFetcher.preloadFlowUntargeted(placementId)
+
+    fun getViewConfiguration(
+        flow: AdaptyFlow,
+        locale: String?,
+        loadTimeout: Int,
+        customLayoutId: String? = null,
+        deviceInfoOverride: DeviceInfo? = null,
+    ): Flow<Map<String, Any>> {
         val locale = locale?.trim()?.takeIf { it.isNotEmpty() } ?: DEFAULT_PLACEMENT_LOCALE
-        val viewConfigurationId = flow.viewConfigurationId ?: return flow {
-            throw AdaptyError(
-                message = "View configuration has not been found for the requested flow",
-                adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER,
-            )
-        }
+        val layoutsConfiguration = flow.layoutsConfiguration ?: return noViewConfigurationError()
+        val flowLayout = try {
+            layoutsConfiguration.getLayout(deviceInfoOverride ?: deviceInfoResolver.current(), customLayoutId)
+        } catch (e: AdaptyError) {
+            return flow { throw e }
+        } ?: return noViewConfigurationError()
+        val versionId = flowLayout.versionId
+        val layoutId = flowLayout.id
 
         flow.viewConfig?.let { embeddedConfig ->
-            return flowOf(wrapViewConfigIfNeeded(embeddedConfig, viewConfigurationId, locale))
+            return flowOf(wrapViewConfigIfNeeded(embeddedConfig, versionId, locale))
         }
 
         val isTestUser = cacheRepository.getProfile()?.isTestUser == true
 
         if (!isTestUser) {
-            getLocalViewConfig(flow.id, viewConfigurationId)?.let { localConfig ->
-                return flowOf(wrapViewConfigIfNeeded(localConfig, viewConfigurationId, locale))
+            getLocalViewConfig(flow.id, versionId, layoutId)?.let { localConfig ->
+                return flowOf(wrapViewConfigIfNeeded(localConfig, versionId, locale))
             }
         }
 
-        val baseFlow = authInteractor.runWhenAuthDataSynced {
-            cloudRepository.getFlowViewConfigurationFallback(flow.id, viewConfigurationId).data
-        }
+        val baseFlow = authInteractor.runWhenAuthDataSynced(
+            call = {
+                flow { emit(cloudRepository.getFlowViewConfigurationFallback(flow.id, versionId, layoutId).data) }
+            },
+        ).flattenConcat()
 
         return (if (loadTimeout == INF_PLACEMENT_TIMEOUT_MILLIS) {
             baseFlow
@@ -74,26 +94,33 @@ internal class FlowInteractor(
                     throw e
                 if (e !is TimeoutException && e !is AdaptyError)
                     throw e
-                emit(cloudRepository.getFlowViewConfiguration(flow.id, viewConfigurationId).data)
+                emit(cloudRepository.getFlowViewConfiguration(flow.id, versionId, layoutId).data)
             }
             .catch { e ->
                 if (!isTestUser || (e !is TimeoutException && e !is AdaptyError))
                     throw e
-                emit(getLocalViewConfig(flow.id, viewConfigurationId) ?: throw e)
+                emit(getLocalViewConfig(flow.id, versionId, layoutId) ?: throw e)
             }
             .map { rawConfig ->
-                cacheRepository.saveFlowViewConfig(flow.id, viewConfigurationId, rawConfig)
-                wrapViewConfigIfNeeded(rawConfig, viewConfigurationId, locale)
+                cacheRepository.saveFlowViewConfig(flow.id, versionId, layoutId, rawConfig)
+                wrapViewConfigIfNeeded(rawConfig, versionId, locale)
             }
     }
 
-    private fun getLocalViewConfig(flowId: String, viewConfigurationId: String): Map<String, Any>? =
-        cacheRepository.getFlowViewConfig(flowId, viewConfigurationId)
-            ?: cacheRepository.getFlowViewConfigFallback(viewConfigurationId)
+    private fun noViewConfigurationError(): Flow<Map<String, Any>> = flow {
+        throw AdaptyError(
+            message = "View configuration has not been found for the requested flow",
+            adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER,
+        )
+    }
+
+    private fun getLocalViewConfig(flowId: String, versionId: String, layoutId: String?): Map<String, Any>? =
+        cacheRepository.getFlowViewConfig(flowId, versionId, layoutId)
+            ?: layoutId?.let { cacheRepository.getFlowViewConfigFallback(it) }
 
     private fun wrapViewConfigIfNeeded(
         rawConfig: Map<String, Any>,
-        viewConfigurationId: String,
+        versionId: String,
         locale: String?,
     ): Map<String, Any> {
         val alreadyWrapped = rawConfig.containsKey(PAYWALL_BUILDER_CONFIG_KEY) ||
@@ -101,7 +128,7 @@ internal class FlowInteractor(
         if (alreadyWrapped) return rawConfig
 
         return buildMap {
-            put(PAYWALL_BUILDER_ID_KEY, viewConfigurationId)
+            put(PAYWALL_BUILDER_ID_KEY, versionId)
             put(PAYWALL_BUILDER_CONFIG_KEY, rawConfig)
             if (locale != null) put(LANG_KEY, locale)
         }

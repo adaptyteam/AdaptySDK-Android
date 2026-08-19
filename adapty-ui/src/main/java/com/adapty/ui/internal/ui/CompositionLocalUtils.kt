@@ -100,3 +100,5 @@ internal val LocalCurrentFocusId = compositionLocalOf<String?> { null }
 internal val LocalDispatch = compositionLocalOf<(Message) -> Unit> { {} }
 
 internal val LocalUiEnabled = compositionLocalOf { true }
+
+internal val LocalInsideButton = compositionLocalOf { false }

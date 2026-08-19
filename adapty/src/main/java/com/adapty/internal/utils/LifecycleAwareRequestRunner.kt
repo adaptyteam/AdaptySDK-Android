@@ -8,7 +8,7 @@ import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.AnalyticsTracker
 import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.domain.PurchasesInteractor
-import com.adapty.internal.domain.UserAcquisitionInteractor
+import com.adapty.internal.domain.AdaptyAttributionInteractor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class LifecycleAwareRequestRunner(
     lifecycleManager: LifecycleManager,
     private val profileInteractor: ProfileInteractor,
-    private val userAcquisitionInteractor: UserAcquisitionInteractor,
+    private val adaptyAttributionInteractor: AdaptyAttributionInteractor,
     private val purchasesInteractor: PurchasesInteractor,
     private val analyticsTracker: AnalyticsTracker,
     private val cacheRepository: CacheRepository,
@@ -133,7 +133,7 @@ internal class LifecycleAwareRequestRunner(
 
     private fun handleRegisterInstall() {
         execute {
-            userAcquisitionInteractor
+            adaptyAttributionInteractor
                 .registerInstall()
                 .catch { }
                 .collect()

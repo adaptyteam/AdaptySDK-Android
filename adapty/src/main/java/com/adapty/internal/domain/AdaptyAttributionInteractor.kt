@@ -33,7 +33,7 @@ import java.util.Calendar
 import kotlin.math.pow
 import kotlin.random.Random
 
-internal class UserAcquisitionInteractor(
+internal class AdaptyAttributionInteractor(
     private val authInteractor: AuthInteractor,
     private val referrerManager: ReferrerManager,
     private val adIdRetriever: AdIdRetriever,

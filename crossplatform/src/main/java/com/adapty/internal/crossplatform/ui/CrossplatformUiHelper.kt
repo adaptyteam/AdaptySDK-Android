@@ -99,34 +99,55 @@ class CrossplatformUiHelper internal constructor(
 
     fun handleDismissView(
         id: String,
+        destroy: Boolean,
         onSuccess: Callback<Unit>,
         onError: Callback<AdaptyUiBridgeError>,
     ) {
-        flowUiManager.addPendingDismissCallback(id, onSuccess)
-        clearFlowUiDataCache(id)
+        if (!flowUiManager.hasData(id)) {
+            onError(AdaptyUiBridgeError.ViewNotFound(id))
+            return
+        }
         if (isPresentationEmbedded) {
             (activity() as? FragmentActivity)?.let { activity ->
                 activity.runOnUiThread {
-                    (activity.supportFragmentManager.findFragmentByTag(id) as? AdaptyUiFlowDialogFragment)?.close()
-                    flowUiManager.isShown = false
+                    val fragment =
+                        activity.supportFragmentManager.findFragmentByTag(id) as? AdaptyUiFlowDialogFragment
+                    if (fragment != null) {
+                        flowUiManager.addPendingDismissCallback(id, onSuccess)
+                        if (destroy) {
+                            clearFlowUiDataCache(id)
+                        }
+                        fragment.close()
+                        flowUiManager.isShown = false
+                    } else {
+                        dismissNotPresentedView(id, destroy, onSuccess)
+                    }
                 }
             } ?: kotlin.run {
-                flowUiManager.removePendingDismissCallback(id, onSuccess)
-                onError(AdaptyUiBridgeError.ViewNotFound(id))
-                return
+                dismissNotPresentedView(id, destroy, onSuccess)
             }
         } else {
-            (flowUiManager.getCurrentView()?.context as? AdaptyUiActivity)?.let { activity ->
-                activity.runOnUiThread {
-                    activity.close()
+            val currentActivity = flowUiManager.getCurrentView()?.context as? AdaptyUiActivity
+            if (currentActivity != null && flowUiManager.currentViewId == id) {
+                flowUiManager.addPendingDismissCallback(id, onSuccess)
+                if (destroy) {
+                    clearFlowUiDataCache(id)
+                }
+                currentActivity.runOnUiThread {
+                    currentActivity.close()
                     flowUiManager.isShown = false
                 }
-            } ?: kotlin.run {
-                flowUiManager.removePendingDismissCallback(id, onSuccess)
-                onError(AdaptyUiBridgeError.ViewNotFound(id))
-                return
+            } else {
+                dismissNotPresentedView(id, destroy, onSuccess)
             }
         }
+    }
+
+    private fun dismissNotPresentedView(id: String, destroy: Boolean, onSuccess: Callback<Unit>) {
+        if (destroy) {
+            clearFlowUiDataCache(id)
+        }
+        onSuccess(Unit)
     }
 
     fun answerPermission(eventId: String, granted: Boolean, detail: String?) {
@@ -333,10 +354,13 @@ class CrossplatformUiHelper internal constructor(
 
     fun handleDismissOnboardingView(
         id: String,
+        destroy: Boolean,
         onSuccess: Callback<Unit>,
         onError: Callback<AdaptyUiBridgeError>,
     ) {
-        clearOnboardingUiDataCache(id)
+        if (destroy) {
+            clearOnboardingUiDataCache(id)
+        }
         if (isPresentationEmbedded) {
             (activity() as? FragmentActivity)?.let { activity ->
                 activity.runOnUiThread {

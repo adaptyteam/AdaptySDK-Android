@@ -6,7 +6,7 @@ import android.content.Context
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.data.models.FallbackPaywallsInfo
+import com.adapty.internal.data.models.FallbackVariationsInfo
 import com.adapty.internal.data.models.FallbackVariations
 import com.adapty.utils.AdaptyLogLevel
 import com.adapty.utils.FileLocation
@@ -18,11 +18,11 @@ import java.io.InputStream
 import java.io.Reader
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class FallbackPaywallRetriever(
+internal class FallbackVariationRetriever(
     private val appContext: Context,
     private val gson: Gson,
 ) {
-    fun getMetaInfo(source: FileLocation): FallbackPaywallsInfo {
+    fun getMetaInfo(source: FileLocation): FallbackVariationsInfo {
         return when (source) {
             is FileLocation.Uri -> getMetaInfo(source) {
                 appContext.contentResolver.openInputStream(source.uri)
@@ -33,24 +33,24 @@ internal class FallbackPaywallRetriever(
         }
     }
 
-    private fun getMetaInfo(source: FileLocation, createInputStream: () -> InputStream?): FallbackPaywallsInfo {
+    private fun getMetaInfo(source: FileLocation, createInputStream: () -> InputStream?): FallbackVariationsInfo {
         return try {
             createInputStream()?.reader()?.use { reader ->
-                val fallbackPaywallsInfo = gson.fromJson<FallbackPaywallsInfo>(reader, FallbackPaywallsInfo::class.java)
-                val version = fallbackPaywallsInfo.meta.version
-                if (version < CURRENT_FALLBACK_PAYWALL_VERSION) {
+                val fallbackVariationsInfo = gson.fromJson<FallbackVariationsInfo>(reader, FallbackVariationsInfo::class.java)
+                val version = fallbackVariationsInfo.meta.version
+                if (version < CURRENT_FALLBACK_FILE_VERSION) {
                     throw AdaptyError(
                         message = "The fallback file version is not correct. Download a new one from the Adapty Dashboard.",
                         adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER,
                     )
-                } else if (version > CURRENT_FALLBACK_PAYWALL_VERSION) {
+                } else if (version > CURRENT_FALLBACK_FILE_VERSION) {
                     throw AdaptyError(
                         message = "The fallback file version is not correct. Please update the AdaptySDK.",
                         adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER,
                     )
                 }
 
-                fallbackPaywallsInfo.copy(location = source)
+                fallbackVariationsInfo.copy(location = source)
             } ?: throw AdaptyError(
                 message = "Couldn't open fallback file.",
                 adaptyErrorCode = AdaptyErrorCode.WRONG_PARAMETER,
@@ -67,29 +67,29 @@ internal class FallbackPaywallRetriever(
         }
     }
 
-    fun getPaywall(source: FileLocation, placementId: String): FallbackVariations? {
+    fun getVariations(source: FileLocation, placementId: String): FallbackVariations? {
         return when (source) {
-            is FileLocation.Uri -> getPaywall(placementId) {
+            is FileLocation.Uri -> getVariations(placementId) {
                 appContext.contentResolver.openInputStream(source.uri)
             }
-            is FileLocation.Asset -> getPaywall(placementId) {
+            is FileLocation.Asset -> getVariations(placementId) {
                 appContext.assets?.open(source.relativePath)
             }
         }
     }
 
-    private fun getPaywall(placementId: String, createInputStream: () -> InputStream?): FallbackVariations? {
+    private fun getVariations(placementId: String, createInputStream: () -> InputStream?): FallbackVariations? {
         return try {
             createInputStream()?.reader()?.use { reader ->
                 val jsonReader = createFilteringReader(reader, "data", placementId)
 
                 jsonReader.use {
                     jsonReader.isLenient = true
-                    val fallbackPaywall = gson.fromJson<FallbackVariations>(jsonReader, FallbackVariations::class.java)
-                    fallbackPaywall.takeIf {
-                        placementId == fallbackPaywall.placementId && fallbackPaywall.data.isNotEmpty()
+                    val fallbackVariations = gson.fromJson<FallbackVariations>(jsonReader, FallbackVariations::class.java)
+                    fallbackVariations.takeIf {
+                        placementId == fallbackVariations.placementId && fallbackVariations.data.isNotEmpty()
                     } ?: throw AdaptyError(
-                        message = "Couldn't parse fallback variation (placementId: $placementId).${if (fallbackPaywall.data.isEmpty()) " Data is empty." else ""}${if (placementId != fallbackPaywall.placementId) " id (${fallbackPaywall.placementId}) != $placementId." else ""}",
+                        message = "Couldn't parse fallback variation (placementId: $placementId).${if (fallbackVariations.data.isEmpty()) " Data is empty." else ""}${if (placementId != fallbackVariations.placementId) " id (${fallbackVariations.placementId}) != $placementId." else ""}",
                         adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED,
                     )
                 }
@@ -107,32 +107,32 @@ internal class FallbackPaywallRetriever(
         }
     }
 
-    fun getUiSchema(source: FileLocation, viewConfigurationId: String): Map<String, Any>? {
+    fun getUiSchema(source: FileLocation, layoutId: String): Map<String, Any>? {
         return when (source) {
-            is FileLocation.Uri -> getUiSchema(viewConfigurationId) {
+            is FileLocation.Uri -> getUiSchema(layoutId) {
                 appContext.contentResolver.openInputStream(source.uri)
             }
-            is FileLocation.Asset -> getUiSchema(viewConfigurationId) {
+            is FileLocation.Asset -> getUiSchema(layoutId) {
                 appContext.assets?.open(source.relativePath)
             }
         }
     }
 
-    private fun getUiSchema(viewConfigurationId: String, createInputStream: () -> InputStream?): Map<String, Any>? {
+    private fun getUiSchema(layoutId: String, createInputStream: () -> InputStream?): Map<String, Any>? {
         return try {
             createInputStream()?.reader()?.use { reader ->
-                val jsonReader = createFilteringReader(reader, "ui_builder", viewConfigurationId)
+                val jsonReader = createFilteringReader(reader, "ui_builder", layoutId)
 
                 jsonReader.use {
                     jsonReader.isLenient = true
                     val type = object : TypeToken<Map<String, Any>>() {}.type
                     val root: Map<String, Any> = gson.fromJson(jsonReader, type)
                     @Suppress("UNCHECKED_CAST")
-                    (root["ui_builder"] as? Map<*, *>)?.get(viewConfigurationId) as? Map<String, Any>
+                    (root["ui_builder"] as? Map<*, *>)?.get(layoutId) as? Map<String, Any>
                 }
             }
         } catch (e: Exception) {
-            Logger.log(AdaptyLogLevel.ERROR) { "Couldn't retrieve fallback ui schema (viewConfigurationId: $viewConfigurationId). $e" }
+            Logger.log(AdaptyLogLevel.ERROR) { "Couldn't retrieve fallback ui schema (layoutId: $layoutId). $e" }
             null
         }
     }
@@ -197,6 +197,6 @@ internal class FallbackPaywallRetriever(
         }
 
     private companion object {
-        private const val CURRENT_FALLBACK_PAYWALL_VERSION = 10
+        private const val CURRENT_FALLBACK_FILE_VERSION = 11
     }
 }

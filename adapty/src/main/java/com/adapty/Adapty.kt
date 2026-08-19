@@ -11,6 +11,7 @@ import android.net.Uri
 import com.adapty.errors.AdaptyError
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.AdaptyInternal
+import com.adapty.internal.data.models.DeviceInfo
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
@@ -63,7 +64,7 @@ public object Adapty {
     }
 
     /**
-     * Use this method for identifying user with it’s user id in your system.
+     * Use this method for identifying user with its user id in your system.
      *
      * If you don’t have a user id on SDK configuration, you can set it later at any time with
      * `.identify()` method. The most common cases are after registration/authorization when the user
@@ -202,11 +203,66 @@ public object Adapty {
         adaptyInternal.getFlowForDefaultAudience(placementId, fetchPolicy, callback)
     }
 
+    /**
+     * This method enables you to preload multiple flows into the local cache in a single batch,
+     * without returning the content, so that subsequent [getFlow] calls can be served from cache.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[placementIds] The identifiers of the desired placements. These are the values you
+     * specified when you created the placements in the Adapty Dashboard.
+     *
+     * @param[loadTimeout] This value limits the timeout for the requests within the batch.
+     * The minimum value is 1 second. If the timeout is reached, the SDK attempts to serve
+     * the affected placements from fallback sources.
+     *
+     * @param[callback] A result containing the optional [AdaptyError]. If some of the placements
+     * could not be preloaded, the error is an [com.adapty.errors.AdaptyPreloadPlacementsError]
+     * containing the per-placement errors.
+     */
+    @JvmStatic
+    @JvmOverloads
+    public fun preloadFlows(
+        placementIds: List<String>,
+        loadTimeout: TimeInterval = DEFAULT_PLACEMENT_TIMEOUT,
+        callback: ErrorCallback,
+    ) {
+        Logger.log(VERBOSE) { "preloadFlows(placementIds = $placementIds${loadTimeout.takeIf { it != TimeInterval.INFINITE }?.let { ", timeout = $it" }.orEmpty()})" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.preloadFlows(placementIds, loadTimeout, callback)
+    }
+
+    /**
+     * This method enables you to preload multiple flows from the Default Audience into the local
+     * cache in a single batch, without having to wait for the Adapty SDK to send all the user
+     * information required for segmentation to the server.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[placementIds] The identifiers of the desired placements. These are the values you
+     * specified when you created the placements in the Adapty Dashboard.
+     *
+     * @param[callback] A result containing the optional [AdaptyError]. If some of the placements
+     * could not be preloaded, the error is an [com.adapty.errors.AdaptyPreloadPlacementsError]
+     * containing the per-placement errors.
+     */
+    @JvmStatic
+    public fun preloadFlowsForDefaultAudience(
+        placementIds: List<String>,
+        callback: ErrorCallback,
+    ) {
+        Logger.log(VERBOSE) { "preloadFlowsForDefaultAudience(placementIds = $placementIds)" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.preloadFlowsForDefaultAudience(placementIds, callback)
+    }
+
     @JvmSynthetic
     internal fun <T> getFlowViewConfiguration(
         flow: AdaptyFlow,
         locale: String?,
         loadTimeout: TimeInterval,
+        customLayoutId: String?,
+        deviceInfoOverride: DeviceInfo?,
         transform: (Map<String, Any>) -> T,
         callback: ResultCallback<T>,
     ) {
@@ -215,7 +271,7 @@ public object Adapty {
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getFlowViewConfiguration(flow, locale, loadTimeout, transform, callback)
+        adaptyInternal.getFlowViewConfiguration(flow, locale, loadTimeout, customLayoutId, deviceInfoOverride, transform, callback)
     }
 
     /**
@@ -236,18 +292,16 @@ public object Adapty {
         adaptyInternal.logShowFlow(flow, callback)
     }
 
-    @InternalAdaptyApi
-    @JvmStatic
-    @JvmOverloads
-    public fun logFlowEvent(
+    @JvmSynthetic
+    internal fun logFlowEvent(
         flow: AdaptyFlow,
-        viewConfigurationId: String,
+        versionId: String,
         eventProperties: Map<String, Any>,
         callback: ErrorCallback? = null,
     ) {
         Logger.log(VERBOSE) { "logFlowEvent()" }
         if (!checkActivated(callback)) return
-        adaptyInternal.logFlowEvent(flow, viewConfigurationId, eventProperties, callback)
+        adaptyInternal.logFlowEvent(flow, versionId, eventProperties, callback)
     }
 
     /**
@@ -382,47 +436,55 @@ public object Adapty {
     }
 
     /**
-     * To set attribution data for the profile, use this method.
+     * To set external attribution data for the profile, use this method.
+     *
+     * The callback is invoked after the backend accepts the data for asynchronous
+     * processing. A successful result does not mean that the data has already been
+     * processed or that the profile has already been updated.
      *
      * Should not be called before [activate]
      *
      * @param[attribution] A map containing attribution (conversion) data.
      *
-     * @param[source] An [AdaptyAttributionSource] of the attribution.
+     * @param[provider] An [AdaptyExternalAttributionProvider] of the attribution.
      *
      * @param[callback] A result containing the optional [AdaptyError].
      */
     @JvmStatic
-    public fun updateAttribution(
+    public fun updateExternalAttribution(
         attribution: Map<String, Any>,
-        source: AdaptyAttributionSource,
+        provider: AdaptyExternalAttributionProvider,
         callback: ErrorCallback,
     ) {
-        Logger.log(VERBOSE) { "updateAttribution(source = $source)" }
+        Logger.log(VERBOSE) { "updateExternalAttribution(provider = $provider)" }
         if (!checkActivated(callback)) return
-        adaptyInternal.updateAttribution(attribution, source.value, callback)
+        adaptyInternal.updateExternalAttribution(attribution, provider.value, callback)
     }
 
     /**
-     * To set attribution data for the profile, use this method.
+     * To set external attribution data for the profile, use this method.
+     *
+     * The callback is invoked after the backend accepts the data for asynchronous
+     * processing. A successful result does not mean that the data has already been
+     * processed or that the profile has already been updated.
      *
      * Should not be called before [activate]
      *
      * @param[attributionJson] A JSON string containing attribution (conversion) data.
      *
-     * @param[source] An [AdaptyAttributionSource] of the attribution.
+     * @param[provider] An [AdaptyExternalAttributionProvider] of the attribution.
      *
      * @param[callback] A result containing the optional [AdaptyError].
      */
     @JvmStatic
-    public fun updateAttribution(
+    public fun updateExternalAttribution(
         attributionJson: String,
-        source: AdaptyAttributionSource,
+        provider: AdaptyExternalAttributionProvider,
         callback: ErrorCallback,
     ) {
-        Logger.log(VERBOSE) { "updateAttribution(source = $source)" }
+        Logger.log(VERBOSE) { "updateExternalAttribution(provider = $provider)" }
         if (!checkActivated(callback)) return
-        adaptyInternal.updateAttribution(attributionJson, source.value, callback)
+        adaptyInternal.updateExternalAttribution(attributionJson, provider.value, callback)
     }
 
     /**
@@ -473,7 +535,7 @@ public object Adapty {
     }
 
     /**
-     * In Observer mode, Adapty SDK doesn’t know, where the purchase was made from.
+     * In Observer mode, Adapty SDK doesn’t know where the purchase was made from.
      * If you display products using our [Paywalls](https://adapty.io/docs/paywalls) or
      * [A/B Tests](https://adapty.io/docs/ab-tests), you can manually assign variation
      * to the purchase. After doing this, you’ll be able to see metrics in Adapty Dashboard.
@@ -507,7 +569,7 @@ public object Adapty {
     }
 
     /**
-     * You can logout the user anytime by calling this method.
+     * You can log out the user anytime by calling this method.
      *
      * Should not be called before [activate]
      *
@@ -598,7 +660,7 @@ public object Adapty {
      *
      * For production builds, if you don't want the console logs and don't remove them with your
      * obfuscation tool, use [NONE][AdaptyLogLevel.NONE].
-     * Also you can override the default logger calling [setLogHandler] with your own logic.
+     * Also, you can override the default logger calling [setLogHandler] with your own logic.
      *
      * Can be called before [activate]
      *
@@ -649,6 +711,7 @@ public object Adapty {
         adaptyInternal.setFallback(location, callback)
     }
 
+    @JvmSynthetic
     internal fun logShowOnboardingInternal(
         onboarding: AdaptyOnboarding,
         screenName: String?,
@@ -683,6 +746,67 @@ public object Adapty {
             return
         }
         adaptyInternal.getOnboardingForDefaultAudience(placementId, locale ?: DEFAULT_PLACEMENT_LOCALE, fetchPolicy, callback)
+    }
+
+    /**
+     * This method enables you to preload multiple onboardings into the local cache in a single
+     * batch, without returning the content, so that subsequent [getOnboarding] calls can be
+     * served from cache.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[placementIds] The identifiers of the desired placements. These are the values you
+     * specified when you created the placements in the Adapty Dashboard.
+     *
+     * @param[locale] The identifier of the onboarding localization.
+     *
+     * @param[loadTimeout] This value limits the timeout for the requests within the batch.
+     * The minimum value is 1 second. If the timeout is reached, the SDK attempts to serve
+     * the affected placements from fallback sources.
+     *
+     * @param[callback] A result containing the optional [AdaptyError]. If some of the placements
+     * could not be preloaded, the error is an [com.adapty.errors.AdaptyPreloadPlacementsError]
+     * containing the per-placement errors.
+     */
+    @JvmStatic
+    @JvmOverloads
+    public fun preloadOnboardings(
+        placementIds: List<String>,
+        locale: String? = null,
+        loadTimeout: TimeInterval = DEFAULT_PLACEMENT_TIMEOUT,
+        callback: ErrorCallback,
+    ) {
+        Logger.log(VERBOSE) { "preloadOnboardings(placementIds = $placementIds${locale?.let { ", locale = $locale" }.orEmpty()}${loadTimeout.takeIf { it != TimeInterval.INFINITE }?.let { ", timeout = $it" }.orEmpty()})" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.preloadOnboardings(placementIds, locale ?: DEFAULT_PLACEMENT_LOCALE, loadTimeout, callback)
+    }
+
+    /**
+     * This method enables you to preload multiple onboardings from the Default Audience into the
+     * local cache in a single batch, without having to wait for the Adapty SDK to send all the
+     * user information required for segmentation to the server.
+     *
+     * Should not be called before [activate]
+     *
+     * @param[placementIds] The identifiers of the desired placements. These are the values you
+     * specified when you created the placements in the Adapty Dashboard.
+     *
+     * @param[locale] The identifier of the onboarding localization.
+     *
+     * @param[callback] A result containing the optional [AdaptyError]. If some of the placements
+     * could not be preloaded, the error is an [com.adapty.errors.AdaptyPreloadPlacementsError]
+     * containing the per-placement errors.
+     */
+    @JvmStatic
+    @JvmOverloads
+    public fun preloadOnboardingsForDefaultAudience(
+        placementIds: List<String>,
+        locale: String? = null,
+        callback: ErrorCallback,
+    ) {
+        Logger.log(VERBOSE) { "preloadOnboardingsForDefaultAudience(placementIds = $placementIds${locale?.let { ", locale = $locale" }.orEmpty()})" }
+        if (!checkActivated(callback)) return
+        adaptyInternal.preloadOnboardingsForDefaultAudience(placementIds, locale ?: DEFAULT_PLACEMENT_LOCALE, callback)
     }
 
     private val adaptyInternal: AdaptyInternal by inject()

@@ -31,7 +31,9 @@ internal class AdaptyErrorTypeAdapterFactory : TypeAdapterFactory {
             override fun write(out: JsonWriter, value: AdaptyError) {
                 val jsonObject = JsonObject().apply {
                     add(ADAPTY_CODE, errorCodeAdapter.toJsonTree(value.adaptyErrorCode))
-                    addProperty(MESSAGE, value.message.orEmpty())
+                    val message = value.message?.takeIf { it.isNotBlank() }
+                        ?: value.originalError?.toString().orEmpty()
+                    addProperty(MESSAGE, message)
                 }
                 elementAdapter.write(out, jsonObject)
             }

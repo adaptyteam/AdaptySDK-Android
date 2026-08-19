@@ -78,6 +78,8 @@ internal fun buildLocalAssetsMap(
             assetsMap[id] = asset
     }
 
+    viewConfig.runtimeState.loadedAssets.forEach { (id, asset) -> assetsMap[id] = asset }
+
     viewConfig.assets.forEach { (id, asset) ->
         fun customAssetId(): String =
             if (id.endsWith(DARK_THEME_ASSET_SUFFIX))

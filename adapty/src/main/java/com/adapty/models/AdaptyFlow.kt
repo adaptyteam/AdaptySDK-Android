@@ -2,6 +2,7 @@
 
 package com.adapty.models
 
+import com.adapty.internal.data.models.LayoutsConfiguration
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.utils.ImmutableList
 
@@ -12,13 +13,13 @@ public class AdaptyFlow internal constructor(
     public val remoteConfigs: ImmutableList<AdaptyRemoteConfig>,
     public val placement: AdaptyPlacement,
     public val paywalls: ImmutableList<AdaptyFlowPaywall>,
-    @get:JvmSynthetic internal val viewConfigurationId: String?,
     @get:JvmSynthetic internal val viewConfig: Map<String, Any>?,
+    @get:JvmSynthetic internal val layoutsConfiguration: LayoutsConfiguration?,
     @get:JvmSynthetic internal val snapshotAt: Long,
 ) {
 
     @get:JvmName("hasViewConfiguration")
-    public val hasViewConfiguration: Boolean get() = viewConfigurationId != null
+    public val hasViewConfiguration: Boolean get() = layoutsConfiguration != null
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

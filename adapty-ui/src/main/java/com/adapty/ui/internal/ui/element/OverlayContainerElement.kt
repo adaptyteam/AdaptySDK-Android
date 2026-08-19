@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.store.Message
+import com.adapty.ui.internal.ui.LocalInsideButton
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeShape
@@ -48,12 +49,13 @@ public class OverlayContainerElement internal constructor(
         dispatch: (Message) -> Unit,
         modifier: Modifier,
     ): @Composable () -> Unit = {
+        val insideButton = LocalInsideButton.current
         Layout(
             modifier = modifier,
             content = {
                 backgrounds.forEach { bg ->
                     Box(
-                        modifier = Modifier.clickable(
+                        modifier = if (insideButton) Modifier else Modifier.clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                         ) {},
@@ -76,7 +78,7 @@ public class OverlayContainerElement internal constructor(
                 ).invoke()
                 overlays.forEach { overlay ->
                     Box(
-                        modifier = Modifier.clickable(
+                        modifier = if (insideButton) Modifier else Modifier.clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                         ) {},

@@ -4,6 +4,7 @@ package com.adapty.internal.utils
 
 import androidx.annotation.RestrictTo
 import com.adapty.internal.data.models.FlowDto
+import com.adapty.internal.data.models.LayoutsConfiguration
 import com.adapty.models.AdaptyFlow
 import com.adapty.models.AdaptyFlowPaywall
 
@@ -22,7 +23,7 @@ internal class FlowMapper(
             name = flowDto.name,
             remoteConfigs = flowDto.remoteConfigs.orEmpty().map(remoteConfigMapper::map).immutableWithInterop(),
             placement = placement,
-            viewConfigurationId = flowDto.viewConfigurationId,
+            layoutsConfiguration = LayoutsConfiguration.from(flowDto.versionId, flowDto.uiSchema),
             paywalls = flowDto.paywalls.orEmpty().map { paywall ->
                 AdaptyFlowPaywall(
                     id = paywall.id,

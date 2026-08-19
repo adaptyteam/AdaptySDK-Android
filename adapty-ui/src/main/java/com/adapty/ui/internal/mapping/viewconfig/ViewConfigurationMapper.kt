@@ -19,6 +19,8 @@ import com.adapty.ui.internal.mapping.element.toBoxElement
 import com.adapty.ui.internal.mapping.element.toButtonElement
 import com.adapty.ui.internal.mapping.element.toColumnElement
 import com.adapty.ui.internal.mapping.element.toCompactDateTimePickerElement
+import com.adapty.ui.internal.mapping.element.toFlexElement
+import com.adapty.ui.internal.mapping.element.toFlexStackElement
 import com.adapty.ui.internal.mapping.element.toGraphicalDateTimePickerElement
 import com.adapty.ui.internal.mapping.element.toHStackElement
 import com.adapty.ui.internal.mapping.element.toIfElement
@@ -40,6 +42,7 @@ import com.adapty.ui.internal.mapping.element.toWheelPickerElement
 import com.adapty.ui.internal.mapping.element.toWheelRangePickerElement
 import com.adapty.ui.internal.mapping.element.toSectionElement
 import com.adapty.ui.internal.mapping.element.toSpaceElement
+import com.adapty.ui.internal.mapping.element.toSwitchElement
 import com.adapty.ui.internal.mapping.element.toTextElement
 import com.adapty.ui.internal.mapping.element.toTimerElement
 import com.adapty.ui.internal.mapping.element.toTextFieldElement
@@ -109,6 +112,9 @@ internal class ViewConfigurationMapper(
                 put("pager", container(Map<*, *>::toPagerElement))
                 put("section", container(Map<*, *>::toSectionElement))
                 put("if", container(Map<*, *>::toIfElement))
+                put("flex", container(Map<*, *>::toFlexElement))
+                put("flex_stack", container(Map<*, *>::toFlexStackElement))
+                put("switch", container(Map<*, *>::toSwitchElement))
 
                 videoMapperFn?.let { fn -> put("video", leaf(fn)) }
             }

@@ -165,7 +165,7 @@ internal class JSEngineWebView(
             throw IllegalStateException(error)
         }
     }
-    
+
     override suspend fun execute(jsExpr: String): Any? {
         val wrapped = """
             (function() {

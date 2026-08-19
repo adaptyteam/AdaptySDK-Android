@@ -8,7 +8,7 @@ import com.adapty.internal.data.models.*
 import com.adapty.internal.data.models.requests.ValidateReceiptRequest
 import com.adapty.internal.domain.VariationType
 import com.adapty.internal.domain.models.IdentityParams
-import com.adapty.internal.utils.FallbackPaywallRetriever
+import com.adapty.internal.utils.FallbackVariationRetriever
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.ProfileStateChange
 import com.adapty.internal.utils.combinedProductId
@@ -23,6 +23,7 @@ import com.adapty.internal.utils.withLockSafe
 import com.adapty.models.AdaptyConfig.ServerCluster
 import com.adapty.utils.AdaptyResult
 import com.adapty.utils.FileLocation
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.take
 import java.util.concurrent.ConcurrentHashMap
@@ -32,7 +33,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class CacheRepository(
     private val preferenceManager: PreferenceManager,
-    private val fallbackPaywallRetriever: FallbackPaywallRetriever,
+    private val fallbackVariationRetriever: FallbackVariationRetriever,
+    private val fileCache: FileCache,
+    private val responseGson: Gson,
     private val crossPlacementInfoLock: ReentrantReadWriteLock,
     private val productPALMappingLock: ReentrantReadWriteLock,
     private val validateDataLock: ReentrantReadWriteLock,
@@ -121,8 +124,9 @@ internal class CacheRepository(
                 PROFILE_RESPONSE,
                 PROFILE_RESPONSE_HASH,
             ),
-            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART, ONBOARDING_RESPONSE_START_PART, FLOW_RESPONSE_START_PART),
+            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART, ONBOARDING_RESPONSE_START_PART, FLOW_RESPONSE_START_PART, VARIATION_ASSIGNED_EVENT_START_PART),
         )
+        fileCache.removeOtherProfiles(newProfileId)
         saveProfileId(newProfileId)
     }
 
@@ -216,6 +220,18 @@ internal class CacheRepository(
         saveData(LAST_SENT_INSTALLATION_META, installationMeta)
     }
 
+    fun getUserAgentAttempt() = getString(USER_AGENT_ATTEMPT)
+
+    fun saveUserAgentAttempt(webViewVersion: String) {
+        cache[USER_AGENT_ATTEMPT] = webViewVersion
+        preferenceManager.saveString(USER_AGENT_ATTEMPT, webViewVersion)
+    }
+
+    fun clearUserAgentAttempt() {
+        cache.remove(USER_AGENT_ATTEMPT)
+        preferenceManager.clearData(setOf(USER_AGENT_ATTEMPT))
+    }
+
     fun getLastSentIp() = (cache[LAST_SENT_IP] as? Pair<*, *>)
         ?.let { (profileId, ip) ->
             if (profileId != getProfileId()) {
@@ -292,21 +308,21 @@ internal class CacheRepository(
     fun getProfile() =
         getData(PROFILE, ProfileDto::class.java)
 
-    fun getPaywallVariationsFallback(placementId: String): FallbackVariations? {
-        val fallbackPaywallsInfo = getFallbackPaywallsMetaInfo() ?: return null
-        if (placementId !in fallbackPaywallsInfo.meta.developerIds) return null
-        return fallbackPaywallRetriever.getPaywall(fallbackPaywallsInfo.source, placementId)
+    fun getFallbackFileVariations(placementId: String): FallbackVariations? {
+        val fallbackVariationsInfo = getFallbackFileMetaInfo() ?: return null
+        if (placementId !in fallbackVariationsInfo.meta.developerIds) return null
+        return fallbackVariationRetriever.getVariations(fallbackVariationsInfo.source, placementId)
     }
 
-    fun getFlowViewConfigFallback(viewConfigurationId: String): Map<String, Any>? {
-        val fallbackPaywallsInfo = getFallbackPaywallsMetaInfo() ?: return null
-        return fallbackPaywallRetriever.getUiSchema(fallbackPaywallsInfo.source, viewConfigurationId)
+    fun getFlowViewConfigFallback(layoutId: String): Map<String, Any>? {
+        val fallbackVariationsInfo = getFallbackFileMetaInfo() ?: return null
+        return fallbackVariationRetriever.getUiSchema(fallbackVariationsInfo.source, layoutId)
     }
 
-    fun getFallbackPaywallsSnapshotAt() =
-        getFallbackPaywallsMetaInfo()?.meta?.snapshotAt
+    fun getFallbackFileSnapshotAt() =
+        getFallbackFileMetaInfo()?.meta?.snapshotAt
 
-    private fun getFallbackPaywallsMetaInfo() = cache[FALLBACK_FILE] as? FallbackPaywallsInfo
+    private fun getFallbackFileMetaInfo() = cache[FALLBACK_FILE] as? FallbackVariationsInfo
 
     fun getSyncedPurchases() =
         getData<HashSet<SyncedPurchase>>(SYNCED_PURCHASES).orEmpty()
@@ -352,42 +368,115 @@ internal class CacheRepository(
         }
     }
 
-    fun saveVariation(id: String, variation: Variation) {
-        when (variation) {
-            is Onboarding -> saveOnboarding(id, variation)
-            is FlowDto -> saveFlow(id, variation)
-        }
-    }
-
-    private fun saveOnboarding(id: String, onboarding: Onboarding) {
-        saveData(getOnboardingCacheKey(id), CacheEntity(onboarding, CURRENT_CACHED_ONBOARDING_VERSION))
-    }
-
-    private fun saveFlow(id: String, flow: FlowDto) {
-        saveData(getFlowCacheKey(id), CacheEntity(flow, CURRENT_CACHED_FLOW_VERSION))
-    }
-
     private fun getOnboardingCacheKey(id: String) =
         getVariationCacheKey(id, ONBOARDING_RESPONSE_START_PART)
 
     private fun getFlowCacheKey(id: String) =
         getVariationCacheKey(id, FLOW_RESPONSE_START_PART)
 
-    fun getFlowViewConfig(flowId: String, viewConfigurationId: String): Map<String, Any>? =
-        getData<CacheEntity<FlowViewConfig>>(getFlowViewConfigCacheKey(flowId))?.let { (viewConfig, version, _) ->
-            if (version < CURRENT_CACHED_FLOW_BUILDER_VERSION) return@let null
-            viewConfig.takeIf { it.viewConfigurationId == viewConfigurationId }?.config
-        }
+    fun getRawVariations(placementId: String, locales: Set<String>, variationType: VariationType, maxAgeMillis: Long? = null): Variations? =
+        readRawRecord(getRawVariationsFileKey(placementId, variationType), locales, maxAgeMillis, Variations::class.java)
 
-    fun saveFlowViewConfig(flowId: String, viewConfigurationId: String, config: Map<String, Any>) {
-        saveData(
-            getFlowViewConfigCacheKey(flowId),
-            CacheEntity(FlowViewConfig(viewConfigurationId, config), CURRENT_CACHED_FLOW_BUILDER_VERSION),
+    fun getRawVariationsSnapshotAt(placementId: String, variationType: VariationType): Long? =
+        fileCache.readMeta(getRawVariationsFileKey(placementId, variationType))?.snapshotAt
+
+    fun saveRawVariations(placementId: String, variationType: VariationType, rawResponse: String, locale: String, segmentId: String?, snapshotAt: Long) {
+        val key = getRawVariationsFileKey(placementId, variationType)
+        val existingSnapshotAt = fileCache.readMeta(key)?.snapshotAt
+        if (existingSnapshotAt != null && snapshotAt < existingSnapshotAt) return
+        fileCache.write(key, rawResponse, locale, segmentId, snapshotAt)
+    }
+
+    fun getRawSingleVariation(variationId: String, locales: Set<String>, variationType: VariationType, maxAgeMillis: Long? = null): Variation? =
+        readRawRecord(getRawSingleVariationFileKey(variationId, variationType), locales, maxAgeMillis, Variation::class.java)
+
+    fun saveRawSingleVariation(variationId: String, variationType: VariationType, rawResponse: String, locale: String, snapshotAt: Long) {
+        val key = getRawSingleVariationFileKey(variationId, variationType)
+        val existingSnapshotAt = fileCache.readMeta(key)?.snapshotAt
+        if (existingSnapshotAt != null && snapshotAt < existingSnapshotAt) return
+        fileCache.write(key, rawResponse, locale, null, snapshotAt)
+    }
+
+    private fun <T> readRawRecord(key: FileCache.ItemKey, locales: Set<String>, maxAgeMillis: Long?, classOfT: Class<T>): T? {
+        val (rawResponse, meta) = fileCache.read(key) ?: return null
+        if ((maxAgeMillis != null) && (System.currentTimeMillis() - meta.storedAt > maxAgeMillis)) return null
+        val languageCodes = locales.mapNotNull { locale -> extractLanguageCode(locale) }
+        if (meta.locale?.let(::extractLanguageCode) !in languageCodes) return null
+        return try {
+            responseGson.fromJson(rawResponse, classOfT)
+        } catch (e: Exception) {
+            fileCache.remove(key)
+            null
+        }
+    }
+
+    private fun getRawVariationsFileKey(placementId: String, variationType: VariationType) =
+        FileCache.ItemKey(
+            getProfileId(),
+            when (variationType) {
+                VariationType.Onboarding -> FileCache.ItemType.ONBOARDING_VARIANTS
+                VariationType.Flow -> FileCache.ItemType.FLOW_VARIANTS
+            },
+            placementId,
+        )
+
+    private fun getRawSingleVariationFileKey(variationId: String, variationType: VariationType) =
+        FileCache.ItemKey(
+            null,
+            when (variationType) {
+                VariationType.Onboarding -> FileCache.ItemType.ONBOARDING
+                VariationType.Flow -> FileCache.ItemType.FLOW
+            },
+            variationId,
+        )
+
+    private val variationAssignedEventLock = Any()
+
+    fun shouldSendVariationAssigned(variationType: VariationType, placementAudienceVersionId: String, variationId: String): Boolean {
+        val typePart = when (variationType) {
+            VariationType.Onboarding -> "onboarding"
+            VariationType.Flow -> "flow"
+        }
+        val key = "$VARIATION_ASSIGNED_EVENT_START_PART${typePart}_${placementAudienceVersionId}_$variationId"
+        synchronized(variationAssignedEventLock) {
+            val alreadySent = cache[key] as? Boolean ?: preferenceManager.getBoolean(key, false) ?: false
+            if (alreadySent) return false
+            cache[key] = true
+            preferenceManager.saveBoolean(key, true)
+            return true
+        }
+    }
+
+    fun getFlowViewConfig(flowId: String, versionId: String, layoutId: String?): Map<String, Any>? {
+        val key = getFlowViewConfigFileKey(flowId, layoutId)
+        val (json, _) = fileCache.read(key) ?: return null
+        val viewConfig = try {
+            responseGson.fromJson(json, FlowViewConfig::class.java)
+        } catch (e: Exception) {
+            fileCache.remove(key)
+            null
+        } ?: return null
+        return viewConfig.takeIf {
+            it.versionId == versionId && it.layoutId == layoutId
+        }?.config
+    }
+
+    fun saveFlowViewConfig(flowId: String, versionId: String, layoutId: String?, config: Map<String, Any>) {
+        fileCache.write(
+            getFlowViewConfigFileKey(flowId, layoutId),
+            responseGson.toJson(FlowViewConfig(versionId, layoutId, config)),
+            null,
+            null,
+            0L,
         )
     }
 
-    private fun getFlowViewConfigCacheKey(flowId: String) =
-        "$FLOW_BUILDER_RESPONSE_START_PART${flowId}$VARIATION_RESPONSE_END_PART"
+    private fun getFlowViewConfigFileKey(flowId: String, layoutId: String?) =
+        FileCache.ItemKey(
+            null,
+            FileCache.ItemType.FLOW_LAYOUT,
+            "$flowId${layoutId?.let { "_layout_$it" }.orEmpty()}",
+        )
 
     private fun getVariationCacheKey(id: String, startPart: String) =
         "$startPart${id}$VARIATION_RESPONSE_END_PART"
@@ -400,7 +489,7 @@ internal class CacheRepository(
     }
 
     fun saveFallback(source: FileLocation) {
-        cache[FALLBACK_FILE] = fallbackPaywallRetriever.getMetaInfo(source)
+        cache[FALLBACK_FILE] = fallbackVariationRetriever.getMetaInfo(source)
     }
 
     fun getCrossPlacementInfo() =
@@ -567,8 +656,9 @@ internal class CacheRepository(
                 PROFILE_RESPONSE_HASH,
                 CROSS_PLACEMENT_INFO,
             ),
-            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART, ONBOARDING_RESPONSE_START_PART, FLOW_RESPONSE_START_PART),
+            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART, ONBOARDING_RESPONSE_START_PART, FLOW_RESPONSE_START_PART, VARIATION_ASSIGNED_EVENT_START_PART),
         )
+        fileCache.removeOtherProfiles(getProfileId())
     }
 
     fun clearSyncedPurchases() {
@@ -604,8 +694,9 @@ internal class CacheRepository(
                 YET_UNPROCESSED_VALIDATE_PRODUCT_INFO,
                 EXTERNAL_ANALYTICS_ENABLED,
             ),
-            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART, ONBOARDING_RESPONSE_START_PART, FLOW_RESPONSE_START_PART),
+            startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART, ONBOARDING_RESPONSE_START_PART, FLOW_RESPONSE_START_PART, VARIATION_ASSIGNED_EVENT_START_PART),
         )
+        fileCache.removeAll()
     }
 
     private fun clearData(containsKeys: Set<String>, startsWithKeys: Set<String>) {
@@ -644,7 +735,6 @@ internal class CacheRepository(
     private companion object {
         private const val CURRENT_CACHED_ONBOARDING_VERSION = 1
         private const val CURRENT_CACHED_FLOW_VERSION = 1
-        private const val CURRENT_CACHED_FLOW_BUILDER_VERSION = 1
         private const val CURRENT_CACHED_PRODUCT_PAL_MAPPING_VERSION = 2
     }
 

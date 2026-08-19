@@ -6,7 +6,7 @@ import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.models.BackendError
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class Response<T>(val data: T, val request: Request) {
+internal class Response<T>(val data: T, val request: Request, val rawBody: String? = null) {
 
     operator fun component1() = data
     operator fun component2() = request

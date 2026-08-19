@@ -6,7 +6,7 @@ import com.google.gson.annotations.SerializedName
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class AttributionData(
     @SerializedName("source")
-    val source: String,
+    val provider: String,
     @SerializedName("attribution_json")
     val attribution: String,
     @SerializedName("profile_id")

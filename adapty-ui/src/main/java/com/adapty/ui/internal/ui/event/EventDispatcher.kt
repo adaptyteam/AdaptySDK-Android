@@ -93,7 +93,7 @@ internal class EventDispatcher {
     }
 
     private companion object {
-        const val REPLAY_SIZE = 16
+        const val REPLAY_SIZE = 0
         const val EXTRA_BUFFER_CAPACITY = 16
     }
 }

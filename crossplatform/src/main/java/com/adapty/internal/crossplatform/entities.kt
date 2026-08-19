@@ -92,9 +92,9 @@ sealed class WebPaywallArgs(val presentation: AdaptyWebPresentation?) {
     class Product(val value: AdaptyPaywallProduct, presentation: AdaptyWebPresentation?): WebPaywallArgs(presentation)
 }
 
-class UpdateAttributionArgs(
-    val attribution: Map<String, Any>,
-    val source: String,
+class UpdateExternalAttributionArgs(
+    val attribution: String,
+    val provider: String,
 )
 
 class UpdateProfileArgs(

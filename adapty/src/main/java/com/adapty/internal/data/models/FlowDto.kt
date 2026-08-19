@@ -15,9 +15,11 @@ internal class FlowDto(
     val remoteConfigs: List<RemoteConfigDto>?,
     weight: Int,
     @SerializedName("flow_version_id")
-    val viewConfigurationId: String?,
+    val versionId: String?,
     @SerializedName("variations")
     val paywalls: List<FlowPaywallDto>?,
+    @SerializedName("ui_schema")
+    val uiSchema: UiSchemaDto?,
     crossPlacementInfo: CrossPlacementInfo?,
     snapshotAt: Long,
 ): Variation(variationId, placement, null, weight, crossPlacementInfo, snapshotAt)

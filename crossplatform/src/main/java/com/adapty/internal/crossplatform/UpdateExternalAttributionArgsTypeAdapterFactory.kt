@@ -5,8 +5,8 @@ import com.google.gson.TypeAdapter
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonWriter
 
-internal class UpdateAttributionArgsTypeAdapterFactory :
-    BaseTypeAdapterFactory<UpdateAttributionArgs>(UpdateAttributionArgs::class.java) {
+internal class UpdateExternalAttributionArgsTypeAdapterFactory :
+    BaseTypeAdapterFactory<UpdateExternalAttributionArgs>(UpdateExternalAttributionArgs::class.java) {
 
     private companion object {
         const val ATTRIBUTION = "attribution"
@@ -14,8 +14,8 @@ internal class UpdateAttributionArgsTypeAdapterFactory :
 
     override fun write(
         out: JsonWriter,
-        value: UpdateAttributionArgs,
-        delegateAdapter: TypeAdapter<UpdateAttributionArgs>,
+        value: UpdateExternalAttributionArgs,
+        delegateAdapter: TypeAdapter<UpdateExternalAttributionArgs>,
         elementAdapter: TypeAdapter<JsonElement>
     ) {
         delegateAdapter.write(out, value)
@@ -23,17 +23,15 @@ internal class UpdateAttributionArgsTypeAdapterFactory :
 
     override fun read(
         `in`: JsonReader,
-        delegateAdapter: TypeAdapter<UpdateAttributionArgs>,
+        delegateAdapter: TypeAdapter<UpdateExternalAttributionArgs>,
         elementAdapter: TypeAdapter<JsonElement>
-    ): UpdateAttributionArgs? {
+    ): UpdateExternalAttributionArgs? {
         val jsonObject = elementAdapter.read(`in`).asJsonObject
 
         val attributionJson = kotlin.runCatching {
-            jsonObject.remove(ATTRIBUTION)?.asJsonPrimitive?.asString
+            jsonObject.get(ATTRIBUTION)?.asJsonPrimitive?.asString
         }.getOrNull() ?: return null
-        val attribution = elementAdapter.fromJson(attributionJson)?.takeIf { it.isJsonObject }
-            ?: return null
-        jsonObject.add(ATTRIBUTION, attribution)
+        elementAdapter.fromJson(attributionJson)?.takeIf { it.isJsonObject } ?: return null
 
         return delegateAdapter.fromJsonTree(jsonObject)
     }

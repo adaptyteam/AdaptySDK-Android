@@ -39,6 +39,7 @@ internal class CrossplatformConfigTypeAdapterFactory(
                 jsonObject.moveNodeIfExists(baseConfigJsonObject, "customer_user_id")
                 jsonObject.moveNode(baseConfigJsonObject, "observer_mode", JsonPrimitive(false))
                 jsonObject.moveNode(baseConfigJsonObject, "ip_address_collection_disabled", JsonPrimitive(false))
+                jsonObject.moveNode(baseConfigJsonObject, "adapty_attribution_enabled", JsonPrimitive(false))
 
                 jsonObject.removeNode("customer_identity_parameters").let { (_, value) ->
                     if (value is JsonObject) {

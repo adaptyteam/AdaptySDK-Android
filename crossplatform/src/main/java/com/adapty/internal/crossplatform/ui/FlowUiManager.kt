@@ -132,14 +132,19 @@ internal class FlowUiManager(
 
     private var flowView: WeakReference<AdaptyFlowView>? = null
 
+    var currentViewId: String? = null
+        private set
+
     fun getCurrentView(): AdaptyFlowView? = flowView?.get()
 
-    fun setCurrentView(view: AdaptyFlowView) {
+    fun setCurrentView(view: AdaptyFlowView, id: String) {
         flowView = WeakReference(view)
+        currentViewId = id
     }
 
     fun clearCurrentView() {
         flowView?.clear()
+        currentViewId = null
     }
 
     fun setupFlowView(

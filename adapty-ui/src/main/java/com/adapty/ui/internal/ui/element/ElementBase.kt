@@ -246,27 +246,35 @@ internal fun withActiveAnimations(
         LocalActiveAnimations provides activeAnimations,
         LocalRoleSequences provides (activeAnimations.value?.sequenceByRole ?: emptyMap()),
     ) {
-        val uiEnabledBinding = baseProps.uiEnabled
-        val parentEnabled = com.adapty.ui.internal.ui.LocalUiEnabled.current
-        val selfEnabled = if (uiEnabledBinding != null) {
-            com.adapty.ui.internal.ui.resolveState()[uiEnabledBinding] as? Boolean ?: true
-        } else true
-        val visible = if (baseProps.hasOpacityAnimation()) {
-            val alpha = rememberOpacityProvider(baseProps).alpha
-            remember(alpha) { derivedStateOf { alpha.value > 0f } }.value
-        } else {
-            baseProps.opacity > 0f
-        }
-        val isEnabled = parentEnabled && selfEnabled && visible
-        if (isEnabled != parentEnabled) {
-            CompositionLocalProvider(
-                com.adapty.ui.internal.ui.LocalUiEnabled provides isEnabled
-            ) {
-                content()
-            }
-        } else {
+        uiEnabledGatedContent(baseProps, content)
+    }
+}
+
+@Composable
+private fun uiEnabledGatedContent(
+    baseProps: BaseProps,
+    content: @Composable () -> Unit,
+) {
+    val uiEnabledBinding = baseProps.uiEnabled
+    val parentEnabled = com.adapty.ui.internal.ui.LocalUiEnabled.current
+    val selfEnabled = if (uiEnabledBinding != null) {
+        com.adapty.ui.internal.ui.resolveState()[uiEnabledBinding] as? Boolean ?: true
+    } else true
+    val visible = if (baseProps.hasOpacityAnimation()) {
+        val alpha = rememberOpacityProvider(baseProps).alpha
+        remember(alpha) { derivedStateOf { alpha.value > 0f } }.value
+    } else {
+        baseProps.opacity > 0f
+    }
+    val isEnabled = parentEnabled && selfEnabled && visible
+    if (isEnabled != parentEnabled) {
+        CompositionLocalProvider(
+            com.adapty.ui.internal.ui.LocalUiEnabled provides isEnabled
+        ) {
             content()
         }
+    } else {
+        content()
     }
 }
 
@@ -274,6 +282,9 @@ internal fun BaseProps.hasOpacityAnimation(): Boolean =
     eventHandlers?.any { handler ->
         handler.animations.any { it.role == Animation.Role.Opacity }
     } ?: false
+
+internal fun BaseProps.hasVisualAnimations(): Boolean =
+    eventHandlers?.any { handler -> handler.animations.isNotEmpty() } ?: false
 
 @Composable
 internal fun UIElement.render(
@@ -943,6 +954,7 @@ private inline fun <reified T> BaseProps.findAnimationBehaviour(
     createDefaultValue: () -> AnimationBehavior<T>,
     createAnimatedValue: (anims: Iterable<Animation<*>>) -> AnimationBehavior<T>,
 ): AnimationBehavior<T> {
+    if (!hasVisualAnimations()) return createDefaultValue()
     activeAnimationsFor(role)
         ?.sortedBy { it.startDelayMillis }
         ?.let { anims -> return createAnimatedValue(anims) }

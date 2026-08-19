@@ -1,4 +1,5 @@
 @file:OptIn(InternalAdaptyApi::class)
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.store
 
@@ -27,7 +28,7 @@ internal class AnalyticsEffectHandler(
             }
             is Effect.LogFlowEvent -> {
                 log(VERBOSE) { "$LOG_PREFIX $flowKey logFlowEvent (${effect.name}) begin" }
-                Adapty.logFlowEvent(effect.flow, effect.viewConfigurationId, effect.toEventProperties()) { error ->
+                Adapty.logFlowEvent(effect.flow, effect.versionId, effect.toEventProperties()) { error ->
                     if (error != null) {
                         log(ERROR) { "$LOG_PREFIX_ERROR $flowKey logFlowEvent (${effect.name}) error: ${error.message}" }
                     } else {

@@ -25,6 +25,7 @@ internal class AuthInteractor(
     private val adIdRetriever: AdIdRetriever,
     private val appSetIdRetriever: AppSetIdRetriever,
     private val storeCountryRetriever: StoreCountryRetriever,
+    private val userAgentRetriever: UserAgentRetriever,
     private val hashingHelper: HashingHelper,
     private val profileStateChangeChecker: ProfileStateChangeChecker,
 ) {
@@ -113,8 +114,9 @@ internal class AuthInteractor(
             adIdRetriever.getAdIdIfAvailable(),
             storeCountryRetriever.getStoreCountryIfAvailable(!isCreatingProfile),
             appSetIdRetriever.getAppSetIdIfAvailable(),
-        ) { adId, storeCountry, appSetId ->
-            installationMetaCreator.create(adId, appSetId, storeCountry)
+            userAgentRetriever.getUserAgentIfAvailable(),
+        ) { adId, storeCountry, appSetId, userAgent ->
+            installationMetaCreator.create(adId, appSetId, storeCountry, userAgent)
         }
 
     fun prepareAuthDataToSync(newCustomerUserId: String?, newObfuscatedAccountId: String?) {

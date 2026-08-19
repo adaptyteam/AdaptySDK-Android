@@ -5,7 +5,7 @@ import com.adapty.utils.FileLocation
 import com.google.gson.annotations.SerializedName
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-internal class FallbackPaywallsInfo(
+internal class FallbackVariationsInfo(
     val meta: Meta,
     val source: FileLocation,
 ) {
@@ -17,5 +17,5 @@ internal class FallbackPaywallsInfo(
         val version: Int,
     )
 
-    fun copy(location: FileLocation) = FallbackPaywallsInfo(meta, location)
+    fun copy(location: FileLocation) = FallbackVariationsInfo(meta, location)
 }

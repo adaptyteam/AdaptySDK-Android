@@ -14,6 +14,7 @@ import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.buttonPressDim
 import com.adapty.ui.internal.ui.rememberOpacityProvider
 import androidx.compose.runtime.CompositionLocalProvider
+import com.adapty.ui.internal.ui.LocalInsideButton
 import com.adapty.ui.internal.ui.LocalOpacityProvider
 import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.LocalUiEnabled
@@ -56,7 +57,10 @@ public class ButtonElement internal constructor(
                         dispatch(Message.ActionsRequested(actions, screen))
                     }
             ) {
-                CompositionLocalProvider(LocalOpacityProvider provides null) {
+                CompositionLocalProvider(
+                    LocalOpacityProvider provides null,
+                    LocalInsideButton provides true,
+                ) {
                     content.render(dispatch)
                 }
             }

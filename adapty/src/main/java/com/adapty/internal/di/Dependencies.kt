@@ -8,6 +8,7 @@ import com.adapty.internal.AdaptyInternal
 import com.adapty.internal.data.serialization.*
 import com.adapty.internal.data.serialization.extractors.*
 import com.adapty.internal.data.cache.CacheRepository
+import com.adapty.internal.data.cache.FileCache
 import com.adapty.internal.data.cache.PreferenceManager
 import com.adapty.internal.data.cache.ResponseCacheKeyProvider
 import com.adapty.internal.data.cloud.*
@@ -18,9 +19,12 @@ import com.adapty.internal.domain.BasePlacementFetcher
 import com.adapty.internal.domain.FlowInteractor
 import com.adapty.internal.domain.OnboardingInteractor
 import com.adapty.internal.domain.PaywallInteractor
+import com.adapty.internal.domain.PlacementCloudGateway
+import com.adapty.internal.domain.PlacementLocalReader
 import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.domain.PurchasesInteractor
-import com.adapty.internal.domain.UserAcquisitionInteractor
+import com.adapty.internal.domain.VariationDrawer
+import com.adapty.internal.domain.AdaptyAttributionInteractor
 import com.adapty.internal.data.cloud.BrowserLauncher
 import com.adapty.internal.utils.WebPaywallUrlCreator
 import com.adapty.internal.utils.*
@@ -244,6 +248,10 @@ public object Dependencies {
                                 RemoteConfigDtoDeserializer()
                             )
                             .registerTypeAdapter(
+                                GridDto::class.java,
+                                GridDtoTypeAdapter()
+                            )
+                            .registerTypeAdapter(
                                 SendEventRequest::class.java,
                                 SendEventRequestSerializer()
                             )
@@ -284,10 +292,16 @@ public object Dependencies {
                     )
                 }),
 
+                FileCache::class to singleVariantDiObject({
+                    FileCache(appContext, injectInternal(named = BASE), injectInternal())
+                }),
+
                 CacheRepository::class to singleVariantDiObject({
                     CacheRepository(
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
+                        injectInternal(named = BASE),
                         injectInternal(named = CROSS_PLACEMENT_INFO),
                         injectInternal(named = PRODUCT_PAL_MAPPING),
                         injectInternal(named = VALIDATE_DATA),
@@ -432,7 +446,6 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
-                        injectInternal(),
                     )
                 }),
 
@@ -457,7 +470,7 @@ public object Dependencies {
                 }),
 
                 UserAgentRetriever::class to singleVariantDiObject({
-                    UserAgentRetriever(appContext)
+                    UserAgentRetriever(appContext, injectInternal())
                 }),
 
                 IPv4Retriever::class to singleVariantDiObject({
@@ -468,8 +481,8 @@ public object Dependencies {
                     )
                 }),
 
-                FallbackPaywallRetriever::class to singleVariantDiObject({
-                    FallbackPaywallRetriever(appContext, injectInternal(named = BASE))
+                FallbackVariationRetriever::class to singleVariantDiObject({
+                    FallbackVariationRetriever(appContext, injectInternal(named = BASE))
                 }),
 
                 CustomAttributeValidator::class to singleVariantDiObject({
@@ -582,6 +595,30 @@ public object Dependencies {
                     }),
                 ),
 
+                PlacementCloudGateway::class to singleVariantDiObject({
+                    PlacementCloudGateway(
+                        injectInternal(),
+                        injectInternal(),
+                    )
+                }),
+
+                VariationDrawer::class to singleVariantDiObject({
+                    VariationDrawer(
+                        injectInternal(),
+                        injectInternal(),
+                        injectInternal(named = BASE),
+                        injectInternal(named = CROSS_PLACEMENT_INFO),
+                        injectInternal(),
+                    )
+                }),
+
+                PlacementLocalReader::class to singleVariantDiObject({
+                    PlacementLocalReader(
+                        injectInternal(),
+                        injectInternal(),
+                    )
+                }),
+
                 BasePlacementFetcher::class to singleVariantDiObject({
                     BasePlacementFetcher(
                         injectInternal(),
@@ -590,8 +627,8 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
-                        injectInternal(named = BASE),
-                        injectInternal(named = CROSS_PLACEMENT_INFO),
+                        injectInternal(),
+                        injectInternal(),
                     )
                 }),
 
@@ -617,8 +654,13 @@ public object Dependencies {
                     )
                 }),
 
+                DeviceInfoResolver::class to singleVariantDiObject({
+                    DeviceInfoResolver(appContext)
+                }),
+
                 FlowInteractor::class to singleVariantDiObject({
                     FlowInteractor(
+                        injectInternal(),
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
@@ -673,11 +715,12 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
+                        injectInternal(),
                     )
                 }),
 
-                UserAcquisitionInteractor::class to singleVariantDiObject({
-                    UserAcquisitionInteractor(
+                AdaptyAttributionInteractor::class to singleVariantDiObject({
+                    AdaptyAttributionInteractor(
                         injectInternal(),
                         injectInternal(),
                         injectInternal(),
@@ -712,6 +755,7 @@ public object Dependencies {
                         injectInternal(),
                         config.observerMode,
                         config.ipAddressCollectionDisabled,
+                        config.adaptyAttributionEnabled,
                     )
                 }),
 

@@ -141,7 +141,7 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 
 internal const val DEFAULT_PLACEMENT_LOCALE = "en"
 
-internal const val VERSION_NAME = "4.0.2"
+internal const val VERSION_NAME = "4.1.0"
 
 /**
  * @suppress
@@ -199,13 +199,46 @@ private fun <T> getTimeoutFlow(timeout: Int) =
         throw TimeoutException()
     }
 
-internal fun <T> Flow<T>.recoverOnReachabilityError(nextValue: (error: Throwable) -> T) =
+internal fun Throwable.isBackendUnavailable(): Boolean =
+    this is TimeoutException || this is AdaptyError && (adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || originalError is IOException)
+
+internal val Throwable.isProfileWasChanged: Boolean
+    get() = this is AdaptyError && adaptyErrorCode == AdaptyErrorCode.PROFILE_WAS_CHANGED
+
+internal fun <T> Flow<T>.recoverOnBackendUnavailable(nextValue: (error: Throwable) -> T) =
     catch { error ->
-        if (error is TimeoutException || error is AdaptyError && (error.adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || error.originalError is IOException)) {
+        if (error.isBackendUnavailable()) {
             emit(nextValue(error))
         } else {
             throw error
         }
+    }
+
+internal fun <T> Flow<T>.recoverUnlessProfileChanged(nextValue: (error: Throwable) -> T) =
+    catch { error ->
+        if (error.isProfileWasChanged) {
+            throw error
+        } else {
+            emit(nextValue(error))
+        }
+    }
+
+internal fun IOException.indicatesHostUnreachable(): Boolean =
+    isServerUnreachableError() ||
+            (this is UnknownHostException &&
+                    runCatching { Dependencies.injectInternal<ConnectivityHelper>() }.getOrNull()?.hasInternetConnectivity() == true)
+
+internal fun <T> Flow<T>.switchEndpointOnHostError(): Flow<T> =
+    catch { error ->
+        if (error is Response.Error) {
+            val originalError = error.originalError
+            val indicatesHostProblem =
+                error.backendError?.responseCode in NetConfig.SWITCHING_STATUSES ||
+                        originalError is IOException && originalError.indicatesHostUnreachable()
+            if (indicatesHostProblem)
+                Dependencies.injectInternal<NetConfigManager>().switch(error.request.baseUrl)
+        }
+        throw error
     }
 
 internal fun getServerErrorDelay(attempt: Long) =
@@ -241,18 +274,16 @@ internal fun <T> Flow<T>.retryIfNecessary(maxAttemptCount: Long, getDelay: (atte
                 true
             }
             error.originalError is IOException -> {
-                val connectivityHelper = runCatching { Dependencies.injectInternal<ConnectivityHelper>() }.getOrNull()
-                val isServerUnreachable = error.originalError.isServerUnreachableError()
-                val isUnknownHostException = error.originalError is UnknownHostException
-                val hasInternet = connectivityHelper?.hasInternetConnectivity() == true
+                val indicatesHostUnreachable = error.originalError.indicatesHostUnreachable()
 
                 delay(NETWORK_ERROR_DELAY_MILLIS)
-                if (isServerUnreachable || (isUnknownHostException && hasInternet)) {
+                if (indicatesHostUnreachable) {
                     if (error is Response.Error)
                         Dependencies.injectInternal<NetConfigManager>()
                             .switch(error.request.baseUrl)
                 } else if (maxAttemptCount == INFINITE_RETRY) {
-                    connectivityHelper?.waitForInternetConnectivity()
+                    runCatching { Dependencies.injectInternal<ConnectivityHelper>() }.getOrNull()
+                        ?.waitForInternetConnectivity()
                 }
                 true
             }

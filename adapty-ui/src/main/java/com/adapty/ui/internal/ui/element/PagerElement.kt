@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalOverscrollConfiguration
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isFinite
@@ -41,6 +43,7 @@ import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.ui.attributes.ComposeFill
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.EdgeEntities
+import com.adapty.ui.internal.ui.attributes.EdgePageOverrides
 import com.adapty.ui.internal.ui.attributes.HorizontalAlign
 import com.adapty.ui.internal.ui.attributes.InteractionBehavior
 import com.adapty.ui.internal.ui.attributes.InteractionBehavior.CANCEL_ANIMATION
@@ -88,6 +91,7 @@ public class PagerElement internal constructor(
     internal val pageWidth: PageSize,
     internal val pageHeight: PageSize,
     internal val pagePadding: EdgeEntities?,
+    internal val edgePageOverrides: EdgePageOverrides?,
     internal val spacing: Float?,
     override var content: List<UIElement>,
     internal val pagerIndicator: PagerIndicator?,
@@ -283,8 +287,11 @@ public class PagerElement internal constructor(
             is PageSize.PageFraction ->
                 if (ph.fraction != 1f && maxAvailableHeight.isFinite) (maxAvailableHeight * ph.fraction - verticalPagePadding).coerceAtLeast(0.dp) else null
         }
+        val leadingOverrideDp = edgePageOverrides?.leadingPadding?.toExactDp(DimSpec.Axis.X)?.coerceAtLeast(0.dp)
+        val trailingOverrideDp = edgePageOverrides?.trailingPadding?.toExactDp(DimSpec.Axis.X)?.coerceAtLeast(0.dp)
         val pagerContentPadding: PaddingValues
         val pagerModifier: Modifier
+        val interiorSnapStartDp: Dp
         if (pagePadding != null && pagePadding.hasAnyNegative) {
             val startNegDp = pagePadding.start.toExactDp(DimSpec.Axis.X).coerceAtMost(0.dp)
             val endNegDp = pagePadding.end.toExactDp(DimSpec.Axis.X).coerceAtMost(0.dp)
@@ -294,10 +301,11 @@ public class PagerElement internal constructor(
             val bottomPosDp = pagePadding.bottom.toExactDp(DimSpec.Axis.Y).coerceAtLeast(0.dp)
             val effectiveViewportWidth = maxAvailableWidth - startNegDp - endNegDp
             val trailingRoom = (effectiveViewportWidth - pageWidth - startPosDp).coerceAtLeast(0.dp)
+            interiorSnapStartDp = startPosDp
             pagerContentPadding = PaddingValues(
-                start = startPosDp,
+                start = leadingOverrideDp ?: startPosDp,
                 top = topPosDp,
-                end = maxOf(endPosDp, trailingRoom),
+                end = trailingOverrideDp ?: maxOf(endPosDp, trailingRoom),
                 bottom = bottomPosDp,
             )
             pagerModifier = modifier.negativePaddingInset(pagePadding)
@@ -307,18 +315,39 @@ public class PagerElement internal constructor(
             val topPadDp = pagePadding?.top?.toExactDp(DimSpec.Axis.Y) ?: 0.dp
             val bottomPadDp = pagePadding?.bottom?.toExactDp(DimSpec.Axis.Y) ?: 0.dp
             val trailingRoom = (maxAvailableWidth - pageWidth - startPadDp).coerceAtLeast(0.dp)
+            interiorSnapStartDp = startPadDp
             pagerContentPadding = PaddingValues(
-                start = startPadDp,
+                start = leadingOverrideDp ?: startPadDp,
                 top = topPadDp,
-                end = maxOf(endPadDp, trailingRoom),
+                end = trailingOverrideDp ?: maxOf(endPadDp, trailingRoom),
                 bottom = bottomPadDp,
             )
             pagerModifier = modifier
+        }
+        val snapPosition = if (leadingOverrideDp == null) {
+            SnapPosition.Start
+        } else {
+            val interiorSnapOffsetPx = with(LocalDensity.current) {
+                (interiorSnapStartDp - leadingOverrideDp).roundToPx()
+            }
+            remember(interiorSnapOffsetPx) {
+                object : SnapPosition {
+                    override fun position(
+                        layoutSize: Int,
+                        itemSize: Int,
+                        beforeContentPadding: Int,
+                        afterContentPadding: Int,
+                        itemIndex: Int,
+                        itemCount: Int,
+                    ): Int = if (itemIndex == 0) 0 else interiorSnapOffsetPx
+                }
+            }
         }
         HorizontalPager(
             pageSize = androidx.compose.foundation.pager.PageSize.Fixed(pageWidth),
             pageSpacing = spacing,
             contentPadding = pagerContentPadding,
+            snapPosition = snapPosition,
             beyondViewportPageCount = if (!maxAvailableHeight.isFinite) pages.size else 0,
             verticalAlignment = if (pageHeight != null) Alignment.Top else Alignment.CenterVertically,
             state = pagerState,

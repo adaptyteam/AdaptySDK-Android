@@ -69,7 +69,7 @@ class AdaptyUiFlowDialogFragment : DialogFragment() {
                     dismissAllowingStateLoss()
                     return@with
                 }
-            flowUiManager?.setCurrentView(this)
+            flowUiManager?.setCurrentView(this, viewId)
             val eventListener = flowUiManager?.newFlowEventListener(currentData) ?: kotlin.run {
                 dismissAllowingStateLoss()
                 return

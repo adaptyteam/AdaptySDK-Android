@@ -7,10 +7,12 @@ import android.content.ContentResolver
 import android.net.Uri
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
+import com.adapty.errors.AdaptyPreloadPlacementsError
 import com.adapty.errors.AdaptyErrorCode.LOGGING_OUT_UNIDENTIFIED_USER
 import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
 import com.adapty.errors.AdaptyErrorCode.WRONG_PARAMETER
 import com.adapty.internal.data.cloud.AnalyticsTracker
+import com.adapty.internal.data.models.DeviceInfo
 import com.adapty.internal.data.models.AnalyticsEvent.SDKMethodRequestData
 import com.adapty.internal.data.models.AnalyticsEvent.SDKMethodResponseData
 import com.adapty.internal.domain.AuthInteractor
@@ -19,7 +21,7 @@ import com.adapty.internal.domain.OnboardingInteractor
 import com.adapty.internal.domain.PaywallInteractor
 import com.adapty.internal.domain.ProfileInteractor
 import com.adapty.internal.domain.PurchasesInteractor
-import com.adapty.internal.domain.UserAcquisitionInteractor
+import com.adapty.internal.domain.AdaptyAttributionInteractor
 import com.adapty.internal.utils.*
 import com.adapty.listeners.OnInstallationDetailsListener
 import com.adapty.listeners.OnProfileUpdatedListener
@@ -31,6 +33,8 @@ import com.adapty.utils.ErrorCallback
 import com.adapty.utils.FileLocation
 import com.adapty.utils.ResultCallback
 import com.adapty.utils.TransactionInfo
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.*
 import java.util.Locale
 
@@ -41,7 +45,7 @@ internal class AdaptyInternal(
     private val purchasesInteractor: PurchasesInteractor,
     private val paywallInteractor: PaywallInteractor,
     private val onboardingInteractor: OnboardingInteractor,
-    private val userAcquisitionInteractor: UserAcquisitionInteractor,
+    private val adaptyAttributionInteractor: AdaptyAttributionInteractor,
     private val analyticsTracker: AnalyticsTracker,
     private val lifecycleAwareRequestRunner: LifecycleAwareRequestRunner,
     private val lifecycleManager: LifecycleManager,
@@ -49,6 +53,7 @@ internal class AdaptyInternal(
     private val flowInteractor: FlowInteractor,
     private val isObserverMode: Boolean,
     private val ipAddressCollectionDisabled: Boolean,
+    private val adaptyAttributionEnabled: Boolean,
 ) {
 
     var onProfileUpdatedListener: OnProfileUpdatedListener? = null
@@ -66,7 +71,7 @@ internal class AdaptyInternal(
     var onInstallationDetailsListener: OnInstallationDetailsListener? = null
         set(value) {
             execute {
-                userAcquisitionInteractor
+                adaptyAttributionInteractor
                     .subscribeOnInstallRegistration()
                     .catch { }
                     .onEach { result ->
@@ -85,7 +90,9 @@ internal class AdaptyInternal(
         }
 
     fun init(appKey: String) {
-        userAcquisitionInteractor.handleFirstLaunch()
+        if (adaptyAttributionEnabled) {
+            adaptyAttributionInteractor.handleFirstLaunch()
+        }
         authInteractor.handleAppKey(appKey)
         lifecycleManager.init()
     }
@@ -301,40 +308,79 @@ internal class AdaptyInternal(
         }
     }
 
-    fun getFlowViewConfiguration(
-        flow: AdaptyFlow,
-        locale: String?,
+    fun preloadFlows(
+        placementIds: List<String>,
         loadTimeout: TimeInterval,
-        callback: ResultCallback<Map<String, Any>>
+        callback: ErrorCallback,
     ) {
-        val requestEvent = SDKMethodRequestData.create("get_flow_builder")
+        val requestEvent = SDKMethodRequestData.PreloadPlacements.create(placementIds, null, loadTimeout.toMillis(), "preload_flows")
         analyticsTracker.trackSystemEvent(requestEvent)
-        if (!flow.hasViewConfiguration) {
-            val errorMessage = "View configuration has not been found for the requested flow"
-            Logger.log(ERROR) { errorMessage }
-            val e = AdaptyError(
-                message = errorMessage,
-                adaptyErrorCode = WRONG_PARAMETER
-            )
-            analyticsTracker.trackSystemEvent(
-                SDKMethodResponseData.create(requestEvent, e)
-            )
-            callback.onResult(AdaptyResult.Error(e))
-            return
+        preloadPlacements(placementIds, requestEvent, callback) { placementId ->
+            flowInteractor.preloadFlow(placementId, loadTimeout.coerceAtLeast(MIN_PLACEMENT_TIMEOUT).toMillis())
         }
+    }
+
+    fun preloadOnboardings(
+        placementIds: List<String>,
+        locale: String,
+        loadTimeout: TimeInterval,
+        callback: ErrorCallback,
+    ) {
+        val requestEvent = SDKMethodRequestData.PreloadPlacements.create(placementIds, locale, loadTimeout.toMillis(), "preload_onboardings")
+        analyticsTracker.trackSystemEvent(requestEvent)
+        preloadPlacements(placementIds, requestEvent, callback) { placementId ->
+            onboardingInteractor.preloadOnboarding(placementId, locale, loadTimeout.coerceAtLeast(MIN_PLACEMENT_TIMEOUT).toMillis())
+        }
+    }
+
+    fun preloadFlowsForDefaultAudience(
+        placementIds: List<String>,
+        callback: ErrorCallback,
+    ) {
+        val requestEvent = SDKMethodRequestData.PreloadPlacements.create(placementIds, null, null, "preload_flows_for_default_audience")
+        analyticsTracker.trackSystemEvent(requestEvent)
+        preloadPlacements(placementIds, requestEvent, callback) { placementId ->
+            flowInteractor.preloadFlowUntargeted(placementId)
+        }
+    }
+
+    fun preloadOnboardingsForDefaultAudience(
+        placementIds: List<String>,
+        locale: String,
+        callback: ErrorCallback,
+    ) {
+        val requestEvent = SDKMethodRequestData.PreloadPlacements.create(placementIds, locale, null, "preload_onboardings_for_default_audience")
+        analyticsTracker.trackSystemEvent(requestEvent)
+        preloadPlacements(placementIds, requestEvent, callback) { placementId ->
+            onboardingInteractor.preloadOnboardingUntargeted(placementId, locale)
+        }
+    }
+
+    private fun preloadPlacements(
+        placementIds: List<String>,
+        requestEvent: SDKMethodRequestData,
+        callback: ErrorCallback,
+        fetchOne: (placementId: String) -> Flow<*>,
+    ) {
         execute {
-            flowInteractor
-                .getViewConfiguration(flow, locale, loadTimeout.coerceAtLeast(MIN_PLACEMENT_TIMEOUT).toMillis())
-                .onSingleResult { result ->
-                    if (result is AdaptyResult.Success) {
-                        adaptyUiAccessor.preloadMedia(result.value)
+            val ids = placementIds.mapNotNullTo(linkedSetOf()) { id -> id.trim().takeIf { it.isNotEmpty() } }
+            val preloadErrors = ids
+                .map { id ->
+                    async {
+                        var error: AdaptyError? = null
+                        fetchOne(id)
+                            .catch { e -> error = e.asAdaptyError() }
+                            .collect()
+                        id to error
                     }
-                    analyticsTracker.trackSystemEvent(
-                        SDKMethodResponseData.create(requestEvent, result.errorOrNull())
-                    )
-                    callback.onResult(result)
                 }
-                .collect()
+                .awaitAll()
+                .mapNotNull { (id, error) -> error?.let { id to it } }
+                .toMap()
+
+            val error = preloadErrors.takeIf { it.isNotEmpty() }?.let { errors -> AdaptyPreloadPlacementsError(errors) }
+            analyticsTracker.trackSystemEvent(SDKMethodResponseData.create(requestEvent, error))
+            runOnMain { callback.onResult(error) }
         }
     }
 
@@ -342,6 +388,8 @@ internal class AdaptyInternal(
         flow: AdaptyFlow,
         locale: String?,
         loadTimeout: TimeInterval,
+        customLayoutId: String?,
+        deviceInfoOverride: DeviceInfo?,
         transform: (Map<String, Any>) -> T,
         callback: ResultCallback<T>,
     ) {
@@ -362,7 +410,7 @@ internal class AdaptyInternal(
         }
         execute {
             flowInteractor
-                .getViewConfiguration(flow, locale, loadTimeout.coerceAtLeast(MIN_PLACEMENT_TIMEOUT).toMillis())
+                .getViewConfiguration(flow, locale, loadTimeout.coerceAtLeast(MIN_PLACEMENT_TIMEOUT).toMillis(), customLayoutId, deviceInfoOverride)
                 .map { rawConfig ->
                     adaptyUiAccessor.preloadMedia(rawConfig)
                     transform(rawConfig)
@@ -389,7 +437,7 @@ internal class AdaptyInternal(
 
     fun logFlowEvent(
         flow: AdaptyFlow,
-        viewConfigurationId: String,
+        versionId: String,
         eventProperties: Map<String, Any>,
         callback: ErrorCallback?,
     ) {
@@ -397,7 +445,7 @@ internal class AdaptyInternal(
             "flow_event",
             mutableMapOf<String, Any>(
                 "variation_id" to flow.variationId,
-                "flow_version_id" to viewConfigurationId,
+                "flow_version_id" to versionId,
                 "event_properties" to eventProperties,
             ),
             completion = callback,
@@ -527,28 +575,28 @@ internal class AdaptyInternal(
         onboardingInteractor.logShowOnboardingInternal(onboarding, screenName, screenOrder, isLastScreen)
     }
 
-    fun updateAttribution(
+    fun updateExternalAttribution(
         attribution: Map<String, Any>,
-        source: String,
+        provider: String,
         callback: ErrorCallback,
     ) {
-        updateAttribution(source, callback) { profileInteractor.updateAttribution(attribution, source) }
+        updateExternalAttribution(provider, callback) { profileInteractor.updateExternalAttribution(attribution, provider) }
     }
 
-    fun updateAttribution(
+    fun updateExternalAttribution(
         attributionJson: String,
-        source: String,
+        provider: String,
         callback: ErrorCallback,
     ) {
-        updateAttribution(source, callback) { profileInteractor.updateAttribution(attributionJson, source) }
+        updateExternalAttribution(provider, callback) { profileInteractor.updateExternalAttribution(attributionJson, provider) }
     }
 
-    private fun updateAttribution(
-        source: String,
+    private fun updateExternalAttribution(
+        provider: String,
         callback: ErrorCallback,
         updateFlow: () -> Flow<Unit>,
     ) {
-        val requestEvent = SDKMethodRequestData.UpdateAttribution.create(source)
+        val requestEvent = SDKMethodRequestData.UpdateExternalAttribution.create(provider)
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             updateFlow()
@@ -582,7 +630,7 @@ internal class AdaptyInternal(
         val requestEvent = SDKMethodRequestData.create("get_current_installation_status")
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
-            userAcquisitionInteractor
+            adaptyAttributionInteractor
                 .getCurrentInstallationStatus()
                 .onSingleResult { result ->
                     analyticsTracker.trackSystemEvent(
@@ -711,7 +759,7 @@ internal class AdaptyInternal(
 
     private fun handleNewSession() {
         execute {
-            userAcquisitionInteractor
+            adaptyAttributionInteractor
                 .handleNewSession()
                 .catch { e -> Logger.log(ERROR) { e.localizedMessage.orEmpty() } }
                 .collect()

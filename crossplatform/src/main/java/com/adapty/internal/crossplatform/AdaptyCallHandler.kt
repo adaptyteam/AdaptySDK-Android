@@ -19,7 +19,7 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.adaptySdkVersion
 import com.adapty.listeners.OnInstallationDetailsListener
 import com.adapty.listeners.OnProfileUpdatedListener
-import com.adapty.models.AdaptyAttributionSource
+import com.adapty.models.AdaptyExternalAttributionProvider
 import com.adapty.models.AdaptyInstallationDetails
 import com.adapty.models.AdaptyIntegrationIdentifier
 import com.adapty.models.AdaptyPlacementFetchPolicy
@@ -73,7 +73,7 @@ internal class AdaptyCallHandler(
             RESTORE_PURCHASES -> handleRestorePurchases(onResult)
             GET_PROFILE -> handleGetProfile(onResult)
             SET_INTEGRATION_ID -> handleSetIntegrationId(argument, onResult)
-            UPDATE_ATTRIBUTION -> handleUpdateAttribution(argument, onResult)
+            UPDATE_EXTERNAL_ATTRIBUTION -> handleUpdateExternalAttribution(argument, onResult)
             UPDATE_PROFILE -> handleUpdateProfile(argument, onResult)
             REPORT_TRANSACTION -> handleReportTransaction(argument, onResult)
             GET_CURRENT_INSTALLATION_STATUS -> handleGetCurrentInstallationStatus(onResult)
@@ -312,13 +312,13 @@ internal class AdaptyCallHandler(
         }
     }
 
-    private fun handleUpdateAttribution(argument: Any?, onResult: ResultCallback<String>) {
-        val args = parseJsonArgument<UpdateAttributionArgs>(argument) ?: kotlin.run {
-            onResult(callParameterError(UPDATE_ATTRIBUTION))
+    private fun handleUpdateExternalAttribution(argument: Any?, onResult: ResultCallback<String>) {
+        val args = parseJsonArgument<UpdateExternalAttributionArgs>(argument) ?: kotlin.run {
+            onResult(callParameterError(UPDATE_EXTERNAL_ATTRIBUTION))
             return
         }
 
-        Adapty.updateAttribution(args.attribution, AdaptyAttributionSource(args.source)) { error ->
+        Adapty.updateExternalAttribution(args.attribution, AdaptyExternalAttributionProvider(args.provider)) { error ->
             onResult(emptyResultOrError(error))
         }
     }
@@ -463,6 +463,7 @@ internal class AdaptyCallHandler(
 
         uiHelper.handleDismissView(
             args.id,
+            args.destroy,
             { onResult(success()) },
             { error -> onResult(uiBridgeError(error)) },
         )
@@ -502,6 +503,7 @@ internal class AdaptyCallHandler(
 
         uiHelper.handleDismissOnboardingView(
             args.id,
+            args.destroy,
             { onResult(success()) },
             { error -> onResult(uiBridgeError(error)) },
         )
@@ -693,7 +695,7 @@ internal class AdaptyCallHandler(
         const val MAKE_PURCHASE = "make_purchase"
         const val RESTORE_PURCHASES = "restore_purchases"
         const val SET_INTEGRATION_ID = "set_integration_identifiers"
-        const val UPDATE_ATTRIBUTION = "update_attribution_data"
+        const val UPDATE_EXTERNAL_ATTRIBUTION = "update_external_attribution_data"
         const val LOG_SHOW_FLOW = "log_show_flow"
         const val REPORT_TRANSACTION = "report_transaction"
         const val SET_FALLBACK = "set_fallback"

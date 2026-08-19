@@ -16,6 +16,11 @@ internal enum class InteractionBehavior {
     NONE, CANCEL_ANIMATION, PAUSE_ANIMATION
 }
 
+internal class EdgePageOverrides(
+    internal val leadingPadding: DimUnit?,
+    internal val trailingPadding: DimUnit?,
+)
+
 internal class PagerIndicator(
     val layout: Layout,
     val vAlign: VerticalAlign,

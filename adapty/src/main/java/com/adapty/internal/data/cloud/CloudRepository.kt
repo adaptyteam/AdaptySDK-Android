@@ -121,15 +121,15 @@ internal class CloudRepository(
             }
         }
 
-    fun getFlowViewConfiguration(flowId: String, viewConfigurationId: String): Response<Map<String, Any>> =
+    fun getFlowViewConfiguration(flowId: String, versionId: String, layoutId: String?): Response<Map<String, Any>> =
         httpClient.newCall(
-            mainRequestFactory.getFlowViewConfigurationRequest(flowId, viewConfigurationId),
+            mainRequestFactory.getFlowViewConfigurationRequest(flowId, versionId, layoutId),
             object : TypeToken<Map<String, Any>>() {}.type
         )
 
-    fun getFlowViewConfigurationFallback(flowId: String, viewConfigurationId: String): Response<Map<String, Any>> =
+    fun getFlowViewConfigurationFallback(flowId: String, versionId: String, layoutId: String?): Response<Map<String, Any>> =
         httpClient.newCall(
-            auxRequestFactory.getFlowViewConfigurationFallbackRequest(flowId, viewConfigurationId),
+            auxRequestFactory.getFlowViewConfigurationFallbackRequest(flowId, versionId, layoutId),
             object : TypeToken<Map<String, Any>>() {}.type
         )
 
@@ -178,9 +178,9 @@ internal class CloudRepository(
             ProfileDto::class.java
         )
 
-    fun updateAttribution(attributionData: AttributionData): Response<ProfileDto> =
+    fun updateExternalAttribution(attributionData: AttributionData): Response<ProfileDto> =
         httpClient.newCall(
-            mainRequestFactory.updateAttributionRequest(attributionData),
+            mainRequestFactory.updateExternalAttributionRequest(attributionData),
             ProfileDto::class.java
         )
 

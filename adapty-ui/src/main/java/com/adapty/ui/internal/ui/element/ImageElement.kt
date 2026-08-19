@@ -200,6 +200,7 @@ private class ImageIntrinsicsNode(
         width: Int,
     ): Int {
         if (naturalWidth <= 0 || naturalHeight <= 0) return 0
+        if (width == Constraints.Infinity) return naturalHeight
         return (width.toLong() * naturalHeight / naturalWidth).toInt()
     }
 
@@ -213,6 +214,7 @@ private class ImageIntrinsicsNode(
         height: Int,
     ): Int {
         if (naturalWidth <= 0 || naturalHeight <= 0) return 0
+        if (height == Constraints.Infinity) return naturalWidth
         return (height.toLong() * naturalWidth / naturalHeight).toInt()
     }
 

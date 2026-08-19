@@ -114,19 +114,19 @@ internal class ProfileInteractor(
     fun syncMetaOnStart() =
         updateProfile(params = null, INFINITE_RETRY)
 
-    fun updateAttribution(attribution: Map<String, Any>, source: String) =
-        updateAttribution {
-            attributionHelper.createAttributionData(attribution, source, cacheRepository.getProfileId())
+    fun updateExternalAttribution(attribution: Map<String, Any>, provider: String) =
+        updateExternalAttribution {
+            attributionHelper.createAttributionData(attribution, provider, cacheRepository.getProfileId())
         }
 
-    fun updateAttribution(attributionJson: String, source: String) =
-        updateAttribution {
-            attributionHelper.createAttributionData(attributionJson, source, cacheRepository.getProfileId())
+    fun updateExternalAttribution(attributionJson: String, provider: String) =
+        updateExternalAttribution {
+            attributionHelper.createAttributionData(attributionJson, provider, cacheRepository.getProfileId())
         }
 
-    private fun updateAttribution(attributionData: () -> AttributionData) =
+    private fun updateExternalAttribution(attributionData: () -> AttributionData) =
         authInteractor.runWhenAuthDataSynced {
-            cloudRepository.updateAttribution(attributionData())
+            cloudRepository.updateExternalAttribution(attributionData())
         }
             .map { (profile, request) ->
                 cacheRepository.updateOnProfileReceived(

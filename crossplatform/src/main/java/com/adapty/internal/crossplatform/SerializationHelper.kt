@@ -1,7 +1,7 @@
 package com.adapty.internal.crossplatform
 
 import com.adapty.errors.AdaptyErrorCode
-import com.adapty.models.AdaptyAttributionSource
+import com.adapty.models.AdaptyExternalAttributionProvider
 import com.adapty.models.AdaptyConfig
 import com.adapty.models.AdaptyEligibility
 import com.adapty.models.AdaptyInstallationDetails
@@ -33,6 +33,7 @@ internal class SerializationHelper(
             .registerTypeAdapterFactory(AdaptyProfileTypeAdapterFactory())
             .registerTypeAdapterFactory(AdaptyProductSubscriptionDetailsTypeAdapterFactory())
             .registerTypeAdapterFactory(AdaptyImmutableMapTypeAdapterFactory())
+            .registerTypeAdapterFactory(AdaptyFlowTypeAdapterFactory())
             .registerTypeAdapterFactory(AdaptyFlowPaywallTypeAdapterFactory())
             .registerTypeAdapterFactory(AdaptyPurchaseParametersTypeAdapterFactory())
             .registerTypeAdapterFactory(AdaptyResultTypeAdapterFactory())
@@ -41,7 +42,7 @@ internal class SerializationHelper(
             .registerTypeAdapterFactory(CrossplatformConfigTypeAdapterFactory(hasAdaptyUi))
             .registerTypeAdapterFactory(IdentifyArgsTypeAdapterFactory())
             .registerTypeAdapterFactory(SetIntegrationIdArgsTypeAdapterFactory())
-            .registerTypeAdapterFactory(UpdateAttributionArgsTypeAdapterFactory())
+            .registerTypeAdapterFactory(UpdateExternalAttributionArgsTypeAdapterFactory())
             .registerTypeAdapterFactory(WebPurchaseArgsTypeAdapterFactory())
             .registerTypeAdapterFactory(AdaptyWebPresentationTypeAdapterFactory())
             .registerTypeAdapterFactory(AdaptyInstallationStatusTypeAdapterFactory())
@@ -51,8 +52,8 @@ internal class SerializationHelper(
                 FileLocationArgsDeserializer()
             )
             .registerTypeAdapter(
-                AdaptyAttributionSource::class.java,
-                AdaptyAttributionSourceSerializer()
+                AdaptyExternalAttributionProvider::class.java,
+                AdaptyExternalAttributionProviderSerializer()
             )
             .registerTypeAdapter(
                 AdaptyPeriodUnit::class.java,

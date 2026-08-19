@@ -4,6 +4,7 @@ package com.adapty.ui.internal.mapping.element
 
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.mapping.attributes.toEdgeEntities
+import com.adapty.ui.internal.mapping.attributes.toEdgePageOverrides
 import com.adapty.ui.internal.mapping.attributes.toInteractionBehavior
 import com.adapty.ui.internal.mapping.attributes.toPageSize
 import com.adapty.ui.internal.mapping.attributes.toPagerAnimation
@@ -24,6 +25,7 @@ internal fun Map<*, *>.toPagerElement(
         this["page_width"].toPageSize(),
         this["page_height"].toPageSize(),
         this["page_padding"]?.toEdgeEntities(),
+        (this["edge_page_overrides"] as? Map<*, *>)?.toEdgePageOverrides(),
         this.extractSpacingOrNull(),
         (this["content"] as? List<*>)?.mapNotNull { item ->
             (item as? Map<*, *>)?.let { content -> childMapper(content, inheritShrink) }

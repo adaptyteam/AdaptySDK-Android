@@ -6,7 +6,9 @@ import com.google.gson.annotations.SerializedName
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class FlowViewConfig(
     @SerializedName("view_configuration_id")
-    val viewConfigurationId: String,
+    val versionId: String,
+    @SerializedName("layout_id")
+    val layoutId: String?,
     @SerializedName("config")
     val config: Map<String, Any>,
 )

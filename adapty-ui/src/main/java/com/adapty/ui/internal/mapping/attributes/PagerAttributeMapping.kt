@@ -4,6 +4,7 @@ package com.adapty.ui.internal.mapping.attributes
 
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.ui.attributes.EdgeEntities
+import com.adapty.ui.internal.ui.attributes.EdgePageOverrides
 import com.adapty.ui.internal.ui.attributes.InteractionBehavior
 import com.adapty.ui.internal.ui.attributes.Interpolator
 import com.adapty.ui.internal.ui.attributes.PageSize
@@ -44,6 +45,14 @@ internal fun Map<*, *>.toPagerIndicator(): PagerIndicator {
         ?: VisualValue.any(StringSource.Value("#D3D3D3FF"))
 
     return PagerIndicator(layout, vAlign, padding, dotSize, spacing, color, selectedColor)
+}
+
+internal fun Map<*, *>.toEdgePageOverrides(): EdgePageOverrides? {
+    val leadingPadding = this["leading_padding"]?.toDimUnit()
+    val trailingPadding = this["trailing_padding"]?.toDimUnit()
+    if (leadingPadding == null && trailingPadding == null)
+        return null
+    return EdgePageOverrides(leadingPadding, trailingPadding)
 }
 
 internal fun Any?.toInteractionBehavior(): InteractionBehavior {
