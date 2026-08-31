@@ -220,6 +220,7 @@ internal class PurchasesInteractor(
             .catch { error -> syncPurchasesSemaphore.releaseQuietly(); throw error }
     }
 
+    @Suppress("DEPRECATION")
     private fun syncPurchasesInternal(
         maxAttemptCount: Long,
         byUser: Boolean = false,
@@ -243,7 +244,7 @@ internal class PurchasesInteractor(
                     storeManager.queryProductDetails(
                         dataToSync.mapNotNull { it.products.firstOrNull() },
                         maxAttemptCount,
-                    ).flatMapConcat { productDetailsList ->
+                    ).flatMapConcat { (productDetailsList, _) ->
                         authInteractor.runWhenAuthDataSynced(maxAttemptCount) {
                             cloudRepository.restorePurchases(
                                 dataToSync.map { historyRecord ->

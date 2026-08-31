@@ -245,12 +245,20 @@ internal class AdaptyInternal(
     }
 
     @JvmSynthetic
+    @Suppress("DEPRECATION")
     fun restorePurchases(callback: ResultCallback<AdaptyProfile>) {
         val requestEvent = SDKMethodRequestData.create("restore_purchases")
         analyticsTracker.trackSystemEvent(requestEvent)
         execute {
             purchasesInteractor
                 .restorePurchases()
+                .catch { error ->
+                    if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
+                        emitAll(profileInteractor.getProfile())
+                    } else {
+                        throw error
+                    }
+                }
                 .onSingleResult { result ->
                     analyticsTracker.trackSystemEvent(
                         SDKMethodResponseData.create(requestEvent, result.errorOrNull())
@@ -556,6 +564,7 @@ internal class AdaptyInternal(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun setupStartRequests() {
         execute {
             profileInteractor
