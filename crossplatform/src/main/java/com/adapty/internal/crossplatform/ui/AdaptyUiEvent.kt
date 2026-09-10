@@ -146,7 +146,7 @@ private val AdaptyOnboardingAnalyticsEvent.name get() = when (this) {
     is AdaptyOnboardingAnalyticsEvent.ScreenCompleted -> "screen_completed"
     is AdaptyOnboardingAnalyticsEvent.ScreenPresented -> "screen_presented"
     is AdaptyOnboardingAnalyticsEvent.SecondScreenPresented -> "second_screen_presented"
-    is AdaptyOnboardingAnalyticsEvent.Unknown -> "unknown"
+    is AdaptyOnboardingAnalyticsEvent.Unknown -> name
     is AdaptyOnboardingAnalyticsEvent.UserEmailCollected -> "user_email_collected"
 }
 

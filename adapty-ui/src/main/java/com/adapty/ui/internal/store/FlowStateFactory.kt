@@ -20,6 +20,7 @@ import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image
 import com.adapty.ui.internal.ui.UserArgs
 import com.adapty.ui.internal.utils.CUSTOM_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.DARK_THEME_ASSET_SUFFIX
+import com.adapty.ui.internal.utils.VIDEO_PREVIEW_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.isLive
 
 internal fun buildInitialState(
@@ -86,6 +87,11 @@ internal fun buildLocalAssetsMap(
                 "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
             else
                 "${id}${CUSTOM_ASSET_SUFFIX}"
+        fun customPreviewAssetId(): String =
+            if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+                "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${VIDEO_PREVIEW_ASSET_SUFFIX}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+            else
+                "${id}${VIDEO_PREVIEW_ASSET_SUFFIX}${CUSTOM_ASSET_SUFFIX}"
 
         if (asset is Asset.RemoteImage) {
             when (val customAsset = asset.customId?.let(customAssets::getImage)) {
@@ -124,7 +130,7 @@ internal fun buildLocalAssetsMap(
                 is AdaptyCustomVideoAsset -> {
                     assetsMap[customAssetId()] = customAsset.value
                     when (val customPreviewAsset = customAsset.preview) {
-                        is AdaptyCustomImageAsset.Local -> assetsMap[customAssetId()] = customPreviewAsset.value
+                        is AdaptyCustomImageAsset.Local -> assetsMap[customPreviewAssetId()] = customPreviewAsset.value
                         else -> Unit
                     }
                 }

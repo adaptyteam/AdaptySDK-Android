@@ -19,7 +19,9 @@ internal class AdaptyPlacementFetchPolicyDeserializer : JsonDeserializer<AdaptyP
             "return_cache_data_else_load" -> AdaptyPlacementFetchPolicy.ReturnCacheDataElseLoad
             "reload_revalidating_cache_data" -> AdaptyPlacementFetchPolicy.ReloadRevalidatingCacheData
             "return_cache_data_if_not_expired_else_load" -> {
-                val maxAgeMillis = jsonObject.get("max_age")?.takeIf(JsonElement::isJsonPrimitive)?.asNumber?.toDouble()?.times(1000)?.toLong()
+                val maxAgeMillis = kotlin.runCatching {
+                    jsonObject.get("max_age")?.takeIf(JsonElement::isJsonPrimitive)?.asNumber?.toDouble()?.times(1000)?.toLong()
+                }.getOrNull()
                 if (maxAgeMillis != null)
                     AdaptyPlacementFetchPolicy.ReturnCacheDataIfNotExpiredElseLoad(maxAgeMillis)
                 else

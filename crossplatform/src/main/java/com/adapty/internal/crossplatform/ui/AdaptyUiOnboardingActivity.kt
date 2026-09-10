@@ -27,20 +27,20 @@ class AdaptyUiOnboardingActivity : FragmentActivity() {
         val onBackPressedCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 val viewId = intent?.getStringExtra(VIEW_ID) ?: kotlin.run {
-                    performBackPress()
+                    closeView()
                     return
                 }
 
                 if (onboardingUiManager?.handleSystemBack(viewId) != true) {
                     isEnabled = false
-                    performBackPress()
+                    closeView()
                 }
             }
         }
         onBackPressedDispatcher.addCallback(this, onBackPressedCallback)
 
         val viewId = intent?.getStringExtra(VIEW_ID) ?: kotlin.run {
-            performBackPress()
+            closeView()
             return
         }
 
@@ -49,12 +49,12 @@ class AdaptyUiOnboardingActivity : FragmentActivity() {
             val currentData = onboardingUiManager?.getData(viewId)
                 ?: kotlin.run {
                     onboardingUiManager?.removeData(viewId)
-                    performBackPress()
+                    closeView()
                     return@with
                 }
             onboardingUiManager?.setCurrentView(this)
             val eventListener = onboardingUiManager?.newOnboardingEventListener(currentData.view) ?: kotlin.run {
-                performBackPress()
+                closeView()
                 return
             }
             show(currentData.config, eventListener)
@@ -62,7 +62,7 @@ class AdaptyUiOnboardingActivity : FragmentActivity() {
     }
 
     fun close() {
-        performBackPress()
+        closeView()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             overrideActivityTransition(
                 OVERRIDE_TRANSITION_CLOSE,
@@ -76,9 +76,9 @@ class AdaptyUiOnboardingActivity : FragmentActivity() {
 
     override fun onBackPressed() { }
 
-    private fun performBackPress() {
+    private fun closeView() {
         onboardingUiManager?.clearCurrentView()
-        super.onBackPressed()
+        finish()
     }
 
     override fun onDestroy() {

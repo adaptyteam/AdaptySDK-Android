@@ -82,6 +82,7 @@ internal class SerializationFieldNamingStrategy(
             }
             AdaptyProfile::class.java -> when (f.name) {
                 "accessLevels" -> "paid_access_levels"
+                "appliedExternalAttributionProviders" -> "applied_attribution_sources"
                 else -> translateDefault(f)
             }
             AdaptyInstallationDetails::class.java -> when (f.name) {

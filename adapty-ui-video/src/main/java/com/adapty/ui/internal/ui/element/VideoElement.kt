@@ -182,8 +182,8 @@ public class VideoElement internal constructor(
                     .fillMaxHeight(),
                 factory = { context ->
                     createPlayerView(context)?.apply {
-                        this.player = player
                         useController = false
+                        this.player = player
                         setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                         layoutParams = FrameLayout.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,

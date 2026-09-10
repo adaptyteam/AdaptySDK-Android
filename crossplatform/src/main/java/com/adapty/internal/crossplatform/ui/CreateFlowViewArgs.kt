@@ -8,6 +8,7 @@ import com.adapty.utils.TimeInterval
 class CreateFlowViewArgs(
     val flow: AdaptyFlow,
     val locale: String?,
+    val customLayoutId: String?,
     val loadTimeout: TimeInterval?,
     val preloadProducts: Boolean,
     val customTags: Map<String, String>?,

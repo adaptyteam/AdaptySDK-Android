@@ -16,6 +16,7 @@ import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.ui.element.Action
 import com.adapty.ui.internal.utils.CUSTOM_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.DARK_THEME_ASSET_SUFFIX
+import com.adapty.ui.internal.utils.VIDEO_PREVIEW_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.isLive
 import com.adapty.ui.internal.utils.log
@@ -492,8 +493,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
                     is AdaptyCustomVideoAsset -> {
                         when (val customPreviewAsset = customAsset.preview) {
                             is AdaptyCustomImageAsset.Remote -> {
-                                val customAssetId = customAssetId(id)
-                                effects.add(Effect.LoadRemoteImage(customPreviewAsset.value, customAssetId))
+                                effects.add(Effect.LoadRemoteImage(customPreviewAsset.value, customPreviewAssetId(id)))
                             }
                             else -> Unit
                         }
@@ -622,3 +622,9 @@ private fun customAssetId(id: String): String =
         "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
     else
         "${id}${CUSTOM_ASSET_SUFFIX}"
+
+private fun customPreviewAssetId(id: String): String =
+    if (id.endsWith(DARK_THEME_ASSET_SUFFIX))
+        "${id.substringBeforeLast(DARK_THEME_ASSET_SUFFIX)}${VIDEO_PREVIEW_ASSET_SUFFIX}${CUSTOM_ASSET_SUFFIX}${DARK_THEME_ASSET_SUFFIX}"
+    else
+        "${id}${VIDEO_PREVIEW_ASSET_SUFFIX}${CUSTOM_ASSET_SUFFIX}"

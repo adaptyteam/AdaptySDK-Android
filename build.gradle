@@ -10,7 +10,7 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:8.2.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "org.jetbrains.dokka:dokka-gradle-plugin:1.7.20"
+        classpath "org.jetbrains.dokka:dokka-gradle-plugin:1.8.20"
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
@@ -26,4 +26,34 @@ allprojects {
 
 task clean(type: Delete) {
     delete rootProject.buildDir
+}
+
+apply plugin: 'org.jetbrains.dokka'
+
+def kdocModules = [':adapty': 'Adapty SDK', ':adapty-ui': 'AdaptyUI']
+
+subprojects {
+    apply plugin: 'org.jetbrains.dokka'
+    tasks.withType(org.jetbrains.dokka.gradle.DokkaTaskPartial).configureEach {
+        moduleName.set(kdocModules[project.path] ?: project.name)
+        pluginsMapConfiguration.set(["org.jetbrains.dokka.base.DokkaBase": '{ "separateInheritedMembers": true }'])
+        suppressInheritedMembers.set(true)
+        dokkaSourceSets.configureEach {
+            perPackageOption {
+                matchingRegex.set(".*.internal.*")
+                suppress.set(true)
+            }
+        }
+    }
+}
+
+dokkaHtmlMultiModule {
+    moduleName.set("Adapty")
+    removeChildTasks(subprojects.findAll { !kdocModules.containsKey(it.path) })
+    doLast {
+        def index = new File(outputDirectory.get().asFile, "index.html")
+        index.setText(index.getText("UTF-8")
+                .replace("<title>All modules</title>", "<title>Adapty Android SDK – KDoc</title>")
+                .replace(">All modules:<", ">Adapty<"), "UTF-8")
+    }
 }

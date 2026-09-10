@@ -1,14 +1,19 @@
+@file:OptIn(InternalAdaptyApi::class)
+
 package com.adapty.internal.crossplatform
 
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.util.Base64
 import androidx.annotation.ColorInt
+import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.internal.utils.log
 import com.adapty.ui.AdaptyCustomAsset
 import com.adapty.ui.AdaptyCustomColorAsset
 import com.adapty.ui.AdaptyCustomGradientAsset
 import com.adapty.ui.AdaptyCustomImageAsset
 import com.adapty.ui.AdaptyCustomVideoAsset
+import com.adapty.utils.AdaptyLogLevel
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
@@ -23,10 +28,13 @@ internal class AdaptyCustomAssetTypeAdapterFactory(
 ) : TypeAdapterFactory {
 
     companion object {
+        const val ID = "id"
         const val TYPE = "type"
         const val VALUE = "value"
         const val VALUES = "values"
         const val POINTS = "points"
+        const val H_RES = "h_res"
+        const val V_RES = "v_res"
         const val INVALID_COLOR = -1
     }
 
@@ -50,28 +58,31 @@ internal class AdaptyCustomAssetTypeAdapterFactory(
                     "color" -> {
                         val color = jsonObject.getStringOrNull(VALUE)
                             ?.asColorOrNull()
-                            ?: return null
+                            ?: return jsonObject.logAndSkip("invalid or missing color value")
                         AdaptyCustomColorAsset.of(color)
                     }
                     "linear-gradient" -> {
                         val colorStops = kotlin.runCatching { jsonObject.getAsJsonArray(VALUES) }.getOrNull()
-                            ?.mapNotNull { element ->
-                                if (element !is JsonObject) return@mapNotNull null
-                                val color = jsonObject.getStringOrNull("color")
+                            ?.map { element ->
+                                if (element !is JsonObject) return jsonObject.logAndSkip("invalid color stop")
+                                val color = element.getStringOrNull("color")
                                     ?.asColorOrNull()
-                                    ?: return null
+                                    ?: return jsonObject.logAndSkip("invalid or missing color in a color stop")
                                 val position = element.getFloatOrNull("p")
-                                    ?: return null
+                                    ?: return jsonObject.logAndSkip("invalid or missing position in a color stop")
                                 AdaptyCustomGradientAsset.ColorStop(position, color)
                             }
-                            ?: return null
+                            ?: return jsonObject.logAndSkip("missing color stops")
 
                         val points = kotlin.runCatching { jsonObject.getAsJsonObject(POINTS) }.getOrNull()
-                            ?: return null
-                        val x0 = points.getFloatOrNull("x0") ?: return null
-                        val x1 = points.getFloatOrNull("x1") ?: return null
-                        val y0 = points.getFloatOrNull("y0") ?: return null
-                        val y1 = points.getFloatOrNull("y1") ?: return null
+                            ?: return jsonObject.logAndSkip("missing points")
+                        val x0 = points.getFloatOrNull("x0") ?: return jsonObject.logAndSkip("invalid points")
+                        val x1 = points.getFloatOrNull("x1") ?: return jsonObject.logAndSkip("invalid points")
+                        val y0 = points.getFloatOrNull("y0") ?: return jsonObject.logAndSkip("invalid points")
+                        val y1 = points.getFloatOrNull("y1") ?: return jsonObject.logAndSkip("invalid points")
+
+                        if (colorStops.size < 2)
+                            log(AdaptyLogLevel.WARN, { "custom asset (id: ${jsonObject.getStringOrNull(ID)}): a linear gradient with ${colorStops.size} color stop(s) won't render as a gradient" })
 
                         AdaptyCustomGradientAsset.linear(
                             colorStops = colorStops,
@@ -85,24 +96,24 @@ internal class AdaptyCustomAssetTypeAdapterFactory(
                         val base64 = jsonObject.getStringOrNull(VALUE)
 
                         if (base64 != null) {
-                            val bitmap = base64.asBitmapOrNull() ?: return null
+                            val bitmap = base64.asBitmapOrNull() ?: return jsonObject.logAndSkip("corrupted image data")
                             return AdaptyCustomImageAsset.bitmap(bitmap)
                         }
-                        
+
                         val fileLocation = kotlin.runCatching { gson.fromJson(jsonObject, FileLocationArgs::class.java) }
                             .getOrNull()
-                            ?: return null
+                            ?: return jsonObject.logAndSkip("invalid or missing file location")
 
                         AdaptyCustomImageAsset.file(transformFileLocation(fileLocation.value))
                     }
                     "video" -> {
                         val fileLocation = kotlin.runCatching { gson.fromJson(jsonObject, FileLocationArgs::class.java) }
                             .getOrNull()
-                            ?: return null
+                            ?: return jsonObject.logAndSkip("invalid or missing file location")
 
-                        AdaptyCustomVideoAsset.file(transformFileLocation(fileLocation.value), null)
+                        AdaptyCustomVideoAsset.file(transformFileLocation(fileLocation.value), null, jsonObject.getVideoResolutionOrNull())
                     }
-                    else -> null
+                    else -> jsonObject.logAndSkip("unknown asset type")
                 }
             }
         }.nullSafe()
@@ -110,12 +121,22 @@ internal class AdaptyCustomAssetTypeAdapterFactory(
         return result as TypeAdapter<T>
     }
 
+    private fun JsonObject.logAndSkip(reason: String): Nothing? {
+        log(AdaptyLogLevel.WARN, { "couldn't deserialize custom asset (id: ${getStringOrNull(ID)}, type: ${getStringOrNull(TYPE)}): $reason" })
+        return null
+    }
+
+    private fun JsonObject.getVideoResolutionOrNull(): AdaptyCustomVideoAsset.Resolution? {
+        val width = getFloatOrNull(H_RES)?.toInt()?.takeIf { it > 0 } ?: return null
+        val height = getFloatOrNull(V_RES)?.toInt()?.takeIf { it > 0 } ?: return null
+        return AdaptyCustomVideoAsset.Resolution(width, height)
+    }
+
     private fun JsonObject.getStringOrNull(key: String) =
         kotlin.runCatching { this.getAsJsonPrimitive(key).asString }.getOrNull()
 
     private fun JsonObject.getFloatOrNull(key: String) =
-        kotlin.runCatching { this.getAsJsonPrimitive(key).asNumber }.getOrNull()
-            ?.toFloat()
+        kotlin.runCatching { this.getAsJsonPrimitive(key).asNumber.toFloat() }.getOrNull()
 
     private fun String.asBitmapOrNull() =
         runCatching {

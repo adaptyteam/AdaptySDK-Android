@@ -10,6 +10,7 @@ import com.adapty.internal.utils.adaptyError
 import com.adapty.internal.utils.getAs
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.utils.DARK_THEME_ASSET_SUFFIX
+import com.adapty.ui.internal.utils.VIDEO_PREVIEW_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.parseColorInt
 
 private const val ASSETS = "assets"
@@ -34,7 +35,6 @@ private const val SIZE = "size"
 private const val COLOR = "color"
 private const val LETTER_SPACING = "letter_spacing"
 private const val LINE_HEIGHT = "line_height"
-private const val VIDEO_PREVIEW_ASSET_SUFFIX = "\$\$preview"
 
 internal fun mapAssets(config: JsonObject, localesOrderedDesc: Set<String>): Map<String, Asset> {
     val rawAssets = config.getAs<JsonArray>(ASSETS)

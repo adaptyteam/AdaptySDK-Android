@@ -196,6 +196,7 @@ class CrossplatformUiHelper internal constructor(
             args.flow,
             locale = args.locale,
             loadTimeout = args.loadTimeout ?: DEFAULT_PLACEMENT_TIMEOUT,
+            customLayoutId = args.customLayoutId,
         ) { viewConfigResult ->
             when (viewConfigResult) {
                 is AdaptyResult.Success -> {

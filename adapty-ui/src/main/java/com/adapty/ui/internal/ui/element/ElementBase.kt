@@ -267,7 +267,8 @@ private fun uiEnabledGatedContent(
         baseProps.opacity > 0f
     }
     val isEnabled = parentEnabled && selfEnabled && visible
-    if (isEnabled != parentEnabled) {
+    val needsGate = uiEnabledBinding != null || baseProps.hasOpacityAnimation() || baseProps.opacity <= 0f
+    if (needsGate) {
         CompositionLocalProvider(
             com.adapty.ui.internal.ui.LocalUiEnabled provides isEnabled
         ) {

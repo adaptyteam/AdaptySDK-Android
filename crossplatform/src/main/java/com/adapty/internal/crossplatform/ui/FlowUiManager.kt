@@ -17,6 +17,7 @@ import com.adapty.internal.crossplatform.ui.AdaptyUiEventListener.Companion.FLOW
 import com.adapty.internal.crossplatform.ui.AdaptyUiEventListener.Companion.PRODUCT
 import com.adapty.internal.crossplatform.ui.AdaptyUiEventListener.Companion.VIEW
 import com.adapty.internal.crossplatform.ui.CrossplatformUiHelper.Callback
+import com.adapty.internal.utils.DEFAULT_PLACEMENT_TIMEOUT
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.log
 import com.adapty.models.AdaptyPaywallProduct
@@ -177,6 +178,8 @@ internal class FlowUiManager(
             AdaptyUI.getFlowConfiguration(
                 flow,
                 locale = createFlowViewArgs.locale,
+                loadTimeout = createFlowViewArgs.loadTimeout ?: DEFAULT_PLACEMENT_TIMEOUT,
+                customLayoutId = createFlowViewArgs.customLayoutId,
             ) { viewConfigResult ->
                 when (viewConfigResult) {
                     is AdaptyResult.Success -> {
