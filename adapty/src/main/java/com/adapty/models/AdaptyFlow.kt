@@ -9,6 +9,7 @@ import com.adapty.utils.ImmutableList
 public class AdaptyFlow internal constructor(
     public val id: String,
     public val variationId: String,
+    public val variationName: String?,
     public val name: String,
     public val remoteConfigs: ImmutableList<AdaptyRemoteConfig>,
     public val placement: AdaptyPlacement,
@@ -29,6 +30,7 @@ public class AdaptyFlow internal constructor(
 
         if (id != other.id) return false
         if (variationId != other.variationId) return false
+        if (variationName != other.variationName) return false
         if (name != other.name) return false
         if (remoteConfigs != other.remoteConfigs) return false
         if (placement != other.placement) return false
@@ -40,6 +42,7 @@ public class AdaptyFlow internal constructor(
     override fun hashCode(): Int {
         var result = id.hashCode()
         result = 31 * result + variationId.hashCode()
+        result = 31 * result + (variationName?.hashCode() ?: 0)
         result = 31 * result + name.hashCode()
         result = 31 * result + remoteConfigs.hashCode()
         result = 31 * result + placement.hashCode()
@@ -48,6 +51,6 @@ public class AdaptyFlow internal constructor(
     }
 
     override fun toString(): String {
-        return "AdaptyFlow(id='$id', variationId='$variationId', name='$name', remoteConfigs=$remoteConfigs, placement=$placement, paywalls=$paywalls)"
+        return "AdaptyFlow(id='$id', variationId='$variationId', variationName=$variationName, name='$name', remoteConfigs=$remoteConfigs, placement=$placement, paywalls=$paywalls)"
     }
 }

@@ -20,6 +20,7 @@ internal class FlowMapper(
         return AdaptyFlow(
             id = flowDto.id,
             variationId = flowDto.variationId,
+            variationName = flowDto.variationName,
             name = flowDto.name,
             remoteConfigs = flowDto.remoteConfigs.orEmpty().map(remoteConfigMapper::map).immutableWithInterop(),
             placement = placement,

@@ -8,6 +8,8 @@ internal class FlowDto(
     @SerializedName("flow_name")
     val name: String,
     variationId: String,
+    @SerializedName("variation_name")
+    val variationName: String?,
     @SerializedName("flow_id")
     val id: String,
     placement: Placement,

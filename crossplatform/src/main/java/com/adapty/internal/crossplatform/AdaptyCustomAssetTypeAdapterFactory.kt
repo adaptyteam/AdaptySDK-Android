@@ -35,7 +35,6 @@ internal class AdaptyCustomAssetTypeAdapterFactory(
         const val POINTS = "points"
         const val H_RES = "h_res"
         const val V_RES = "v_res"
-        const val INVALID_COLOR = -1
     }
 
     override fun <T : Any?> create(gson: Gson, type: TypeToken<T>): TypeAdapter<T>? {
@@ -144,19 +143,16 @@ internal class AdaptyCustomAssetTypeAdapterFactory(
             BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
         }.getOrNull()
 
-    private fun String.asColorOrNull() =
-        extractColor(this).takeIf { it != INVALID_COLOR }
-
     @ColorInt
-    private fun extractColor(colorString: String): Int {
+    private fun String.asColorOrNull(): Int? {
         return kotlin.runCatching {
             Color.parseColor(
-                when (colorString.length) {
-                    9 -> rgbaToArgbStr(colorString)
-                    else -> colorString
+                when (length) {
+                    9 -> rgbaToArgbStr(this)
+                    else -> this
                 }
             )
-        }.getOrNull() ?: INVALID_COLOR
+        }.getOrNull()
     }
 
     private fun rgbaToArgbStr(rgbaColorString: String): String {
