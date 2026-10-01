@@ -32,6 +32,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -149,14 +150,6 @@ internal fun renderHeroLayoutScreen(
             )
     ) {
         renderAlignedElements(screen.backgrounds, dispatch, Modifier.matchParentSize())
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(coverHeight),
-        ) {
-            screen.cover.content.render(dispatch)
-        }
         val boxMaxHeightPx = constraints.maxHeight
         val contentWrapper = screen.contentWrapper
         val contentOffsetY = contentWrapper.offset?.y?.toExactDp(DimSpec.Axis.Y) ?: 0.dp
@@ -176,78 +169,94 @@ internal fun renderHeroLayoutScreen(
         val wrapperProps = contentWrapper.wrapperProps
 
         val renderScrollColumn = @Composable {
-            CompositionLocalProvider(
-                LocalOverscrollConfiguration provides null,
+            Column(
+                horizontalAlignment = contentWrapper.contentAlign.toComposeHorizontalAlignment(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(PaddingValues(top = contentTopPadding))
+                    .offsetOrSkip(contentWrapper.offset),
             ) {
-                Column(
-                    horizontalAlignment = contentWrapper.contentAlign.toComposeHorizontalAlignment(),
+                val availableViewportHeight = with(density) {
+                    (boxMaxHeightPx - contentTopPadding.roundToPx()).coerceAtLeast(0).toDp()
+                }
+                val reservePx = if (wrapperProps != null)
+                    (boxMaxHeightPx * HERO_CONTENT_BOTTOM_RESERVE_FRACTION).toInt().coerceAtLeast(0)
+                else 0
+                val reserveDp = with(density) { reservePx.toDp() }
+                Box(
+                    contentAlignment = contentWrapper.contentAlign.toComposeAlignment(),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .imePadding()
-                        .fillMaxHeight()
-                        .verticalScroll(scrollState)
-                        .padding(PaddingValues(top = contentTopPadding))
-                        .offsetOrSkip(contentWrapper.offset),
-                ) {
-                    val availableViewportHeight = with(density) {
-                        (boxMaxHeightPx - contentTopPadding.roundToPx()).coerceAtLeast(0).toDp()
-                    }
-                    val reservePx = if (wrapperProps != null)
-                        (boxMaxHeightPx * HERO_CONTENT_BOTTOM_RESERVE_FRACTION).toInt().coerceAtLeast(0)
-                    else 0
-                    val reserveDp = with(density) { reservePx.toDp() }
-                    Box(
-                        contentAlignment = contentWrapper.contentAlign.toComposeAlignment(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(
-                                if (wrapperProps != null)
-                                    Modifier
-                                        .cancelReserveHeight(reservePx)
-                                        .then(Modifier.fillWithBaseParams(wrapperProps))
-                                        .padding(bottom = reserveDp)
-                                else
-                                    Modifier.heightIn(min = availableViewportHeight)
-                            ),
-                    ) {
-                        if (contentFillsViewport) {
-                            val measuredContentHeightPx = measuredContentHeightPxState.intValue
-                            contentWrapper.content.render(
-                                dispatch,
+                        .then(
+                            if (wrapperProps != null)
                                 Modifier
-                                    .onSizeChanged { size ->
-                                        if (size.height <= 0) return@onSizeChanged
-                                        if (measuredContentHeightPxState.intValue != size.height) {
-                                            measuredContentHeightPxState.intValue = size.height
-                                        }
+                                    .cancelReserveHeight(reservePx)
+                                    .then(Modifier.fillWithBaseParams(wrapperProps))
+                                    .padding(bottom = reserveDp)
+                            else
+                                Modifier.heightIn(min = availableViewportHeight)
+                        ),
+                ) {
+                    if (contentFillsViewport) {
+                        val measuredContentHeightPx = measuredContentHeightPxState.intValue
+                        contentWrapper.content.render(
+                            dispatch,
+                            Modifier
+                                .onSizeChanged { size ->
+                                    if (size.height <= 0) return@onSizeChanged
+                                    if (measuredContentHeightPxState.intValue != size.height) {
+                                        measuredContentHeightPxState.intValue = size.height
                                     }
-                                    .then(
-                                        if (measuredContentHeightPx > 0)
-                                            Modifier.height(with(density) { measuredContentHeightPx.toDp() })
-                                        else
-                                            Modifier.alpha(0f)
-                                    )
-                                    .fillWithBaseParams(contentWrapper.content),
-                            )
-                        } else {
-                            contentWrapper.content.render(
-                                dispatch,
-                                Modifier.fillWithBaseParams(contentWrapper.content),
-                            )
-                        }
+                                }
+                                .then(
+                                    if (measuredContentHeightPx > 0)
+                                        Modifier.height(with(density) { measuredContentHeightPx.toDp() })
+                                    else
+                                        Modifier.alpha(0f)
+                                )
+                                .fillWithBaseParams(contentWrapper.content),
+                        )
+                    } else {
+                        contentWrapper.content.render(
+                            dispatch,
+                            Modifier.fillWithBaseParams(contentWrapper.content),
+                        )
                     }
-                    val measuredFooterHeightPx = measuredFooterHeightPxState.intValue
-                    if (measuredFooterHeightPx > 0) {
-                        Spacer(Modifier.height(with(density) { measuredFooterHeightPx.toDp() }))
-                    }
+                }
+                val measuredFooterHeightPx = measuredFooterHeightPxState.intValue
+                if (measuredFooterHeightPx > 0) {
+                    Spacer(Modifier.height(with(density) { measuredFooterHeightPx.toDp() }))
                 }
             }
         }
 
-        if (wrapperProps != null) {
-            withActiveAnimations(wrapperProps, dispatch) { renderScrollColumn() }
-        } else {
-            renderScrollColumn()
+        CompositionLocalProvider(
+            LocalOverscrollConfiguration provides null,
+        ) {
+            Box(
+                contentAlignment = Alignment.TopCenter,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .imePadding()
+                    .fillMaxHeight()
+                    .verticalScroll(scrollState),
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(coverHeight)
+                        .graphicsLayer { translationY = scrollState.value.toFloat() },
+                ) {
+                    screen.cover.content.render(dispatch)
+                }
+
+                if (wrapperProps != null) {
+                    withActiveAnimations(wrapperProps, dispatch) { renderScrollColumn() }
+                } else {
+                    renderScrollColumn()
+                }
+            }
         }
 
         screen.footer?.let { footer ->
