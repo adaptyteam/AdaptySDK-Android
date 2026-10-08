@@ -9,6 +9,7 @@ import com.adapty.internal.utils.MetaInfoRetriever
 import com.adapty.models.AdaptyFlow
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProductDiscountPhase.PaymentMode
+import com.adapty.ui.internal.store.resolveProductKey
 import com.adapty.ui.internal.utils.CONFIGURATION_FORMAT_VERSION
 import com.adapty.ui.internal.utils.FlowMode
 import java.util.Locale
@@ -118,7 +119,7 @@ internal object SDKGlobals {
     fun buildSDKProductsJson(
         products: List<AdaptyPaywallProduct>,
     ): String = buildSDKProductsJson(
-        products.associateBy { it.payloadData.flowProductId ?: it.payloadData.adaptyProductId }
+        products.associateBy { resolveProductKey(it) }
     )
 
     fun buildSDKProductsJson(
@@ -144,7 +145,7 @@ internal object SDKGlobals {
         var first = true
         for (paywall in flow.paywalls) {
             for (product in paywall.products) {
-                val key = product.flowProductId ?: product.id
+                val key = resolveProductKey(product)
                 if (!first) sb.append(',')
                 first = false
                 sb.append(escapeJsonString(key))

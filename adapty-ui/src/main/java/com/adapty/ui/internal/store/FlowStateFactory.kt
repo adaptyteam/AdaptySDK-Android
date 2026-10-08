@@ -3,7 +3,7 @@
 
 package com.adapty.ui.internal.store
 
-import com.adapty.internal.domain.models.ProductType
+import com.adapty.internal.domain.models.BackendProduct
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.extractProducts
 import com.adapty.models.AdaptyFlow
@@ -20,8 +20,12 @@ import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image
 import com.adapty.ui.internal.ui.UserArgs
 import com.adapty.ui.internal.utils.CUSTOM_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.DARK_THEME_ASSET_SUFFIX
+import com.adapty.ui.internal.utils.FlowMode
+import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.VIDEO_PREVIEW_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.isLive
+import com.adapty.ui.internal.utils.log
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 
 internal fun buildInitialState(
     userArgs: UserArgs,
@@ -46,11 +50,7 @@ internal fun buildInitialState(
 
     val assetsMap = buildLocalAssetsMap(viewConfig, userArgs.customAssets)
 
-    val productsMap = if (mode.isLive()) {
-        associateProductsToIds(userArgs.products, mode.flow)
-    } else {
-        userArgs.products.associateBy { resolveProductKey(it) }
-    }
+    val productsMap = associateProducts(userArgs.products, mode)
 
     return FlowState(
         config = configState,
@@ -150,20 +150,33 @@ internal fun buildLocalAssetsMap(
 internal fun resolveProductKey(product: AdaptyPaywallProduct): String =
     product.payloadData.flowProductId ?: product.payloadData.adaptyProductId
 
-internal fun associateProductsToIds(
+internal fun resolveProductKey(product: BackendProduct): String =
+    product.flowProductId ?: product.id
+
+internal fun associateProducts(
+    products: List<AdaptyPaywallProduct>,
+    mode: FlowMode,
+): Map<String, AdaptyPaywallProduct> =
+    if (mode.isLive()) {
+        associateProductsWithFlow(products, mode.flow)
+    } else {
+        products.associateBy { resolveProductKey(it) }
+    }
+
+internal fun associateProductsWithFlow(
     products: List<AdaptyPaywallProduct>,
     flow: AdaptyFlow,
 ): Map<String, AdaptyPaywallProduct> {
     if (products.isEmpty()) return mapOf()
+    val productsByKey = products.associateBy(::resolveProductKey)
     return extractProducts(flow)
         .mapNotNull { backendProduct ->
-            val key = backendProduct.flowProductId ?: backendProduct.id
-            val vendorProductId = backendProduct.vendorProductId
-            val basePlanId = (backendProduct.type as? ProductType.Subscription)
-                ?.subscriptionData?.basePlanId
-            products
-                .firstOrNull { product -> product.vendorProductId == vendorProductId && (product.subscriptionDetails?.let { it.basePlanId == basePlanId } ?: true) }
-                ?.let { product -> key to product }
+            val key = resolveProductKey(backendProduct)
+            val product = productsByKey[key]
+            if (product == null) {
+                log(WARN) { "$LOG_PREFIX no loaded product for key $key (${backendProduct.vendorProductId}): not fetched from the store, or the products were loaded for another flow" }
+            }
+            product?.let { key to it }
         }
         .toMap()
 }

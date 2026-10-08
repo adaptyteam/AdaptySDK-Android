@@ -68,7 +68,7 @@ internal class DataLoadingEffectHandler(
                     val result = loadWithRetry()
                     when (result) {
                         is AdaptyResult.Success -> {
-                            val mapped = associateProductsToIds(result.value, flow)
+                            val mapped = associateProductsWithFlow(result.value, flow)
                             dispatch(Message.ProductsLoaded(mapped))
                         }
                         is AdaptyResult.Error -> {

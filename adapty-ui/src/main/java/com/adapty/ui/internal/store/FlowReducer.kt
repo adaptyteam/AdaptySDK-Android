@@ -72,7 +72,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
             listOf(Effect.NotifyListener.PurchaseStarted(message.product), Effect.StartPurchaseFlow(message.product, message.params))
     }
     is Message.PurchaseSucceeded -> {
-        val productId = findFlowProductId(state.products.items, message.product)
+        val productId = resolveProductKey(message.product)
         val resultStr = when (message.result) {
             is AdaptyPurchaseResult.Success -> "success"
             is AdaptyPurchaseResult.UserCanceled -> "userCanceled"
@@ -87,7 +87,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
         state.copy(purchase = PurchaseFlowState.Idle, ui = state.ui.copy(isLoading = false)) to effects
     }
     is Message.PurchaseFailed -> {
-        val productId = findFlowProductId(state.products.items, message.product)
+        val productId = resolveProductKey(message.product)
         val cbId = (state.purchase as? PurchaseFlowState.InProgress)?.callbackId
         val effects = mutableListOf<Effect>(
             Effect.SendSDKEvent.DidPurchase(productId, "fail"),
@@ -167,7 +167,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
         state.copy(ui = state.ui.copy(isLoading = state.config.viewConfig.showPurchaseLoader)) to emptyList()
     is Message.ObserverPurchaseFinished -> {
         val cbId = (state.purchase as? PurchaseFlowState.ObserverModeInitiated)?.callbackId
-        val productId = findFlowProductId(state.products.items, message.product)
+        val productId = resolveProductKey(message.product)
         val effects = mutableListOf<Effect>()
         if (cbId != null) effects.add(Effect.InvokeJSPurchaseCallback(cbId, productId, "success"))
         state.copy(purchase = PurchaseFlowState.Idle, ui = state.ui.copy(isLoading = false)) to effects
@@ -426,11 +426,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
             productLoadingFailureCallback = newData.productLoadingFailureCallback,
         )
 
-        val newProductsFromArgs = if (mode.isLive()) {
-            associateProductsToIds(newData.products, mode.flow)
-        } else {
-            newData.products.associateBy { resolveProductKey(it) }
-        }
+        val newProductsFromArgs = associateProducts(newData.products, mode)
         val mergedProducts = state.products.items + newProductsFromArgs
 
         val localAssets = buildLocalAssetsMap(viewConfig, newData.customAssets)
@@ -607,14 +603,6 @@ private fun ProductsState.resolvePendingSelections(flowShown: Boolean): Pair<Pro
     if (resolvedIds.isEmpty()) return this to emptyList()
     val effects = resolvedIds.map { Effect.NotifyListener.ProductSelected(items.getValue(it)) }
     return copy(pendingSelectedProductIds = pendingSelectedProductIds - resolvedIds.toSet()) to effects
-}
-
-private fun findFlowProductId(
-    items: Map<String, AdaptyPaywallProduct>,
-    product: AdaptyPaywallProduct,
-): String {
-    return items.entries.firstOrNull { it.value === product }?.key
-        ?: product.vendorProductId
 }
 
 private fun customAssetId(id: String): String =
