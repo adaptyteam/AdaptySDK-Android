@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.library'
     id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
 
 android {
@@ -27,15 +28,20 @@ android {
     buildFeatures {
         compose = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.4.1"
-    }
-    kotlinOptions {
-        freeCompilerArgs += ['-Xexplicit-api=strict', '-Xopt-in=kotlin.RequiresOptIn']
-        freeCompilerArgs += ['-Xopt-in=kotlin.RequiresOptIn']
-        jvmTarget = '11'
-    }
     namespace 'com.adapty.ui.video'
+}
+
+kotlin {
+    // Strict explicit API for main sources only (-Xexplicit-api=strict is not passed to tests)
+    explicitApi()
+    compilerOptions {
+        freeCompilerArgs.add('-opt-in=kotlin.RequiresOptIn')
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+    }
+}
+
+composeCompiler {
+    featureFlags.add(org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag.StrongSkipping.disabled())
 }
 
 def composeBom = '2025.04.01'

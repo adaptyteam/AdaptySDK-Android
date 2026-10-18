@@ -602,7 +602,7 @@ public object Adapty {
     public fun openWebPaywall(
         activity: Activity,
         product: AdaptyPaywallProduct,
-        presentation: AdaptyWebPresentation = AdaptyWebPresentation.ExternalBrowser,
+        presentation: AdaptyWebPresentation = AdaptyWebPresentation.Companion.ExternalBrowser,
         callback: ErrorCallback,
     ) {
         Logger.log(VERBOSE) { "openWebPaywall(variationId = ${product.variationId}, presentation = $presentation)" }
@@ -629,7 +629,7 @@ public object Adapty {
     public fun openWebPaywall(
         activity: Activity,
         paywall: AdaptyFlowPaywall,
-        presentation: AdaptyWebPresentation = AdaptyWebPresentation.ExternalBrowser,
+        presentation: AdaptyWebPresentation = AdaptyWebPresentation.Companion.ExternalBrowser,
         callback: ErrorCallback,
     ) {
         Logger.log(VERBOSE) { "openWebPaywall(variationId = ${paywall.variationId}, presentation = $presentation)" }
