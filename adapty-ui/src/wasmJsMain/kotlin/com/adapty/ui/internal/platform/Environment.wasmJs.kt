@@ -7,9 +7,9 @@ import androidx.compose.runtime.ProvidedValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.LayoutDirection
 import com.adapty.ui.AdaptyFlowInsets
+import com.adapty.ui.AdaptyUIWeb
 
 // Browser environment: one host context, no system bars, no back dispatcher yet.
 
@@ -28,13 +28,11 @@ internal actual fun PlatformContextHandle.isChangingConfigurations(): Boolean = 
 @Composable
 internal actual fun rememberPlatformContext(): PlatformContextHandle = remember { PlatformContextHandle() }
 
-private fun windowSmallestSide(): Int = js("Math.min(window.innerWidth, window.innerHeight)")
-
 private fun windowInnerHeight(): Int = js("window.innerHeight")
 
 private fun devicePixelRatio(): Double = js("window.devicePixelRatio || 1")
 
-internal actual fun screenSmallestWidthDp(): Int = windowSmallestSide()
+internal actual fun screenSmallestWidthDp(): Int = AdaptyUIWeb.environment.smallestScreenWidthDp
 
 internal actual fun osVersion(): String {
     webStub("osVersion")
@@ -49,30 +47,32 @@ internal actual fun parseUri(value: String): Uri = WebUri(value)
 internal actual fun areAnimationsDisabled(): Boolean = false
 
 @Composable
-internal actual fun isLandscape(): Boolean {
-    val size = LocalWindowInfo.current.containerSize
-    return size.width > size.height
-}
+internal actual fun isLandscape(): Boolean = AdaptyUIWeb.environment.isLandscape
 
 internal actual fun progressIndicatorColor(ctx: PlatformContextHandle): Int? = null
 
 internal actual fun setSoftInputMode(ctx: PlatformContextHandle): (() -> Unit)? = null
 
-internal actual class PlatformRootInsets {
-    actual val isNone: Boolean get() = true
-}
+internal actual class PlatformRootInsets(actual val isNone: Boolean)
 
-/** No system bars on web: the inset-delivery fallback is skipped. */
+/**
+ * Web has no window insets, so [AdaptyUIWeb.environment] insets are delivered through the Android
+ * "insets not delivered" fallback: non-empty insets report non-None root insets and come back from
+ * [fallbackInsets]; empty insets skip the fallback.
+ */
 internal actual class PlatformSafeInsets {
     actual val screenHeightDp: Int get() = windowInnerHeight()
 
-    actual val configurationKey: Any get() = Unit
+    actual val configurationKey: Any get() = AdaptyUIWeb.environment
 
-    actual fun rootInsetsOrNull(): PlatformRootInsets? = null
+    actual fun rootInsetsOrNull(): PlatformRootInsets? {
+        val insets = AdaptyUIWeb.environment.safeInsets
+        return if (insets == AdaptyFlowInsets.None || insets == AdaptyFlowInsets.Unspecified) null else PlatformRootInsets(false)
+    }
 
     actual fun requestApplyInsets() {}
 
-    actual fun fallbackInsets(layoutDirection: LayoutDirection): AdaptyFlowInsets = AdaptyFlowInsets.None
+    actual fun fallbackInsets(layoutDirection: LayoutDirection): AdaptyFlowInsets = AdaptyUIWeb.environment.safeInsets
 }
 
 @Composable

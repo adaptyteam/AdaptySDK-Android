@@ -50,7 +50,8 @@ public actual class PlatformUUID internal constructor(private val value: String)
     override fun toString(): String = value
 }
 
-internal actual open class PlatformTypeface
+/** Skia typeface handle (a system-font variation instance); null when no web fonts are registered. */
+internal actual open class PlatformTypeface internal constructor(internal val skia: org.jetbrains.skia.Typeface?)
 
 internal actual abstract class PlatformTimeZone
 

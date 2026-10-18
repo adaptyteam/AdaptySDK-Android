@@ -2,6 +2,7 @@
 
 package com.adapty.ui.preview
 
+import com.adapty.ui.internal.text.WebFonts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -57,6 +58,8 @@ internal actual fun defaultPreviewEventListener(): AdaptyFlowEventListener = Ada
 
 @Composable
 internal actual fun ProvidePreviewViewModelStoreOwner(content: @Composable () -> Unit) {
+    // Preview root on web: register glyph fallback fonts before any text is composed
+    WebFonts.RegisterFallbacks()
     if (LocalViewModelStoreOwner.current != null) {
         content()
         return
