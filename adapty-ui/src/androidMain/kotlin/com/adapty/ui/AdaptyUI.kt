@@ -1,69 +1,42 @@
-@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
-@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui
 
-import android.view.View
-import android.view.ViewGroup.LayoutParams
 import androidx.annotation.ColorInt
 import androidx.annotation.UiThread
-import com.adapty.Adapty
-import com.adapty.internal.data.models.DeviceInfo
-import com.adapty.internal.di.Dependencies
-import com.adapty.internal.di.Dependencies.inject
-import com.adapty.internal.utils.DEFAULT_PLACEMENT_TIMEOUT
-import com.adapty.internal.utils.HashingHelper
-import com.adapty.ui.internal.cache.CacheCleanupService
-import com.adapty.ui.internal.cache.CacheFileManager
-import com.adapty.ui.internal.cache.MediaCacheConfigManager
-import com.adapty.ui.internal.cache.MediaDownloader
-import com.adapty.ui.internal.cache.MediaFetchService
-import com.adapty.ui.internal.cache.MediaSaver
-import com.adapty.ui.internal.cache.SingleMediaHandlerFactory
-import com.adapty.ui.internal.mapping.viewconfig.ViewConfigurationMapper
+import com.adapty.ui.internal.clearMediaCachePlatform
+import com.adapty.ui.internal.configureMediaCachePlatform
+import com.adapty.ui.internal.createFlowView
+import com.adapty.ui.internal.createOnboardingConfiguration
+import com.adapty.ui.internal.createOnboardingView
+import com.adapty.ui.internal.defaultFlowLoadTimeout
+import com.adapty.ui.internal.initAdaptyUIPlatform
+import com.adapty.ui.internal.loadFlowConfiguration
+import com.adapty.ui.internal.preloadMediaPlatform
+import com.adapty.ui.internal.stateHandlerOrNull
 import com.adapty.ui.internal.platform.Activity
 import com.adapty.ui.internal.platform.AdaptyFlow
 import com.adapty.ui.internal.platform.AdaptyOnboarding
 import com.adapty.ui.internal.platform.AdaptyPaywallProduct
 import com.adapty.ui.internal.platform.AdaptyWebPresentation
-import com.adapty.ui.internal.platform.Context
-import com.adapty.ui.internal.platform.ERROR
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
-import com.adapty.ui.internal.platform.PlatformContextHandle
 import com.adapty.ui.internal.platform.PlatformLocale
 import com.adapty.ui.internal.platform.ResultCallback
 import com.adapty.ui.internal.platform.TimeInterval
-import com.adapty.ui.internal.platform.VERBOSE
 import com.adapty.ui.internal.platform.days
-import com.adapty.ui.internal.script.JSActionBridge
-import com.adapty.ui.internal.script.JSStateHandler
-import com.adapty.ui.internal.script.JSStateMachine
-import com.adapty.ui.internal.script.PlatformJson
-import com.adapty.ui.internal.script.StateHandler
 import com.adapty.ui.internal.store.FlowRuntimeState
 import com.adapty.ui.internal.ui.element.BoxElement
 import com.adapty.ui.internal.ui.element.UIElement
-import com.adapty.ui.internal.utils.AdaptyUiVideoAccessor
 import com.adapty.ui.internal.utils.ContentWrapper
 import com.adapty.ui.internal.utils.FlowMode
-import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.VisualValue
-import com.adapty.ui.internal.utils.log
-import com.adapty.ui.listeners.AdaptyFlowDefaultEventListener
 import com.adapty.ui.listeners.AdaptyFlowEventListener
 import com.adapty.ui.listeners.AdaptyUiObserverModeHandler
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.adapty.ui.listeners.AdaptyUiTimerResolver
 import com.adapty.ui.onboardings.AdaptyOnboardingConfiguration
 import com.adapty.ui.onboardings.AdaptyOnboardingView
-import com.adapty.ui.onboardings.internal.serialization.MetaParamsParser
-import com.adapty.ui.onboardings.internal.serialization.OnboardingActionsParser
-import com.adapty.ui.onboardings.internal.serialization.OnboardingCommonDeserializer
-import com.adapty.ui.onboardings.internal.serialization.OnboardingCommonEventParser
-import com.adapty.ui.onboardings.internal.serialization.OnboardingEventsParser
-import com.adapty.ui.onboardings.internal.serialization.OnboardingStateUpdatedParamsParser
 import com.adapty.ui.onboardings.listeners.AdaptyOnboardingEventListener
-import com.google.gson.Gson
 
 public object AdaptyUI {
 
@@ -84,7 +57,7 @@ public object AdaptyUI {
      *
      * @param[eventListener] An object that implements the [AdaptyFlowEventListener] interface.
      * Use it to respond to different events happening inside the purchase screen.
-     * Also you can extend [AdaptyFlowDefaultEventListener] so you don't need to override all the methods.
+     * Also you can extend [com.adapty.ui.listeners.AdaptyFlowDefaultEventListener] so you don't need to override all the methods.
      *
      * @param[insets] You can override the default window inset handling by specifying the [AdaptyFlowInsets].
      *
@@ -113,19 +86,17 @@ public object AdaptyUI {
         timerResolver: AdaptyUiTimerResolver = AdaptyUiTimerResolver.Default,
         observerModeHandler: AdaptyUiObserverModeHandler? = null,
     ): AdaptyFlowView {
-        return AdaptyFlowView(activity).apply {
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            showFlow(
-                flowConfiguration,
-                products,
-                eventListener,
-                insets,
-                customAssets,
-                tagResolver,
-                timerResolver,
-                observerModeHandler,
-            )
-        }
+        return createFlowView(
+            activity,
+            flowConfiguration,
+            products,
+            eventListener,
+            insets,
+            customAssets,
+            tagResolver,
+            timerResolver,
+            observerModeHandler,
+        )
     }
 
     @Deprecated("Starting Adapty SDK 4.0.0, Onboarding Feature is deprecated. Please consider migrating to Flows")
@@ -139,11 +110,7 @@ public object AdaptyUI {
         eventListener: AdaptyOnboardingEventListener,
         safeAreaPaddings: Boolean = true,
     ): AdaptyOnboardingView {
-        return AdaptyOnboardingView(activity).apply {
-            id = View.generateViewId()
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            show(viewConfig, eventListener, safeAreaPaddings)
-        }
+        return createOnboardingView(activity, viewConfig, eventListener, safeAreaPaddings)
     }
 
     /**
@@ -173,31 +140,11 @@ public object AdaptyUI {
     public fun getFlowConfiguration(
         flow: AdaptyFlow,
         locale: String? = null,
-        loadTimeout: TimeInterval = DEFAULT_PLACEMENT_TIMEOUT,
+        loadTimeout: TimeInterval = defaultFlowLoadTimeout,
         customLayoutId: String? = null,
         callback: ResultCallback<FlowConfiguration>
     ) {
-        getFlowConfigurationInternal(flow, locale, loadTimeout, customLayoutId, deviceInfoOverride = null, callback = callback)
-    }
-
-    @JvmSynthetic
-    internal fun getFlowConfigurationInternal(
-        flow: AdaptyFlow,
-        locale: String?,
-        loadTimeout: TimeInterval,
-        customLayoutId: String?,
-        deviceInfoOverride: DeviceInfo?,
-        callback: ResultCallback<FlowConfiguration>,
-    ) {
-        Adapty.getFlowViewConfiguration(
-            flow,
-            locale,
-            loadTimeout,
-            customLayoutId,
-            deviceInfoOverride,
-            transform = { rawConfig -> viewConfigMapper.map(rawConfig, flow) },
-            callback = callback,
-        )
+        loadFlowConfiguration(flow, locale, loadTimeout, customLayoutId, callback)
     }
 
     @Deprecated("Starting Adapty SDK 4.0.0, Onboarding Feature is deprecated. Please consider migrating to Flows")
@@ -207,14 +154,12 @@ public object AdaptyUI {
         onboarding: AdaptyOnboarding,
         externalUrlsPresentation: AdaptyWebPresentation = AdaptyWebPresentation.InAppBrowser,
     ): AdaptyOnboardingConfiguration {
-        return AdaptyOnboardingConfiguration(onboarding, externalUrlsPresentation)
+        return createOnboardingConfiguration(onboarding, externalUrlsPresentation)
     }
 
+    // Invoked reflectively by core `AdaptyUiAccessor.preloadMedia` (name and signature must stay).
     private fun preloadMedia(rawConfig: Map<String, Any>) {
-        runCatching {
-            val (configId, urls) = viewConfigMapper.mapToMediaUrls(rawConfig)
-            mediaFetchService.preloadMedia(configId, urls)
-        }
+        preloadMediaPlatform(rawConfig)
     }
 
     public sealed class Action {
@@ -243,9 +188,8 @@ public object AdaptyUI {
 
         public fun prepareForReuse() {
             runtimeState.clear()
-            runCatching { Dependencies.injectInternal<StateHandler>() }.getOrNull()?.let { handler ->
-                if (handler.stateOwner === this) handler.stateOwner = null
-            }
+            val handler = stateHandlerOrNull()
+            if (handler != null && handler.stateOwner === this) handler.stateOwner = null
         }
 
         /**
@@ -521,12 +465,7 @@ public object AdaptyUI {
 
     @JvmStatic
     public fun configureMediaCache(config: MediaCacheConfiguration) {
-        log(VERBOSE) { "$LOG_PREFIX #AdaptyMediaCache# configure: diskStorageSizeLimit = ${config.diskStorageSizeLimit}, diskCacheValidityTime = ${config.diskCacheValidityTime}" }
-        val cacheConfigManager = runCatching { Dependencies.injectInternal<MediaCacheConfigManager>() }.getOrNull() ?: run {
-            log(ERROR) { "$LOG_PREFIX #AdaptyMediaCache# couldn't be configured. Adapty was not initialized" }
-            return
-        }
-        cacheConfigManager.currentCacheConfig = config
+        configureMediaCachePlatform(config)
     }
 
     public class MediaCacheConfiguration private constructor(
@@ -562,16 +501,7 @@ public object AdaptyUI {
 
     @JvmStatic
     public fun clearMediaCache(strategy: ClearCacheStrategy) {
-        log(VERBOSE) { "$LOG_PREFIX #AdaptyMediaCache# clear: ${strategy.name}" }
-        val cacheCleanupService = runCatching { Dependencies.injectInternal<CacheCleanupService>() }.getOrNull() ?: run {
-            log(ERROR) { "$LOG_PREFIX #AdaptyMediaCache# couldn't clear cache. Adapty was not initialized" }
-            return
-        }
-
-        when (strategy) {
-            ClearCacheStrategy.CLEAR_ALL -> cacheCleanupService.clearAll()
-            ClearCacheStrategy.CLEAR_EXPIRED_ONLY -> cacheCleanupService.clearExpired()
-        }
+        clearMediaCachePlatform(strategy)
     }
 
     public enum class ClearCacheStrategy {
@@ -580,89 +510,6 @@ public object AdaptyUI {
     }
 
     init {
-        initAllDeps()
+        initAdaptyUIPlatform()
     }
-
-    private fun initAllDeps() {
-        val adaptyUiVideoAccessor = AdaptyUiVideoAccessor()
-        Dependencies.contribute(
-            setOf(
-                ViewConfigurationMapper::class to Dependencies.singleVariantDiObject({
-                    val videoMapperFn = adaptyUiVideoAccessor.createVideoMapperFnOrNull()
-                    ViewConfigurationMapper.createDefault(videoMapperFn)
-                }),
-                MediaCacheConfigManager::class to Dependencies.singleVariantDiObject({
-                    MediaCacheConfigManager()
-                }),
-                AdaptyUiVideoAccessor::class to Dependencies.singleVariantDiObject({
-                    adaptyUiVideoAccessor
-                }),
-                OnboardingCommonDeserializer::class to Dependencies.singleVariantDiObject({
-                    val metaParamsParser = MetaParamsParser()
-                    val onboardingStateUpdatedParamsParser = OnboardingStateUpdatedParamsParser()
-                    val onboardingEventsParser = OnboardingEventsParser(metaParamsParser)
-                    val onboardingActionsParser = OnboardingActionsParser(metaParamsParser, onboardingStateUpdatedParamsParser)
-                    val onboardingCommonEventParser = OnboardingCommonEventParser(onboardingEventsParser)
-                    OnboardingCommonDeserializer(
-                        onboardingActionsParser, onboardingCommonEventParser,
-                    )
-                }),
-            )
-        )
-
-        val appContext = runCatching { Dependencies.injectInternal<Context>() }.getOrNull()
-
-        if (appContext == null) {
-            Dependencies.onInitialDepsCreated = {
-                contributeDepsOnAdaptyReady(Dependencies.injectInternal<Context>())
-            }
-        } else {
-            contributeDepsOnAdaptyReady(appContext)
-        }
-    }
-
-    private fun contributeDepsOnAdaptyReady(appContext: Context) {
-        PlatformJson.gson = Dependencies.injectInternal<Gson>("base")
-        val jsEngine = JSStateMachine(
-            PlatformContextHandle(appContext),
-            JSActionBridge(),
-        )
-        Dependencies.contribute(
-            listOf(
-                CacheFileManager::class to Dependencies.singleVariantDiObject({
-                    CacheFileManager(appContext, Dependencies.injectInternal<HashingHelper>())
-                }),
-                CacheCleanupService::class to Dependencies.singleVariantDiObject({
-                    CacheCleanupService(
-                        Dependencies.injectInternal<CacheFileManager>(),
-                        Dependencies.injectInternal<MediaCacheConfigManager>(),
-                    )
-                }),
-                MediaFetchService::class to Dependencies.singleVariantDiObject({
-                    val cacheFileManager = Dependencies.injectInternal<CacheFileManager>()
-                    val mediaDownloader = MediaDownloader()
-                    val mediaSaver = MediaSaver(cacheFileManager)
-                    val singleMediaHandlerFactory =
-                        SingleMediaHandlerFactory(
-                            mediaDownloader,
-                            mediaSaver,
-                            cacheFileManager,
-                            Dependencies.injectInternal<CacheCleanupService>(),
-                        )
-                    MediaFetchService(singleMediaHandlerFactory)
-                }),
-                StateHandler::class to Dependencies.singleVariantDiObject({
-                    JSStateHandler(jsEngine)
-                }),
-            )
-        )
-        val adaptyUiVideoAccessor = Dependencies.injectInternal<AdaptyUiVideoAccessor>()
-        adaptyUiVideoAccessor.provideDeps(appContext)?.let { deps ->
-            Dependencies.contribute(deps)
-        }
-    }
-
-    private val viewConfigMapper: ViewConfigurationMapper by inject()
-
-    private val mediaFetchService: MediaFetchService by inject()
 }
