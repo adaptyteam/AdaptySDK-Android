@@ -18,12 +18,10 @@ import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.Scope
 import com.adapty.ui.internal.utils.TwoWayBinding
 import com.adapty.ui.internal.utils.log
-import com.google.gson.Gson
 import kotlinx.coroutines.CancellationException
 
 internal class JSStateHandler(
     private val stateMachine: JSStateMachine,
-    private val gson: Gson,
 ) : StateHandler {
 
     internal companion object {
@@ -116,7 +114,7 @@ internal class JSStateHandler(
     }
 
     override suspend fun applyStateSnapshot(snapshot: Map<String, Any?>) {
-        val snapshotJson = gson.toJson(snapshot)
+        val snapshotJson = PlatformJson.stringify(snapshot)
         val applyScript = """
             (function(saved) {
                 var g = (typeof globalThis !== 'undefined') ? globalThis : this;
@@ -238,14 +236,14 @@ internal class JSStateHandler(
     }
 
     private suspend fun callSetter(setterPath: List<PathComponent>, params: Map<String, Any?>) {
-        val paramsJson = gson.toJson(params)
+        val paramsJson = PlatformJson.stringify(params)
         val script = JSPathUtils.generateCallScript(setterPath, paramsJson)
         stateMachine.executeScript(script)
         refreshStateCache()
     }
 
     private suspend fun setValueDirectly(fullPath: List<PathComponent>, value: Any?) {
-        val valueJson = gson.toJson(value)
+        val valueJson = PlatformJson.stringify(value)
         val script = JSPathUtils.generateSetValueScript(fullPath, valueJson)
         stateMachine.executeScript(script)
         refreshStateCache()
@@ -296,13 +294,13 @@ internal class JSStateHandler(
 
     override suspend fun injectSDKGlobals(sdkEnvJson: String, sdkProductsJson: String) {
         stateMachine.injectSDKGlobals(sdkEnvJson, sdkProductsJson)
-        setStaticValue("SDKEnv", gson.fromJson(sdkEnvJson, Map::class.java))
-        setStaticValue("SDKProducts", gson.fromJson(sdkProductsJson, Map::class.java))
+        setStaticValue("SDKEnv", PlatformJson.parse(sdkEnvJson))
+        setStaticValue("SDKProducts", PlatformJson.parse(sdkProductsJson))
     }
 
     override suspend fun updateSDKProducts(sdkProductsJson: String) {
         stateMachine.updateSDKProducts(sdkProductsJson)
-        setStaticValue("SDKProducts", gson.fromJson(sdkProductsJson, Map::class.java))
+        setStaticValue("SDKProducts", PlatformJson.parse(sdkProductsJson))
     }
 
     private fun setStaticValue(key: String, value: Any?) {

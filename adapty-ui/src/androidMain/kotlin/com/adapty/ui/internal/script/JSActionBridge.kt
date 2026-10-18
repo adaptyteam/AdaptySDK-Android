@@ -17,8 +17,6 @@ import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.NavigationEntry
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.log
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 
 internal interface ActionHandler {
     fun onOpenUrl(source: Message.JSCallback.OpenUrl.Source, openIn: String?)
@@ -118,7 +116,7 @@ private class ActionHandlerSubject {
     }
 }
 
-internal class JSActionBridge(private val gson: Gson) {
+internal class JSActionBridge {
     private val actionHandlerSubject = ActionHandlerSubject()
 
     var actionHandler: ActionHandler?
@@ -138,8 +136,7 @@ internal class JSActionBridge(private val gson: Gson) {
     @Suppress("UNCHECKED_CAST")
     fun handleRpc(jsonString: String, onResult: (promiseId: String, result: Any?, error: String?) -> Unit) {
         try {
-            val type = object : TypeToken<Map<String, Any>>() {}.type
-            val rpcCall: Map<String, Any> = gson.fromJson(jsonString, type)
+            val rpcCall: Map<String, Any> = PlatformJson.parseAs<Map<String, Any>>(jsonString)!!
 
             val method = rpcCall["method"] as? String ?: return
             val params = rpcCall["params"] as? Map<String, Any?> ?: emptyMap()

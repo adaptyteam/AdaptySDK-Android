@@ -20,6 +20,7 @@ import com.adapty.ui.internal.cache.MediaFetchService
 import com.adapty.ui.internal.cache.MediaSaver
 import com.adapty.ui.internal.cache.SingleMediaHandlerFactory
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformContextHandle
 import com.adapty.ui.internal.script.JSActionBridge
 import com.adapty.ui.internal.script.JSStateHandler
 import com.adapty.ui.internal.script.JSStateMachine
@@ -107,8 +108,7 @@ private fun initVideoPlayerDepsIfNeeded(context: Context) {
 private fun getOrCreatePreviewStateHandler(context: Context): JSStateHandler =
     sharedPreviewStateHandler ?: synchronized(previewEngineLock) {
         sharedPreviewStateHandler ?: run {
-            val gson = Gson()
-            JSStateHandler(JSStateMachine(context.applicationContext, JSActionBridge(gson), gson), gson)
+            JSStateHandler(JSStateMachine(PlatformContextHandle(context.applicationContext), JSActionBridge()))
                 .also { sharedPreviewStateHandler = it }
         }
     }

@@ -29,6 +29,7 @@ import com.adapty.ui.internal.platform.AdaptyWebPresentation
 import com.adapty.ui.internal.platform.Context
 import com.adapty.ui.internal.platform.ERROR
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformContextHandle
 import com.adapty.ui.internal.platform.PlatformLocale
 import com.adapty.ui.internal.platform.ResultCallback
 import com.adapty.ui.internal.platform.TimeInterval
@@ -37,6 +38,7 @@ import com.adapty.ui.internal.platform.days
 import com.adapty.ui.internal.script.JSActionBridge
 import com.adapty.ui.internal.script.JSStateHandler
 import com.adapty.ui.internal.script.JSStateMachine
+import com.adapty.ui.internal.script.PlatformJson
 import com.adapty.ui.internal.script.StateHandler
 import com.adapty.ui.internal.store.FlowRuntimeState
 import com.adapty.ui.internal.ui.element.BoxElement
@@ -620,11 +622,10 @@ public object AdaptyUI {
     }
 
     private fun contributeDepsOnAdaptyReady(appContext: Context) {
-        val gson = Dependencies.injectInternal<Gson>("base")
+        PlatformJson.gson = Dependencies.injectInternal<Gson>("base")
         val jsEngine = JSStateMachine(
-            appContext,
-            JSActionBridge(gson),
-            gson,
+            PlatformContextHandle(appContext),
+            JSActionBridge(),
         )
         Dependencies.contribute(
             listOf(
@@ -651,7 +652,7 @@ public object AdaptyUI {
                     MediaFetchService(singleMediaHandlerFactory)
                 }),
                 StateHandler::class to Dependencies.singleVariantDiObject({
-                    JSStateHandler(jsEngine, gson)
+                    JSStateHandler(jsEngine)
                 }),
             )
         )

@@ -1,22 +1,15 @@
-@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
-@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.script
 
-import com.adapty.internal.data.cloud.AnalyticsTracker
-import com.adapty.internal.data.models.AnalyticsEvent
-import com.adapty.internal.di.Dependencies
-import com.adapty.ui.internal.platform.AtomicBool
-import com.adapty.ui.internal.platform.Context
 import com.adapty.ui.internal.platform.ERROR
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformContextHandle
 import com.adapty.ui.internal.platform.VERBOSE
-import com.adapty.ui.internal.platform.WARN
 import com.adapty.ui.internal.platform.platformMessage
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.log
-import com.google.gson.Gson
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -24,9 +17,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 internal class JSStateMachine(
-    private val context: Context,
+    private val ctx: PlatformContextHandle,
     private val jsActionBridge: JSActionBridge,
-    private val gson: Gson,
 ) {
     private var jsEngine: JSEngine? = null
     private val scope = CoroutineScope(Dispatchers.Default)
@@ -47,28 +39,9 @@ internal class JSStateMachine(
 
     private suspend fun initialize() {
         try {
-            val androidx = JSEngineAndroidx(context, jsActionBridge, gson)
-            jsEngine = try {
-                androidx.initialize()
-                androidx.also { js ->
-                    js.onSandboxDied = {
-                        log(WARN) { "$LOG_PREFIX Sandbox died — re-setting up bridge functions" }
-                        onEngineStateLost?.invoke()
-                        setupBridgeFunctions()
-                    }
-                }
-            } catch (e: Throwable) {
-                log(WARN) { "$LOG_PREFIX JSEngineAndroidx unavailable, falling back to JSEngineWebView: ${e.platformMessage}" }
-                reportWebViewFallback(e)
-                try { androidx.close() } catch (_: Throwable) {}
-                JSEngineWebView(context, jsActionBridge, gson).also { js ->
-                    js.onRendererGone = {
-                        log(WARN) { "$LOG_PREFIX WebView renderer died — re-setting up bridge functions" }
-                        onEngineStateLost?.invoke()
-                        setupBridgeFunctions()
-                    }
-                    js.initialize()
-                }
+            jsEngine = createJsEngine(ctx, jsActionBridge) {
+                onEngineStateLost?.invoke()
+                setupBridgeFunctions()
             }
 
             setupBridgeFunctions()
@@ -102,7 +75,7 @@ internal class JSStateMachine(
             jsEngine?.loadScript(script)
         } catch (e: Exception) {
             log(ERROR) { "$LOG_PREFIX_ERROR Error loading script: ${e.platformMessage}" }
-            if (!isSandboxDead(e)) {
+            if (!isJsEngineDead(e)) {
                 jsActionBridge.onJsError(e.message ?: e.toString())
             }
         }
@@ -362,7 +335,7 @@ internal class JSStateMachine(
         initialized.await()
         val jsEngine = this.jsEngine ?: return
 
-        val paramsJson = gson.toJson(params)
+        val paramsJson = PlatformJson.stringify(params)
         val script = JSPathUtils.generateCallScript(funcPath, paramsJson)
 
         try {
@@ -482,7 +455,7 @@ internal class JSStateMachine(
         val jsEngine = this.jsEngine ?: return
         try {
             val escapedId = callbackId.replace("\\", "\\\\").replace("\"", "\\\"")
-            val responseJson = gson.toJson(response)
+            val responseJson = PlatformJson.stringify(response)
             val result = jsEngine.execute("__adapty_invoke_alert_callback__(\"$escapedId\", $responseJson)")
             reportJsErrorIfPresent(result, "alert callback '$callbackId'")
         } catch (e: Exception) {
@@ -495,7 +468,7 @@ internal class JSStateMachine(
         val jsEngine = this.jsEngine ?: return
         try {
             val escapedId = callbackId.replace("\\", "\\\\").replace("\"", "\\\"")
-            val responseJson = gson.toJson(response)
+            val responseJson = PlatformJson.stringify(response)
             val result = jsEngine.execute("__adapty_invoke_purchase_callback__(\"$escapedId\", $responseJson)")
             reportJsErrorIfPresent(result, "purchase callback '$callbackId'")
         } catch (e: Exception) {
@@ -508,7 +481,7 @@ internal class JSStateMachine(
         val jsEngine = this.jsEngine ?: return
         try {
             val escapedId = callbackId.replace("\\", "\\\\").replace("\"", "\\\"")
-            val responseJson = gson.toJson(response)
+            val responseJson = PlatformJson.stringify(response)
             val result = jsEngine.execute("__adapty_invoke_restore_callback__(\"$escapedId\", $responseJson)")
             reportJsErrorIfPresent(result, "restore callback '$callbackId'")
         } catch (e: Exception) {
@@ -521,7 +494,7 @@ internal class JSStateMachine(
         val jsEngine = this.jsEngine ?: return
         try {
             val escapedId = callbackId.replace("\\", "\\\\").replace("\"", "\\\"")
-            val responseJson = gson.toJson(response)
+            val responseJson = PlatformJson.stringify(response)
             val result = jsEngine.execute("__adapty_invoke_permission_callback__(\"$escapedId\", $responseJson)")
             reportJsErrorIfPresent(result, "permission callback '$callbackId'")
         } catch (e: Exception) {
@@ -530,25 +503,6 @@ internal class JSStateMachine(
     }
 
     fun close() {
-        when (val js = jsEngine) {
-            is JSEngineAndroidx -> js.close()
-            is JSEngineWebView -> js.close()
-        }
-    }
-
-    private fun reportWebViewFallback(cause: Throwable) {
-        if (!webViewFallbackReported.compareAndSet(false, true)) return
-        runCatching {
-            Dependencies.injectInternal<AnalyticsTracker>(named = "base").trackSystemEvent(
-                AnalyticsEvent.InternalEventData.create(
-                    eventName = "webview_js_engine_fallback",
-                    error = cause.toString().take(200),
-                )
-            )
-        }
-    }
-
-    private companion object {
-        private val webViewFallbackReported = AtomicBool(false)
+        closeJsEngine(jsEngine)
     }
 }
