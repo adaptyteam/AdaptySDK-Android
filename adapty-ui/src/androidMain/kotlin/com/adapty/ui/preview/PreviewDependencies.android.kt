@@ -1,9 +1,12 @@
 @file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@file:JvmName("PreviewDependenciesKt")
+@file:JvmMultifileClass
 
 package com.adapty.ui.preview
 
 import android.content.Context
+import androidx.compose.runtime.Composable
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cache.PreferenceManager
 import com.adapty.internal.di.Dependencies
@@ -19,29 +22,24 @@ import com.adapty.ui.internal.cache.MediaDownloader
 import com.adapty.ui.internal.cache.MediaFetchService
 import com.adapty.ui.internal.cache.MediaSaver
 import com.adapty.ui.internal.cache.SingleMediaHandlerFactory
+import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.PlatformContextHandle
 import com.adapty.ui.internal.script.JSActionBridge
 import com.adapty.ui.internal.script.JSStateHandler
 import com.adapty.ui.internal.script.JSStateMachine
-import com.adapty.ui.internal.text.MissingTagKind
-import com.adapty.ui.internal.text.PriceConverter
-import com.adapty.ui.internal.text.TagResolver
-import com.adapty.ui.internal.text.TextResolver
 import com.adapty.ui.listeners.AdaptyFlowDefaultEventListener
 import com.adapty.ui.listeners.AdaptyFlowEventListener
 import com.adapty.ui.internal.ui.CacheRepositoryTimerStore
 import com.adapty.ui.internal.ui.CorePriceFormatting
-import com.adapty.ui.internal.ui.FlowViewModelArgs
 import com.adapty.ui.internal.ui.MediaFetchServiceSource
 import com.adapty.ui.internal.ui.MetaInfoRetrieverSdkMetaInfo
 import com.adapty.ui.internal.ui.SdkMetaInfo
 import com.adapty.ui.internal.ui.TimerValueStore
+import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.utils.AdaptyUiVideoAccessor
-import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.google.gson.Gson
 import java.util.Locale
-import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 // Preview runs without Adapty.activate(): core services are built here instead of injected from DI.
@@ -71,32 +69,29 @@ private var previewTimerStoreInstance: TimerValueStore? = null
 @Volatile
 private var previewSdkMetaInfoInstance: SdkMetaInfo? = null
 
-internal fun createPreviewViewModelArgs(
-    ctx: PlatformContextHandle,
-    previewEventCallback: PreviewEventCallback?,
-    onMissingTag: ((String, MissingTagKind) -> String)?,
-): FlowViewModelArgs {
+internal actual fun previewDependencies(ctx: PlatformContextHandle): PreviewDeps {
     val context = ctx.context
     initVideoPlayerDepsIfNeeded(context)
     val stateHandler = getOrCreatePreviewStateHandler(context)
-    val tagResolver = TagResolver(
-        CorePriceFormatting(PriceFormatter(Locale.US)),
-        PriceConverter(),
-        AdaptyUiTagResolver.Default,
-        Locale.US,
-        onMissingTag,
+    return PreviewDeps(
+        media = MediaFetchServiceSource(createPreviewMediaFetchService(context)),
+        timerStore = providePreviewTimerStore(context),
+        metaInfo = providePreviewSdkMetaInfo(context),
+        priceFormatting = CorePriceFormatting(PriceFormatter(Locale.US)),
+        tagLocale = Locale.US,
+        stateHandler = stateHandler,
     )
-    return FlowViewModelArgs(
-        "preview_${UUID.randomUUID().toString().hashCode()}",
-        false,
-        MediaFetchServiceSource(createPreviewMediaFetchService(context)),
-        providePreviewTimerStore(context),
-        providePreviewSdkMetaInfo(context),
-        TextResolver(tagResolver),
-        stateHandler,
-    ) { scope ->
-        listOf(PreviewPurchaseEffectHandler(scope, previewEventCallback)::handle)
-    }
+}
+
+internal actual fun previewVideoMapperOrNull(): ((Map<*, *>, Assets) -> UIElement)? =
+    AdaptyUiVideoAccessor().createVideoMapperFnOrNull()
+
+internal actual fun defaultPreviewEventListener(): AdaptyFlowEventListener = AdaptyFlowDefaultEventListener()
+
+// Android hosts (ComponentActivity, AbstractComposeView) always provide a ViewModelStoreOwner
+@Composable
+internal actual fun ProvidePreviewViewModelStoreOwner(content: @Composable () -> Unit) {
+    content()
 }
 
 private fun initVideoPlayerDepsIfNeeded(context: Context) {
@@ -206,6 +201,3 @@ private fun <T> allocateInstance(clazz: Class<T>): T {
     val allocate = Class.forName("sun.misc.Unsafe").getDeclaredMethod("allocateInstance", Class::class.java)
     return allocate.invoke(unsafeInstance, clazz) as T
 }
-
-/** Listener used when the preview host passes none. */
-internal fun defaultPreviewEventListener(): AdaptyFlowEventListener = AdaptyFlowDefaultEventListener()

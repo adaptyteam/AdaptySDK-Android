@@ -6,7 +6,6 @@ import com.adapty.ui.AdaptyUI
 import com.adapty.ui.internal.mapping.viewconfig.ViewConfigurationMapper
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.currentTimeMillis
-import com.adapty.ui.internal.utils.AdaptyUiVideoAccessor
 import com.adapty.ui.internal.utils.FlowMode
 import com.adapty.ui.internal.utils.isSameOrNewerVersionThan
 
@@ -26,7 +25,7 @@ public object AdaptyUIPreview {
     private const val DEFAULT_LOCALIZATION = "en"
 
     private val viewConfigMapper: ViewConfigurationMapper by lazy {
-        ViewConfigurationMapper.createDefault(AdaptyUiVideoAccessor().createVideoMapperFnOrNull())
+        ViewConfigurationMapper.createDefault(previewVideoMapperOrNull())
     }
 
     public fun createFromScreen(

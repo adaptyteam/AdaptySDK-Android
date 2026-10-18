@@ -6,7 +6,6 @@ import com.adapty.ui.AdaptyUI
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-// Moves to commonTest once the preview layer is common (Task 6d)
 internal val calmScreenIds = setOf(
     "screen_welcome",
     "screen_reviews",

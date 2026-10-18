@@ -60,6 +60,20 @@ public fun AdaptyPaywallPreviewInternal(
     restoreState: Boolean = false,
     onMissingTag: ((String, MissingTagKind) -> String)? = null,
 ) {
+    ProvidePreviewViewModelStoreOwner {
+        PreviewContent(viewConfiguration, products, eventListener, previewEventCallback, restoreState, onMissingTag)
+    }
+}
+
+@Composable
+private fun PreviewContent(
+    viewConfiguration: AdaptyUI.FlowConfiguration,
+    products: List<AdaptyPaywallProduct>?,
+    eventListener: AdaptyFlowEventListener?,
+    previewEventCallback: PreviewEventCallback?,
+    restoreState: Boolean,
+    onMissingTag: ((String, MissingTagKind) -> String)?,
+) {
     val platformContext = rememberPlatformContext()
     val vmArgs = remember(viewConfiguration.id) {
         createPreviewViewModelArgs(platformContext, previewEventCallback, onMissingTag)
