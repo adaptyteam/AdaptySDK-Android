@@ -11,8 +11,6 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
-import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image
-import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.RemoteImage
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.PlatformContextHandle
@@ -21,18 +19,18 @@ import com.adapty.ui.internal.platform.defaultLocale
 import com.adapty.ui.internal.platform.language
 import com.adapty.ui.internal.platform.country
 import com.adapty.ui.internal.platform.localeForTag
-import com.adapty.ui.internal.platform.webStub
 import com.adapty.ui.internal.script.JSActionBridge
 import com.adapty.ui.internal.script.JSStateHandler
 import com.adapty.ui.internal.script.JSStateMachine
 import com.adapty.ui.internal.ui.MediaSource
 import com.adapty.ui.internal.ui.SdkMetaInfo
 import com.adapty.ui.internal.ui.TimerValueStore
+import com.adapty.ui.internal.ui.WebMediaSource
 import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.listeners.AdaptyFlowEventListener
 import com.adapty.ui.listeners.AdaptyFlowEventListenerBase
 
-// Browser preview: no core SDK, no disk cache; timers live in memory, media is inline-only.
+// Browser preview: no core SDK, no disk cache; timers live in memory, remote media is fetched by the browser.
 
 private var sharedPreviewStateHandler: JSStateHandler? = null
 
@@ -40,9 +38,11 @@ private val previewTimerStore: TimerValueStore by lazy { InMemoryTimerValueStore
 
 private val previewSdkMetaInfo: SdkMetaInfo by lazy { WebPreviewSdkMetaInfo() }
 
+private val previewMediaSource: MediaSource by lazy { WebMediaSource() }
+
 internal actual fun previewDependencies(ctx: PlatformContextHandle): PreviewDeps =
     PreviewDeps(
-        media = InlineOnlyMediaSource,
+        media = previewMediaSource,
         timerStore = previewTimerStore,
         metaInfo = previewSdkMetaInfo,
         priceFormatting = WebPriceFormatting("en-US"),
@@ -96,17 +96,3 @@ private class WebPreviewSdkMetaInfo : SdkMetaInfo {
     override val is24HourFormat: Boolean = true
 }
 
-/** Serves only an inline (base64) preview; remote URLs are not fetched. */
-private object InlineOnlyMediaSource : MediaSource {
-    override fun loadImage(
-        remoteImage: RemoteImage,
-        handlePreview: ((preview: Image) -> Unit)?,
-        handleResult: ((image: Image) -> Unit)?,
-    ) {
-        val preview = remoteImage.preview
-        if (preview != null && preview.source is Image.Source.Base64Str) {
-            handlePreview?.invoke(preview)
-        }
-        webStub("MediaSource.remoteImage")
-    }
-}
