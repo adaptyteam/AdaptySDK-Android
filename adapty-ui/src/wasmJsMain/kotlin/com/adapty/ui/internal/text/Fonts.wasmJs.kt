@@ -2,6 +2,11 @@
 
 package com.adapty.ui.internal.text
 
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.FontHinting as ComposeFontHinting
+import androidx.compose.ui.text.FontRasterizationSettings
+import androidx.compose.ui.text.FontSmoothing
+import androidx.compose.ui.text.PlatformParagraphStyle
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontFamily
 import com.adapty.ui.AdaptyUI
@@ -24,7 +29,22 @@ internal actual fun resolvePlatformTypeface(asset: AdaptyUI.FlowConfiguration.As
 internal actual fun resolveFontFamily(asset: AdaptyUI.FlowConfiguration.Asset.Font, ctx: PlatformContextHandle): FontFamily =
     WebFonts.family(asset.weight, asset.isItalic) ?: FontFamily.Default
 
-internal actual fun platformTextStyle(includeFontPadding: Boolean): PlatformTextStyle? = null
+// Android lays text out with unhinted (linear) glyph advances. Skia's default hinting on web snaps the advances of
+// the default (wght 400) Roboto instance and makes 400-weight text ~3% narrower, so turn hinting off.
+@OptIn(ExperimentalTextApi::class)
+private val linearTextStyle = PlatformTextStyle(
+    spanStyle = null,
+    paragraphStyle = PlatformParagraphStyle(
+        fontRasterizationSettings = FontRasterizationSettings(
+            smoothing = FontSmoothing.AntiAlias,
+            hinting = ComposeFontHinting.None,
+            subpixelPositioning = true,
+            autoHintingForced = false,
+        ),
+    ),
+)
+
+internal actual fun platformTextStyle(includeFontPadding: Boolean): PlatformTextStyle? = linearTextStyle
 
 private fun skiaFont(typeface: PlatformTypeface?, sizePx: Float): Font? {
     val sk = (typeface ?: WebFonts.defaultTypeface())?.skia ?: return null

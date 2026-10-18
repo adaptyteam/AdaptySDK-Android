@@ -67,6 +67,28 @@ class WebFontsTest {
     }
 
     @Test
+    fun regularWeightUsesLinearAdvances() = runTest {
+        val roboto = fetchResource("Roboto-Regular.ttf")
+        AdaptyUIWeb.registerFonts(system = roboto)
+        val family = resolveFontFamily(font(400), PlatformContextHandle())
+        val text = "Unlimited free access for 7 days"
+
+        // Android lays out with unhinted advances: the sum of the Roboto wght-400 advances at 16sp x density 2
+        val typeface = FontMgr.default.makeFromData(Data.makeFromBytes(roboto)) ?: fail("Roboto must parse")
+        val linear = org.jetbrains.skia.Font(typeface, 32f).apply {
+            hinting = org.jetbrains.skia.FontHinting.NONE
+            isSubpixel = true
+            isLinearMetrics = true
+        }.let { f -> f.getWidths(f.getStringGlyphs(text)).sum() }
+
+        val measured = TextMeasurer(createFontFamilyResolver(), Density(2f), LayoutDirection.Ltr).measure(
+            text,
+            TextStyle(fontFamily = family, fontSize = 16.sp, platformStyle = platformTextStyle(includeFontPadding = false)),
+        ).size.width
+        assertTrue(abs(measured - linear) <= linear * 0.01f, "400-weight width must match linear advances: got $measured, linear $linear")
+    }
+
+    @Test
     fun checkmarkUsesSymbolFallback() = runTest {
         val roboto = fetchResource("Roboto-Regular.ttf")
         val symbols = fetchResource("NotoSansSymbols-Regular-Subsetted.ttf")
