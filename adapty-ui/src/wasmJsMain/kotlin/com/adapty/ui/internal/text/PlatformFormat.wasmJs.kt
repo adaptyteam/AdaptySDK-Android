@@ -30,13 +30,19 @@ internal actual object PlatformFormat {
 
     actual fun titlecase(char: Char, locale: PlatformLocale): String = char.titlecase()
 
-    // amount.divide(divisor, 4, CEILING)
+    // amount.divide(divisor, 4, CEILING), exact on the amount's decimal (Double fallback only on Long overflow)
     actual fun divide(amount: BigDecimalLike, divisor: Int): BigDecimalLike =
-        BigDecimalLike(roundDecimal(amount.toDouble() / divisor, 4, WebRounding.CEILING))
+        BigDecimalLike(
+            divideCeilingExact(amount.toDouble(), divisor, 4)
+                ?: roundDecimal(amount.toDouble() / divisor, 4, WebRounding.CEILING),
+        )
 
-    // amount * multiplier keeps the amount's scale; rounding drops the binary noise of the Double product
+    // amount * multiplier, exact on the amount's decimal (keeps its scale)
     actual fun multiply(amount: BigDecimalLike, multiplier: Int): BigDecimalLike =
-        BigDecimalLike(roundDecimal(amount.toDouble() * multiplier, decimalScale(amount.toDouble()), WebRounding.HALF_UP))
+        BigDecimalLike(
+            multiplyExact(amount.toDouble(), multiplier)
+                ?: roundDecimal(amount.toDouble() * multiplier, decimalScale(amount.toDouble()), WebRounding.HALF_UP),
+        )
 
     // java.util.Currency.defaultFractionDigits via ICU (Intl); unknown codes -> 2 like the Android catch
     actual fun currencyFractionDigits(currencyCode: String): Int =

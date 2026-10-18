@@ -73,6 +73,33 @@ class WebPriceFormattingTest {
     }
 
     @Test
+    fun priceConverterSweepMatchesBigDecimal() {
+        val mismatches = mutableListOf<String>()
+        var rows = 0
+        for (line in PRICE_SWEEP_TABLE.lines().filter { it.isNotBlank() }) {
+            val (price, unitCode, count, expected) = line.split(' ')
+            val unit = when (unitCode) {
+                "D" -> AdaptyPeriodUnit.DAY
+                "W" -> AdaptyPeriodUnit.WEEK
+                "M" -> AdaptyPeriodUnit.MONTH
+                else -> AdaptyPeriodUnit.YEAR
+            }
+            val n = count.toInt()
+            val amount = BigDecimalLike(price.toDouble())
+            val got = listOf(
+                converter.toYearly(amount, unit, n),
+                converter.toMonthly(amount, unit, n),
+                converter.toWeekly(amount, unit, n),
+                converter.toDaily(amount, unit, n),
+            ).joinToString("|") { formatter.format(it, "$$price").removePrefix("$") }
+            if (got != expected) mismatches += "$price $unitCode $n: want $expected got $got"
+            rows++
+        }
+        assertEquals(528, rows)
+        assertEquals(emptyList<String>(), mismatches)
+    }
+
+    @Test
     fun replacesOnlyTheNumberOfTheOriginalPrice() {
         assertEquals("€18.67", formatter.format(BigDecimalLike(18.6644), "€79.99"))
         assertEquals("USD 120", formatter.format(BigDecimalLike(120.0), "USD 79.99"))
