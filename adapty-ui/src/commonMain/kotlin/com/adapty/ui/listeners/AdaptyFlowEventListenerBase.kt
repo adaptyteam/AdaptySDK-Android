@@ -9,11 +9,11 @@ import com.adapty.ui.internal.platform.AdaptyPurchaseResult
 import com.adapty.ui.internal.platform.Context
 
 /**
- * Platform-neutral [AdaptyFlowEventListener] whose methods do nothing.
+ * Platform-neutral AdaptyFlowEventListener whose methods do nothing.
  *
- * Unlike [AdaptyFlowDefaultEventListener], it doesn't close the host, open urls or show the
- * app-rate prompt. [onBackPressed] consumes the press, [onAwaitingPurchaseParams] answers with
- * [AdaptyPurchaseParameters.Empty] and [onLoadingProductsFailure] doesn't retry.
+ * Unlike the Android default listener, it doesn't close the host, open urls or show the
+ * app-rate prompt. onBackPressed consumes the press, onAwaitingPurchaseParams answers with
+ * AdaptyPurchaseParameters.Empty and onLoadingProductsFailure doesn't retry.
  */
 public open class AdaptyFlowEventListenerBase : AdaptyFlowEventListener {
 
