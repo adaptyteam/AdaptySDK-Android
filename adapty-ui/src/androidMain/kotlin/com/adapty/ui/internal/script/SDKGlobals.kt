@@ -1,5 +1,4 @@
-@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
-@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.script
 
@@ -9,6 +8,9 @@ import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.PaymentMode
 import com.adapty.ui.internal.platform.PlatformLocale
 import com.adapty.ui.internal.platform.englishLocale
+import com.adapty.ui.internal.store.flowProductRefs
+import com.adapty.ui.internal.store.payloadAdaptyProductId
+import com.adapty.ui.internal.store.payloadFlowProductId
 import com.adapty.ui.internal.store.resolveProductKey
 import com.adapty.ui.internal.text.PlatformFormat
 import com.adapty.ui.internal.ui.SdkMetaInfo
@@ -127,22 +129,20 @@ internal object SDKGlobals {
     fun buildStaticSDKProductsJson(flow: AdaptyFlow): String {
         val sb = StringBuilder("{")
         var first = true
-        for (paywall in flow.paywalls) {
-            for (product in paywall.products) {
-                val key = resolveProductKey(product)
-                if (!first) sb.append(',')
-                first = false
-                sb.append(escapeJsonString(key))
-                sb.append(':')
-                val pairs = mutableListOf<Pair<String, Any?>>()
-                pairs.add("flowProductId" to product.flowProductId)
-                pairs.add("adaptyProductId" to product.id)
-                pairs.add("adaptyAccessLevelId" to product.accessLevelId)
-                pairs.add("adaptyProductType" to product.declaredProductType)
-                pairs.add("paywallVariationId" to paywall.variationId)
-                pairs.add("paywallName" to paywall.name)
-                sb.append(buildJsonObject(pairs))
-            }
+        for (product in flowProductRefs(flow)) {
+            val key = product.key
+            if (!first) sb.append(',')
+            first = false
+            sb.append(escapeJsonString(key))
+            sb.append(':')
+            val pairs = mutableListOf<Pair<String, Any?>>()
+            pairs.add("flowProductId" to product.flowProductId)
+            pairs.add("adaptyProductId" to product.adaptyProductId)
+            pairs.add("adaptyAccessLevelId" to product.accessLevelId)
+            pairs.add("adaptyProductType" to product.declaredProductType)
+            pairs.add("paywallVariationId" to product.paywallVariationId)
+            pairs.add("paywallName" to product.paywallName)
+            sb.append(buildJsonObject(pairs))
         }
         sb.append('}')
         return sb.toString()
@@ -152,8 +152,8 @@ internal object SDKGlobals {
         product: AdaptyPaywallProduct,
     ): String {
         val pairs = mutableListOf<Pair<String, Any?>>()
-        pairs.add("flowProductId" to product.payloadData.flowProductId)
-        pairs.add("adaptyProductId" to product.payloadData.adaptyProductId)
+        pairs.add("flowProductId" to product.payloadFlowProductId())
+        pairs.add("adaptyProductId" to product.payloadAdaptyProductId())
         pairs.add("adaptyAccessLevelId" to product.accessLevelId)
         pairs.add("adaptyProductType" to product.productType)
         pairs.add("paywallVariationId" to product.variationId)

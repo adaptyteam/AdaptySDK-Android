@@ -1,10 +1,7 @@
-@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
-@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.store
 
-import com.adapty.internal.domain.models.BackendProduct
-import com.adapty.internal.utils.extractProducts
 import com.adapty.ui.AdaptyCustomAssets
 import com.adapty.ui.AdaptyCustomColorAsset
 import com.adapty.ui.AdaptyCustomFontAsset
@@ -148,10 +145,7 @@ internal fun buildLocalAssetsMap(
 }
 
 internal fun resolveProductKey(product: AdaptyPaywallProduct): String =
-    product.payloadData.flowProductId ?: product.payloadData.adaptyProductId
-
-internal fun resolveProductKey(product: BackendProduct): String =
-    product.flowProductId ?: product.id
+    product.payloadFlowProductId() ?: product.payloadAdaptyProductId()
 
 internal fun associateProducts(
     products: List<AdaptyPaywallProduct>,
@@ -169,9 +163,9 @@ internal fun associateProductsWithFlow(
 ): Map<String, AdaptyPaywallProduct> {
     if (products.isEmpty()) return mapOf()
     val productsByKey = products.associateBy(::resolveProductKey)
-    return extractProducts(flow)
+    return flowProductRefs(flow)
         .mapNotNull { backendProduct ->
-            val key = resolveProductKey(backendProduct)
+            val key = backendProduct.key
             val product = productsByKey[key]
             if (product == null) {
                 log(WARN) { "$LOG_PREFIX no loaded product for key $key (${backendProduct.vendorProductId}): not fetched from the store, or the products were loaded for another flow" }
