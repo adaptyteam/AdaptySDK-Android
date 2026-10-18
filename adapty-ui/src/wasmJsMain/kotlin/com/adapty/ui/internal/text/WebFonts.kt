@@ -108,18 +108,22 @@ internal object WebFonts {
     fun RegisterFallbacks() {
         val resolver = LocalFontFamilyResolver.current
         val generation = generationState
-        remember(resolver, generation) {
-            val reg = registered ?: return@remember
-            fallbackFamilies(reg).forEach { family ->
-                runCatching { resolver.resolve(family) }
-                    .onFailure { e -> log(ERROR) { "[AdaptyUI] web fonts: fallback registration failed: ${e.message}" } }
-            }
+        remember(resolver, generation) { registerFallbacksWith(resolver) }
+    }
+
+    /** Loads the fallback fonts into [resolver]'s Skia font collection (Blocking fonts: synchronous). */
+    fun registerFallbacksWith(resolver: FontFamily.Resolver) {
+        val reg = registered ?: return
+        fallbackFamilies(reg).forEach { family ->
+            runCatching { resolver.resolve(family) }
+                .onFailure { e -> log(ERROR) { "[AdaptyUI] web fonts: fallback registration failed: ${e.message}" } }
         }
     }
 
+    // Identity carries weight/style so no font cache can collapse the variation instances
     private fun systemFont(reg: Registered, weight: Int, italic: Boolean) =
         Font(
-            identity = "adapty-web-system-g${reg.generation}",
+            identity = "adapty-web-system-g${reg.generation}-w$weight-i${if (italic) 1 else 0}",
             data = reg.system,
             weight = FontWeight(weight.coerceIn(1, 1000)),
             style = if (italic) FontStyle.Italic else FontStyle.Normal,

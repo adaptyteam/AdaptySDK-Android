@@ -33,8 +33,15 @@ import kotlin.math.roundToInt
 
 // Drawing seams on Skia; each mirrors the Android actual in Modifier.android.kt.
 
-/** Skia's SkBlurMask::ConvertRadiusToSigma, used by Android BlurMaskFilter and RenderEffect blur. */
-private fun radiusToSigma(radius: Float): Float = if (radius > 0f) 0.57735f * radius + 0.5f else 0f
+/**
+ * Radius-to-sigma conversion Android applies to both blurs: BlurMaskFilter (SkBlurMask::ConvertRadiusToSigma) and
+ * RenderEffect.createBlurEffect (hwui jni/RenderEffect.cpp passes Blur::convertRadiusToSigma(radius) to
+ * SkImageFilters::Blur). CMP's skiko BlurEffect applies the same conversion.
+ */
+internal fun radiusToSigma(radius: Float): Float = if (radius > 0f) 0.57735f * radius + 0.5f else 0f
+
+/** Sigma of the [platformBlur] image filter for a blur radius in px (Android RenderEffect semantics). */
+internal fun platformBlurSigma(blurPx: Float): Float = radiusToSigma(blurPx)
 
 /** Outer drop shadow of [outline]; [spread] is not supported (Android ignores it too). */
 internal actual fun DrawScope.drawPlatformShadow(
@@ -193,7 +200,7 @@ private class BlurNode(
 
         val expand = ceil(blurPx + captureExpand.toPx()).toInt().toFloat()
         val bounds = Rect.makeLTRB(-expand, -expand, w + expand, h + expand)
-        val sigma = radiusToSigma(blurPx)
+        val sigma = platformBlurSigma(blurPx)
         val layerPaint = org.jetbrains.skia.Paint().apply {
             imageFilter = ImageFilter.makeBlur(sigma, sigma, FilterTileMode.DECAL, null, null)
         }
