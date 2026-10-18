@@ -25,6 +25,5 @@ allprojects {
     }
 }
 
-task clean(type: Delete) {
-    delete rootProject.layout.buildDirectory
-}
+// 'base' provides `clean` (deletes the root build dir); the Kotlin/Wasm Node/Yarn plugins also apply it to the root project
+apply plugin: 'base'

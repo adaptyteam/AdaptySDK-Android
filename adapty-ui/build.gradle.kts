@@ -1,0 +1,137 @@
+import org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+plugins {
+    id("com.android.library")
+    kotlin("multiplatform")
+    id("org.jetbrains.compose")
+    id("org.jetbrains.kotlin.plugin.compose")
+}
+
+val composeBom = "2025.04.01"
+val coroutinesVersion = "1.10.2"
+val gsonVersion = "2.11.0"
+
+kotlin {
+    // Strict explicit API for main sources only (not applied to test compilations)
+    explicitApi()
+
+    compilerOptions {
+        freeCompilerArgs.addAll("-opt-in=kotlin.RequiresOptIn", "-Xexpect-actual-classes")
+    }
+
+    androidTarget {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
+            // Keep pre-2.2 interface ABI (DefaultImpls only, no JVM default methods)
+            jvmDefault.set(JvmDefaultMode.DISABLE)
+            moduleName.set("adapty-ui_release")
+        }
+    }
+
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser {
+            testTask {
+                useKarma {
+                    useChromeHeadless()
+                }
+            }
+        }
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            api(compose.ui)
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.animation)
+            implementation(compose.material3)
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
+            implementation("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose:2.9.1")
+            implementation("androidx.annotation:annotation:1.9.1")
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
+        }
+        androidMain.dependencies {
+            implementation(project.dependencies.platform("androidx.compose:compose-bom:$composeBom"))
+            compileOnly(project(":adapty"))
+            compileOnly("com.google.code.gson:gson:$gsonVersion")
+            implementation("androidx.activity:activity-compose:1.8.2")
+            implementation("androidx.javascriptengine:javascriptengine:1.0.0")
+            implementation("com.google.android.play:review:2.0.2")
+        }
+        val androidUnitTest by getting {
+            dependencies {
+                implementation("junit:junit:4.13.2")
+                implementation("org.robolectric:robolectric:4.14.1")
+                implementation(project(":adapty"))
+                implementation("com.google.code.gson:gson:$gsonVersion")
+                implementation("org.json:json:20240303")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
+            }
+        }
+        val androidInstrumentedTest by getting {
+            dependencies {
+                implementation("androidx.test.ext:junit:1.1.5")
+                implementation("androidx.test.espresso:espresso-core:3.5.1")
+            }
+        }
+    }
+}
+
+// Pin the Kotlin module name for every Android variant (internal names are mangled with it).
+// The androidTarget setting alone yields `adapty_ui_release_debug` in debug: KGP appends the variant.
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions.moduleName.set("adapty-ui_release")
+}
+
+// isIncludeAndroidResources enables an AAR metadata check for unit tests that rejects compileSdk 31
+// (activity 1.8.2 / Compose 1.8.x ask for 33+). compileSdk stays as is; only the unit-test check is off.
+tasks.matching { it.name.matches(Regex("check.*UnitTestAarMetadata")) }.configureEach {
+    enabled = false
+}
+
+composeCompiler {
+    featureFlags.add(ComposeFeatureFlag.StrongSkipping.disabled())
+}
+
+android {
+    namespace = "com.adapty.ui"
+    compileSdk = 31
+
+    defaultConfig {
+        minSdk = 21
+        targetSdk = 31
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles("consumer-rules.pro")
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+    buildFeatures {
+        compose = true
+    }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+}
+
+dependencies {
+    debugCompileOnly("androidx.compose.ui:ui-tooling")
+    debugCompileOnly("androidx.compose.ui:ui-test-manifest")
+}
