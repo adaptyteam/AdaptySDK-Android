@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.IntrinsicMeasurable
 import androidx.compose.ui.layout.IntrinsicMeasureScope
 import androidx.compose.ui.layout.Measurable
@@ -34,12 +33,12 @@ import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.invalidateMeasurement
 import androidx.compose.ui.platform.InspectorInfo
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Constraints
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image.ScaleType
 import com.adapty.ui.internal.platform.AdaptyErrorCode
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.rememberPlatformContext
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.attributes.AspectRatio
 import com.adapty.ui.internal.ui.attributes.LocalContentAlignment
@@ -47,8 +46,8 @@ import com.adapty.ui.internal.ui.attributes.evaluateComposeImageAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeContentScale
 import com.adapty.ui.internal.ui.fitImageWithinBounds
 import com.adapty.ui.internal.utils.VisualValue
-import com.adapty.ui.internal.utils.getBitmap
-import com.adapty.ui.internal.utils.getImageNaturalSize
+import com.adapty.ui.internal.utils.imageNaturalSize
+import com.adapty.ui.internal.utils.loadImageBitmap
 import com.adapty.ui.internal.utils.resolve
 import com.adapty.ui.internal.utils.resolveAsset
 import com.adapty.ui.internal.utils.resolveColorFilter
@@ -72,7 +71,7 @@ public class ImageElement internal constructor(
         modifier: Modifier,
     ): @Composable () -> Unit = composable@{
         val isSystemInDarkTheme = isSystemInDarkTheme()
-        val context = LocalContext.current
+        val context = rememberPlatformContext()
         val colorFilter: ColorFilter? = tint?.resolveColorFilter()
         val image = assetId.resolveAsset<Asset.Image>()
         if (image == null && assetId.resolveAsset<Asset.Filling>() != null) {
@@ -93,7 +92,7 @@ public class ImageElement internal constructor(
         }
         var naturalSize by remember { mutableStateOf<Pair<Int, Int>?>(null) }
         val headerSize = remember(image?.main?.source?.key) {
-            image?.let { getImageNaturalSize(context, it) }
+            image?.let { imageNaturalSize(context, it) }
         }
         if (headerSize != null && naturalSize == null) {
             naturalSize = headerSize
@@ -108,8 +107,7 @@ public class ImageElement internal constructor(
         ) {
             val imageBitmap = remember(constraints.maxWidth, constraints.maxHeight, image?.main?.source?.key, isSystemInDarkTheme) {
                 image?.let {
-                    getBitmap(context, image, constraints.maxWidth, constraints.maxHeight, if (aspectRatio == AspectRatio.FIT) ScaleType.FIT_MIN else ScaleType.FIT_MAX)
-                        ?.asImageBitmap()
+                    loadImageBitmap(context, image, constraints.maxWidth, constraints.maxHeight, if (aspectRatio == AspectRatio.FIT) ScaleType.FIT_MIN else ScaleType.FIT_MAX)
                 }
             }
 

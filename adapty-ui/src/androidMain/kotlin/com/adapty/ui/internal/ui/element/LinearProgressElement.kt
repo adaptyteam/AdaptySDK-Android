@@ -31,14 +31,13 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.rememberPlatformContext
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.script.toJsFloat
 import com.adapty.ui.internal.store.Message
@@ -59,7 +58,7 @@ import com.adapty.ui.internal.ui.resolveState
 import com.adapty.ui.internal.utils.OneWayBinding
 import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.getAsset
-import com.adapty.ui.internal.utils.getBitmap
+import com.adapty.ui.internal.utils.loadImageBitmap
 import com.adapty.ui.internal.utils.resolveAsset
 import kotlinx.coroutines.delay
 import androidx.compose.ui.geometry.CornerRadius as ComposeCornerRadius
@@ -123,7 +122,7 @@ public class LinearProgressElement internal constructor(
         val fillBrush = fillAsset?.castOrNull<Asset.Gradient>()?.toComposeFill()?.shader
         val fillImage = fillAsset?.castOrNull<Asset.Image>()
         val isSystemInDarkTheme = isSystemInDarkTheme()
-        val context = LocalContext.current
+        val context = rememberPlatformContext()
         val imageContentScale = imageAspect.toComposeContentScale()
         val imageAlignment = imageAspect.evaluateComposeImageAlignment(LocalContentAlignment.current)
 
@@ -134,8 +133,7 @@ public class LinearProgressElement internal constructor(
         BoxWithConstraints(modifier = modifier.then(ZeroIntrinsicsModifier)) {
             val imageBitmap = remember(fillImage?.main?.source, isSystemInDarkTheme, constraints.maxWidth, constraints.maxHeight) {
                 fillImage?.let {
-                    getBitmap(context, it, constraints.maxWidth, constraints.maxHeight, Asset.Image.ScaleType.FIT_MAX)
-                        ?.asImageBitmap()
+                    loadImageBitmap(context, it, constraints.maxWidth, constraints.maxHeight, Asset.Image.ScaleType.FIT_MAX)
                 }
             }
             val isHorizontal = orientation is Orientation.Horizontal

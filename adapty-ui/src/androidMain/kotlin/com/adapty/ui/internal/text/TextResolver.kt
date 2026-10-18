@@ -2,8 +2,6 @@
 
 package com.adapty.ui.internal.text
 
-import android.graphics.Rect
-import android.text.TextPaint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,9 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
@@ -30,11 +26,12 @@ import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.PaymentMode
 import com.adapty.ui.internal.platform.PlatformLocale
 import com.adapty.ui.internal.platform.identityHashCode
+import com.adapty.ui.internal.platform.rememberPlatformContext
 import com.adapty.ui.internal.ui.element.BaseTextElement
 import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.utils.firstDiscountOfferOrNull
 import com.adapty.ui.internal.utils.getAsset
-import com.adapty.ui.internal.utils.getBitmap
+import com.adapty.ui.internal.utils.loadImageBitmap
 import com.adapty.ui.internal.utils.resolve
 import com.adapty.ui.internal.utils.resolveColorFilter
 import com.adapty.ui.listeners.AdaptyUiTagResolver
@@ -149,10 +146,9 @@ internal class TextResolver(
                     val imageAsset = assets.getAsset<Asset.Image>(item.imageAssetId)
                         ?: return@forEach
                     val isSystemInDarkTheme = isSystemInDarkTheme()
-                    val context = LocalContext.current
+                    val context = rememberPlatformContext()
                     val imageBitmap = remember(imageAsset.main.source::class, isSystemInDarkTheme) {
-                        getBitmap(context, imageAsset)
-                            ?.asImageBitmap()
+                        loadImageBitmap(context, imageAsset)
                     } ?: return@forEach
 
                     val id = "image_${inlineContent.size}"
@@ -165,12 +161,7 @@ internal class TextResolver(
                     val density = LocalDensity.current
                     val runTypeface = runResolvedAttrs?.typeface
                     val (widthEm, heightEm) = remember(density, runFontSize, elementFontSize, runTypeface, imageBitmap) {
-                        val paint = TextPaint()
-                        paint.textSize = with(density) { runFontSize.sp.toPx() }
-                        runTypeface?.let { paint.typeface = it }
-                        val bounds = Rect()
-                        paint.getTextBounds("H", 0, 1, bounds)
-                        val capHeightPx = bounds.height().toFloat()
+                        val capHeightPx = capHeightPx(with(density) { runFontSize.sp.toPx() }, runTypeface)
                         val elementFontPx = with(density) { elementFontSize.sp.toPx() }
                         val aspect = imageBitmap.width.toFloat() / imageBitmap.height.toFloat()
                         val heightEm = if (elementFontPx > 0f) capHeightPx / elementFontPx else 1f

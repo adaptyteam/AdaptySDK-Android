@@ -19,7 +19,6 @@ import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.LinkAnnotation
-import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
@@ -31,10 +30,13 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformTypeface
 import com.adapty.ui.internal.platform.identityHashCode
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.text.ComposeTextAttrs
 import com.adapty.ui.internal.text.StringWrapper
+import com.adapty.ui.internal.text.naturalLineHeightSp
+import com.adapty.ui.internal.text.platformTextStyle
 import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.OverflowResult
 import com.adapty.ui.internal.ui.ScaleDownToFit
@@ -103,7 +105,7 @@ public abstract class BaseTextElement(
                 }
                 val resolvedLineHeight = resolveLineHeight(elementTextAttrs.lineHeight, autoSize, originalFontSize, elementTextAttrs.typeface)
                 val textStyle = LocalTextStyle.current.merge(
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    platformStyle = platformTextStyle(includeFontPadding = false),
                     color = text.attrs?.textColor ?: elementTextAttrs.textColor ?: DEFAULT_TEXT_COLOR,
                     fontFamily = text.attrs?.fontFamily ?: elementTextAttrs.fontFamily,
                     fontSize = fontSize.sp,
@@ -187,7 +189,7 @@ public abstract class BaseTextElement(
                     overflow = TextOverflow.Ellipsis,
                     onTextLayout = heightFit?.onTextLayout,
                     style = LocalTextStyle.current.merge(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        platformStyle = platformTextStyle(includeFontPadding = false),
                         color = elementTextAttrs.textColor ?: DEFAULT_TEXT_COLOR,
                         fontFamily = elementTextAttrs.fontFamily,
                         fontSize = fontSize.sp,
@@ -266,21 +268,15 @@ public abstract class BaseTextElement(
         }
 
     @Composable
-    private fun resolveLineHeight(explicit: Float?, autoSize: TextAutoSize?, fontSize: Float, typeface: android.graphics.Typeface?): TextUnit {
+    private fun resolveLineHeight(explicit: Float?, autoSize: TextAutoSize?, fontSize: Float, typeface: PlatformTypeface?): TextUnit {
         if (explicit != null) return if (autoSize != null) (explicit / fontSize).em else explicit.sp
         return defaultLineHeight(autoSize, fontSize, typeface)
     }
 
     @Composable
-    private fun defaultLineHeight(autoSize: TextAutoSize?, fontSize: Float, typeface: android.graphics.Typeface?): TextUnit {
+    private fun defaultLineHeight(autoSize: TextAutoSize?, fontSize: Float, typeface: PlatformTypeface?): TextUnit {
         val naturalSp = remember(fontSize, typeface) {
-            val density = android.content.res.Resources.getSystem().displayMetrics.density
-            val paint = android.text.TextPaint()
-            paint.textSize = fontSize * density
-            if (typeface != null) paint.typeface = typeface
-            val metrics = paint.fontMetrics
-            val naturalPx = metrics.descent - metrics.ascent + metrics.leading
-            naturalPx / density
+            naturalLineHeightSp(fontSize, typeface)
         }
         if (autoSize != null) return (naturalSp / fontSize).em
         return naturalSp.sp

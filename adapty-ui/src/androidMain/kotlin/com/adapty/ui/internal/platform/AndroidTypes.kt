@@ -34,3 +34,5 @@ internal fun bigDecimalTen(): BigDecimalLike = java.math.BigDecimal.TEN
 internal fun bigDecimalOf(value: Int): BigDecimalLike = java.math.BigDecimal(value)
 
 internal fun randomUUID(): PlatformUUID = java.util.UUID.randomUUID()
+
+internal typealias PlatformTypeface = android.graphics.Typeface

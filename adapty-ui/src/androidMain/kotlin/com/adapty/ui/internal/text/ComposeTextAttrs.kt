@@ -6,14 +6,14 @@ import androidx.annotation.ColorInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.RichText
 import com.adapty.ui.internal.mapping.element.Assets
-import com.adapty.ui.internal.platform.Context
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformTypeface
+import com.adapty.ui.internal.platform.rememberPlatformContext
 import com.adapty.ui.internal.ui.element.BaseTextElement
 import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.getAsset
@@ -26,7 +26,7 @@ internal class ComposeTextAttrs(
     val fontSize: Float?,
     val textDecoration: TextDecoration?,
     val fontFamily: FontFamily?,
-    val typeface: android.graphics.Typeface?,
+    val typeface: PlatformTypeface?,
     val letterSpacing: Float?,
     val lineHeight: Float?,
 ) {
@@ -80,15 +80,15 @@ internal class ComposeTextAttrs(
             lineHeight: Float? = null,
             assets: Assets,
         ): ComposeTextAttrs {
-            val context = LocalContext.current
+            val context = rememberPlatformContext()
             val fontAsset = resolveFontAsset(fontAssetId, assets)
-            val typeface = resolveTypeface(fontAsset, context)
+            val typeface = fontAsset?.let { resolvePlatformTypeface(it, context) }
             return ComposeTextAttrs(
                 resolveColor(textColor, assets) ?: resolveColor(fontAsset?.color),
                 resolveColor(backgroundColor, assets),
                 (fontSize ?: fontAsset?.size)?.takeIf { !it.isNaN() },
                 resolveTextDecoration(underline, strikethrough),
-                typeface?.let { FontFamily(it) },
+                fontAsset?.let { resolveFontFamily(it, context) },
                 typeface,
                 letterSpacing ?: fontAsset?.letterSpacing,
                 lineHeight ?: fontAsset?.lineHeight,
@@ -136,10 +136,6 @@ internal class ComposeTextAttrs(
             if (fontAssetId == null) return null
             return fontAssetId.source.resolve()
                 ?.let { assetId -> assets[assetId] as? AdaptyUI.FlowConfiguration.Asset.Font }
-        }
-
-        private fun resolveTypeface(font: AdaptyUI.FlowConfiguration.Asset.Font?, context: Context): android.graphics.Typeface? {
-            return font?.let { TypefaceHolder.getOrPut(context, font) }
         }
     }
 }
