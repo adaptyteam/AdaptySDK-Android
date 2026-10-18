@@ -80,7 +80,7 @@ public fun AdaptyPaywallPreviewInternal(
             viewModel.dataState.value = null
         }
         val sdkEnvJson = SDKGlobals.buildPreviewSDKEnvJson(
-            vmArgs.metaInfoRetriever,
+            vmArgs.metaInfo,
             viewConfiguration.locale,
             viewConfiguration.localizationId,
             viewConfiguration.isRtl,

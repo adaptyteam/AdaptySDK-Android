@@ -8,7 +8,7 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.RemoteImage
-import com.adapty.ui.internal.cache.MediaFetchService
+import com.adapty.ui.internal.ui.MediaSource
 import com.adapty.ui.internal.utils.LOADING_PRODUCTS_RETRY_DELAY
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
@@ -24,7 +24,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 internal class DataLoadingEffectHandler(
     private val scope: CoroutineScope,
     private val flowKey: String,
-    private val mediaFetchService: MediaFetchService,
+    private val mediaSource: MediaSource,
 ) : EffectHandler {
     override fun handle(effect: Effect, dispatch: (Message) -> Unit) {
         when (effect) {
@@ -92,7 +92,7 @@ internal class DataLoadingEffectHandler(
 
     private suspend fun loadImage(remoteImage: RemoteImage): Image =
         suspendCancellableCoroutine { continuation ->
-            mediaFetchService.loadImage(
+            mediaSource.loadImage(
                 remoteImage,
                 handlePreview = null,
                 handleResult = { image ->

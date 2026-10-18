@@ -67,9 +67,9 @@ class AdaptyUIPreviewTest {
         val first = createPreviewViewModelArgs(context, previewEventCallback = null, onMissingTag = null)
         val second = createPreviewViewModelArgs(context, previewEventCallback = null, onMissingTag = null)
 
-        assertEquals(context.packageName, first.metaInfoRetriever.applicationId)
-        assertSame(first.cacheRepository, second.cacheRepository)
-        assertSame(first.metaInfoRetriever, second.metaInfoRetriever)
+        assertEquals(context.packageName, first.metaInfo.applicationId)
+        assertSame(first.timerStore, second.timerStore)
+        assertSame(first.metaInfo, second.metaInfo)
         assertSame(first.stateHandler, second.stateHandler, "one JS engine shared by all previews")
         assertTrue(first.flowKey != second.flowKey)
     }

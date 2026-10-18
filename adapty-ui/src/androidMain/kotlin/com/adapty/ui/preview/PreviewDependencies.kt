@@ -27,7 +27,13 @@ import com.adapty.ui.internal.text.MissingTagKind
 import com.adapty.ui.internal.text.PriceConverter
 import com.adapty.ui.internal.text.TagResolver
 import com.adapty.ui.internal.text.TextResolver
+import com.adapty.ui.internal.ui.CacheRepositoryTimerStore
+import com.adapty.ui.internal.ui.CorePriceFormatting
 import com.adapty.ui.internal.ui.FlowViewModelArgs
+import com.adapty.ui.internal.ui.MediaFetchServiceSource
+import com.adapty.ui.internal.ui.MetaInfoRetrieverSdkMetaInfo
+import com.adapty.ui.internal.ui.SdkMetaInfo
+import com.adapty.ui.internal.ui.TimerValueStore
 import com.adapty.ui.internal.utils.AdaptyUiVideoAccessor
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.google.gson.Gson
@@ -54,6 +60,14 @@ private val previewMetaInfoRetrieverLock = Any()
 @Volatile
 private var previewMetaInfoRetrieverInstance: MetaInfoRetriever? = null
 
+private val previewAdaptersLock = Any()
+
+@Volatile
+private var previewTimerStoreInstance: TimerValueStore? = null
+
+@Volatile
+private var previewSdkMetaInfoInstance: SdkMetaInfo? = null
+
 internal fun createPreviewViewModelArgs(
     context: Context,
     previewEventCallback: PreviewEventCallback?,
@@ -62,7 +76,7 @@ internal fun createPreviewViewModelArgs(
     initVideoPlayerDepsIfNeeded(context)
     val stateHandler = getOrCreatePreviewStateHandler(context)
     val tagResolver = TagResolver(
-        PriceFormatter(Locale.US),
+        CorePriceFormatting(PriceFormatter(Locale.US)),
         PriceConverter(),
         AdaptyUiTagResolver.Default,
         Locale.US,
@@ -71,9 +85,9 @@ internal fun createPreviewViewModelArgs(
     return FlowViewModelArgs(
         "preview_${UUID.randomUUID().toString().hashCode()}",
         false,
-        createPreviewMediaFetchService(context),
-        providePreviewCacheRepository(context),
-        providePreviewMetaInfoRetriever(context),
+        MediaFetchServiceSource(createPreviewMediaFetchService(context)),
+        providePreviewTimerStore(context),
+        providePreviewSdkMetaInfo(context),
         TextResolver(tagResolver),
         stateHandler,
     ) { scope ->
@@ -110,6 +124,19 @@ private fun createPreviewMediaFetchService(context: Context): MediaFetchService 
     )
     return MediaFetchService(factory)
 }
+
+private fun providePreviewTimerStore(context: Context): TimerValueStore =
+    previewTimerStoreInstance ?: synchronized(previewAdaptersLock) {
+        previewTimerStoreInstance
+            ?: CacheRepositoryTimerStore(providePreviewCacheRepository(context)).also { previewTimerStoreInstance = it }
+    }
+
+private fun providePreviewSdkMetaInfo(context: Context): SdkMetaInfo =
+    previewSdkMetaInfoInstance ?: synchronized(previewAdaptersLock) {
+        previewSdkMetaInfoInstance
+            ?: MetaInfoRetrieverSdkMetaInfo(providePreviewMetaInfoRetriever(context), context.applicationContext)
+                .also { previewSdkMetaInfoInstance = it }
+    }
 
 private fun providePreviewCacheRepository(context: Context): CacheRepository {
     // Plain null checks: generic inference over core-internal types breaks codegen (error/NonExistentClass)

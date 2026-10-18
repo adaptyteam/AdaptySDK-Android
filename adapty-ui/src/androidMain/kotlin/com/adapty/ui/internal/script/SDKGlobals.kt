@@ -3,13 +3,12 @@
 
 package com.adapty.ui.internal.script
 
-import android.os.Build
 import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.MetaInfoRetriever
 import com.adapty.models.AdaptyFlow
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProductDiscountPhase.PaymentMode
 import com.adapty.ui.internal.store.resolveProductKey
+import com.adapty.ui.internal.ui.SdkMetaInfo
 import com.adapty.ui.internal.utils.CONFIGURATION_FORMAT_VERSION
 import com.adapty.ui.internal.utils.FlowMode
 import java.util.Locale
@@ -17,45 +16,36 @@ import java.util.Locale
 internal object SDKGlobals {
 
     fun buildSDKEnvJson(
-        metaInfoRetriever: MetaInfoRetriever,
-        context: android.content.Context,
+        metaInfo: SdkMetaInfo,
         mode: FlowMode,
         locale: Locale,
         localizationId: String? = null,
         isRtl: Boolean = false,
     ): String {
-        val (appBuild, appVersion) = metaInfoRetriever.appBuildAndVersion
+        val (appBuild, appVersion) = metaInfo.appBuildAndVersion
 
         val flow = (mode as? FlowMode.Live)?.flow
         val placement = flow?.placement
 
-        val appCurrentLocale = metaInfoRetriever.currentLocale?.let { loc ->
+        val appCurrentLocale = metaInfo.currentLocale?.let { loc ->
             if (loc.country.isNullOrEmpty()) loc.language else "${loc.language}-${loc.country}"
         }
-        val userLocales = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val localeList = android.os.LocaleList.getDefault()
-            (0 until localeList.size()).map { i ->
-                val loc = localeList[i]
-                if (loc.country.isNullOrEmpty()) loc.language else "${loc.language}-${loc.country}"
-            }
-        } else {
-            listOf(appCurrentLocale ?: Locale.getDefault().language)
-        }
-        val uses24Hour = android.text.format.DateFormat.is24HourFormat(context)
+        val userLocales = metaInfo.userLocales
+        val uses24Hour = metaInfo.is24HourFormat
 
         val pairs = mutableListOf<Pair<String, Any?>>()
         pairs.add("platform" to "android")
         pairs.add("schemaVersion" to CONFIGURATION_FORMAT_VERSION)
         pairs.add("localizationId" to localizationId)
         pairs.add("localizationDirection" to if (isRtl) "rtl" else "ltr")
-        pairs.add("sdkVersion" to metaInfoRetriever.adaptySdkVersion)
+        pairs.add("sdkVersion" to metaInfo.adaptySdkVersion)
         pairs.add("osName" to "Android")
-        pairs.add("osVersion" to metaInfoRetriever.os)
-        pairs.add("deviceVendor" to Build.MANUFACTURER.replaceFirstChar {
+        pairs.add("osVersion" to metaInfo.os)
+        pairs.add("deviceVendor" to metaInfo.manufacturer.replaceFirstChar {
             if (it.isLowerCase()) it.titlecase(Locale.ENGLISH) else it.toString()
         })
-        pairs.add("deviceModel" to metaInfoRetriever.deviceName)
-        pairs.add("appBundleId" to metaInfoRetriever.applicationId)
+        pairs.add("deviceModel" to metaInfo.deviceName)
+        pairs.add("appBundleId" to metaInfo.applicationId)
         pairs.add("appVersion" to appVersion)
         pairs.add("appBuild" to appBuild)
         pairs.add("appCurrentLocale" to appCurrentLocale)
@@ -70,39 +60,31 @@ internal object SDKGlobals {
     }
 
     fun buildPreviewSDKEnvJson(
-        metaInfoRetriever: MetaInfoRetriever,
+        metaInfo: SdkMetaInfo,
         locale: Locale,
         localizationId: String? = null,
         isRtl: Boolean = false,
     ): String {
-        val (appBuild, appVersion) = metaInfoRetriever.appBuildAndVersion
+        val (appBuild, appVersion) = metaInfo.appBuildAndVersion
 
-        val appCurrentLocale = metaInfoRetriever.currentLocale?.let { loc ->
+        val appCurrentLocale = metaInfo.currentLocale?.let { loc ->
             if (loc.country.isNullOrEmpty()) loc.language else "${loc.language}-${loc.country}"
         }
-        val userLocales = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val localeList = android.os.LocaleList.getDefault()
-            (0 until localeList.size()).map { i ->
-                val loc = localeList[i]
-                if (loc.country.isNullOrEmpty()) loc.language else "${loc.language}-${loc.country}"
-            }
-        } else {
-            listOf(appCurrentLocale ?: Locale.getDefault().language)
-        }
+        val userLocales = metaInfo.userLocales
 
         val pairs = mutableListOf<Pair<String, Any?>>()
         pairs.add("platform" to "android")
         pairs.add("schemaVersion" to CONFIGURATION_FORMAT_VERSION)
         pairs.add("localizationId" to localizationId)
         pairs.add("localizationDirection" to if (isRtl) "rtl" else "ltr")
-        pairs.add("sdkVersion" to metaInfoRetriever.adaptySdkVersion)
+        pairs.add("sdkVersion" to metaInfo.adaptySdkVersion)
         pairs.add("osName" to "Android")
-        pairs.add("osVersion" to metaInfoRetriever.os)
-        pairs.add("deviceVendor" to Build.MANUFACTURER.replaceFirstChar {
+        pairs.add("osVersion" to metaInfo.os)
+        pairs.add("deviceVendor" to metaInfo.manufacturer.replaceFirstChar {
             if (it.isLowerCase()) it.titlecase(Locale.ENGLISH) else it.toString()
         })
-        pairs.add("deviceModel" to metaInfoRetriever.deviceName)
-        pairs.add("appBundleId" to metaInfoRetriever.applicationId)
+        pairs.add("deviceModel" to metaInfo.deviceName)
+        pairs.add("appBundleId" to metaInfo.applicationId)
         pairs.add("appVersion" to appVersion)
         pairs.add("appBuild" to appBuild)
         pairs.add("appCurrentLocale" to appCurrentLocale)

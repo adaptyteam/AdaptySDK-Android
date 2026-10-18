@@ -4,7 +4,6 @@ package com.adapty.ui.internal.text
 
 import androidx.compose.runtime.Composable
 import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.PriceFormatter
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyPeriodUnit
 import com.adapty.models.AdaptyPeriodUnit.DAY
@@ -16,6 +15,7 @@ import com.adapty.models.AdaptyProductDiscountPhase.PaymentMode
 import com.adapty.ui.AdaptyUI.FlowConfiguration.RichText
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.mapping.element.Products
+import com.adapty.ui.internal.ui.PriceFormatting
 import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.utils.firstDiscountOfferOrNull
 import com.adapty.ui.listeners.AdaptyUiTagResolver
@@ -28,7 +28,7 @@ import java.util.Locale
 public enum class MissingTagKind { UNKNOWN_TAG, EMPTY_VARIABLE }
 
 internal class TagResolver(
-    private val priceFormatter: PriceFormatter,
+    private val priceFormatter: PriceFormatting,
     private val priceConverter: PriceConverter,
     var customTagResolver: AdaptyUiTagResolver,
     private val locale: Locale = Locale.getDefault(),

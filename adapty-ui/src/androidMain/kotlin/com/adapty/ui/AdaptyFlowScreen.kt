@@ -72,6 +72,7 @@ public fun AdaptyFlowScreen(
         FlowViewModelArgs.create(
             "${UUID.randomUUID().toString().hashCode()}",
             context.getCurrentLocale(),
+            context,
         )
     } ?: return
 
@@ -115,7 +116,7 @@ public fun AdaptyFlowScreen(
             if (stateHandler.stateOwner !== flowConfiguration) {
                 viewModel.dataState.value = null
             }
-            val sdkEnvJson = SDKGlobals.buildSDKEnvJson(vmArgs.metaInfoRetriever, context, flowConfiguration.mode, flowConfiguration.locale, flowConfiguration.localizationId, flowConfiguration.isRtl)
+            val sdkEnvJson = SDKGlobals.buildSDKEnvJson(vmArgs.metaInfo, flowConfiguration.mode, flowConfiguration.locale, flowConfiguration.localizationId, flowConfiguration.isRtl)
             val mode = flowConfiguration.mode
             val sdkProductsJson = if (mode is FlowMode.Live)
                 SDKGlobals.buildStaticSDKProductsJson(mode.flow)

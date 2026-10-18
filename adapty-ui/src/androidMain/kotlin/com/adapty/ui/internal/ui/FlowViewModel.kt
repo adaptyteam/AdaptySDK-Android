@@ -4,6 +4,7 @@
 package com.adapty.ui.internal.ui
 
 import android.app.Activity
+import android.content.Context
 import android.os.Looper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -219,12 +220,12 @@ private fun buildEffectHandlers(
         JsEffectHandler(scope, args.stateHandler),
         PurchaseEffectHandler(scope, args.flowKey, { vm.activityProvider?.invoke() }, { vm.contextAwareListener }),
         ObserverModeEffectHandler(scope, args.flowKey),
-        DataLoadingEffectHandler(scope, args.flowKey, args.mediaFetchService),
+        DataLoadingEffectHandler(scope, args.flowKey, args.media),
         ListenerEffectHandler { vm.contextAwareListener },
         EventDispatcherEffectHandler(vm.eventDispatcher),
         ConfigEffectHandler(args.textResolver),
         AnalyticsEffectHandler(args.flowKey),
-        TimerEffectHandler(args.cacheRepository),
+        TimerEffectHandler(args.timerStore),
         TimerCallbackScheduler(scope),
         FocusLossVerifier(scope),
     ) + (args.extraEffectHandlerFactory?.invoke(scope)?.map { fn ->
@@ -235,9 +236,9 @@ private fun buildEffectHandlers(
 internal class FlowViewModelArgs(
     val flowKey: String,
     val isObserverMode: Boolean,
-    val mediaFetchService: MediaFetchService,
-    val cacheRepository: CacheRepository,
-    val metaInfoRetriever: MetaInfoRetriever,
+    val media: MediaSource,
+    val timerStore: TimerValueStore,
+    val metaInfo: SdkMetaInfo,
     val textResolver: TextResolver,
     val stateHandler: StateHandler,
     val extraEffectHandlerFactory: ((CoroutineScope) -> List<(Effect, (Message) -> Unit) -> Unit>)? = null,
@@ -246,6 +247,7 @@ internal class FlowViewModelArgs(
         fun create(
             flowKey: String,
             locale: Locale,
+            context: Context,
         ) =
             runCatching {
                 val mediaFetchService = Dependencies.injectInternal<MediaFetchService>()
@@ -257,7 +259,7 @@ internal class FlowViewModelArgs(
                 }
                 val priceConverter = PriceConverter()
                 val tagResolver = TagResolver(
-                    priceFormatter,
+                    CorePriceFormatting(priceFormatter),
                     priceConverter,
                     AdaptyUiTagResolver.Default,
                     locale,
@@ -267,9 +269,9 @@ internal class FlowViewModelArgs(
                 FlowViewModelArgs(
                     flowKey,
                     isObserverMode,
-                    mediaFetchService,
-                    cacheRepository,
-                    metaInfoRetriever,
+                    MediaFetchServiceSource(mediaFetchService),
+                    CacheRepositoryTimerStore(cacheRepository),
+                    MetaInfoRetrieverSdkMetaInfo(metaInfoRetriever, context),
                     textResolver,
                     stateHandler,
                 )

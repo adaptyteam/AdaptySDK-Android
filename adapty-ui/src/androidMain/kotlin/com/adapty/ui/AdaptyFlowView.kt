@@ -65,6 +65,7 @@ public class AdaptyFlowView @JvmOverloads constructor(
         FlowViewModelArgs.create(
             "${UUID.randomUUID().toString().hashCode()}",
             context.getCurrentLocale(),
+            context,
         )
     }
 
@@ -165,7 +166,7 @@ public class AdaptyFlowView @JvmOverloads constructor(
             if (stateHandler.stateOwner !== flowConfiguration) {
                 vm.dataState.value = null
             }
-            val sdkEnvJson = SDKGlobals.buildSDKEnvJson(args.metaInfoRetriever, context, flowConfiguration.mode, flowConfiguration.locale, flowConfiguration.localizationId, flowConfiguration.isRtl)
+            val sdkEnvJson = SDKGlobals.buildSDKEnvJson(args.metaInfo, flowConfiguration.mode, flowConfiguration.locale, flowConfiguration.localizationId, flowConfiguration.isRtl)
             val mode = flowConfiguration.mode
             val sdkProductsJson = if (mode is FlowMode.Live)
                 SDKGlobals.buildStaticSDKProductsJson(mode.flow)

@@ -1,13 +1,12 @@
 @file:OptIn(InternalAdaptyApi::class)
-@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.store
 
-import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.ui.TimerValueStore
 
 internal class TimerEffectHandler(
-    private val cacheRepository: CacheRepository,
+    private val timerStore: TimerValueStore,
 ) : EffectHandler {
     override fun handle(effect: Effect, dispatch: (Message) -> Unit) {
         if (effect !is Effect.ResolveTimerCommand) return
@@ -29,10 +28,10 @@ internal class TimerEffectHandler(
         now: Long,
         durationSeconds: Long,
     ): Long {
-        val cached = cacheRepository.getLongValue(key, isPersisted)
+        val cached = timerStore.getLong(key, isPersisted)
         if (cached != null && cached > now) return cached
         val newEnd = now + durationSeconds
-        cacheRepository.setLongValue(key, newEnd, isPersisted)
+        timerStore.setLong(key, newEnd, isPersisted)
         return newEnd
     }
 }
