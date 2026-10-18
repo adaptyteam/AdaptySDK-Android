@@ -44,9 +44,9 @@ is_stay() {
   return 1
 }
 
-import_re='^import (android\.|java\.|javax\.|com\.google\.gson|com\.adapty\.(models|errors|internal|utils|Adapty)|com\.adapty\.ui\.R$)'
-# FQ uses outside import/package lines: android./java. (definition) plus core SDK and Android R (stricter)
-fq_re='(^|[^A-Za-z0-9_.])((android|java)\.[a-z]+\.|com\.adapty\.(models|errors|internal|utils)\.|com\.adapty\.Adapty\b|com\.adapty\.ui\.R\b)'
+import_re='^import (android\.|androidx\.(activity|core)\.|java\.|javax\.|com\.google\.gson|com\.adapty\.(models|errors|internal|utils|Adapty)|com\.adapty\.ui\.R$)'
+# FQ uses outside import/package lines: android./java. (definition) plus androidx.activity/core, core SDK and Android R (stricter)
+fq_re='(^|[^A-Za-z0-9_.])((android|java)\.[a-z]+\.|androidx\.(activity|core)\.|com\.adapty\.(models|errors|internal|utils)\.|com\.adapty\.Adapty\b|com\.adapty\.ui\.R\b)'
 
 out=""
 while IFS= read -r f; do

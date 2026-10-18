@@ -12,11 +12,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.adapty.ui.internal.platform.progressIndicatorColor
+import com.adapty.ui.internal.platform.rememberPlatformContext
 import com.adapty.ui.internal.utils.LOADING_BG_COLOR
 import com.adapty.ui.internal.utils.LOADING_SIZE
-import com.adapty.ui.internal.utils.getProgressCustomColorOrNull
 
 @Composable
 internal fun Loading(modifier: Modifier = Modifier) {
@@ -27,10 +27,10 @@ internal fun Loading(modifier: Modifier = Modifier) {
             .clickable(enabled = false, onClick = {})
             .background(Color(LOADING_BG_COLOR))
     ) {
-        val context = LocalContext.current
+        val context = rememberPlatformContext()
 
         val circularColor = remember {
-            context.getProgressCustomColorOrNull()?.let { Color(it) }
+            progressIndicatorColor(context)?.let { Color(it) }
         }
 
         CircularProgressIndicator(

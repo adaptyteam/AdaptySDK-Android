@@ -2,12 +2,11 @@
 
 package com.adapty.ui.internal.ui.element
 
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.isLandscape
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.attributes.Condition
 import com.adapty.ui.internal.ui.attributes.ConditionScope
@@ -33,7 +32,7 @@ public class FlexStackElement internal constructor(
             RenderDirected(direction, dispatch, modifier)
         } else {
             BoxWithConstraints(modifier = modifier) {
-                val configuration = LocalConfiguration.current
+                val landscape = isLandscape()
                 val screenDimensions = LocalScreenDimensions.current
                 val screenWidthDp = screenDimensions.widthDp
                 val screenHeightDp = screenDimensions.heightDp
@@ -42,7 +41,7 @@ public class FlexStackElement internal constructor(
                     availableHeightDp = maxHeight.value.takeIf { it.isFinite() } ?: screenHeightDp,
                     screenWidthDp = screenWidthDp,
                     screenHeightDp = screenHeightDp,
-                    orientation = if (configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
+                    orientation = if (landscape)
                         Condition.Orientation.Landscape
                     else
                         Condition.Orientation.Portrait,

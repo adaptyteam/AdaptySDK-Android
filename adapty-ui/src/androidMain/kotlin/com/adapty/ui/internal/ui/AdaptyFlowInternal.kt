@@ -3,8 +3,6 @@
 
 package com.adapty.ui.internal.ui
 
-import androidx.activity.OnBackPressedCallback
-import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -26,33 +24,29 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.Insets
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.adapty.ui.AdaptyFlowInsets
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.listeners.ContextAwareEventListener
 import com.adapty.ui.internal.platform.AtomicLongRef
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.OnLifecycleResumePause
+import com.adapty.ui.internal.platform.PlatformBackHandler
 import com.adapty.ui.internal.platform.VERBOSE
 import com.adapty.ui.internal.platform.WARN
+import com.adapty.ui.internal.platform.rememberPlatformContext
+import com.adapty.ui.internal.platform.rememberSafeInsets
 import com.adapty.ui.internal.script.ActionHandler
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.text.StringId
@@ -72,13 +66,10 @@ import com.adapty.ui.internal.utils.LocalSafeAreaInsets
 import com.adapty.ui.internal.utils.LocalScreenDimensions
 import com.adapty.ui.internal.utils.ScreenDimensions
 import com.adapty.ui.internal.utils.computeSafeAreaInsets
-import com.adapty.ui.internal.utils.fallbackBarOrCutoutInsets
-import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.getInsets
 import com.adapty.ui.internal.utils.getRtlAware
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.internal.utils.resolveAsset
-import com.adapty.ui.internal.utils.rootBarOrCutoutInsets
 import com.adapty.ui.internal.utils.systemInsetsDelivered
 import com.adapty.ui.internal.utils.wrap
 import kotlinx.coroutines.flow.first
@@ -120,33 +111,32 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
         Box {
             BoxWithConstraints {
                 val density = LocalDensity.current
-                val configuration = LocalConfiguration.current
+                val safeInsets = rememberSafeInsets()
                 val screenHeightPxFromConfig: Int
                 val maxHeightPxFromConstraints: Int
                 with(density) {
-                    screenHeightPxFromConfig = configuration.screenHeightDp.dp.roundToPx()
+                    screenHeightPxFromConfig = safeInsets.screenHeightDp.dp.roundToPx()
                     maxHeightPxFromConstraints = maxHeight.roundToPx()
                 }
                 var loggedNonSkipping by remember { mutableStateOf(false) }
-                val view = LocalView.current
                 val layoutDirection = LocalLayoutDirection.current
                 if (!insets.isCustom) {
                     val composeInsetsEmpty = insets.getTop(density) == 0 &&
                         insets.getBottom(density) == 0 &&
                         insets.getLeft(density, layoutDirection) == 0 &&
                         insets.getRight(density, layoutDirection) == 0
-                    val rootInsets = if (composeInsetsEmpty) view.rootBarOrCutoutInsets() else null
+                    val rootInsets = if (composeInsetsEmpty) safeInsets.rootInsetsOrNull() else null
                     val insetsNotDeliveredYet = composeInsetsEmpty &&
                         when (rootInsets) {
                             null -> maxHeightPxFromConstraints - screenHeightPxFromConfig > 10
-                            else -> rootInsets != Insets.NONE
+                            else -> !rootInsets.isNone
                         }
                     if (insetsNotDeliveredYet) {
                         log(VERBOSE) { "$LOG_PREFIX skipping (rootInsets: $rootInsets; $screenHeightPxFromConfig; $maxHeightPxFromConstraints)" }
                         LaunchedEffect(Unit) {
-                            view.requestApplyInsets()
+                            safeInsets.requestApplyInsets()
                             repeat(INSETS_DELIVERY_WAIT_FRAMES) { withFrameNanos {} }
-                            val fallback = view.fallbackBarOrCutoutInsets(layoutDirection)
+                            val fallback = safeInsets.fallbackInsets(layoutDirection)
                             log(VERBOSE) { "$LOG_PREFIX insets not delivered, falling back ($fallback)" }
                             insetsFallback = fallback
                         }
@@ -165,9 +155,9 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
                 }
 
                 if (insetsFallback != null) {
-                    LaunchedEffect(configuration, maxWidth, maxHeight, layoutDirection) {
+                    LaunchedEffect(safeInsets.configurationKey, maxWidth, maxHeight, layoutDirection) {
                         withFrameNanos {}
-                        val refreshed = view.fallbackBarOrCutoutInsets(layoutDirection)
+                        val refreshed = safeInsets.fallbackInsets(layoutDirection)
                         if (refreshed != insetsFallback) {
                             log(VERBOSE) { "$LOG_PREFIX refreshing fallback insets ($refreshed)" }
                             insetsFallback = refreshed
@@ -224,7 +214,8 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
                     LocalResolveState provides @Composable { viewModel.resolveState() },
                     LocalEventDispatcher provides viewModel.eventDispatcher,
                 ) {
-                    val context = LocalContext.current
+                    val platformContext = rememberPlatformContext()
+                    val context = platformContext.context
                     val scope = rememberCoroutineScope()
 
                     val contextAwareListener = remember(viewModel) {
@@ -236,7 +227,7 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
                     viewModel.setContextAwareListener(contextAwareListener)
 
                     DisposableEffect(viewModel) {
-                        viewModel.activityProvider = { context.getActivityOrNull()!! }
+                        viewModel.activityProvider = { platformContext.activityOrNull()!! }
                         onDispose {
                             viewModel.activityProvider = null
                             viewModel.setContextAwareListener(null)
@@ -270,42 +261,31 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
                         }
                     }
 
-                    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
-                    DisposableEffect(backDispatcher, viewModel) {
-                        val callback = object : OnBackPressedCallback(true) {
-                            override fun handleOnBackPressed() {
-                                if (viewModel.isNotifyingClose) {
-                                    isEnabled = false
-                                    backDispatcher?.onBackPressed()
-                                    isEnabled = true
-                                    return
+                    PlatformBackHandler(enabled = true, key = viewModel) {
+                        if (viewModel.isNotifyingClose) {
+                            forwardToSystem()
+                            return@PlatformBackHandler
+                        }
+                        val top = viewModel.state?.navigation?.entries?.entries
+                            ?.mapNotNull { (navId, entry) -> navigatorConfigs[navId]?.let { Triple(navId, it, entry) } }
+                            ?.maxByOrNull { (_, config, _) -> config.order }
+                        if (top != null) {
+                            val (navId, navConfig, navEntry) = top
+                            val screenConfig = viewConfig.screens.screens[navEntry.screenType]
+                            val backActions = screenConfig?.onSystemBack ?: navConfig.onSystemBack
+                            if (backActions != null) {
+                                withHandlerDisabled {
+                                    backActions.forEach { dispatch(backActionToMessage(it, navId)) }
                                 }
-                                val top = viewModel.state?.navigation?.entries?.entries
-                                    ?.mapNotNull { (navId, entry) -> navigatorConfigs[navId]?.let { Triple(navId, it, entry) } }
-                                    ?.maxByOrNull { (_, config, _) -> config.order }
-                                if (top != null) {
-                                    val (navId, navConfig, navEntry) = top
-                                    val screenConfig = viewConfig.screens.screens[navEntry.screenType]
-                                    val backActions = screenConfig?.onSystemBack ?: navConfig.onSystemBack
-                                    if (backActions != null) {
-                                        isEnabled = false
-                                        backActions.forEach { dispatch(backActionToMessage(it, navId)) }
-                                        isEnabled = true
-                                        return
-                                    }
-                                }
-
-                                val handled = viewModel.contextAwareListener
-                                    ?.let { it.onBackPressed(it.context) } ?: true
-                                if (!handled) {
-                                    isEnabled = false
-                                    backDispatcher?.onBackPressed()
-                                    isEnabled = true
-                                }
+                                return@PlatformBackHandler
                             }
                         }
-                        backDispatcher?.addCallback(callback)
-                        onDispose { callback.remove() }
+
+                        val handled = viewModel.contextAwareListener
+                            ?.let { it.onBackPressed(it.context) } ?: true
+                        if (!handled) {
+                            forwardToSystem()
+                        }
                     }
 
                     visibleNavigators.forEach { visible ->
@@ -409,33 +389,7 @@ internal fun OnScreenLifecycle(
     onEnter: () -> Unit,
     onExit: () -> Unit
 ) {
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val context = LocalContext.current
-    val hasAppeared = rememberSaveable(key) { mutableStateOf(false) }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> {
-                    if (!hasAppeared.value) {
-                        hasAppeared.value = true
-                        onEnter()
-                    }
-                }
-                else -> {}
-            }
-        }
-
-        lifecycleOwner.lifecycle.addObserver(observer)
-
-        onDispose {
-            val isChangingConfig = context.getActivityOrNull()?.isChangingConfigurations ?: false
-            if (!isChangingConfig) {
-                onExit()
-            }
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
+    OnLifecycleResumePause(key = key, onResume = onEnter, onPause = onExit)
 }
 
 @Composable

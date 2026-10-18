@@ -23,10 +23,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.areAnimationsDisabled
 import com.adapty.ui.internal.ui.attributes.Animation
 import com.adapty.ui.internal.ui.attributes.DpOffset
 import com.adapty.ui.internal.ui.attributes.Point
@@ -62,7 +62,6 @@ import com.adapty.ui.internal.ui.element.shadowBlurRadiusBehaviour
 import com.adapty.ui.internal.ui.element.shadowColorBehaviour
 import com.adapty.ui.internal.ui.element.shadowOffsetBehaviour
 import com.adapty.ui.internal.ui.element.widthBehaviour
-import com.adapty.ui.internal.utils.areAnimationsDisabled
 import kotlinx.coroutines.delay
 
 @Composable
@@ -120,10 +119,7 @@ internal fun <T> rememberAnimatedValueWithRunner(
     }
 
     val anim = remember { Animatable(initialValue, converter) }
-    val context = LocalContext.current
-    val animationsDisabled = remember(context) {
-        context.areAnimationsDisabled()
-    }
+    val animationsDisabled = areAnimationsDisabled()
 
     val playedSequences = rememberSaveable(
         saver = androidx.compose.runtime.saveable.listSaver<MutableSet<Long>, Long>(

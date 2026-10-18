@@ -33,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -41,6 +40,7 @@ import androidx.compose.ui.unit.isFinite
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.platform.ERROR
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.areAnimationsDisabled
 import com.adapty.ui.internal.platform.platformMessage
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.script.toJsInt
@@ -76,7 +76,6 @@ import com.adapty.ui.internal.ui.resolveAssets
 import com.adapty.ui.internal.ui.resolveState
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.TwoWayBinding
-import com.adapty.ui.internal.utils.areAnimationsDisabled
 import com.adapty.ui.internal.utils.getAsset
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.internal.utils.resolveAsset
@@ -127,10 +126,7 @@ public class PagerElement internal constructor(
         val isDragged = interactionSource.collectIsDraggedAsState()
         val wasInterrupted = remember { mutableStateOf(false) }
         val wasFinishedForever = remember { mutableStateOf(false) }
-        val context = LocalContext.current
-        val animationsDisabled = remember(context) {
-            context.areAnimationsDisabled()
-        }
+        val animationsDisabled = areAnimationsDisabled()
 
         if (pageIndex != null) {
             val state = resolveState()

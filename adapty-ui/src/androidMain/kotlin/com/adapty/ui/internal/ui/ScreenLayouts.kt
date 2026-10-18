@@ -2,7 +2,6 @@
 
 package com.adapty.ui.internal.ui
 
-import android.view.WindowManager
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalOverscrollConfiguration
 import androidx.compose.foundation.ScrollState
@@ -42,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Screen
 import com.adapty.ui.AdaptyUI.FlowConfiguration.ScreenBundle
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.rememberPlatformContext
+import com.adapty.ui.internal.platform.setSoftInputMode
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.store.ScrollCommand
 import com.adapty.ui.internal.ui.attributes.DimSpec
@@ -55,24 +56,15 @@ import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.ui.element.render
 import com.adapty.ui.internal.ui.element.withActiveAnimations
 import com.adapty.ui.internal.utils.TwoWayBinding
-import com.adapty.ui.internal.utils.getActivityOrNull
 import kotlinx.coroutines.flow.first
 
 @Composable
 internal fun ForceAdjustResize() {
-    val context = LocalContext.current
+    val context = rememberPlatformContext()
     DisposableEffect(Unit) {
-        val window = context.getActivityOrNull()?.window
-        val savedSoftInputMode = window?.attributes?.softInputMode
-        if (window != null && savedSoftInputMode != null) {
-            val forced = (savedSoftInputMode and WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST.inv()) or
-                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-            window.setSoftInputMode(forced)
-        }
+        val restoreSoftInputMode = setSoftInputMode(context)
         onDispose {
-            if (window != null && savedSoftInputMode != null) {
-                window.setSoftInputMode(savedSoftInputMode)
-            }
+            restoreSoftInputMode?.invoke()
         }
     }
 }

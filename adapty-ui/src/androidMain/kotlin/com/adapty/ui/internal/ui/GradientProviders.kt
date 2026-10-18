@@ -2,7 +2,6 @@
 
 package com.adapty.ui.internal.ui
 
-import android.content.res.Resources
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
@@ -21,6 +20,7 @@ import androidx.compose.ui.graphics.SweepGradientShader
 import androidx.compose.ui.graphics.lerp
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.systemDensity
 import com.adapty.ui.internal.ui.attributes.Animation
 import com.adapty.ui.internal.ui.attributes.Border
 import com.adapty.ui.internal.ui.attributes.adjustRadialColorStops
@@ -235,7 +235,7 @@ private fun createInterpolatedGradientFromAssets(
                         )
                     }
                     Asset.Gradient.Type.RADIAL -> {
-                        val density = Resources.getSystem().displayMetrics.density
+                        val density = systemDensity()
                         val center = Offset(size.width * x0, size.height * y0)
                         val (radiusPx, adjustedStops) = adjustRadialColorStops(
                             interpolatedStops.zip(interpolatedColors).toTypedArray(),

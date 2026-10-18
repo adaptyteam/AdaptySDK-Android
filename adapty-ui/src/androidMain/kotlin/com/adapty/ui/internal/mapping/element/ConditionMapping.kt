@@ -2,11 +2,11 @@
 
 package com.adapty.ui.internal.mapping.element
 
-import android.content.res.Resources
-import android.os.Build
 import com.adapty.ui.internal.platform.AdaptyErrorCode
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.adaptyError
+import com.adapty.ui.internal.platform.osVersion
+import com.adapty.ui.internal.platform.screenSmallestWidthDp
 import com.adapty.ui.internal.ui.attributes.Condition
 import com.adapty.ui.internal.utils.CONFIGURATION_FORMAT_VERSION
 import com.adapty.ui.internal.utils.isSameOrNewerVersionThan
@@ -21,7 +21,7 @@ internal enum class DeviceKind(val rawValue: String) {
 
     companion object {
         fun current(): DeviceKind =
-            if (Resources.getSystem().configuration.smallestScreenWidthDp >= TABLET_MIN_SW_DP) TAB else PHONE
+            if (screenSmallestWidthDp() >= TABLET_MIN_SW_DP) TAB else PHONE
     }
 }
 
@@ -130,7 +130,7 @@ private fun Map<*, *>.androidMinOsVersion(): String? {
 }
 
 private fun isAndroidOsAtLeast(minVersion: String): Boolean {
-    val release = Build.VERSION.RELEASE
+    val release = osVersion()
     if (release.isEmpty() || !release[0].isDigit()) return true
     return release.isSameOrNewerVersionThan(minVersion)
 }

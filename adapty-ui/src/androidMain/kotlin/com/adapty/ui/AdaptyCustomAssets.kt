@@ -4,7 +4,6 @@ package com.adapty.ui
 
 import androidx.annotation.ColorInt
 import androidx.compose.ui.geometry.Offset
-import androidx.core.net.toUri
 import com.adapty.ui.AdaptyCustomImageAsset.Local
 import com.adapty.ui.AdaptyUI.FlowConfiguration
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Gradient
@@ -16,6 +15,7 @@ import com.adapty.ui.internal.platform.COLOR_BLACK
 import com.adapty.ui.internal.platform.FileLocation
 import com.adapty.ui.internal.platform.FileLocationAsset
 import com.adapty.ui.internal.platform.FileLocationUri
+import com.adapty.ui.internal.platform.parseUri
 import com.adapty.ui.internal.platform.toRadians
 import kotlin.math.cos
 import kotlin.math.sin
@@ -122,7 +122,7 @@ public class AdaptyCustomVideoAsset internal constructor(
         public fun remote(url: String, preview: Local?, resolution: Resolution? = null): AdaptyCustomVideoAsset {
             return AdaptyCustomVideoAsset(
                 FlowConfiguration.Asset.Video(
-                    FlowConfiguration.Asset.Video.Source.Uri(url.toUri()),
+                    FlowConfiguration.Asset.Video.Source.Uri(parseUri(url)),
                     vRes = resolution?.height ?: 0,
                     hRes = resolution?.width ?: 0,
                 ),
