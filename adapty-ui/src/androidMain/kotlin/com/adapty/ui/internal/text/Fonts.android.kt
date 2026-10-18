@@ -12,19 +12,19 @@ import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.PlatformContextHandle
 import com.adapty.ui.internal.platform.PlatformTypeface
 
-// Font / text-metrics seams (Task 6c turns them into expect/actual); TypefaceHolder stays Android.
+// Font / text-metrics seams; TypefaceHolder stays Android.
 
-internal fun resolvePlatformTypeface(asset: AdaptyUI.FlowConfiguration.Asset.Font, ctx: PlatformContextHandle): PlatformTypeface =
+internal actual fun resolvePlatformTypeface(asset: AdaptyUI.FlowConfiguration.Asset.Font, ctx: PlatformContextHandle): PlatformTypeface =
     TypefaceHolder.getOrPut(ctx.context, asset)
 
-internal fun resolveFontFamily(asset: AdaptyUI.FlowConfiguration.Asset.Font, ctx: PlatformContextHandle): FontFamily =
+internal actual fun resolveFontFamily(asset: AdaptyUI.FlowConfiguration.Asset.Font, ctx: PlatformContextHandle): FontFamily =
     FontFamily(TypefaceHolder.getOrPut(ctx.context, asset))
 
-internal fun platformTextStyle(includeFontPadding: Boolean): PlatformTextStyle? =
+internal actual fun platformTextStyle(includeFontPadding: Boolean): PlatformTextStyle? =
     PlatformTextStyle(includeFontPadding = includeFontPadding)
 
 /** Natural line height (descent - ascent + leading) in sp for [fontSize] sp. */
-internal fun naturalLineHeightSp(fontSize: Float, typeface: PlatformTypeface?): Float {
+internal actual fun naturalLineHeightSp(fontSize: Float, typeface: PlatformTypeface?): Float {
     val density = Resources.getSystem().displayMetrics.density
     val paint = TextPaint()
     paint.textSize = fontSize * density
@@ -35,7 +35,7 @@ internal fun naturalLineHeightSp(fontSize: Float, typeface: PlatformTypeface?): 
 }
 
 /** Height of the "H" glyph bounds in px at [textSizePx]. */
-internal fun capHeightPx(textSizePx: Float, typeface: PlatformTypeface?): Float {
+internal actual fun capHeightPx(textSizePx: Float, typeface: PlatformTypeface?): Float {
     val paint = TextPaint()
     paint.textSize = textSizePx
     typeface?.let { paint.typeface = it }

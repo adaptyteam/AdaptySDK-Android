@@ -10,16 +10,16 @@ import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.PlatformContextHandle
 
-// Image seams (Task 6c turns them into expect/actual); Android delegates to the bitmap.kt path.
+// Image seams; Android delegates to the bitmap.kt path.
 
-internal fun decodeImage(bytes: ByteArray): ImageBitmap? =
+internal actual fun decodeImage(bytes: ByteArray): ImageBitmap? =
     runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }.getOrNull()
 
 /** Lenient like `android.util.Base64.DEFAULT`; null when the value cannot be decoded. */
-internal fun decodeBase64(value: String): ByteArray? =
+internal actual fun decodeBase64(value: String): ByteArray? =
     runCatching { Base64.decode(value, Base64.DEFAULT) }.getOrNull()
 
-internal fun loadImageBitmap(
+internal actual fun loadImageBitmap(
     ctx: PlatformContextHandle,
     image: Asset.Composite<Asset.Image>,
     boundsW: Int,
@@ -29,9 +29,9 @@ internal fun loadImageBitmap(
     getBitmap(ctx.context, image, boundsW, boundsH, scaleType)
         ?.asImageBitmap()
 
-internal fun loadImageBitmap(ctx: PlatformContextHandle, image: Asset.Composite<Asset.Image>): ImageBitmap? =
+internal actual fun loadImageBitmap(ctx: PlatformContextHandle, image: Asset.Composite<Asset.Image>): ImageBitmap? =
     getBitmap(ctx.context, image)
         ?.asImageBitmap()
 
-internal fun imageNaturalSize(ctx: PlatformContextHandle, image: Asset.Composite<Asset.Image>): Pair<Int, Int>? =
+internal actual fun imageNaturalSize(ctx: PlatformContextHandle, image: Asset.Composite<Asset.Image>): Pair<Int, Int>? =
     getImageNaturalSize(ctx.context, image)

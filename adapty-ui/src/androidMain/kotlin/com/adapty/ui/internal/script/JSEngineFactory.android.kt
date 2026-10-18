@@ -15,7 +15,7 @@ import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.log
 
 // androidx.javascriptengine sandbox first, WebView fallback (reported once per process) otherwise.
-internal suspend fun createJsEngine(
+internal actual suspend fun createJsEngine(
     ctx: PlatformContextHandle,
     bridge: JSActionBridge,
     onEngineDied: suspend () -> Unit,
@@ -46,9 +46,9 @@ internal suspend fun createJsEngine(
 }
 
 // Sandbox death is reported by the engine itself (onEngineDied), not as a script error
-internal fun isJsEngineDead(e: Throwable): Boolean = isSandboxDead(e)
+internal actual fun isJsEngineDead(e: Throwable): Boolean = isSandboxDead(e)
 
-internal fun closeJsEngine(engine: JSEngine?) {
+internal actual fun closeJsEngine(engine: JSEngine?) {
     when (engine) {
         is JSEngineAndroidx -> engine.close()
         is JSEngineWebView -> engine.close()

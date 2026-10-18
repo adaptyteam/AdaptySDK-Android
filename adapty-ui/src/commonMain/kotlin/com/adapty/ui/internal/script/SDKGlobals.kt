@@ -1,0 +1,288 @@
+@file:OptIn(InternalAdaptyUiApi::class)
+
+package com.adapty.ui.internal.script
+
+import com.adapty.ui.internal.platform.AdaptyFlow
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PaymentMode
+import com.adapty.ui.internal.platform.PlatformLocale
+import com.adapty.ui.internal.platform.englishLocale
+import com.adapty.ui.internal.store.flowProductRefs
+import com.adapty.ui.internal.store.payloadAdaptyProductId
+import com.adapty.ui.internal.store.payloadFlowProductId
+import com.adapty.ui.internal.store.resolveProductKey
+import com.adapty.ui.internal.text.PlatformFormat
+import com.adapty.ui.internal.ui.SdkMetaInfo
+import com.adapty.ui.internal.utils.CONFIGURATION_FORMAT_VERSION
+import com.adapty.ui.internal.utils.FlowMode
+import com.adapty.ui.internal.platform.language
+import com.adapty.ui.internal.platform.country
+
+internal object SDKGlobals {
+
+    fun buildSDKEnvJson(
+        metaInfo: SdkMetaInfo,
+        mode: FlowMode,
+        locale: PlatformLocale,
+        localizationId: String? = null,
+        isRtl: Boolean = false,
+    ): String {
+        val (appBuild, appVersion) = metaInfo.appBuildAndVersion
+
+        val flow = (mode as? FlowMode.Live)?.flow
+        val placement = flow?.placement
+
+        val appCurrentLocale = metaInfo.currentLocale?.let { loc ->
+            if (loc.country.isNullOrEmpty()) loc.language else "${loc.language}-${loc.country}"
+        }
+        val userLocales = metaInfo.userLocales
+        val uses24Hour = metaInfo.is24HourFormat
+
+        val pairs = mutableListOf<Pair<String, Any?>>()
+        pairs.add("platform" to "android")
+        pairs.add("schemaVersion" to CONFIGURATION_FORMAT_VERSION)
+        pairs.add("localizationId" to localizationId)
+        pairs.add("localizationDirection" to if (isRtl) "rtl" else "ltr")
+        pairs.add("sdkVersion" to metaInfo.adaptySdkVersion)
+        pairs.add("osName" to "Android")
+        pairs.add("osVersion" to metaInfo.os)
+        pairs.add("deviceVendor" to metaInfo.manufacturer.replaceFirstChar {
+            if (it.isLowerCase()) PlatformFormat.titlecase(it, englishLocale()) else it.toString()
+        })
+        pairs.add("deviceModel" to metaInfo.deviceName)
+        pairs.add("appBundleId" to metaInfo.applicationId)
+        pairs.add("appVersion" to appVersion)
+        pairs.add("appBuild" to appBuild)
+        pairs.add("appCurrentLocale" to appCurrentLocale)
+        pairs.add("userLocales" to userLocales)
+        pairs.add("userUses24HourClock" to uses24Hour)
+        pairs.add("placementId" to placement?.id)
+        pairs.add("placementVariationId" to flow?.variationId)
+        pairs.add("placementName" to flow?.name)
+        pairs.add("placementABTestName" to placement?.abTestName)
+
+        return buildJsonObject(pairs)
+    }
+
+    fun buildPreviewSDKEnvJson(
+        metaInfo: SdkMetaInfo,
+        locale: PlatformLocale,
+        localizationId: String? = null,
+        isRtl: Boolean = false,
+    ): String {
+        val (appBuild, appVersion) = metaInfo.appBuildAndVersion
+
+        val appCurrentLocale = metaInfo.currentLocale?.let { loc ->
+            if (loc.country.isNullOrEmpty()) loc.language else "${loc.language}-${loc.country}"
+        }
+        val userLocales = metaInfo.userLocales
+
+        val pairs = mutableListOf<Pair<String, Any?>>()
+        pairs.add("platform" to "android")
+        pairs.add("schemaVersion" to CONFIGURATION_FORMAT_VERSION)
+        pairs.add("localizationId" to localizationId)
+        pairs.add("localizationDirection" to if (isRtl) "rtl" else "ltr")
+        pairs.add("sdkVersion" to metaInfo.adaptySdkVersion)
+        pairs.add("osName" to "Android")
+        pairs.add("osVersion" to metaInfo.os)
+        pairs.add("deviceVendor" to metaInfo.manufacturer.replaceFirstChar {
+            if (it.isLowerCase()) PlatformFormat.titlecase(it, englishLocale()) else it.toString()
+        })
+        pairs.add("deviceModel" to metaInfo.deviceName)
+        pairs.add("appBundleId" to metaInfo.applicationId)
+        pairs.add("appVersion" to appVersion)
+        pairs.add("appBuild" to appBuild)
+        pairs.add("appCurrentLocale" to appCurrentLocale)
+        pairs.add("userLocales" to userLocales)
+        pairs.add("userUses24HourClock" to false)
+        pairs.add("placementId" to "preview_placement")
+        pairs.add("placementVariationId" to "preview_variation")
+        pairs.add("placementName" to "preview")
+        pairs.add("placementABTestName" to "preview_abtest")
+
+        return buildJsonObject(pairs)
+    }
+
+    fun buildSDKProductsJson(
+        products: List<AdaptyPaywallProduct>,
+    ): String = buildSDKProductsJson(
+        products.associateBy { resolveProductKey(it) }
+    )
+
+    fun buildSDKProductsJson(
+        products: Map<String, AdaptyPaywallProduct>,
+    ): String {
+        if (products.isEmpty()) return "{}"
+
+        val sb = StringBuilder("{")
+        var first = true
+        for ((key, product) in products) {
+            if (!first) sb.append(',')
+            first = false
+            sb.append(escapeJsonString(key))
+            sb.append(':')
+            sb.append(buildSingleProductJson(product))
+        }
+        sb.append('}')
+        return sb.toString()
+    }
+
+    fun buildStaticSDKProductsJson(flow: AdaptyFlow): String {
+        val sb = StringBuilder("{")
+        var first = true
+        for (product in flowProductRefs(flow)) {
+            val key = product.key
+            if (!first) sb.append(',')
+            first = false
+            sb.append(escapeJsonString(key))
+            sb.append(':')
+            val pairs = mutableListOf<Pair<String, Any?>>()
+            pairs.add("flowProductId" to product.flowProductId)
+            pairs.add("adaptyProductId" to product.adaptyProductId)
+            pairs.add("adaptyAccessLevelId" to product.accessLevelId)
+            pairs.add("adaptyProductType" to product.declaredProductType)
+            pairs.add("paywallVariationId" to product.paywallVariationId)
+            pairs.add("paywallName" to product.paywallName)
+            sb.append(buildJsonObject(pairs))
+        }
+        sb.append('}')
+        return sb.toString()
+    }
+
+    private fun buildSingleProductJson(
+        product: AdaptyPaywallProduct,
+    ): String {
+        val pairs = mutableListOf<Pair<String, Any?>>()
+        pairs.add("flowProductId" to product.payloadFlowProductId())
+        pairs.add("adaptyProductId" to product.payloadAdaptyProductId())
+        pairs.add("adaptyAccessLevelId" to product.accessLevelId)
+        pairs.add("adaptyProductType" to product.productType)
+        pairs.add("paywallVariationId" to product.variationId)
+        pairs.add("paywallName" to product.paywallName)
+        pairs.add("localizedTitle" to product.localizedTitle)
+        pairs.add("localizedDescription" to product.localizedDescription)
+
+        val pricePairs = mutableListOf<Pair<String, Any?>>()
+        pricePairs.add("amount" to product.price.amount.toDouble())
+        pricePairs.add("currencyCode" to product.price.currencyCode)
+        pricePairs.add("currencySymbol" to product.price.currencySymbol)
+        pricePairs.add("localizedString" to product.price.localizedString)
+        pairs.add("price" to RawJson(buildJsonObject(pricePairs)))
+
+        product.subscriptionDetails?.let { sub ->
+            val periodPairs = mutableListOf<Pair<String, Any?>>()
+            periodPairs.add("unit" to sub.subscriptionPeriod.unit.name.lowercase())
+            periodPairs.add("numberOfUnits" to sub.subscriptionPeriod.numberOfUnits)
+
+            val subPairs = mutableListOf<Pair<String, Any?>>()
+            subPairs.add("groupIdentifier" to sub.basePlanId)
+            subPairs.add("period" to RawJson(buildJsonObject(periodPairs)))
+            subPairs.add("localizedPeriod" to sub.localizedSubscriptionPeriod)
+
+            sub.offerId?.let { offerId ->
+                val firstPhase = sub.introductoryOfferPhases.firstOrNull()
+                val phasePairs = mutableListOf<Pair<String, Any?>>()
+                if (firstPhase != null) {
+                    val offerPricePairs = mutableListOf<Pair<String, Any?>>()
+                    offerPricePairs.add("amount" to firstPhase.price.amount.toDouble())
+                    offerPricePairs.add("currencyCode" to firstPhase.price.currencyCode)
+                    offerPricePairs.add("currencySymbol" to firstPhase.price.currencySymbol)
+                    offerPricePairs.add("localizedString" to firstPhase.price.localizedString)
+
+                    val offerPeriodPairs = mutableListOf<Pair<String, Any?>>()
+                    offerPeriodPairs.add("unit" to firstPhase.subscriptionPeriod.unit.name.lowercase())
+                    offerPeriodPairs.add("numberOfUnits" to firstPhase.subscriptionPeriod.numberOfUnits)
+
+                    phasePairs.add("price" to RawJson(buildJsonObject(offerPricePairs)))
+                    phasePairs.add("paymentMode" to firstPhase.paymentMode.toJsonValue())
+                    phasePairs.add("period" to RawJson(buildJsonObject(offerPeriodPairs)))
+                    phasePairs.add("numberOfPeriods" to firstPhase.numberOfPeriods)
+                    phasePairs.add("localizedPeriod" to firstPhase.localizedSubscriptionPeriod)
+                    phasePairs.add("localizedNumberOfPeriods" to firstPhase.localizedNumberOfPeriods)
+                }
+
+                val offerPairs = mutableListOf<Pair<String, Any?>>()
+                offerPairs.add("id" to offerId)
+                offerPairs.add("type" to "introductory")
+                if (phasePairs.isNotEmpty()) {
+                    offerPairs.add("phases" to RawJson("[${buildJsonObject(phasePairs)}]"))
+                }
+                subPairs.add("offer" to RawJson(buildJsonObject(offerPairs)))
+            }
+
+            pairs.add("subscription" to RawJson(buildJsonObject(subPairs)))
+        }
+
+        return buildJsonObject(pairs)
+    }
+
+    private class RawJson(val json: String)
+
+    private fun buildJsonObject(pairs: List<Pair<String, Any?>>): String {
+        val sb = StringBuilder("{")
+        var first = true
+        for ((k, v) in pairs) {
+            if (!first) sb.append(',')
+            first = false
+            sb.append(escapeJsonString(k))
+            sb.append(':')
+            sb.append(toJsonValue(v))
+        }
+        sb.append('}')
+        return sb.toString()
+    }
+
+    private fun toJsonValue(value: Any?): String = when (value) {
+        null -> "null"
+        is Boolean -> value.toString()
+        is Number -> value.toString()
+        is String -> escapeJsonString(value)
+        is RawJson -> value.json
+        is List<*> -> {
+            val sb = StringBuilder("[")
+            var first = true
+            for (item in value) {
+                if (!first) sb.append(',')
+                first = false
+                sb.append(toJsonValue(item))
+            }
+            sb.append(']')
+            sb.toString()
+        }
+        else -> escapeJsonString(value.toString())
+    }
+
+    private fun PaymentMode.toJsonValue(): String = when (this) {
+        PaymentMode.FREE_TRIAL -> "free_trial"
+        PaymentMode.PAY_AS_YOU_GO -> "pay_as_you_go"
+        PaymentMode.PAY_UPFRONT -> "pay_up_front"
+        PaymentMode.UNKNOWN -> "unknown"
+        else -> error("Unknown payment mode: $this")
+    }
+
+    private fun escapeJsonString(value: String): String {
+        val sb = StringBuilder("\"")
+        for (c in value) {
+            when (c) {
+                '"' -> sb.append("\\\"")
+                '\\' -> sb.append("\\\\")
+                '\n' -> sb.append("\\n")
+                '\r' -> sb.append("\\r")
+                '\t' -> sb.append("\\t")
+                '\b' -> sb.append("\\b")
+                '' -> sb.append("\\f")
+                else -> {
+                    if (c.code < 0x20) {
+                        sb.append("\\u")
+                        sb.append(PlatformFormat.formatString("%04x", c.code))
+                    } else {
+                        sb.append(c)
+                    }
+                }
+            }
+        }
+        sb.append('"')
+        return sb.toString()
+    }
+}

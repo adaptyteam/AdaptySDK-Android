@@ -65,7 +65,7 @@ import kotlin.math.roundToInt
 @Deprecated("Starting Adapty SDK 4.0.0, Onboarding Feature is deprecated. Please consider migrating to Flows")
 @Suppress("DEPRECATION")
 @SuppressLint("SetJavaScriptEnabled")
-public class AdaptyOnboardingView @JvmOverloads constructor(
+public actual class AdaptyOnboardingView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,

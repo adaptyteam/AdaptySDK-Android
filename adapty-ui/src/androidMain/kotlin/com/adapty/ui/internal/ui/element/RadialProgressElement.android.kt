@@ -18,7 +18,7 @@ import com.adapty.ui.internal.ui.drawImageFill
  * Radial progress paths the shared renderer cannot draw with plain DrawScope arcs:
  * a stroked arc ([strokeWidth] != null) filled with [imageFill] or [brush], or a pie ([strokeWidth] == null) filled with [imageFill].
  */
-internal fun DrawScope.drawRadialProgress(
+internal actual fun DrawScope.drawRadialProgress(
     topLeft: Offset,
     diameter: Float,
     startAngle: Float,

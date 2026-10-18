@@ -63,9 +63,9 @@ import com.google.gson.Gson
 
 // Android bodies of AdaptyUI (core SDK DI, views, media cache); AdaptyUI calls them through these seams.
 
-internal val defaultFlowLoadTimeout: TimeInterval get() = DEFAULT_PLACEMENT_TIMEOUT
+internal actual val defaultFlowLoadTimeout: TimeInterval get() = DEFAULT_PLACEMENT_TIMEOUT
 
-internal fun initAdaptyUIPlatform() {
+internal actual fun initAdaptyUIPlatform() {
     initAllDeps()
 }
 
@@ -153,12 +153,12 @@ private val viewConfigMapper: ViewConfigurationMapper by inject()
 private val mediaFetchService: MediaFetchService by inject()
 
 /** Throws (NPE) when AdaptyUI deps aren't contributed yet; wrap with `withAdaptyUIActivated`. */
-internal fun injectStateHandler(): StateHandler = Dependencies.injectInternal<StateHandler>()
+internal actual fun injectStateHandler(): StateHandler = Dependencies.injectInternal<StateHandler>()
 
-internal fun stateHandlerOrNull(): StateHandler? =
+internal actual fun stateHandlerOrNull(): StateHandler? =
     runCatching { Dependencies.injectInternal<StateHandler>() }.getOrNull()
 
-internal fun createFlowView(
+internal actual fun createFlowView(
     activity: Activity,
     flowConfiguration: FlowConfiguration,
     products: List<AdaptyPaywallProduct>?,
@@ -184,7 +184,7 @@ internal fun createFlowView(
     }
 }
 
-internal fun createOnboardingView(
+internal actual fun createOnboardingView(
     activity: Activity,
     viewConfig: AdaptyOnboardingConfiguration,
     eventListener: AdaptyOnboardingEventListener,
@@ -197,14 +197,14 @@ internal fun createOnboardingView(
     }
 }
 
-internal fun createOnboardingConfiguration(
+internal actual fun createOnboardingConfiguration(
     onboarding: AdaptyOnboarding,
     externalUrlsPresentation: AdaptyWebPresentation,
 ): AdaptyOnboardingConfiguration {
     return AdaptyOnboardingConfiguration(onboarding, externalUrlsPresentation)
 }
 
-internal fun loadFlowConfiguration(
+internal actual fun loadFlowConfiguration(
     flow: AdaptyFlow,
     locale: String?,
     loadTimeout: TimeInterval,
@@ -234,14 +234,14 @@ internal fun AdaptyUI.getFlowConfigurationInternal(
     )
 }
 
-internal fun preloadMediaPlatform(rawConfig: Map<String, Any>) {
+internal actual fun preloadMediaPlatform(rawConfig: Map<String, Any>) {
     runCatching {
         val (configId, urls) = viewConfigMapper.mapToMediaUrls(rawConfig)
         mediaFetchService.preloadMedia(configId, urls)
     }
 }
 
-internal fun configureMediaCachePlatform(config: MediaCacheConfiguration) {
+internal actual fun configureMediaCachePlatform(config: MediaCacheConfiguration) {
     log(VERBOSE) { "$LOG_PREFIX #AdaptyMediaCache# configure: diskStorageSizeLimit = ${config.diskStorageSizeLimit}, diskCacheValidityTime = ${config.diskCacheValidityTime}" }
     val cacheConfigManager = runCatching { Dependencies.injectInternal<MediaCacheConfigManager>() }.getOrNull() ?: run {
         log(ERROR) { "$LOG_PREFIX #AdaptyMediaCache# couldn't be configured. Adapty was not initialized" }
@@ -250,7 +250,7 @@ internal fun configureMediaCachePlatform(config: MediaCacheConfiguration) {
     cacheConfigManager.currentCacheConfig = config
 }
 
-internal fun clearMediaCachePlatform(strategy: ClearCacheStrategy) {
+internal actual fun clearMediaCachePlatform(strategy: ClearCacheStrategy) {
     log(VERBOSE) { "$LOG_PREFIX #AdaptyMediaCache# clear: ${strategy.name}" }
     val cacheCleanupService = runCatching { Dependencies.injectInternal<CacheCleanupService>() }.getOrNull() ?: run {
         log(ERROR) { "$LOG_PREFIX #AdaptyMediaCache# couldn't clear cache. Adapty was not initialized" }

@@ -10,7 +10,7 @@ import com.adapty.ui.onboardings.errors.AdaptyOnboardingError
 import com.adapty.ui.onboardings.events.AdaptyOnboardingAnalyticsEvent
 
 @Deprecated("Starting Adapty SDK 4.0.0, Onboarding Feature is deprecated. Please consider migrating to Flows")
-public interface AdaptyOnboardingEventListener {
+public actual interface AdaptyOnboardingEventListener {
 
     public fun onFinishLoading(action: AdaptyOnboardingLoadedAction, context: Context)
 

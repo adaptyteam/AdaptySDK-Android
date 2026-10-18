@@ -13,6 +13,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.ProvidedValue
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalOverscrollConfiguration
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -30,11 +38,11 @@ import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.getProgressCustomColorOrNull
 import com.adapty.ui.internal.utils.rootBarOrCutoutInsets
 
-// Environment seams (Task 6c turns them into expect/actual).
+// Environment seams: Android actuals.
 
 /** Opaque platform context; Android wraps [Context]. */
-internal class PlatformContextHandle(val context: Context) {
-    fun activityOrNull(): Activity? = context.getActivityOrNull()
+internal actual class PlatformContextHandle(actual val context: Context) {
+    actual fun activityOrNull(): Activity? = context.getActivityOrNull()
 
     override fun equals(other: Any?): Boolean =
         other is PlatformContextHandle && other.context == context
@@ -43,25 +51,25 @@ internal class PlatformContextHandle(val context: Context) {
 }
 
 /** True when the host activity is being recreated for a configuration change. */
-internal fun PlatformContextHandle.isChangingConfigurations(): Boolean =
+internal actual fun PlatformContextHandle.isChangingConfigurations(): Boolean =
     activityOrNull()?.isChangingConfigurations == true
 
 @Composable
-internal fun rememberPlatformContext(): PlatformContextHandle {
+internal actual fun rememberPlatformContext(): PlatformContextHandle {
     val context = LocalContext.current
     return remember(context) { PlatformContextHandle(context) }
 }
 
-internal fun screenSmallestWidthDp(): Int = Resources.getSystem().configuration.smallestScreenWidthDp
+internal actual fun screenSmallestWidthDp(): Int = Resources.getSystem().configuration.smallestScreenWidthDp
 
-internal fun osVersion(): String = Build.VERSION.RELEASE
+internal actual fun osVersion(): String = Build.VERSION.RELEASE
 
-internal fun systemDensity(): Float = Resources.getSystem().displayMetrics.density
+internal actual fun systemDensity(): Float = Resources.getSystem().displayMetrics.density
 
-internal fun parseUri(value: String): Uri = value.toUri()
+internal actual fun parseUri(value: String): Uri = value.toUri()
 
 @Composable
-internal fun areAnimationsDisabled(): Boolean {
+internal actual fun areAnimationsDisabled(): Boolean {
     val context = LocalContext.current
     return remember(context) {
         context.areAnimationsDisabled()
@@ -69,14 +77,14 @@ internal fun areAnimationsDisabled(): Boolean {
 }
 
 @Composable
-internal fun isLandscape(): Boolean =
+internal actual fun isLandscape(): Boolean =
     LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-internal fun progressIndicatorColor(ctx: PlatformContextHandle): Int? =
+internal actual fun progressIndicatorColor(ctx: PlatformContextHandle): Int? =
     ctx.context.getProgressCustomColorOrNull()
 
 /** Forces adjust-resize soft input mode on the host window; returns a restore callback (null when nothing changed). */
-internal fun setSoftInputMode(ctx: PlatformContextHandle): (() -> Unit)? {
+internal actual fun setSoftInputMode(ctx: PlatformContextHandle): (() -> Unit)? {
     val window = ctx.context.getActivityOrNull()?.window
     val savedSoftInputMode = window?.attributes?.softInputMode
     if (window != null && savedSoftInputMode != null) {
@@ -92,49 +100,44 @@ internal fun setSoftInputMode(ctx: PlatformContextHandle): (() -> Unit)? {
 }
 
 /** Root window bar/cutout insets as reported by the platform view hierarchy. */
-internal class PlatformRootInsets(private val insets: Insets) {
-    val isNone: Boolean get() = insets == Insets.NONE
+internal actual class PlatformRootInsets(private val insets: Insets) {
+    actual val isNone: Boolean get() = insets == Insets.NONE
 
     override fun toString(): String = insets.toString()
 }
 
 /** Safe-area probe used before Compose window insets are delivered; Android wraps the host View + Configuration. */
-internal class PlatformSafeInsets(private val view: View, private val configuration: Configuration) {
-    val screenHeightDp: Int get() = configuration.screenHeightDp
+internal actual class PlatformSafeInsets(private val view: View, private val configuration: Configuration) {
+    actual val screenHeightDp: Int get() = configuration.screenHeightDp
 
     /** Changes whenever the platform configuration changes (effect key). */
-    val configurationKey: Any get() = configuration
+    actual val configurationKey: Any get() = configuration
 
-    fun rootInsetsOrNull(): PlatformRootInsets? = view.rootBarOrCutoutInsets()?.let { PlatformRootInsets(it) }
+    actual fun rootInsetsOrNull(): PlatformRootInsets? = view.rootBarOrCutoutInsets()?.let { PlatformRootInsets(it) }
 
-    fun requestApplyInsets() {
+    actual fun requestApplyInsets() {
         view.requestApplyInsets()
     }
 
-    fun fallbackInsets(layoutDirection: LayoutDirection): AdaptyFlowInsets =
+    actual fun fallbackInsets(layoutDirection: LayoutDirection): AdaptyFlowInsets =
         view.fallbackBarOrCutoutInsets(layoutDirection)
 }
 
 @Composable
-internal fun rememberSafeInsets(): PlatformSafeInsets {
+internal actual fun rememberSafeInsets(): PlatformSafeInsets {
     val view = LocalView.current
     val configuration = LocalConfiguration.current
     return remember(view, configuration) { PlatformSafeInsets(view, configuration) }
 }
 
-internal interface PlatformBackScope {
-    /** Runs [block] with this back handler disabled. */
-    fun withHandlerDisabled(block: () -> Unit)
-
-    /** Lets the next platform back handler process the event. */
-    fun forwardToSystem()
-}
-
 @Composable
-internal fun PlatformBackHandler(enabled: Boolean, key: Any?, onBack: PlatformBackScope.() -> Unit) {
+internal actual fun PlatformBackHandler(enabled: Boolean, key: Any?, onBack: PlatformBackScope.() -> Unit) {
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+    val currentEnabled = rememberUpdatedState(enabled)
+    val activeCallback = remember { arrayOfNulls<OnBackPressedCallback>(1) }
+    SideEffect { activeCallback[0]?.isEnabled = enabled }
     DisposableEffect(backDispatcher, key) {
-        val callback = object : OnBackPressedCallback(enabled), PlatformBackScope {
+        val callback = object : OnBackPressedCallback(currentEnabled.value), PlatformBackScope {
             override fun handleOnBackPressed() {
                 onBack()
             }
@@ -142,17 +145,21 @@ internal fun PlatformBackHandler(enabled: Boolean, key: Any?, onBack: PlatformBa
             override fun withHandlerDisabled(block: () -> Unit) {
                 isEnabled = false
                 block()
-                isEnabled = true
+                isEnabled = currentEnabled.value
             }
 
             override fun forwardToSystem() {
                 isEnabled = false
                 backDispatcher?.onBackPressed()
-                isEnabled = true
+                isEnabled = currentEnabled.value
             }
         }
         backDispatcher?.addCallback(callback)
-        onDispose { callback.remove() }
+        activeCallback[0] = callback
+        onDispose {
+            callback.remove()
+            if (activeCallback[0] === callback) activeCallback[0] = null
+        }
     }
 }
 
@@ -160,7 +167,7 @@ internal fun PlatformBackHandler(enabled: Boolean, key: Any?, onBack: PlatformBa
  * [onResume]: first ON_RESUME for [key]; [onPause]: leaving composition, except for a configuration change.
  */
 @Composable
-internal fun OnLifecycleResumePause(
+internal actual fun OnLifecycleResumePause(
     key: Any?,
     onResume: () -> Unit,
     onPause: () -> Unit,
@@ -193,3 +200,10 @@ internal fun OnLifecycleResumePause(
         }
     }
 }
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal actual fun isImeVisible(): Boolean = WindowInsets.isImeVisible
+
+@OptIn(ExperimentalFoundationApi::class)
+internal actual fun noOverscroll(): ProvidedValue<*> = LocalOverscrollConfiguration provides null

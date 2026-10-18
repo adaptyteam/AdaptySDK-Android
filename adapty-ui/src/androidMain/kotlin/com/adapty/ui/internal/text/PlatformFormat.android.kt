@@ -19,22 +19,22 @@ import java.util.Currency
 import java.util.TimeZone
 
 // Locale/number/date formatting used by shared code; Android bodies moved verbatim from the callers.
-internal object PlatformFormat {
+internal actual object PlatformFormat {
 
     // TagConverter / SDKGlobals: String.format
 
-    fun formatString(format: String, vararg args: Any?): String = String.format(format, *args)
+    actual fun formatString(format: String, vararg args: Any?): String = String.format(format, *args)
 
-    fun decimalSeparator(locale: PlatformLocale): Char =
+    actual fun decimalSeparator(locale: PlatformLocale): Char =
         DecimalFormatSymbols.getInstance(locale).decimalSeparator
 
-    val STYLE_SHORT: Int get() = DateFormat.SHORT
-    val STYLE_MEDIUM: Int get() = DateFormat.MEDIUM
-    val STYLE_LONG: Int get() = DateFormat.LONG
-    val STYLE_FULL: Int get() = DateFormat.FULL
+    actual val STYLE_SHORT: Int get() = DateFormat.SHORT
+    actual val STYLE_MEDIUM: Int get() = DateFormat.MEDIUM
+    actual val STYLE_LONG: Int get() = DateFormat.LONG
+    actual val STYLE_FULL: Int get() = DateFormat.FULL
 
     // TagConverter.DateTime: buildFormatter + format; styles are STYLE_* or TagConverter.DateTime.STYLE_NONE
-    fun formatDateTime(
+    actual fun formatDateTime(
         date: PlatformDate,
         pattern: String?,
         dateStyle: Int,
@@ -58,19 +58,19 @@ internal object PlatformFormat {
 
     // SDKGlobals: Char.titlecase(Locale)
 
-    fun titlecase(char: Char, locale: PlatformLocale): String = char.titlecase(locale)
+    actual fun titlecase(char: Char, locale: PlatformLocale): String = char.titlecase(locale)
 
     // PriceConverter / TagResolver: BigDecimal arithmetic
 
-    fun divide(amount: BigDecimalLike, divisor: Int): BigDecimalLike =
+    actual fun divide(amount: BigDecimalLike, divisor: Int): BigDecimalLike =
         amount.divide(divisor.toBigDecimal(), 4, RoundingMode.CEILING)
 
-    fun multiply(amount: BigDecimalLike, multiplier: Int): BigDecimalLike =
+    actual fun multiply(amount: BigDecimalLike, multiplier: Int): BigDecimalLike =
         amount * multiplier.toBigDecimal()
 
     // TagResolver
 
-    fun currencyFractionDigits(currencyCode: String): Int {
+    actual fun currencyFractionDigits(currencyCode: String): Int {
         return try {
             Currency.getInstance(currencyCode).defaultFractionDigits
         } catch (_: Exception) {
@@ -78,7 +78,7 @@ internal object PlatformFormat {
         }
     }
 
-    fun formatPriceAmount(amount: BigDecimalLike, fractionDigits: Int, locale: PlatformLocale): String {
+    actual fun formatPriceAmount(amount: BigDecimalLike, fractionDigits: Int, locale: PlatformLocale): String {
         val formatter = NumberFormat.getInstance(locale)
         formatter.minimumFractionDigits = fractionDigits
         formatter.maximumFractionDigits = fractionDigits
@@ -86,7 +86,7 @@ internal object PlatformFormat {
         return formatter.format(amount)
     }
 
-    fun formatPriceAmountInteger(amount: BigDecimalLike, locale: PlatformLocale): String {
+    actual fun formatPriceAmountInteger(amount: BigDecimalLike, locale: PlatformLocale): String {
         val formatter = NumberFormat.getInstance(locale)
         formatter.maximumFractionDigits = 0
         formatter.roundingMode = RoundingMode.DOWN
@@ -94,7 +94,7 @@ internal object PlatformFormat {
         return formatter.format(amount)
     }
 
-    fun formatPriceAmountFraction(amount: BigDecimalLike, fractionDigits: Int): String {
+    actual fun formatPriceAmountFraction(amount: BigDecimalLike, fractionDigits: Int): String {
         val multiplier = bigDecimalTen().pow(fractionDigits)
         val scaled = amount.multiply(multiplier)
             .setScale(0, RoundingMode.HALF_UP)
@@ -107,12 +107,12 @@ internal object PlatformFormat {
 
     // ConfigNormalizer
 
-    fun uriHasScheme(url: String): Boolean =
+    actual fun uriHasScheme(url: String): Boolean =
         runCatching { URI(url).scheme != null }.getOrDefault(false)
 
     // DateTimeMapping / ConfigNormalizer: time zones and calendar math
 
-    fun parseTimeZone(value: String): PlatformTimeZone {
+    actual fun parseTimeZone(value: String): PlatformTimeZone {
         if (value == "UTC") return TimeZone.getTimeZone("UTC")
         if (value.isNotEmpty() && (value[0] == '+' || value[0] == '-')) {
             return TimeZone.getTimeZone("GMT$value")
@@ -120,12 +120,12 @@ internal object PlatformFormat {
         return TimeZone.getTimeZone(value)
     }
 
-    fun defaultTimeZone(): PlatformTimeZone = TimeZone.getDefault()
+    actual fun defaultTimeZone(): PlatformTimeZone = TimeZone.getDefault()
 
-    fun utcTimeZone(): PlatformTimeZone = TimeZone.getTimeZone("UTC")
+    actual fun utcTimeZone(): PlatformTimeZone = TimeZone.getTimeZone("UTC")
 
     // start_of_day / start_of_week / start_of_month / start_of_year; null for other anchors
-    fun calendarAnchorMillis(anchor: String, tz: PlatformTimeZone): Long? = when (anchor) {
+    actual fun calendarAnchorMillis(anchor: String, tz: PlatformTimeZone): Long? = when (anchor) {
         "start_of_day" -> {
             Calendar.getInstance(tz).apply {
                 set(Calendar.HOUR_OF_DAY, 0)
@@ -167,7 +167,7 @@ internal object PlatformFormat {
     }
 
     // Adds the non-zero year/month/day/hour/minute/second entries of [components] to [baseMs]
-    fun applyIntervalComponents(components: Map<*, *>, baseMs: Long, timeZone: PlatformTimeZone): Long {
+    actual fun applyIntervalComponents(components: Map<*, *>, baseMs: Long, timeZone: PlatformTimeZone): Long {
         val cal = Calendar.getInstance(timeZone).apply { timeInMillis = baseMs }
         (components["year"] as? Number)?.toInt()?.takeIf { it != 0 }?.let { cal.add(Calendar.YEAR, it) }
         (components["month"] as? Number)?.toInt()?.takeIf { it != 0 }?.let { cal.add(Calendar.MONTH, it) }
@@ -179,7 +179,7 @@ internal object PlatformFormat {
     }
 
     // month is 1-based
-    fun dateComponentsToMillis(
+    actual fun dateComponentsToMillis(
         timeZone: PlatformTimeZone,
         year: Int,
         month: Int,
@@ -200,7 +200,7 @@ internal object PlatformFormat {
 
     // DateTimePickerElement calendar model (default time zone unless noted; month is 0-based)
 
-    fun localDateFields(ms: Long): LocalDateFields {
+    actual fun localDateFields(ms: Long): LocalDateFields {
         val cal = Calendar.getInstance().apply { timeInMillis = ms }
         return LocalDateFields(
             year = cal.get(Calendar.YEAR),
@@ -211,12 +211,12 @@ internal object PlatformFormat {
         )
     }
 
-    fun shortMonthNames(locale: PlatformLocale): List<String> {
+    actual fun shortMonthNames(locale: PlatformLocale): List<String> {
         val symbols = DateFormatSymbols.getInstance(locale)
         return symbols.shortMonths.take(12)
     }
 
-    fun startOfDayUtc(ms: Long): Long {
+    actual fun startOfDayUtc(ms: Long): Long {
         val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
         cal.timeInMillis = ms
         cal.set(Calendar.HOUR_OF_DAY, 0)
@@ -226,11 +226,11 @@ internal object PlatformFormat {
         return cal.timeInMillis
     }
 
-    fun yearOf(ms: Long): Int =
+    actual fun yearOf(ms: Long): Int =
         Calendar.getInstance().apply { timeInMillis = ms }.get(Calendar.YEAR)
 
     // dateMs is a UTC-midnight date from the Material date picker
-    fun combineDateAndTime(dateMs: Long, currentMs: Long): Long {
+    actual fun combineDateAndTime(dateMs: Long, currentMs: Long): Long {
         val datePart = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = dateMs }
         val cal = Calendar.getInstance().apply { timeInMillis = currentMs }
         cal.set(Calendar.YEAR, datePart.get(Calendar.YEAR))
@@ -239,7 +239,7 @@ internal object PlatformFormat {
         return cal.timeInMillis
     }
 
-    fun replaceTime(currentMs: Long, hour: Int, minute: Int): Long {
+    actual fun replaceTime(currentMs: Long, hour: Int, minute: Int): Long {
         val cal = Calendar.getInstance().apply { timeInMillis = currentMs }
         cal.set(Calendar.HOUR_OF_DAY, hour)
         cal.set(Calendar.MINUTE, minute)
@@ -248,7 +248,7 @@ internal object PlatformFormat {
         return cal.timeInMillis
     }
 
-    fun buildDateMs(year: Int, month: Int, day: Int, hour: Int, minute: Int): Long {
+    actual fun buildDateMs(year: Int, month: Int, day: Int, hour: Int, minute: Int): Long {
         val safeDay = day.coerceIn(1, daysInMonth(year, month))
         val cal = Calendar.getInstance().apply {
             clear()
@@ -263,7 +263,7 @@ internal object PlatformFormat {
         return cal.timeInMillis
     }
 
-    fun daysInMonth(year: Int, month: Int): Int {
+    actual fun daysInMonth(year: Int, month: Int): Int {
         val cal = Calendar.getInstance().apply {
             clear()
             set(Calendar.YEAR, year)
@@ -273,9 +273,9 @@ internal object PlatformFormat {
         return cal.getActualMaximum(Calendar.DAY_OF_MONTH)
     }
 
-    fun formatPickerDate(ms: Long): String =
+    actual fun formatPickerDate(ms: Long): String =
         SimpleDateFormat("MMM d, yyyy", defaultLocale()).format(platformDate(ms))
 
-    fun formatPickerTime(ms: Long): String =
+    actual fun formatPickerTime(ms: Long): String =
         SimpleDateFormat("h:mm a", defaultLocale()).format(platformDate(ms))
 }

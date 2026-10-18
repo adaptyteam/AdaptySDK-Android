@@ -28,10 +28,10 @@ import androidx.compose.ui.unit.dp
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import kotlin.math.roundToInt
 
-// Drawing seams (Task 6c turns them into expect/actual); Android bodies moved from Modifier.kt.
+// Drawing seams; Android bodies moved from Modifier.kt.
 
 /** Outer drop shadow of [outline]; [spread] is not supported on Android (callers pass 0). */
-internal fun DrawScope.drawPlatformShadow(
+internal actual fun DrawScope.drawPlatformShadow(
     outline: Outline,
     color: Color,
     blurRadiusPx: Float,
@@ -72,7 +72,7 @@ internal fun DrawScope.drawPlatformShadow(
 }
 
 /** Inner shadow of [outline], drawn over already drawn content. */
-internal fun DrawScope.drawPlatformInnerShadow(
+internal actual fun DrawScope.drawPlatformInnerShadow(
     outline: Outline,
     color: Color,
     blurRadiusPx: Float,
@@ -133,7 +133,7 @@ private fun Outline.toNativePath(dst: android.graphics.Path): android.graphics.P
 }
 
 /** Draws [image] transformed by a row-major 3x3 [matrix]. */
-internal fun DrawScope.drawImageFill(image: ImageBitmap, matrix: FloatArray, alpha: Float) {
+internal actual fun DrawScope.drawImageFill(image: ImageBitmap, matrix: FloatArray, alpha: Float) {
     val paint = android.graphics.Paint()
     if (alpha < 1f) paint.alpha = (alpha * 255f).roundToInt().coerceIn(0, 255)
     val nativeMatrix = android.graphics.Matrix().apply { setValues(matrix) }
@@ -143,7 +143,7 @@ internal fun DrawScope.drawImageFill(image: ImageBitmap, matrix: FloatArray, alp
 }
 
 /** Blurs the drawn content (RenderEffect on API 31+, StackBlur below). */
-internal fun Modifier.platformBlur(radius: Dp, captureExpand: Dp = 0.dp): Modifier =
+internal actual fun Modifier.platformBlur(radius: Dp, captureExpand: Dp): Modifier =
     this.then(BlurElement(radius, captureExpand))
 
 private data class BlurElement(

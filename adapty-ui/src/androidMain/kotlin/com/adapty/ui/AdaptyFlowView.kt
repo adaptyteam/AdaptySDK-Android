@@ -42,7 +42,7 @@ import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import java.util.UUID
 
-public class AdaptyFlowView @JvmOverloads constructor(
+public actual class AdaptyFlowView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,

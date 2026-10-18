@@ -10,7 +10,7 @@ import com.adapty.ui.internal.platform.AdaptyPaywallProduct
 // Core-internal product/flow data (BackendProduct, AdaptyFlowPaywall.products, payloadData).
 // Plain typed code only: `?.let` on core-internal types can compile to error/NonExistentClass.
 
-internal fun flowProductRefs(flow: AdaptyFlow): List<FlowProductRef> {
+internal actual fun flowProductRefs(flow: AdaptyFlow): List<FlowProductRef> {
     val refs = mutableListOf<FlowProductRef>()
     for (paywall in flow.paywalls) {
         for (product in paywall.products) {
@@ -32,9 +32,9 @@ internal fun flowProductRefs(flow: AdaptyFlow): List<FlowProductRef> {
     return refs
 }
 
-internal fun AdaptyPaywallProduct.payloadFlowProductId(): String? = payloadData.flowProductId
+internal actual fun AdaptyPaywallProduct.payloadFlowProductId(): String? = payloadData.flowProductId
 
-internal fun AdaptyPaywallProduct.payloadAdaptyProductId(): String = payloadData.adaptyProductId
+internal actual fun AdaptyPaywallProduct.payloadAdaptyProductId(): String = payloadData.adaptyProductId
 
 private fun resolveProductKey(product: BackendProduct): String =
     product.flowProductId ?: product.id

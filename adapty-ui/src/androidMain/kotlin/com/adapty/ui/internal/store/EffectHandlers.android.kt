@@ -9,7 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 
 // Handlers backed by the core SDK (store purchases, product/media loading, analytics).
 // Each handles its own Effect subtypes only, so their position in the handler list is irrelevant.
-internal fun platformEffectHandlers(
+internal actual fun platformEffectHandlers(
     vm: FlowViewModel,
     args: FlowViewModelArgs,
     scope: CoroutineScope,

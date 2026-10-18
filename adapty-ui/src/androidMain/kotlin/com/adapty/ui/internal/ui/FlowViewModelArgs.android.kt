@@ -65,7 +65,7 @@ internal fun FlowViewModelArgs.Companion.create(
     }
 
 // Shared-code entry: the locale is taken from the platform context.
-internal fun FlowViewModelArgs.Companion.create(
+internal actual fun FlowViewModelArgs.Companion.create(
     flowKey: String,
     ctx: PlatformContextHandle,
 ): FlowViewModelArgs? = create(flowKey, ctx.context.getCurrentLocale(), ctx.context)
