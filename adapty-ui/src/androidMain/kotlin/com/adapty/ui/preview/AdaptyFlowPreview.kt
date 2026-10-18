@@ -5,13 +5,13 @@ package com.adapty.ui.preview
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.adapty.ui.AdaptyCustomAssets
 import com.adapty.ui.AdaptyFlowInsets
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.internal.platform.AdaptyPaywallProduct
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.rememberPlatformContext
 import com.adapty.ui.internal.script.SDKGlobals
 import com.adapty.ui.internal.text.MissingTagKind
 import com.adapty.ui.internal.ui.AdaptyFlowInternal
@@ -20,7 +20,6 @@ import com.adapty.ui.internal.ui.FlowViewModelFactory
 import com.adapty.ui.internal.ui.UserArgs
 import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
 import com.adapty.ui.internal.utils.initializeFlowStateAsync
-import com.adapty.ui.listeners.AdaptyFlowDefaultEventListener
 import com.adapty.ui.listeners.AdaptyFlowEventListener
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.adapty.ui.listeners.AdaptyUiTimerResolver
@@ -61,9 +60,9 @@ public fun AdaptyPaywallPreviewInternal(
     restoreState: Boolean = false,
     onMissingTag: ((String, MissingTagKind) -> String)? = null,
 ) {
-    val context = LocalContext.current
+    val platformContext = rememberPlatformContext()
     val vmArgs = remember(viewConfiguration.id) {
-        createPreviewViewModelArgs(context, previewEventCallback, onMissingTag)
+        createPreviewViewModelArgs(platformContext, previewEventCallback, onMissingTag)
     }
     val viewModel: FlowViewModel = viewModel(
         key = viewConfiguration.id,
@@ -90,7 +89,7 @@ public fun AdaptyPaywallPreviewInternal(
             viewModel.setNewData(
                 UserArgs.create(
                     viewConfiguration,
-                    eventListener ?: AdaptyFlowDefaultEventListener(),
+                    eventListener ?: defaultPreviewEventListener(),
                     AdaptyFlowInsets.Unspecified,
                     AdaptyCustomAssets.Empty,
                     AdaptyUiTagResolver.Default,

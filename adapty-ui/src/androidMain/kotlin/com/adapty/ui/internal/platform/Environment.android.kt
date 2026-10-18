@@ -42,6 +42,10 @@ internal class PlatformContextHandle(val context: Context) {
     override fun hashCode(): Int = context.hashCode()
 }
 
+/** True when the host activity is being recreated for a configuration change. */
+internal fun PlatformContextHandle.isChangingConfigurations(): Boolean =
+    activityOrNull()?.isChangingConfigurations == true
+
 @Composable
 internal fun rememberPlatformContext(): PlatformContextHandle {
     val context = LocalContext.current

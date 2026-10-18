@@ -3,6 +3,7 @@
 
 package com.adapty.ui.preview
 
+import com.adapty.ui.internal.platform.PlatformContextHandle
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Test
@@ -64,8 +65,8 @@ class AdaptyUIPreviewTest {
     @Test
     fun previewViewModelArgs_buildWithoutActivatedSdk() {
         val context = RuntimeEnvironment.getApplication()
-        val first = createPreviewViewModelArgs(context, previewEventCallback = null, onMissingTag = null)
-        val second = createPreviewViewModelArgs(context, previewEventCallback = null, onMissingTag = null)
+        val first = createPreviewViewModelArgs(PlatformContextHandle(context), previewEventCallback = null, onMissingTag = null)
+        val second = createPreviewViewModelArgs(PlatformContextHandle(context), previewEventCallback = null, onMissingTag = null)
 
         assertEquals(context.packageName, first.metaInfo.applicationId)
         assertSame(first.timerStore, second.timerStore)

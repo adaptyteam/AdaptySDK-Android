@@ -13,12 +13,14 @@ import com.adapty.ui.internal.cache.MediaFetchService
 import com.adapty.ui.internal.platform.Context
 import com.adapty.ui.internal.platform.ERROR
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformContextHandle
 import com.adapty.ui.internal.platform.PlatformLocale
 import com.adapty.ui.internal.platform.platformMessage
 import com.adapty.ui.internal.script.StateHandler
 import com.adapty.ui.internal.text.PriceConverter
 import com.adapty.ui.internal.text.TagResolver
 import com.adapty.ui.internal.text.TextResolver
+import com.adapty.ui.internal.utils.getCurrentLocale
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.listeners.AdaptyUiTagResolver
@@ -61,3 +63,9 @@ internal fun FlowViewModelArgs.Companion.create(
         }
         null
     }
+
+// Shared-code entry: the locale is taken from the platform context.
+internal fun FlowViewModelArgs.Companion.create(
+    flowKey: String,
+    ctx: PlatformContextHandle,
+): FlowViewModelArgs? = create(flowKey, ctx.context.getCurrentLocale(), ctx.context)

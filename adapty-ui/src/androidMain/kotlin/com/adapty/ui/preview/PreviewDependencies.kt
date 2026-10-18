@@ -28,6 +28,8 @@ import com.adapty.ui.internal.text.MissingTagKind
 import com.adapty.ui.internal.text.PriceConverter
 import com.adapty.ui.internal.text.TagResolver
 import com.adapty.ui.internal.text.TextResolver
+import com.adapty.ui.listeners.AdaptyFlowDefaultEventListener
+import com.adapty.ui.listeners.AdaptyFlowEventListener
 import com.adapty.ui.internal.ui.CacheRepositoryTimerStore
 import com.adapty.ui.internal.ui.CorePriceFormatting
 import com.adapty.ui.internal.ui.FlowViewModelArgs
@@ -70,10 +72,11 @@ private var previewTimerStoreInstance: TimerValueStore? = null
 private var previewSdkMetaInfoInstance: SdkMetaInfo? = null
 
 internal fun createPreviewViewModelArgs(
-    context: Context,
+    ctx: PlatformContextHandle,
     previewEventCallback: PreviewEventCallback?,
     onMissingTag: ((String, MissingTagKind) -> String)?,
 ): FlowViewModelArgs {
+    val context = ctx.context
     initVideoPlayerDepsIfNeeded(context)
     val stateHandler = getOrCreatePreviewStateHandler(context)
     val tagResolver = TagResolver(
@@ -203,3 +206,6 @@ private fun <T> allocateInstance(clazz: Class<T>): T {
     val allocate = Class.forName("sun.misc.Unsafe").getDeclaredMethod("allocateInstance", Class::class.java)
     return allocate.invoke(unsafeInstance, clazz) as T
 }
+
+/** Listener used when the preview host passes none. */
+internal fun defaultPreviewEventListener(): AdaptyFlowEventListener = AdaptyFlowDefaultEventListener()

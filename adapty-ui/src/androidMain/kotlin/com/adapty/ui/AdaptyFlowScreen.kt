@@ -1,19 +1,19 @@
-@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.adapty.internal.di.Dependencies
+import com.adapty.ui.internal.injectStateHandler
 import com.adapty.ui.internal.platform.AdaptyPaywallProduct
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.identityHashCode
+import com.adapty.ui.internal.platform.isChangingConfigurations
 import com.adapty.ui.internal.platform.randomUUID
+import com.adapty.ui.internal.platform.rememberPlatformContext
 import com.adapty.ui.internal.script.SDKGlobals
-import com.adapty.ui.internal.script.StateHandler
 import com.adapty.ui.internal.ui.AdaptyFlowInternal
 import com.adapty.ui.internal.ui.FlowViewModel
 import com.adapty.ui.internal.ui.FlowViewModelArgs
@@ -23,11 +23,8 @@ import com.adapty.ui.internal.ui.UserArgs
 import com.adapty.ui.internal.utils.FlowMode
 import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
 import com.adapty.ui.internal.utils.adoptFlowStateForConfigChange
-import com.adapty.ui.internal.utils.getActivityOrNull
-import com.adapty.ui.internal.utils.getCurrentLocale
 import com.adapty.ui.internal.utils.initializeFlowStateAsync
 import com.adapty.ui.internal.utils.withAdaptyUIActivated
-import com.adapty.ui.listeners.AdaptyFlowDefaultEventListener
 import com.adapty.ui.listeners.AdaptyFlowEventListener
 import com.adapty.ui.listeners.AdaptyUiObserverModeHandler
 import com.adapty.ui.listeners.AdaptyUiTagResolver
@@ -45,7 +42,7 @@ import com.adapty.ui.listeners.AdaptyUiTimerResolver
  *
  * @param[eventListener] An object that implements the [AdaptyFlowEventListener] interface.
  * Use it to respond to different events happening inside the purchase screen.
- * Also you can extend [AdaptyFlowDefaultEventListener] so you don't need to override all the methods.
+ * Also you can extend [com.adapty.ui.listeners.AdaptyFlowDefaultEventListener] so you don't need to override all the methods.
  *
  * @param[insets] You can override the default window inset handling by specifying the [AdaptyFlowInsets].
  *
@@ -69,12 +66,11 @@ public fun AdaptyFlowScreen(
     timerResolver: AdaptyUiTimerResolver = AdaptyUiTimerResolver.Default,
     observerModeHandler: AdaptyUiObserverModeHandler? = null,
 ) {
-    val context = LocalContext.current
+    val platformContext = rememberPlatformContext()
     val vmArgs = remember {
         FlowViewModelArgs.create(
             "${randomUUID().toString().hashCode()}",
-            context.getCurrentLocale(),
-            context,
+            platformContext,
         )
     } ?: return
 
@@ -86,7 +82,7 @@ public fun AdaptyFlowScreen(
 
     DisposableEffect(flowConfiguration) {
         val stateHandler = withAdaptyUIActivated {
-            Dependencies.injectInternal<StateHandler>()
+            injectStateHandler()
         }
         fun pushData() {
             viewModel.setNewData(
@@ -99,7 +95,7 @@ public fun AdaptyFlowScreen(
                     timerResolver,
                     observerModeHandler,
                     products,
-                    ProductLoadingFailureCallback { error -> eventListener.onLoadingProductsFailure(error, context) },
+                    ProductLoadingFailureCallback { error -> eventListener.onLoadingProductsFailure(error, platformContext.context) },
                 )
             )
         }
@@ -129,7 +125,7 @@ public fun AdaptyFlowScreen(
             }
         }
         onDispose {
-            if (context.getActivityOrNull()?.isChangingConfigurations == true) {
+            if (platformContext.isChangingConfigurations()) {
                 viewModel.configChangeHandoffPending = true
             }
         }
