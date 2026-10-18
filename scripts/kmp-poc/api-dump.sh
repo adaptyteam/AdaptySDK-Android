@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Dumps the public JVM API of the adapty-ui release AAR (javap -public), filtered and sorted.
+# Scope: classes outside com.adapty.ui.internal.* (internal symbols are covered by consumer-refs-check.sh).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -30,7 +31,7 @@ classes=$(cd "$work/classes" && find . -name '*.class' | sed 's|^\./||; s|\.clas
   }
   /^}/ { keep = 0; next }
   keep && /^ / && $0 !~ /\$/ { print name ":" $0 }
-' | LC_ALL=C sort -u
+' | { grep -Ev '^com\.adapty\.ui\.internal\.' || true; } | LC_ALL=C sort -u
 
 n=$(javap -p -cp "$work/classes" 'com.adapty.ui.AdaptyUI$FlowConfiguration' 2>/dev/null | grep -o '\$adapty_ui_release' | wc -l | tr -d ' ')
 echo "mangled-internal: $n" >&2

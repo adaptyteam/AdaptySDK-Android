@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Prints every baseline API line missing from the current adapty-ui release API.
+# Scope: classes outside com.adapty.ui.internal.* (baseline filtered once with the same rule as api-dump.sh).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
