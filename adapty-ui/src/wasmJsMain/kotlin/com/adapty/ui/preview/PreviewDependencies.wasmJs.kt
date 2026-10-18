@@ -3,6 +3,7 @@
 package com.adapty.ui.preview
 
 import com.adapty.ui.internal.text.WebFonts
+import com.adapty.ui.internal.text.WebPriceFormatting
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -13,7 +14,6 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.RemoteImage
 import com.adapty.ui.internal.mapping.element.Assets
-import com.adapty.ui.internal.platform.BigDecimalLike
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.PlatformContextHandle
 import com.adapty.ui.internal.platform.PlatformLocale
@@ -26,7 +26,6 @@ import com.adapty.ui.internal.script.JSActionBridge
 import com.adapty.ui.internal.script.JSStateHandler
 import com.adapty.ui.internal.script.JSStateMachine
 import com.adapty.ui.internal.ui.MediaSource
-import com.adapty.ui.internal.ui.PriceFormatting
 import com.adapty.ui.internal.ui.SdkMetaInfo
 import com.adapty.ui.internal.ui.TimerValueStore
 import com.adapty.ui.internal.ui.element.UIElement
@@ -46,7 +45,7 @@ internal actual fun previewDependencies(ctx: PlatformContextHandle): PreviewDeps
         media = InlineOnlyMediaSource,
         timerStore = previewTimerStore,
         metaInfo = previewSdkMetaInfo,
-        priceFormatting = StubPriceFormatting,
+        priceFormatting = WebPriceFormatting("en-US"),
         tagLocale = localeForTag("en-US"),
         stateHandler = sharedPreviewStateHandler
             ?: JSStateHandler(JSStateMachine(ctx, JSActionBridge())).also { sharedPreviewStateHandler = it },
@@ -109,12 +108,5 @@ private object InlineOnlyMediaSource : MediaSource {
             handlePreview?.invoke(preview)
         }
         webStub("MediaSource.remoteImage")
-    }
-}
-
-private object StubPriceFormatting : PriceFormatting {
-    override fun format(newPriceValue: BigDecimalLike, originalFormattedPrice: String): String {
-        webStub("PriceFormatting.format")
-        return originalFormattedPrice
     }
 }

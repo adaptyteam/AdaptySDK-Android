@@ -7,9 +7,6 @@ import com.adapty.ui.internal.platform.PlatformTimeZone
 import com.adapty.ui.internal.platform.country
 import com.adapty.ui.internal.platform.language
 import com.adapty.ui.internal.platform.webStub
-import kotlin.math.ceil
-import kotlin.math.floor
-import kotlin.math.pow
 
 private object WebTimeZone : PlatformTimeZone()
 
@@ -35,30 +32,28 @@ internal actual object PlatformFormat {
 
     // amount.divide(divisor, 4, CEILING)
     actual fun divide(amount: BigDecimalLike, divisor: Int): BigDecimalLike =
-        BigDecimalLike(ceil(amount.toDouble() / divisor * 10_000.0) / 10_000.0)
+        BigDecimalLike(roundDecimal(amount.toDouble() / divisor, 4, WebRounding.CEILING))
 
+    // amount * multiplier keeps the amount's scale; rounding drops the binary noise of the Double product
     actual fun multiply(amount: BigDecimalLike, multiplier: Int): BigDecimalLike =
-        BigDecimalLike(amount.toDouble() * multiplier)
+        BigDecimalLike(roundDecimal(amount.toDouble() * multiplier, decimalScale(amount.toDouble()), WebRounding.HALF_UP))
 
-    actual fun currencyFractionDigits(currencyCode: String): Int {
-        webStub("PlatformFormat.currencyFractionDigits")
-        return 2
-    }
+    // java.util.Currency.defaultFractionDigits via ICU (Intl); unknown codes -> 2 like the Android catch
+    actual fun currencyFractionDigits(currencyCode: String): Int =
+        intlCurrencyFractionDigits(currencyCode).takeIf { it >= 0 } ?: 2
 
-    actual fun formatPriceAmount(amount: BigDecimalLike, fractionDigits: Int, locale: PlatformLocale): String {
-        webStub("PlatformFormat.formatPriceAmount")
-        return amount.toDouble().toString()
-    }
+    // NumberFormat(locale): min = max = fractionDigits, HALF_EVEN, grouping
+    actual fun formatPriceAmount(amount: BigDecimalLike, fractionDigits: Int, locale: PlatformLocale): String =
+        intlFormatNumber(roundDecimal(amount.toDouble(), fractionDigits, WebRounding.HALF_EVEN), localeTag(locale), fractionDigits, fractionDigits)
 
-    actual fun formatPriceAmountInteger(amount: BigDecimalLike, locale: PlatformLocale): String {
-        webStub("PlatformFormat.formatPriceAmountInteger")
-        return floor(amount.toDouble()).toLong().toString()
-    }
+    // NumberFormat(locale): no fraction, RoundingMode.DOWN, grouping
+    actual fun formatPriceAmountInteger(amount: BigDecimalLike, locale: PlatformLocale): String =
+        intlFormatNumber(roundDecimal(amount.toDouble(), 0, WebRounding.DOWN), localeTag(locale), 0, 0)
 
+    // |amount| * 10^fractionDigits, HALF_UP, mod 10^fractionDigits, zero-padded
     actual fun formatPriceAmountFraction(amount: BigDecimalLike, fractionDigits: Int): String {
-        webStub("PlatformFormat.formatPriceAmountFraction")
-        val scaled = (amount.toDouble() * 10.0.pow(fractionDigits)).toLong()
-        return (scaled % 10.0.pow(fractionDigits).toLong()).toString().padStart(fractionDigits, '0')
+        val rounded = roundDecimalString(plainDecimal(amount.toDouble()).removePrefix("-"), fractionDigits, WebRounding.HALF_UP)
+        return rounded.substringAfter('.', "").padEnd(fractionDigits, '0').take(fractionDigits)
     }
 
     // java.net.URI scheme: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." ) ":"
