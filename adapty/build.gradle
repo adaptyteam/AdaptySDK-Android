@@ -25,6 +25,8 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.add('-opt-in=kotlin.RequiresOptIn')
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+        // Keep pre-2.2 interface ABI (DefaultImpls only, no JVM default methods)
+        jvmDefault = org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode.DISABLE
     }
 }
 
