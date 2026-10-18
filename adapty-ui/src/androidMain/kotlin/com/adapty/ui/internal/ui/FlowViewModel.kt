@@ -24,9 +24,7 @@ import com.adapty.ui.internal.platform.runOnMain
 import com.adapty.ui.internal.script.ActionHandler
 import com.adapty.ui.internal.script.StateAccessor
 import com.adapty.ui.internal.script.StateHandler
-import com.adapty.ui.internal.store.AnalyticsEffectHandler
 import com.adapty.ui.internal.store.ConfigEffectHandler
-import com.adapty.ui.internal.store.DataLoadingEffectHandler
 import com.adapty.ui.internal.store.Effect
 import com.adapty.ui.internal.store.EffectHandler
 import com.adapty.ui.internal.store.EventDispatcherEffectHandler
@@ -37,9 +35,9 @@ import com.adapty.ui.internal.store.ListenerEffectHandler
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.store.NavigationState
 import com.adapty.ui.internal.store.ObserverModeEffectHandler
-import com.adapty.ui.internal.store.PurchaseEffectHandler
 import com.adapty.ui.internal.store.TimerCallbackScheduler
 import com.adapty.ui.internal.store.TimerEffectHandler
+import com.adapty.ui.internal.store.platformEffectHandlers
 import com.adapty.ui.internal.store.buildInitialState
 import com.adapty.ui.internal.store.reduce
 import com.adapty.ui.internal.text.StringId
@@ -199,19 +197,19 @@ private fun buildEffectHandlers(
     args: FlowViewModelArgs,
 ): List<EffectHandler> {
     val scope = vm.viewModelScope
+    // Handlers match disjoint Effect subtypes, so appending the platform ones keeps behavior
     return listOf(
         JsEffectHandler(scope, args.stateHandler),
-        PurchaseEffectHandler(scope, args.flowKey, { vm.activityProvider?.invoke() }, { vm.contextAwareListener }),
         ObserverModeEffectHandler(scope, args.flowKey),
-        DataLoadingEffectHandler(scope, args.flowKey, args.media),
         ListenerEffectHandler { vm.contextAwareListener },
         EventDispatcherEffectHandler(vm.eventDispatcher),
         ConfigEffectHandler(args.textResolver),
-        AnalyticsEffectHandler(args.flowKey),
         TimerEffectHandler(args.timerStore),
         TimerCallbackScheduler(scope),
         FocusLossVerifier(scope),
-    ) + (args.extraEffectHandlerFactory?.invoke(scope)?.map { fn ->
+    ) + platformEffectHandlers(vm, args, scope).map { fn ->
+        EffectHandler { effect, dispatch -> fn(effect, dispatch) }
+    } + (args.extraEffectHandlerFactory?.invoke(scope)?.map { fn ->
         EffectHandler { effect, dispatch -> fn(effect, dispatch) }
     } ?: emptyList())
 }
