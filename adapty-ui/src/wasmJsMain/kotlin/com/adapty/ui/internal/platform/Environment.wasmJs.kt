@@ -28,8 +28,6 @@ internal actual fun PlatformContextHandle.isChangingConfigurations(): Boolean = 
 @Composable
 internal actual fun rememberPlatformContext(): PlatformContextHandle = remember { PlatformContextHandle() }
 
-private fun windowInnerHeight(): Int = js("window.innerHeight")
-
 private fun devicePixelRatio(): Double = js("window.devicePixelRatio || 1")
 
 internal actual fun screenSmallestWidthDp(): Int = AdaptyUIWeb.environment.smallestScreenWidthDp
@@ -61,7 +59,7 @@ internal actual class PlatformRootInsets(actual val isNone: Boolean)
  * [fallbackInsets]; empty insets skip the fallback.
  */
 internal actual class PlatformSafeInsets {
-    actual val screenHeightDp: Int get() = windowInnerHeight()
+    actual val screenHeightDp: Int get() = AdaptyUIWeb.environment.screenHeightDp
 
     actual val configurationKey: Any get() = AdaptyUIWeb.environment
 
