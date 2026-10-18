@@ -3,3 +3,4 @@
 gradlew.bat
 local.properties
 build/
+.kotlin/
