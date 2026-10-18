@@ -28,8 +28,9 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * Compose text stack under Karma with the Android emulator fonts (wasmJsTest/resources, Apache-2.0):
- * Roboto-Regular.ttf (variable system font) and NotoSansSymbols-Regular-Subsetted.ttf (symbol fallback).
+ * Compose text stack under Karma with the Android emulator fonts (wasmJsTest/resources):
+ * Roboto-Regular.ttf (variable system font, Apache-2.0) and NotoSansSymbols-Regular-Subsetted.ttf
+ * (symbol fallback, SIL OFL 1.1).
  */
 class WebFontsTest {
 

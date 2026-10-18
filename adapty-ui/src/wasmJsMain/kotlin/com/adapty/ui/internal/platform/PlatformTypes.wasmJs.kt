@@ -37,7 +37,7 @@ public actual open class PlatformDate(private val epochMillis: Long) {
     public actual open fun getTime(): Long = epochMillis
 }
 
-/** Double-backed decimal; precise arithmetic is not needed for web previews. */
+/** Double-backed decimal; price math is exact on its shortest decimal (see WebDecimal). */
 public actual open class BigDecimalLike(internal val value: Double) : Comparable<BigDecimalLike> {
     public actual open fun toDouble(): Double = value
     actual override fun compareTo(other: BigDecimalLike): Int = value.compareTo(other.value)
