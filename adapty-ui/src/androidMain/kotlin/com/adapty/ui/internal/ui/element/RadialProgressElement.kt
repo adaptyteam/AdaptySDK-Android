@@ -2,7 +2,6 @@
 
 package com.adapty.ui.internal.ui.element
 
-import android.graphics.RectF
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -18,24 +17,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asAndroidPath
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.platform.LocalContext
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.rememberPlatformContext
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.script.toJsFloat
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.LocalScreenInstance
-import com.adapty.ui.internal.ui.attributes.ComposeFill
 import com.adapty.ui.internal.ui.attributes.Interpolator
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.ui.attributes.toEasing
@@ -100,7 +92,7 @@ public class RadialProgressElement internal constructor(
         val fillColor = fillAsset?.castOrNull<Asset.Color>()?.toComposeFill()?.color ?: Color.Transparent
         val fillBrush = fillAsset?.castOrNull<Asset.Gradient>()?.toComposeFill()?.shader
         val fillImage = fillAsset?.castOrNull<Asset.Image>()
-        val context = LocalContext.current
+        val context = rememberPlatformContext()
 
         val currentSweep = sweepAngle * animatedValue
         val directedSweep = if (clockwise) currentSweep else -currentSweep
@@ -122,10 +114,17 @@ public class RadialProgressElement internal constructor(
                 val style = Stroke(width = strokeWidthPx, cap = cap)
 
                 val imageFill = fillImage?.toComposeFill(context, size)
-                if (imageFill != null) {
-                    drawArcWithImageFill(imageFill, topLeft, arcSize, strokeWidthPx, cap == StrokeCap.Round, directedSweep)
-                } else if (fillBrush != null) {
-                    drawArcWithBrushFill(fillBrush, topLeft, arcSize, strokeWidthPx, cap == StrokeCap.Round, directedSweep)
+                if (imageFill != null || fillBrush != null) {
+                    drawRadialProgress(
+                        topLeft = topLeft,
+                        diameter = arcSize,
+                        startAngle = startAngle,
+                        sweepAngle = directedSweep,
+                        strokeWidth = strokeWidthPx,
+                        roundCaps = cap == StrokeCap.Round,
+                        brush = fillBrush,
+                        imageFill = imageFill,
+                    )
                 } else {
                     drawArc(
                         color = fillColor,
@@ -145,7 +144,16 @@ public class RadialProgressElement internal constructor(
 
                 val imageFill = fillImage?.toComposeFill(context, size)
                 if (imageFill != null) {
-                    drawDiscWithImageFill(imageFill, topLeft, minDim, directedSweep)
+                    drawRadialProgress(
+                        topLeft = topLeft,
+                        diameter = minDim,
+                        startAngle = startAngle,
+                        sweepAngle = directedSweep,
+                        strokeWidth = null,
+                        roundCaps = false,
+                        brush = null,
+                        imageFill = imageFill,
+                    )
                 } else if (fillBrush != null) {
                     drawArc(
                         brush = fillBrush,
@@ -168,85 +176,6 @@ public class RadialProgressElement internal constructor(
                     )
                 }
             }
-        }
-    }
-
-    private fun DrawScope.drawArcWithBrushFill(
-        brush: Brush,
-        topLeft: Offset,
-        arcSize: Float,
-        strokeWidth: Float,
-        roundCaps: Boolean,
-        directedSweep: Float,
-    ) {
-        val rect = RectF(topLeft.x, topLeft.y, topLeft.x + arcSize, topLeft.y + arcSize)
-
-        val strokePaint = android.graphics.Paint().apply {
-            style = android.graphics.Paint.Style.STROKE
-            this.strokeWidth = strokeWidth
-            if (roundCaps) strokeCap = android.graphics.Paint.Cap.ROUND
-        }
-
-        val arcPath = android.graphics.Path().apply {
-            addArc(rect, startAngle, directedSweep)
-        }
-
-        val fillPath = android.graphics.Path()
-        strokePaint.getFillPath(arcPath, fillPath)
-
-        val composePath = Path().also { it.asAndroidPath().set(fillPath) }
-        drawPath(composePath, brush = brush, style = Fill)
-    }
-
-    private fun DrawScope.drawArcWithImageFill(
-        imageFill: ComposeFill.Image,
-        topLeft: Offset,
-        arcSize: Float,
-        strokeWidth: Float,
-        roundCaps: Boolean,
-        directedSweep: Float,
-    ) {
-        val rect = RectF(topLeft.x, topLeft.y, topLeft.x + arcSize, topLeft.y + arcSize)
-
-        val strokePaint = android.graphics.Paint(imageFill.paint).apply {
-            style = android.graphics.Paint.Style.STROKE
-            this.strokeWidth = strokeWidth
-            if (roundCaps) strokeCap = android.graphics.Paint.Cap.ROUND
-        }
-
-        val arcPath = android.graphics.Path()
-        arcPath.addArc(rect, startAngle, directedSweep)
-
-        val fillPath = android.graphics.Path()
-        strokePaint.getFillPath(arcPath, fillPath)
-
-        drawIntoCanvas { canvas ->
-            canvas.save()
-            canvas.clipPath(Path().also { it.asAndroidPath().set(fillPath) })
-            canvas.nativeCanvas.drawBitmap(imageFill.image, imageFill.matrix, imageFill.paint)
-            canvas.restore()
-        }
-    }
-
-    private fun DrawScope.drawDiscWithImageFill(
-        imageFill: ComposeFill.Image,
-        topLeft: Offset,
-        diameter: Float,
-        directedSweep: Float,
-    ) {
-        val rect = RectF(topLeft.x, topLeft.y, topLeft.x + diameter, topLeft.y + diameter)
-        val clipPath = Path().apply {
-            asAndroidPath().apply {
-                moveTo(topLeft.x + diameter / 2f, topLeft.y + diameter / 2f)
-                arcTo(rect, startAngle, directedSweep, false)
-                close()
-            }
-        }
-        drawIntoCanvas { canvas ->
-            canvas.save()
-            canvas.clipPath(clipPath)
-            canvas.nativeCanvas.drawBitmap(imageFill.image, imageFill.matrix, imageFill.paint)
-            canvas.restore()
         }
     }
 }

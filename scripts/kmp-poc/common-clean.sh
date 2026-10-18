@@ -24,6 +24,7 @@ stay_android=(
   'internal/text/TypefaceHolder.kt'
   'internal/utils/AdaptyUiVideoAccessor.kt'
   'internal/utils/bitmap.kt'
+  'internal/utils/StackBlur.kt'
   'internal/utils/InsetWrapper.kt'
   'listeners/AdaptyFlowDefaultEventListener.kt'
   'internal/store/PurchaseEffectHandler.kt'

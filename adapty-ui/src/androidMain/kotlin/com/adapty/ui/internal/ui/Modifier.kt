@@ -2,9 +2,6 @@
 
 package com.adapty.ui.internal.ui
 
-import android.graphics.BlurMaskFilter
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -31,16 +28,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
@@ -50,7 +43,6 @@ import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.currentValueOf
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Constraints
@@ -64,8 +56,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.offset
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
-import com.adapty.ui.internal.platform.Context
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformContextHandle
+import com.adapty.ui.internal.platform.rememberPlatformContext
 import com.adapty.ui.internal.platform.toRadians
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.store.Message
@@ -517,7 +510,7 @@ private fun Modifier.background(
                 this.background(brush = brush, shape = shape)
             }
             is Asset.Image -> {
-                val context = LocalContext.current
+                val context = rememberPlatformContext()
                 this.then(ImageBackgroundElement(background, shape, context))
             }
         }
@@ -527,7 +520,7 @@ private fun Modifier.background(
 private data class ImageBackgroundElement(
     private val background: Asset.Composite<Asset.Filling.Local>,
     private val shape: Shape,
-    private val context: Context,
+    private val context: PlatformContextHandle,
 ) : ModifierNodeElement<ImageBackgroundNode>() {
     override fun create() = ImageBackgroundNode(background, shape, context)
     override fun update(node: ImageBackgroundNode) {
@@ -540,7 +533,7 @@ private data class ImageBackgroundElement(
 private class ImageBackgroundNode(
     var background: Asset.Composite<Asset.Filling.Local>,
     var shape: Shape,
-    var context: Context,
+    var context: PlatformContextHandle,
 ) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
 
     override fun ContentDrawScope.draw() {
@@ -560,7 +553,7 @@ private class ImageBackgroundNode(
                     }
                     canvas.clipPath(path)
                 }
-                canvas.nativeCanvas.drawBitmap(fill.image, fill.matrix, fill.paint)
+                drawImageFill(fill.image, fill.matrix, fill.alpha)
                 canvas.restore()
             }
         }
@@ -582,7 +575,7 @@ private fun Modifier.background(
         this.background(brush = fill.shader, shape = shape)
     }
     is Asset.Image -> {
-        val context = LocalContext.current
+        val context = rememberPlatformContext()
         this.then(ImageBackgroundElement(background, shape, context))
     }
 }
@@ -1024,10 +1017,6 @@ private class ShadowNode(
     var scale: Scale,
 ) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
 
-    private val paint = Paint()
-    private var cachedBlurPx: Float = Float.NaN
-    private var cachedMaskFilter: BlurMaskFilter? = null
-
     override fun ContentDrawScope.draw() {
         val density = currentValueOf(LocalDensity)
 
@@ -1047,41 +1036,15 @@ private class ShadowNode(
         val meanScale = kotlin.math.sqrt((sx * sy).coerceAtLeast(Float.MIN_VALUE))
         val effectiveBlurPx = blurPx / meanScale
 
-        if (cachedBlurPx != effectiveBlurPx) {
-            cachedBlurPx = effectiveBlurPx
-            cachedMaskFilter = if (effectiveBlurPx > 0f) BlurMaskFilter(effectiveBlurPx, BlurMaskFilter.Blur.NORMAL) else null
-        }
-
         val outline = shape.createOutline(size, layoutDirection, density)
 
-        paint.asFrameworkPaint().apply {
-            this.color = this@ShadowNode.color.toArgb()
-            this.maskFilter = cachedMaskFilter
-        }
-
-        drawIntoCanvas { canvas ->
-            canvas.save()
-            canvas.translate(compOffsetX, compOffsetY)
-
-            when (outline) {
-                is Outline.Rectangle -> canvas.drawRect(outline.rect, paint)
-                is Outline.Rounded -> {
-                    val roundRect = outline.roundRect
-                    canvas.nativeCanvas.drawRoundRect(
-                        roundRect.left,
-                        roundRect.top,
-                        roundRect.right,
-                        roundRect.bottom,
-                        roundRect.topLeftCornerRadius.x,
-                        roundRect.topLeftCornerRadius.y,
-                        paint.asFrameworkPaint()
-                    )
-                }
-                is Outline.Generic -> canvas.drawPath(outline.path, paint)
-            }
-
-            canvas.restore()
-        }
+        drawPlatformShadow(
+            outline,
+            this@ShadowNode.color,
+            effectiveBlurPx,
+            androidx.compose.ui.geometry.Offset(compOffsetX, compOffsetY),
+            spread = 0f,
+        )
 
         drawContent()
     }
@@ -1129,18 +1092,6 @@ private class InnerShadowNode(
     var offset: DpOffset,
 ) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
 
-    private val shadowPaint = android.graphics.Paint()
-    private val cutoutPaint = android.graphics.Paint().apply {
-        xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
-    }
-    private val clipPaint = android.graphics.Paint().apply {
-        xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-    }
-    private val outlinePath = android.graphics.Path()
-
-    private var cachedBlurPx: Float = Float.NaN
-    private var cachedMaskFilter: BlurMaskFilter? = null
-
     override fun ContentDrawScope.draw() {
         drawContent()
 
@@ -1154,55 +1105,14 @@ private class InnerShadowNode(
         val offsetXPx = with(density) { offset.x.dp.toPx() }
         val offsetYPx = with(density) { offset.y.dp.toPx() }
 
-        if (cachedBlurPx != blurPx) {
-            cachedBlurPx = blurPx
-            cachedMaskFilter = if (blurPx > 0f) BlurMaskFilter(blurPx, BlurMaskFilter.Blur.NORMAL) else null
-        }
-
-        shadowPaint.color = this@InnerShadowNode.color.toArgb()
-        cutoutPaint.maskFilter = cachedMaskFilter
-
         val outline = shape.createOutline(size, layoutDirection, density)
 
-        drawIntoCanvas { canvas ->
-            val nc = canvas.nativeCanvas
-            nc.saveLayer(null, null)
-
-            nc.drawPaint(shadowPaint)
-
-            nc.save()
-            nc.translate(offsetXPx, offsetYPx)
-            nc.drawPath(outline.toNativePath(outlinePath), cutoutPaint)
-            nc.restore()
-
-            nc.drawPath(outline.toNativePath(outlinePath), clipPaint)
-
-            nc.restore()
-        }
-    }
-
-    private fun Outline.toNativePath(dst: android.graphics.Path): android.graphics.Path {
-        dst.rewind()
-        when (this) {
-            is Outline.Rectangle -> {
-                dst.addRect(rect.left, rect.top, rect.right, rect.bottom, android.graphics.Path.Direction.CW)
-            }
-            is Outline.Rounded -> {
-                val rr = roundRect
-                dst.addRoundRect(
-                    rr.left, rr.top, rr.right, rr.bottom,
-                    floatArrayOf(
-                        rr.topLeftCornerRadius.x, rr.topLeftCornerRadius.y,
-                        rr.topRightCornerRadius.x, rr.topRightCornerRadius.y,
-                        rr.bottomRightCornerRadius.x, rr.bottomRightCornerRadius.y,
-                        rr.bottomLeftCornerRadius.x, rr.bottomLeftCornerRadius.y,
-                    ),
-                    android.graphics.Path.Direction.CW,
-                )
-            }
-            is Outline.Generic -> dst.set(path.asAndroidPath())
-        }
-        return dst
+        drawPlatformInnerShadow(
+            outline,
+            this@InnerShadowNode.color,
+            blurPx,
+            androidx.compose.ui.geometry.Offset(offsetXPx, offsetYPx),
+        )
     }
 }
 
@@ -1230,143 +1140,4 @@ internal val ShadowProvider.captureExpand: Dp
     }
 
 internal fun Modifier.blur(blurRadius: Dp, captureExpand: Dp = 0.dp): Modifier =
-    this.then(BlurElement(blurRadius, captureExpand))
-
-private data class BlurElement(
-    private val blurRadius: Dp,
-    private val captureExpand: Dp,
-) : ModifierNodeElement<BlurNode>() {
-    override fun create() = BlurNode(blurRadius, captureExpand)
-    override fun update(node: BlurNode) {
-        node.blurRadius = blurRadius
-        node.captureExpand = captureExpand
-    }
-}
-
-private class BlurNode(
-    var blurRadius: Dp,
-    var captureExpand: Dp,
-) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
-
-    private var renderNode: android.graphics.RenderNode? = null
-    private var cachedHwBlurPx: Float = Float.NaN
-
-    private var cachedBitmap: com.adapty.ui.internal.platform.Bitmap? = null
-    private var cachedSwCanvas: android.graphics.Canvas? = null
-    private var cachedComposeCanvas: androidx.compose.ui.graphics.Canvas? = null
-    private var blurWorker: com.adapty.ui.internal.utils.StackBlurWorker? = null
-
-    override fun ContentDrawScope.draw() {
-        val density = currentValueOf(LocalDensity)
-        val blurPx = with(density) { blurRadius.toPx() }
-
-        if (blurPx <= 0f) {
-            drawContent()
-            return
-        }
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            drawBlurHardware(blurPx)
-        } else {
-            drawBlurSoftware(blurPx)
-        }
-    }
-
-    private fun ContentDrawScope.captureExpandPx(blurPx: Float): Int =
-        kotlin.math.ceil(blurPx + captureExpand.toPx()).toInt()
-
-    @android.annotation.SuppressLint("NewApi")
-    private fun ContentDrawScope.drawBlurHardware(blurPx: Float) {
-        val w = size.width.toInt()
-        val h = size.height.toInt()
-        if (w <= 0 || h <= 0) { drawContent(); return }
-
-        val expand = captureExpandPx(blurPx)
-        val nodeW = w + expand * 2
-        val nodeH = h + expand * 2
-
-        val node = renderNode
-            ?: android.graphics.RenderNode("blur").also {
-                renderNode = it
-                cachedHwBlurPx = Float.NaN
-            }
-
-        if (node.width != nodeW || node.height != nodeH) {
-            node.setPosition(0, 0, nodeW, nodeH)
-        }
-        if (cachedHwBlurPx != blurPx) {
-            cachedHwBlurPx = blurPx
-            node.setRenderEffect(
-                android.graphics.RenderEffect.createBlurEffect(blurPx, blurPx, android.graphics.Shader.TileMode.DECAL)
-            )
-        }
-
-        val expandF = expand.toFloat()
-        val recordingCanvas = node.beginRecording()
-        recordingCanvas.translate(expandF, expandF)
-        val originalCanvas = drawContext.canvas
-        drawContext.canvas = androidx.compose.ui.graphics.Canvas(recordingCanvas)
-        drawContent()
-        drawContext.canvas = originalCanvas
-        node.endRecording()
-
-        drawIntoCanvas { canvas ->
-            val nc = canvas.nativeCanvas
-            nc.save()
-            nc.translate(-expandF, -expandF)
-            nc.drawRenderNode(node)
-            nc.restore()
-        }
-    }
-
-    private fun ContentDrawScope.drawBlurSoftware(blurPx: Float) {
-        val w = size.width.toInt()
-        val h = size.height.toInt()
-        if (w <= 0 || h <= 0) { drawContent(); return }
-
-        val expand = captureExpandPx(blurPx)
-        val bmpW = w + expand * 2
-        val bmpH = h + expand * 2
-
-        val bitmap = cachedBitmap
-            ?.takeIf { it.width == bmpW && it.height == bmpH && !it.isRecycled }
-            ?: android.graphics.Bitmap.createBitmap(bmpW, bmpH, android.graphics.Bitmap.Config.ARGB_8888)
-                .also {
-                    cachedBitmap = it
-                    val swCanvas = android.graphics.Canvas(it)
-                    cachedSwCanvas = swCanvas
-                    cachedComposeCanvas = androidx.compose.ui.graphics.Canvas(swCanvas)
-                }
-
-        bitmap.eraseColor(0)
-        cachedSwCanvas!!.setBitmap(bitmap)
-
-        val bitmapCanvas = cachedComposeCanvas!!
-        val originalCanvas = drawContext.canvas
-
-        drawContext.canvas = bitmapCanvas
-        bitmapCanvas.save()
-        bitmapCanvas.translate(expand.toFloat(), expand.toFloat())
-        drawContent()
-        bitmapCanvas.restore()
-        drawContext.canvas = originalCanvas
-
-        val worker = blurWorker
-            ?.takeIf { it.fits(bmpW, bmpH) }
-            ?: com.adapty.ui.internal.utils.StackBlurWorker(bmpW, bmpH).also { blurWorker = it }
-        worker.blur(bitmap, blurPx.toInt().coerceAtLeast(1))
-
-        drawIntoCanvas { canvas ->
-            canvas.nativeCanvas.drawBitmap(bitmap, -expand.toFloat(), -expand.toFloat(), null)
-        }
-    }
-
-    override fun onDetach() {
-        cachedBitmap?.recycle()
-        cachedBitmap = null
-        cachedSwCanvas = null
-        cachedComposeCanvas = null
-        blurWorker = null
-        renderNode = null
-    }
-}
+    this.platformBlur(blurRadius, captureExpand)

@@ -2,15 +2,13 @@
 
 package com.adapty.ui.internal.ui.attributes
 
-import android.content.res.Resources
-import android.graphics.Matrix
-import android.graphics.Paint
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.LinearGradientShader
 import androidx.compose.ui.graphics.RadialGradientShader
 import androidx.compose.ui.graphics.RectangleShape
@@ -21,16 +19,16 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
-import com.adapty.ui.internal.platform.Bitmap
 import com.adapty.ui.internal.platform.COLOR_TRANSPARENT
-import com.adapty.ui.internal.platform.Context
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformContextHandle
+import com.adapty.ui.internal.platform.systemDensity
 import com.adapty.ui.internal.ui.CircleShape
 import com.adapty.ui.internal.ui.RectWithArcShape
 import com.adapty.ui.internal.utils.StringSource
 import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.color
-import com.adapty.ui.internal.utils.getBitmap
+import com.adapty.ui.internal.utils.loadImageBitmap
 import kotlin.math.roundToInt
 
 @InternalAdaptyUiApi
@@ -79,7 +77,8 @@ public class Shape internal constructor(
 internal sealed class ComposeFill {
     class Color(val color: androidx.compose.ui.graphics.Color): ComposeFill()
     class Gradient(val shader: Brush): ComposeFill()
-    class Image(val image: Bitmap, val matrix: Matrix, val paint: Paint): ComposeFill()
+    /** [matrix] is a row-major 3x3 transform applied to [image]. */
+    class Image(val image: ImageBitmap, val matrix: FloatArray, val alpha: Float = 1f): ComposeFill()
 }
 
 internal fun Asset.Composite<Asset.Color>.toComposeFill(): ComposeFill.Color {
@@ -153,7 +152,7 @@ internal fun Asset.Composite<Asset.Gradient>.toComposeFill(): ComposeFill.Gradie
         Asset.Gradient.Type.RADIAL -> {
             object : ShaderBrush() {
                 override fun createShader(size: Size): Shader {
-                    val density = Resources.getSystem().displayMetrics.density
+                    val density = systemDensity()
                     val center = Offset(size.width * x0, size.height * y0)
                     val (radiusPx, adjustedStops) = adjustRadialColorStops(colorStops, x1 * density, y1 * density)
                     return RadialGradientShader(
@@ -218,32 +217,29 @@ internal fun adjustRadialColorStops(
 
 private const val MIN_RADIAL_RADIUS_PX = 0.001f
 
-internal fun Asset.Composite<Asset.Image>.toComposeFill(context: Context, size: Size): ComposeFill.Image? {
+internal fun Asset.Composite<Asset.Image>.toComposeFill(context: PlatformContextHandle, size: Size): ComposeFill.Image? {
     if (!(size.width > 0 && size.height > 0))
         return null
 
-    val image = getBitmap(context, this, size.width.roundToInt(), size.height.roundToInt(), Asset.Image.ScaleType.FIT_MAX)
+    val image = loadImageBitmap(context, this, size.width.roundToInt(), size.height.roundToInt(), Asset.Image.ScaleType.FIT_MAX)
         ?: return null
 
     if (!(image.width > 0 && image.height > 0))
         return null
-
-    val paint = Paint()
-    val matrix = Matrix()
 
     val scale = kotlin.math.max(
         size.width / image.width,
         size.height / image.height
     )
 
-    matrix.reset()
-    matrix.setScale(scale, scale)
-    matrix.postTranslate(
-        (size.width - image.width * scale) / 2f,
-        0f,
+    // scale(scale, scale), then translate((size.width - image.width * scale) / 2f, 0f)
+    val matrix = floatArrayOf(
+        scale, 0f, (size.width - image.width * scale) / 2f,
+        0f, scale, 0f,
+        0f, 0f, 1f,
     )
 
-    return ComposeFill.Image(image, matrix, paint)
+    return ComposeFill.Image(image, matrix)
 }
 
 @Composable
