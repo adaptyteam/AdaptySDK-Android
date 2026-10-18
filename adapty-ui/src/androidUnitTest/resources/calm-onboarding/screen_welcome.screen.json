@@ -1,0 +1,92 @@
+{
+  "layout_behaviour": "flat",
+  "overlay": [
+    {
+      "h_align": "center",
+      "v_align": "top",
+      "content": {
+        "type": "box",
+        "padding": [0, { "safe_area": "start" }, 0, 0],
+        "content": {
+          "type": "box",
+          "padding": [0, 55, 0, 0],
+          "content": {
+            "type": "image",
+            "asset_id": "$img_circle_logo",
+            "event_handlers": [
+              {
+                "triggers": [{ "events": ["on_will_appear"] }],
+                "animations": [
+                  {
+                    "type": "scale",
+                    "scale": {
+                      "start": { "x": 1.0, "y": 1.0 },
+                      "end": { "x": 1.04, "y": 1.04 }
+                    },
+                    "duration": 750,
+                    "loop": "ping_pong",
+                    "ping_pong_delay": 300,
+                    "interpolator": "ease_in_out"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "footer": {
+    "type": "v_stack",
+    "spacing": 32,
+    "h_align": "center",
+    "padding": [24, 0, 24, { "safe_area": "end" }],
+    "content": [
+      {
+        "type": "box",
+        "width": { "fill_max": true },
+        "h_align": "leading",
+        "content": {
+          "type": "text",
+          "string_id": "welcome_title",
+          "font": "$font_semibold",
+          "size": 36,
+          "color": "$text_main",
+          "align": "leading"
+        }
+      },
+      {
+        "type": "button",
+        "action": { "func": "goToReviews" },
+        "content": {
+          "type": "box",
+          "width": { "fill_max": true },
+          "height": 56,
+          "padding": [0, 0, 0, 12],
+          "decorator": {
+            "type": "rect",
+            "background": "$white",
+            "rect_corner_radius": 61,
+            "shadow": {
+              "color": "#E7E4FD9E",
+              "blur_radius": 18
+            }
+          },
+          "content": {
+            "type": "text",
+            "string_id": "btn_continue",
+            "font": "$font_semibold",
+            "size": 16,
+            "color": "$btn_text",
+            "align": "center"
+          }
+        }
+      }
+    ]
+  },
+  "content": {
+    "type": "box",
+    "width": { "fill_max": true },
+    "height": { "screen": 1 }
+  }
+}

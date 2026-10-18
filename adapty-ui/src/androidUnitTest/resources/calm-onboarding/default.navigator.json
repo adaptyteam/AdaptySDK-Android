@@ -1,0 +1,64 @@
+{
+  "background": "$bg",
+  "order": 0,
+  "content": {
+    "type": "box",
+    "width": { "fill_max": true },
+    "background": [
+      {
+        "v_align": "top",
+        "content": {
+          "type": "box",
+          "width": { "fill_max": true },
+          "height": { "fill_max": true },
+          "content": {
+            "type": "image",
+            "asset_id": "$bg_image",
+            "aspect": "fill"
+          }
+        }
+      }
+    ],
+    "content": { "type": "screen_holder" }
+  },
+  "transitions": {
+    "forward": {
+      "is_incoming_on_top": true,
+      "outgoing": [
+        {
+          "type": "offset",
+          "duration": 300,
+          "interpolator": "ease_in_out",
+          "offset": { "start": 0, "end": { "x": { "screen": -1 } } }
+        }
+      ],
+      "incoming": [
+        {
+          "type": "offset",
+          "duration": 300,
+          "interpolator": "ease_in_out",
+          "offset": { "start": { "x": { "screen": 1 } }, "end": 0 }
+        }
+      ]
+    },
+    "backward": {
+      "is_incoming_on_top": false,
+      "outgoing": [
+        {
+          "type": "offset",
+          "duration": 300,
+          "interpolator": "ease_in_out",
+          "offset": { "start": 0, "end": { "x": { "screen": 1 } } }
+        }
+      ],
+      "incoming": [
+        {
+          "type": "offset",
+          "duration": 300,
+          "interpolator": "ease_in_out",
+          "offset": { "start": { "x": { "screen": -1 } }, "end": 0 }
+        }
+      ]
+    }
+  }
+}

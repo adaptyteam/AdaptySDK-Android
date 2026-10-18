@@ -1,0 +1,904 @@
+{
+  "layout_behaviour": "flat",
+  "content": {
+    "type": "v_stack",
+    "spacing": 16,
+    "h_align": "leading",
+    "padding": [
+      24,
+      {
+        "safe_area": "start"
+      },
+      24,
+      24
+    ],
+    "content": [
+      {
+        "type": "box",
+        "height": 48
+      },
+      {
+        "type": "text",
+        "string_id": "goals_title",
+        "font": "$font_semibold",
+        "size": 32,
+        "color": "$text_main"
+      },
+      {
+        "type": "text",
+        "string_id": "goals_subtitle",
+        "font": "$font_medium",
+        "size": 16,
+        "color": "$text_muted"
+      },
+      {
+        "type": "box",
+        "height": 8
+      },
+      {
+        "type": "h_stack",
+        "spacing": 12,
+        "content": [
+          {
+            "type": "button",
+            "action": {
+              "func": "toggleGoal1"
+            },
+            "content": {
+              "type": "section",
+              "index": { "var": "goal1Selected" },
+              "content": [
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_border",
+                    "thickness": 1,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_building", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": {
+                              "type": "rect",
+                              "border": "$card_border",
+                              "thickness": 1.5,
+                              "rect_corner_radius": 6
+                            }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_1",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_selected_border",
+                    "thickness": 1.5,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_building", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": { "type": "rect", "background": "$checkbox_bg", "rect_corner_radius": 6 },
+                            "content": { "type": "image", "asset_id": "$img_check", "tint": "$btn_text" }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_1",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "type": "button",
+            "action": {
+              "func": "toggleGoal2"
+            },
+            "content": {
+              "type": "section",
+              "index": { "var": "goal2Selected" },
+              "content": [
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_border",
+                    "thickness": 1,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_sun_dim", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": {
+                              "type": "rect",
+                              "border": "$card_border",
+                              "thickness": 1.5,
+                              "rect_corner_radius": 6
+                            }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_2",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_selected_border",
+                    "thickness": 1.5,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_sun_dim", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": { "type": "rect", "background": "$checkbox_bg", "rect_corner_radius": 6 },
+                            "content": { "type": "image", "asset_id": "$img_check", "tint": "$btn_text" }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_2",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "type": "h_stack",
+        "spacing": 12,
+        "content": [
+          {
+            "type": "button",
+            "action": {
+              "func": "toggleGoal3"
+            },
+            "content": {
+              "type": "section",
+              "index": { "var": "goal3Selected" },
+              "content": [
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_border",
+                    "thickness": 1,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_person_simple_run", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": {
+                              "type": "rect",
+                              "border": "$card_border",
+                              "thickness": 1.5,
+                              "rect_corner_radius": 6
+                            }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_3",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_selected_border",
+                    "thickness": 1.5,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_person_simple_run", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": { "type": "rect", "background": "$checkbox_bg", "rect_corner_radius": 6 },
+                            "content": { "type": "image", "asset_id": "$img_check", "tint": "$btn_text" }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_3",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "type": "button",
+            "action": {
+              "func": "toggleGoal4"
+            },
+            "content": {
+              "type": "section",
+              "index": { "var": "goal4Selected" },
+              "content": [
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_border",
+                    "thickness": 1,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_smiley", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": {
+                              "type": "rect",
+                              "border": "$card_border",
+                              "thickness": 1.5,
+                              "rect_corner_radius": 6
+                            }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_4",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_selected_border",
+                    "thickness": 1.5,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_smiley", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": { "type": "rect", "background": "$checkbox_bg", "rect_corner_radius": 6 },
+                            "content": { "type": "image", "asset_id": "$img_check", "tint": "$btn_text" }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_4",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "type": "h_stack",
+        "spacing": 12,
+        "content": [
+          {
+            "type": "button",
+            "action": {
+              "func": "toggleGoal5"
+            },
+            "content": {
+              "type": "section",
+              "index": { "var": "goal5Selected" },
+              "content": [
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_border",
+                    "thickness": 1,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_potted_plant", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": {
+                              "type": "rect",
+                              "border": "$card_border",
+                              "thickness": 1.5,
+                              "rect_corner_radius": 6
+                            }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_5",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_selected_border",
+                    "thickness": 1.5,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_potted_plant", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": { "type": "rect", "background": "$checkbox_bg", "rect_corner_radius": 6 },
+                            "content": { "type": "image", "asset_id": "$img_check", "tint": "$btn_text" }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_5",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "type": "button",
+            "action": {
+              "func": "toggleGoal6"
+            },
+            "content": {
+              "type": "section",
+              "index": { "var": "goal6Selected" },
+              "content": [
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_border",
+                    "thickness": 1,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_moon_stars", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": {
+                              "type": "rect",
+                              "border": "$card_border",
+                              "thickness": 1.5,
+                              "rect_corner_radius": 6
+                            }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_6",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_selected_border",
+                    "thickness": 1.5,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_moon_stars", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": { "type": "rect", "background": "$checkbox_bg", "rect_corner_radius": 6 },
+                            "content": { "type": "image", "asset_id": "$img_check", "tint": "$btn_text" }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_6",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "type": "h_stack",
+        "spacing": 12,
+        "content": [
+          {
+            "type": "button",
+            "action": {
+              "func": "toggleGoal7"
+            },
+            "content": {
+              "type": "section",
+              "index": { "var": "goal7Selected" },
+              "content": [
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_border",
+                    "thickness": 1,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_coffee", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": {
+                              "type": "rect",
+                              "border": "$card_border",
+                              "thickness": 1.5,
+                              "rect_corner_radius": 6
+                            }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_7",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "height": 130,
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$glass_gradient",
+                    "border": "$card_selected_border",
+                    "thickness": 1.5,
+                    "rect_corner_radius": 16
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "h_align": "leading",
+                    "padding": [16, 16, 16, 16],
+                    "content": [
+                      {
+                        "type": "h_stack",
+                        "spacing": 0,
+                        "content": [
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "content": { "type": "image", "asset_id": "$img_coffee", "tint": "$white" }
+                          },
+                          { "type": "space" },
+                          {
+                            "type": "box",
+                            "width": 22,
+                            "height": 22,
+                            "decorator": { "type": "rect", "background": "$checkbox_bg", "rect_corner_radius": 6 },
+                            "content": { "type": "image", "asset_id": "$img_check", "tint": "$btn_text" }
+                          }
+                        ]
+                      },
+                      { "type": "space" },
+                      {
+                        "type": "text",
+                        "string_id": "goal_7",
+                        "font": "$font_semibold",
+                        "size": 15,
+                        "color": "$text_main"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "type": "box",
+            "width": {
+              "fill_max": true
+            },
+            "height": 130
+          }
+        ]
+      },
+      {
+        "type": "box",
+        "height": 80
+      }
+    ]
+  },
+  "footer": {
+    "type": "v_stack",
+    "spacing": 0,
+    "padding": [
+      24,
+      0,
+      24,
+      {
+        "safe_area": "end"
+      }
+    ],
+    "content": [
+      {
+        "type": "button",
+        "action": {
+          "func": "goToPaywall"
+        },
+        "content": {
+          "type": "box",
+          "width": {
+            "fill_max": true
+          },
+          "height": 56,
+          "padding": [0, 0, 0, 12],
+          "decorator": {
+            "type": "rect",
+            "background": "$white",
+            "rect_corner_radius": 61,
+            "shadow": {
+              "color": "#E7E4FD9E",
+              "blur_radius": 18
+            }
+          },
+          "content": {
+            "type": "text",
+            "string_id": "btn_continue",
+            "font": "$font_semibold",
+            "size": 16,
+            "color": "$btn_text",
+            "align": "center"
+          }
+        }
+      }
+    ]
+  }
+}

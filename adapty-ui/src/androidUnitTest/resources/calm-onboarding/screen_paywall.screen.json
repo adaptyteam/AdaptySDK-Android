@@ -1,0 +1,1273 @@
+{
+  "layout_behaviour": "flat",
+  "overlay": [
+    {
+      "h_align": "trailing",
+      "v_align": "top",
+      "content": {
+        "type": "box",
+        "padding": [
+          0,
+          {
+            "safe_area": "start"
+          },
+          0,
+          0
+        ],
+        "content": {
+          "type": "box",
+          "padding": [
+            0,
+            16,
+            16,
+            0
+          ],
+          "content": {
+            "type": "button",
+            "action": {
+              "func": "goToSurvey"
+            },
+            "content": {
+              "type": "box",
+              "width": 44,
+              "height": 44,
+              "opacity": 0.45,
+              "content": {
+                "type": "box",
+                "width": 24,
+                "height": 24,
+                "content": {
+                  "type": "image",
+                  "asset_id": "$img_close",
+                  "tint": "$white"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "footer": {
+    "type": "box",
+    "width": {
+      "fill_max": true
+    },
+    "decorator": {
+      "background": "$pw_bottom_fade"
+    },
+    "content": {
+      "type": "v_stack",
+      "spacing": 16,
+      "h_align": "center",
+      "padding": [
+        24,
+        31,
+        24,
+        {
+          "safe_area": "end"
+        }
+      ],
+      "content": [
+        {
+          "type": "button",
+          "action": {
+            "func": "toggleReminder"
+          },
+          "content": {
+            "type": "section",
+            "index": { "var": "reminderChecked" },
+            "content": [
+              {
+                "type": "row",
+                "spacing": 8,
+                "items": [
+                  {
+                    "type": "grid_item",
+                    "fixed": 20,
+                    "v_align": "center",
+                    "content": {
+                      "type": "box",
+                      "width": 20,
+                      "height": 20,
+                      "decorator": {
+                        "type": "rect",
+                        "border": "$border_light",
+                        "thickness": 1,
+                        "rect_corner_radius": 6
+                      }
+                    }
+                  },
+                  {
+                    "type": "grid_item",
+                    "weight": 1,
+                    "h_align": "leading",
+                    "v_align": "center",
+                    "content": {
+                      "type": "text",
+                      "string_id": "reminder_text",
+                      "font": "$font_medium",
+                      "size": 13,
+                      "color": "$white"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "row",
+                "spacing": 8,
+                "items": [
+                  {
+                    "type": "grid_item",
+                    "fixed": 20,
+                    "v_align": "center",
+                    "content": {
+                      "type": "box",
+                      "width": 20,
+                      "height": 20,
+                      "decorator": { "type": "rect", "background": "$pw_accent", "rect_corner_radius": 6 },
+                      "content": { "type": "image", "asset_id": "$pw_img_check", "tint": "$white" }
+                    }
+                  },
+                  {
+                    "type": "grid_item",
+                    "weight": 1,
+                    "h_align": "leading",
+                    "v_align": "center",
+                    "content": {
+                      "type": "text",
+                      "string_id": "reminder_text",
+                      "font": "$font_medium",
+                      "size": 13,
+                      "color": "$white"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "action": {
+            "func": "goToSurvey"
+          },
+          "content": {
+            "type": "box",
+            "width": {
+              "fill_max": true
+            },
+            "height": 56,
+            "decorator": {
+              "type": "rect",
+              "background": "$white",
+              "rect_corner_radius": 28,
+              "shadow": {
+                "color": "#E7E4FD9E",
+                "blur_radius": 18,
+                "offset": [
+                  0,
+                  0
+                ]
+              }
+            },
+            "content": {
+              "type": "text",
+              "string_id": "btn_subscribe",
+              "font": "$font_semibold",
+              "size": 16,
+              "color": "$subscribe_text",
+              "align": "center"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "string_id": "disclaimer",
+          "size": 12,
+          "color": "$pw_text_muted",
+          "align": "center"
+        }
+      ]
+    }
+  },
+  "content": {
+    "type": "box",
+    "width": {
+      "fill_max": true
+    },
+    "v_align": "top",
+    "content": {
+      "type": "v_stack",
+      "spacing": 0,
+      "h_align": "leading",
+      "padding": [
+        24,
+        {
+          "safe_area": "start"
+        },
+        24,
+        24
+      ],
+      "content": [
+        {
+          "type": "box",
+          "height": 48
+        },
+        {
+          "type": "box",
+          "h_align": "leading",
+          "decorator": {
+            "type": "rect",
+            "background": "$badge_bg",
+            "border": "$border_light",
+            "thickness": 1,
+            "rect_corner_radius": 35
+          },
+          "content": {
+            "type": "h_stack",
+            "spacing": 4,
+            "padding": [
+              9,
+              4,
+              9,
+              4
+            ],
+            "content": [
+              {
+                "type": "box",
+                "width": 20,
+                "height": 20,
+                "content": {
+                  "type": "image",
+                  "asset_id": "$img_sparkle_badge",
+                  "tint": "$white"
+                }
+              },
+              {
+                "type": "text",
+                "string_id": "badge_text",
+                "color": "$white",
+                "font": "$font_semibold",
+                "size": 15,
+                "max_rows": 1
+              }
+            ]
+          }
+        },
+        {
+          "type": "box",
+          "height": 20,
+          "width": {
+            "fill_max": true
+          }
+        },
+        {
+          "type": "text",
+          "string_id": "title",
+          "color": "$white",
+          "font": "$font_semibold",
+          "size": 32
+        },
+        {
+          "type": "box",
+          "height": 32,
+          "width": {
+            "fill_max": true
+          }
+        },
+        {
+          "type": "row",
+          "spacing": 16,
+          "padding": [
+            0,
+            10,
+            0,
+            10
+          ],
+          "items": [
+            {
+              "type": "grid_item",
+              "fixed": 40,
+              "v_align": "center",
+              "content": {
+                "type": "box",
+                "width": 40,
+                "height": 40,
+                "decorator": {
+                  "type": "rect",
+                  "background": "$pw_glass_gradient",
+                  "border": "$border_light",
+                  "thickness": 1,
+                  "rect_corner_radius": 11
+                },
+                "content": {
+                  "type": "box",
+                  "width": 24,
+                  "height": 24,
+                  "content": {
+                    "type": "image",
+                    "asset_id": "$img_infinity",
+                    "tint": "$white"
+                  }
+                }
+              }
+            },
+            {
+              "type": "grid_item",
+              "weight": 1,
+              "h_align": "leading",
+              "v_align": "center",
+              "content": {
+                "type": "text",
+                "string_id": "feature_1",
+                "color": "$white",
+                "size": 16
+              }
+            }
+          ]
+        },
+        {
+          "type": "row",
+          "spacing": 16,
+          "padding": [
+            0,
+            10,
+            0,
+            10
+          ],
+          "items": [
+            {
+              "type": "grid_item",
+              "fixed": 40,
+              "v_align": "center",
+              "content": {
+                "type": "box",
+                "width": 40,
+                "height": 40,
+                "decorator": {
+                  "type": "rect",
+                  "background": "$pw_glass_gradient",
+                  "border": "$border_light",
+                  "thickness": 1,
+                  "rect_corner_radius": 11
+                },
+                "content": {
+                  "type": "box",
+                  "width": 24,
+                  "height": 24,
+                  "content": {
+                    "type": "image",
+                    "asset_id": "$img_headphones",
+                    "tint": "$white"
+                  }
+                }
+              }
+            },
+            {
+              "type": "grid_item",
+              "weight": 1,
+              "h_align": "leading",
+              "v_align": "center",
+              "content": {
+                "type": "text",
+                "string_id": "feature_2",
+                "color": "$white",
+                "size": 16
+              }
+            }
+          ]
+        },
+        {
+          "type": "row",
+          "spacing": 16,
+          "padding": [
+            0,
+            10,
+            0,
+            10
+          ],
+          "items": [
+            {
+              "type": "grid_item",
+              "fixed": 40,
+              "v_align": "center",
+              "content": {
+                "type": "box",
+                "width": 40,
+                "height": 40,
+                "decorator": {
+                  "type": "rect",
+                  "background": "$pw_glass_gradient",
+                  "border": "$border_light",
+                  "thickness": 1,
+                  "rect_corner_radius": 11
+                },
+                "content": {
+                  "type": "box",
+                  "width": 24,
+                  "height": 24,
+                  "content": {
+                    "type": "image",
+                    "asset_id": "$img_moon_stars",
+                    "tint": "$white"
+                  }
+                }
+              }
+            },
+            {
+              "type": "grid_item",
+              "weight": 1,
+              "h_align": "leading",
+              "v_align": "center",
+              "content": {
+                "type": "text",
+                "string_id": "feature_3",
+                "color": "$white",
+                "size": 16
+              }
+            }
+          ]
+        },
+        {
+          "type": "row",
+          "spacing": 16,
+          "padding": [
+            0,
+            10,
+            0,
+            10
+          ],
+          "items": [
+            {
+              "type": "grid_item",
+              "fixed": 40,
+              "v_align": "center",
+              "content": {
+                "type": "box",
+                "width": 40,
+                "height": 40,
+                "decorator": {
+                  "type": "rect",
+                  "background": "$pw_glass_gradient",
+                  "border": "$border_light",
+                  "thickness": 1,
+                  "rect_corner_radius": 11
+                },
+                "content": {
+                  "type": "box",
+                  "width": 24,
+                  "height": 24,
+                  "content": {
+                    "type": "image",
+                    "asset_id": "$img_music_note",
+                    "tint": "$white"
+                  }
+                }
+              }
+            },
+            {
+              "type": "grid_item",
+              "weight": 1,
+              "h_align": "leading",
+              "v_align": "center",
+              "content": {
+                "type": "text",
+                "string_id": "feature_4",
+                "color": "$white",
+                "size": 16
+              }
+            }
+          ]
+        },
+        {
+          "type": "row",
+          "spacing": 16,
+          "padding": [
+            0,
+            10,
+            0,
+            10
+          ],
+          "items": [
+            {
+              "type": "grid_item",
+              "fixed": 40,
+              "v_align": "center",
+              "content": {
+                "type": "box",
+                "width": 40,
+                "height": 40,
+                "decorator": {
+                  "type": "rect",
+                  "background": "$pw_glass_gradient",
+                  "border": "$border_light",
+                  "thickness": 1,
+                  "rect_corner_radius": 11
+                },
+                "content": {
+                  "type": "box",
+                  "width": 24,
+                  "height": 24,
+                  "content": {
+                    "type": "image",
+                    "asset_id": "$img_sparkle",
+                    "tint": "$white"
+                  }
+                }
+              }
+            },
+            {
+              "type": "grid_item",
+              "weight": 1,
+              "h_align": "leading",
+              "v_align": "center",
+              "content": {
+                "type": "text",
+                "string_id": "feature_5",
+                "color": "$white",
+                "size": 16
+              }
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "height": 32,
+          "width": {
+            "fill_max": true
+          }
+        },
+        {
+          "type": "box",
+          "width": {
+            "fill_max": true
+          },
+          "decorator": {
+            "type": "rect",
+            "border": "$border_light",
+            "thickness": 1,
+            "rect_corner_radius": 999
+          },
+          "content": {
+            "type": "row",
+            "padding": 6,
+            "items": [
+              {
+                "type": "grid_item",
+                "weight": 1,
+                "content": {
+                  "type": "button",
+                  "action": {
+                    "func": "selectTrial"
+                  },
+                  "content": {
+                    "type": "section",
+                    "index": { "var": "selectedTab", "converter": "is_equal", "converter_params": "trial" },
+                    "content": [
+                      {
+                        "type": "box",
+                        "width": { "fill_max": true },
+                        "height": 44,
+                        "decorator": { "type": "rect", "rect_corner_radius": 999 },
+                        "content": {
+                          "type": "text",
+                          "string_id": "tab_trial",
+                          "font": "$font_medium",
+                          "size": 16,
+                          "color": "$tab_inactive",
+                          "align": "center",
+                          "max_rows": 1
+                        }
+                      },
+                      {
+                        "type": "box",
+                        "width": { "fill_max": true },
+                        "height": 44,
+                        "decorator": {
+                          "type": "rect",
+                          "background": "$tab_gradient",
+                          "rect_corner_radius": 999,
+                          "shadow": { "color": "#FFFAF85C", "blur_radius": 25, "offset": [0, 0] }
+                        },
+                        "content": {
+                          "type": "text",
+                          "string_id": "tab_trial",
+                          "font": "$font_medium",
+                          "size": 16,
+                          "color": "$tab_dark",
+                          "align": "center",
+                          "max_rows": 1
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "grid_item",
+                "weight": 1,
+                "content": {
+                  "type": "button",
+                  "action": {
+                    "func": "selectNoTrial"
+                  },
+                  "content": {
+                    "type": "section",
+                    "index": {
+                      "var": "selectedTab",
+                      "converter": "is_equal",
+                      "converter_params": "no_trial"
+                    },
+                    "content": [
+                      {
+                        "type": "box",
+                        "width": { "fill_max": true },
+                        "height": 44,
+                        "decorator": { "type": "rect", "rect_corner_radius": 999 },
+                        "content": {
+                          "type": "text",
+                          "string_id": "tab_no_trial",
+                          "font": "$font_medium",
+                          "size": 16,
+                          "color": "$tab_inactive",
+                          "align": "center",
+                          "max_rows": 1
+                        }
+                      },
+                      {
+                        "type": "box",
+                        "width": { "fill_max": true },
+                        "height": 44,
+                        "decorator": {
+                          "type": "rect",
+                          "background": "$tab_gradient",
+                          "rect_corner_radius": 999,
+                          "shadow": { "color": "#FFFAF85C", "blur_radius": 25, "offset": [0, 0] }
+                        },
+                        "content": {
+                          "type": "text",
+                          "string_id": "tab_no_trial",
+                          "font": "$font_medium",
+                          "size": 16,
+                          "color": "$tab_dark",
+                          "align": "center",
+                          "max_rows": 1
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "box",
+          "height": 16,
+          "width": {
+            "fill_max": true
+          }
+        },
+        {
+          "type": "section",
+          "index": {
+            "var": "tabIndex"
+          },
+          "duration": 200,
+          "interpolator": "ease_in_out",
+          "content": [
+            {
+              "type": "v_stack",
+              "spacing": 0,
+              "content": [
+                {
+                  "type": "box",
+                  "width": {
+                    "fill_max": true
+                  },
+                  "decorator": {
+                    "type": "rect",
+                    "border": "$border_light",
+                    "thickness": 1,
+                    "rect_corner_radius": 32
+                  },
+                  "content": {
+                    "type": "box",
+                    "width": {
+                      "fill_max": true
+                    },
+                    "padding": 6,
+                    "content": {
+                      "type": "box",
+                      "width": {
+                        "fill_max": true
+                      },
+                      "decorator": {
+                        "type": "rect",
+                        "background": "$pw_glass_gradient",
+                        "border": "$border_light",
+                        "thickness": 1,
+                        "rect_corner_radius": 24
+                      },
+                      "content": {
+                        "type": "button",
+                        "action": {
+                          "func": "selectIndividual"
+                        },
+                        "content": {
+                          "type": "section",
+                          "index": {
+                            "var": "selectedProduct",
+                            "converter": "is_equal",
+                            "converter_params": "individual"
+                          },
+                          "content": [
+                            {
+                              "type": "row",
+                              "spacing": 16,
+                              "padding": 16,
+                              "items": [
+                                {
+                                  "type": "grid_item",
+                                  "fixed": 24,
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "box",
+                                    "width": 24,
+                                    "height": 24,
+                                    "decorator": {
+                                      "type": "circle",
+                                      "background": "$radio_bg",
+                                      "border": "$pw_radio_border",
+                                      "thickness": 1
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "grid_item",
+                                  "weight": 2,
+                                  "h_align": "leading",
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "v_stack",
+                                    "spacing": 6,
+                                    "h_align": "leading",
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "string_id": "plan_name",
+                                        "font": "$font_semibold",
+                                        "size": 17,
+                                        "color": "$white",
+                                        "max_rows": 1
+                                      },
+                                      {
+                                        "type": "box",
+                                        "h_align": "leading",
+                                        "decorator": { "type": "rect", "background": "$pw_accent", "rect_corner_radius": 999 },
+                                        "content": {
+                                          "type": "text",
+                                          "string_id": "plan_badge",
+                                          "font": "$font_medium",
+                                          "size": 13,
+                                          "color": "$white",
+                                          "align": "center",
+                                          "padding": [8, 3, 8, 3],
+                                          "max_rows": 1
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "grid_item",
+                                  "weight": 1,
+                                  "h_align": "trailing",
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "v_stack",
+                                    "spacing": 6,
+                                    "h_align": "trailing",
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "string_id": "plan_price",
+                                        "font": "$font_semibold",
+                                        "size": 18,
+                                        "color": "$white",
+                                        "max_rows": 1
+                                      },
+                                      {
+                                        "type": "text",
+                                        "string_id": "plan_subprice",
+                                        "size": 13,
+                                        "color": "$price_muted",
+                                        "max_rows": 1
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "row",
+                              "spacing": 16,
+                              "padding": 16,
+                              "items": [
+                                {
+                                  "type": "grid_item",
+                                  "fixed": 24,
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "box",
+                                    "width": 24,
+                                    "height": 24,
+                                    "decorator": {
+                                      "type": "circle",
+                                      "background": "$pw_accent",
+                                      "border": "$pw_accent",
+                                      "thickness": 1
+                                    },
+                                    "content": { "type": "image", "asset_id": "$pw_img_check", "tint": "$white" }
+                                  }
+                                },
+                                {
+                                  "type": "grid_item",
+                                  "weight": 2,
+                                  "h_align": "leading",
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "v_stack",
+                                    "spacing": 6,
+                                    "h_align": "leading",
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "string_id": "plan_name",
+                                        "font": "$font_semibold",
+                                        "size": 17,
+                                        "color": "$white",
+                                        "max_rows": 1
+                                      },
+                                      {
+                                        "type": "box",
+                                        "h_align": "leading",
+                                        "decorator": { "type": "rect", "background": "$pw_accent", "rect_corner_radius": 999 },
+                                        "content": {
+                                          "type": "text",
+                                          "string_id": "plan_badge",
+                                          "font": "$font_medium",
+                                          "size": 13,
+                                          "color": "$white",
+                                          "align": "center",
+                                          "padding": [8, 3, 8, 3],
+                                          "max_rows": 1
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "grid_item",
+                                  "weight": 1,
+                                  "h_align": "trailing",
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "v_stack",
+                                    "spacing": 6,
+                                    "h_align": "trailing",
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "string_id": "plan_price",
+                                        "font": "$font_semibold",
+                                        "size": 18,
+                                        "color": "$white",
+                                        "max_rows": 1
+                                      },
+                                      {
+                                        "type": "text",
+                                        "string_id": "plan_subprice",
+                                        "size": 13,
+                                        "color": "$price_muted",
+                                        "max_rows": 1
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "width": {
+                "fill_max": true
+              },
+              "decorator": {
+                "type": "rect",
+                "border": "$border_light",
+                "thickness": 1,
+                "rect_corner_radius": 32
+              },
+              "content": {
+                "type": "box",
+                "width": {
+                  "fill_max": true
+                },
+                "padding": 6,
+                "content": {
+                  "type": "box",
+                  "width": {
+                    "fill_max": true
+                  },
+                  "decorator": {
+                    "type": "rect",
+                    "background": "$pw_glass_gradient",
+                    "border": "$border_light",
+                    "thickness": 1,
+                    "rect_corner_radius": 24
+                  },
+                  "content": {
+                    "type": "v_stack",
+                    "spacing": 0,
+                    "content": [
+                      {
+                        "type": "button",
+                        "action": {
+                          "func": "selectFamilyYearly"
+                        },
+                        "content": {
+                          "type": "section",
+                          "index": {
+                            "var": "selectedProduct",
+                            "converter": "is_equal",
+                            "converter_params": "family_yearly"
+                          },
+                          "content": [
+                            {
+                              "type": "row",
+                              "spacing": 16,
+                              "padding": 16,
+                              "items": [
+                                {
+                                  "type": "grid_item",
+                                  "fixed": 24,
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "box",
+                                    "width": 24,
+                                    "height": 24,
+                                    "decorator": {
+                                      "type": "circle",
+                                      "background": "$radio_bg",
+                                      "border": "$pw_radio_border",
+                                      "thickness": 1
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "grid_item",
+                                  "weight": 2,
+                                  "h_align": "leading",
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "v_stack",
+                                    "spacing": 6,
+                                    "h_align": "leading",
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "string_id": "plan_family_yearly",
+                                        "font": "$font_semibold",
+                                        "size": 17,
+                                        "color": "$white",
+                                        "max_rows": 1
+                                      },
+                                      {
+                                        "type": "box",
+                                        "h_align": "leading",
+                                        "decorator": { "type": "rect", "background": "$pw_accent", "rect_corner_radius": 999 },
+                                        "content": {
+                                          "type": "text",
+                                          "string_id": "plan_family_badge2",
+                                          "font": "$font_medium",
+                                          "size": 13,
+                                          "color": "$white",
+                                          "align": "center",
+                                          "padding": [8, 3, 8, 3],
+                                          "max_rows": 1
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "grid_item",
+                                  "weight": 1,
+                                  "h_align": "trailing",
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "v_stack",
+                                    "spacing": 6,
+                                    "h_align": "trailing",
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "string_id": "plan_family_yearly_price",
+                                        "font": "$font_semibold",
+                                        "size": 18,
+                                        "color": "$white",
+                                        "max_rows": 1
+                                      },
+                                      {
+                                        "type": "text",
+                                        "string_id": "plan_family_yearly_subprice",
+                                        "size": 13,
+                                        "color": "$price_muted",
+                                        "max_rows": 1
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "row",
+                              "spacing": 16,
+                              "padding": 16,
+                              "items": [
+                                {
+                                  "type": "grid_item",
+                                  "fixed": 24,
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "box",
+                                    "width": 24,
+                                    "height": 24,
+                                    "decorator": {
+                                      "type": "circle",
+                                      "background": "$pw_accent",
+                                      "border": "$pw_accent",
+                                      "thickness": 1
+                                    },
+                                    "content": { "type": "image", "asset_id": "$pw_img_check", "tint": "$white" }
+                                  }
+                                },
+                                {
+                                  "type": "grid_item",
+                                  "weight": 2,
+                                  "h_align": "leading",
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "v_stack",
+                                    "spacing": 6,
+                                    "h_align": "leading",
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "string_id": "plan_family_yearly",
+                                        "font": "$font_semibold",
+                                        "size": 17,
+                                        "color": "$white",
+                                        "max_rows": 1
+                                      },
+                                      {
+                                        "type": "box",
+                                        "h_align": "leading",
+                                        "decorator": { "type": "rect", "background": "$pw_accent", "rect_corner_radius": 999 },
+                                        "content": {
+                                          "type": "text",
+                                          "string_id": "plan_family_badge2",
+                                          "font": "$font_medium",
+                                          "size": 13,
+                                          "color": "$white",
+                                          "align": "center",
+                                          "padding": [8, 3, 8, 3],
+                                          "max_rows": 1
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "grid_item",
+                                  "weight": 1,
+                                  "h_align": "trailing",
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "v_stack",
+                                    "spacing": 6,
+                                    "h_align": "trailing",
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "string_id": "plan_family_yearly_price",
+                                        "font": "$font_semibold",
+                                        "size": 18,
+                                        "color": "$white",
+                                        "max_rows": 1
+                                      },
+                                      {
+                                        "type": "text",
+                                        "string_id": "plan_family_yearly_subprice",
+                                        "size": 13,
+                                        "color": "$price_muted",
+                                        "max_rows": 1
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "box",
+                        "width": {
+                          "fill_max": true
+                        },
+                        "height": 1,
+                        "decorator": {
+                          "type": "rect",
+                          "background": "$divider"
+                        }
+                      },
+                      {
+                        "type": "button",
+                        "action": {
+                          "func": "selectFamilyMonthly"
+                        },
+                        "content": {
+                          "type": "section",
+                          "index": {
+                            "var": "selectedProduct",
+                            "converter": "is_equal",
+                            "converter_params": "family_monthly"
+                          },
+                          "content": [
+                            {
+                              "type": "row",
+                              "spacing": 16,
+                              "padding": 16,
+                              "items": [
+                                {
+                                  "type": "grid_item",
+                                  "fixed": 24,
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "box",
+                                    "width": 24,
+                                    "height": 24,
+                                    "decorator": {
+                                      "type": "circle",
+                                      "background": "$radio_bg",
+                                      "border": "$pw_radio_border",
+                                      "thickness": 1
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "grid_item",
+                                  "weight": 2,
+                                  "h_align": "leading",
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "text",
+                                    "string_id": "plan_family_monthly",
+                                    "font": "$font_semibold",
+                                    "size": 17,
+                                    "color": "$white",
+                                    "max_rows": 1
+                                  }
+                                },
+                                {
+                                  "type": "grid_item",
+                                  "weight": 1,
+                                  "h_align": "trailing",
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "text",
+                                    "string_id": "plan_family_monthly_price",
+                                    "font": "$font_semibold",
+                                    "size": 18,
+                                    "color": "$white",
+                                    "max_rows": 1
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "row",
+                              "spacing": 16,
+                              "padding": 16,
+                              "items": [
+                                {
+                                  "type": "grid_item",
+                                  "fixed": 24,
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "box",
+                                    "width": 24,
+                                    "height": 24,
+                                    "decorator": {
+                                      "type": "circle",
+                                      "background": "$pw_accent",
+                                      "border": "$pw_accent",
+                                      "thickness": 1
+                                    },
+                                    "content": { "type": "image", "asset_id": "$pw_img_check", "tint": "$white" }
+                                  }
+                                },
+                                {
+                                  "type": "grid_item",
+                                  "weight": 2,
+                                  "h_align": "leading",
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "text",
+                                    "string_id": "plan_family_monthly",
+                                    "font": "$font_semibold",
+                                    "size": 17,
+                                    "color": "$white",
+                                    "max_rows": 1
+                                  }
+                                },
+                                {
+                                  "type": "grid_item",
+                                  "weight": 1,
+                                  "h_align": "trailing",
+                                  "v_align": "center",
+                                  "content": {
+                                    "type": "text",
+                                    "string_id": "plan_family_monthly_price",
+                                    "font": "$font_semibold",
+                                    "size": 18,
+                                    "color": "$white",
+                                    "max_rows": 1
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

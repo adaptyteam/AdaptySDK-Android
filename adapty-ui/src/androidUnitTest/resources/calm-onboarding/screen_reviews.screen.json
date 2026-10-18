@@ -1,0 +1,424 @@
+{
+  "layout_behaviour": "flat",
+  "content": {
+    "type": "v_stack",
+    "spacing": 0,
+    "h_align": "leading",
+    "padding": [
+      24,
+      { "safe_area": "start" },
+      24,
+      24
+    ],
+    "content": [
+        {
+          "type": "box",
+          "height": 48
+        },
+        {
+          "type": "box",
+          "width": {
+            "fill_max": true
+          },
+          "h_align": "leading",
+          "content": {
+            "type": "text",
+            "string_id": "reviews_title",
+            "font": "$font_semibold",
+            "size": 40,
+            "color": "$text_main"
+          }
+        },
+        {
+          "type": "box",
+          "height": 3
+        },
+        {
+          "type": "box",
+          "offset": [0, -12],
+          "decorator": {
+            "type": "rect",
+            "background": "$badge_bg",
+            "border": "$card_border",
+            "thickness": 1,
+            "rect_corner_radius": 35
+          },
+          "content": {
+            "type": "box",
+            "padding": [
+              12,
+              0,
+              12,
+              0
+            ],
+            "content": {
+              "type": "text",
+              "string_id": "reviews_badge",
+              "font": "$font_semibold",
+              "size": 40,
+              "color": "$text_main"
+            }
+          }
+        },
+        {
+          "type": "box",
+          "height": 48
+        },
+        {
+          "type": "box",
+          "width": { "fill_max": true },
+          "height": 242,
+          "content": {
+            "type": "pager",
+            "page_width": { "parent": 1 },
+            "spacing": 12,
+            "page_padding": [0, 0, 0, 0],
+            "animation": {
+              "start_delay": 5000,
+              "page_transition": { "duration": 600, "start_delay": 5000 },
+              "repeat_transition": { "duration": 600 }
+            },
+            "interaction": "pause_animation",
+            "page_control": {
+              "layout": "stacked",
+              "dot_size": 8,
+              "spacing": 8,
+              "padding": [0, 0, 0, 0],
+              "color": "#FFFFFF40",
+              "selected_color": "#FFFFFFFF"
+            },
+            "content": [
+              {
+                "type": "box",
+                "width": { "fill_max": true },
+                "height": { "fill_max": true },
+                "v_align": "top",
+                "content": {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "decorator": {
+                    "type": "rect",
+                    "border": "#FFFFFF1A",
+                    "thickness": 1,
+                    "rect_corner_radius": 32
+                  },
+                  "content": {
+                    "type": "box",
+                    "width": { "fill_max": true },
+                    "padding": [6, 6, 6, 6],
+                    "decorator": {
+                      "type": "rect",
+                      "background": "$glass_gradient",
+                      "rect_corner_radius": 24
+                    },
+                    "content": {
+                      "type": "v_stack",
+                      "spacing": 16,
+                      "h_align": "leading",
+                      "padding": [20, 20, 20, 20],
+                      "content": [
+                        {
+                          "type": "h_stack",
+                          "spacing": 0,
+                          "content": [
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } },
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } },
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } },
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } },
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } }
+                          ]
+                        },
+                        { "type": "text", "string_id": "review1_title", "font": "$font_semibold", "size": 18, "color": "$text_main" },
+                        { "type": "text", "string_id": "review1_text", "font": "$font_medium", "size": 16, "color": "$text_muted" },
+                        { "type": "text", "string_id": "review1_author", "font": "$font_medium", "size": 16, "color": "$text_muted" }
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "type": "box",
+                "width": { "fill_max": true },
+                "height": { "fill_max": true },
+                "v_align": "top",
+                "content": {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "decorator": {
+                    "type": "rect",
+                    "border": "#FFFFFF1A",
+                    "thickness": 1,
+                    "rect_corner_radius": 32
+                  },
+                  "content": {
+                    "type": "box",
+                    "width": { "fill_max": true },
+                    "padding": [6, 6, 6, 6],
+                    "decorator": {
+                      "type": "rect",
+                      "background": "$glass_gradient",
+                      "rect_corner_radius": 24
+                    },
+                    "content": {
+                      "type": "v_stack",
+                      "spacing": 16,
+                      "h_align": "leading",
+                      "padding": [20, 20, 20, 20],
+                      "content": [
+                        {
+                          "type": "h_stack",
+                          "spacing": 0,
+                          "content": [
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } },
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } },
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } },
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } },
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } }
+                          ]
+                        },
+                        { "type": "text", "string_id": "review2_title", "font": "$font_semibold", "size": 18, "color": "$text_main" },
+                        { "type": "text", "string_id": "review2_text", "font": "$font_medium", "size": 16, "color": "$text_muted" },
+                        { "type": "text", "string_id": "review2_author", "font": "$font_medium", "size": 16, "color": "$text_muted" }
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "type": "box",
+                "width": { "fill_max": true },
+                "height": { "fill_max": true },
+                "v_align": "top",
+                "content": {
+                  "type": "box",
+                  "width": { "fill_max": true },
+                  "decorator": {
+                    "type": "rect",
+                    "border": "#FFFFFF1A",
+                    "thickness": 1,
+                    "rect_corner_radius": 32
+                  },
+                  "content": {
+                    "type": "box",
+                    "width": { "fill_max": true },
+                    "padding": [6, 6, 6, 6],
+                    "decorator": {
+                      "type": "rect",
+                      "background": "$glass_gradient",
+                      "rect_corner_radius": 24
+                    },
+                    "content": {
+                      "type": "v_stack",
+                      "spacing": 16,
+                      "h_align": "leading",
+                      "padding": [20, 20, 20, 20],
+                      "content": [
+                        {
+                          "type": "h_stack",
+                          "spacing": 0,
+                          "content": [
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } },
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } },
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } },
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } },
+                            { "type": "box", "width": 20, "height": 20, "content": { "type": "image", "asset_id": "$img_star", "tint": "$star_gold" } }
+                          ]
+                        },
+                        { "type": "text", "string_id": "review3_title", "font": "$font_semibold", "size": 18, "color": "$text_main" },
+                        { "type": "text", "string_id": "review3_text", "font": "$font_medium", "size": 16, "color": "$text_muted" },
+                        { "type": "text", "string_id": "review3_author", "font": "$font_medium", "size": 16, "color": "$text_muted" }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "box",
+          "width": { "fill_max": true },
+          "h_align": "center",
+          "padding": [0,24, 0, 0],
+          "decorator": {
+            "type": "rect",
+            "background": "$glass_gradient",
+            "border": "$card_border",
+            "thickness": 1,
+            "rect_corner_radius": 24,
+            "shadow": {
+              "color": "#00000045",
+              "blur_radius": 24
+            }
+          },
+          "content": {
+            "type": "h_stack",
+            "spacing": 16,
+            "padding": [
+              12,
+              12,
+              20,
+              12
+            ],
+            "content": [
+              {
+                "type": "z_stack",
+                "h_align": "leading",
+                "content": [
+                  {
+                    "type": "box",
+                    "width": 36,
+                    "height": 36,
+                    "padding": [60, 0, 0, 0],
+                    "decorator": {
+                      "type": "rect",
+                      "rect_corner_radius": 18
+                    },
+                    "content": {
+                      "type": "image",
+                      "asset_id": "$img_avatar4",
+                      "aspect": "fill"
+                    }
+                  },
+                  {
+                    "type": "box",
+                    "width": 36,
+                    "height": 36,
+                    "padding": [40, 0, 0, 0],
+                    "decorator": {
+                      "type": "rect",
+                      "rect_corner_radius": 18
+                    },
+                    "content": {
+                      "type": "image",
+                      "asset_id": "$img_avatar3",
+                      "aspect": "fill"
+                    }
+                  },
+                  {
+                    "type": "box",
+                    "width": 36,
+                    "height": 36,
+                    "padding": [20, 0, 0, 0],
+                    "decorator": {
+                      "type": "rect",
+                      "rect_corner_radius": 18
+                    },
+                    "content": {
+                      "type": "image",
+                      "asset_id": "$img_avatar2",
+                      "aspect": "fill"
+                    }
+                  },
+                  {
+                    "type": "box",
+                    "width": 36,
+                    "height": 36,
+                    "decorator": {
+                      "type": "rect",
+                      "rect_corner_radius": 18
+                    },
+                    "content": {
+                      "type": "image",
+                      "asset_id": "$img_avatar1",
+                      "aspect": "fill"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "string_id": "social_proof_text",
+                "font": "$font_semibold",
+                "size": 18,
+                "color": "$text_main"
+              }
+            ]
+          }
+        },
+        {
+          "type": "box",
+          "height": 24
+        },
+        {
+          "type": "box",
+          "width": { "fill_max": true },
+          "h_align": "center",
+          "content": {
+            "type": "box",
+            "decorator": {
+              "type": "rect",
+              "background": "$glass_gradient",
+              "border": "$card_border",
+              "thickness": 1,
+              "rect_corner_radius": 24,
+              "shadow": {
+                "color": "#00000045",
+                "blur_radius": 24
+              }
+            },
+            "content": {
+              "type": "box",
+              "padding": [
+                16,
+                8,
+                16,
+                8
+              ],
+              "content": {
+                "type": "box",
+                "width": 202,
+                "height": 50,
+                "content": {
+                  "type": "image",
+                  "asset_id": "$img_editors_choice"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "box",
+          "height": 80
+        }
+      ]
+  },
+  "footer": {
+    "type": "v_stack",
+    "spacing": 0,
+    "padding": [24, 0, 24, { "safe_area": "end" }],
+    "content": [
+      {
+        "type": "button",
+        "action": {
+          "func": "goToGoals"
+        },
+        "content": {
+          "type": "box",
+          "width": {
+            "fill_max": true
+          },
+          "height": 56,
+          "padding": [0, 0, 0, 12],
+          "decorator": {
+            "type": "rect",
+            "background": "$white",
+            "rect_corner_radius": 61,
+            "shadow": {
+              "color": "#E7E4FD9E",
+              "blur_radius": 18
+            }
+          },
+          "content": {
+            "type": "text",
+            "string_id": "btn_continue",
+            "font": "$font_semibold",
+            "size": 16,
+            "color": "$btn_text",
+            "align": "center"
+          }
+        }
+      }
+    ]
+  }
+}

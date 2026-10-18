@@ -25,7 +25,7 @@ import java.text.NumberFormat
 import java.util.Currency
 import java.util.Locale
 
-internal enum class MissingTagKind { UNKNOWN_TAG, EMPTY_VARIABLE }
+public enum class MissingTagKind { UNKNOWN_TAG, EMPTY_VARIABLE }
 
 internal class TagResolver(
     private val priceFormatter: PriceFormatter,
