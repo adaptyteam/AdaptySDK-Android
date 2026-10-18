@@ -1,34 +1,11 @@
 package com.adapty.ui.internal.script
 
-// Gson-shaped JSON on top of the browser's JSON.parse: objects → LinkedHashMap, arrays → ArrayList,
+// Gson-shaped JSON: objects → LinkedHashMap (source key order, like Gson's LinkedTreeMap), arrays → ArrayList,
 // all numbers → Double. stringify follows Gson defaults (HTML-safe escaping, null map values dropped).
 internal actual object PlatformJson {
-    actual fun parse(json: String): Any? = toKotlin(jsonParse(json))
+    actual fun parse(json: String): Any? = JsonParser(json).parseDocument()
 
     actual fun stringify(value: Any?): String = StringBuilder().also { writeValue(it, value) }.toString()
-
-    private fun toKotlin(value: JsAny?): Any? = when (jsKind(value)) {
-        KIND_BOOLEAN -> jsToBoolean(value!!)
-        KIND_NUMBER -> jsToDouble(value!!)
-        KIND_STRING -> jsToString(value!!)
-        KIND_ARRAY -> {
-            val array = value!!
-            val size = jsArrayLength(array)
-            ArrayList<Any?>(size).apply { for (i in 0 until size) add(toKotlin(jsArrayGet(array, i))) }
-        }
-        KIND_OBJECT -> {
-            val obj = value!!
-            val keys = jsObjectKeys(obj)
-            val size = jsArrayLength(keys)
-            LinkedHashMap<String, Any?>().apply {
-                for (i in 0 until size) {
-                    val key = jsToString(jsArrayGet(keys, i)!!)
-                    put(key, toKotlin(jsObjectGet(obj, key)))
-                }
-            }
-        }
-        else -> null
-    }
 
     private fun writeValue(out: StringBuilder, value: Any?) {
         when (value) {
@@ -78,7 +55,7 @@ internal actual object PlatformJson {
                 '\n' -> out.append("\\n")
                 '\r' -> out.append("\\r")
                 '\u000C' -> out.append("\\f")
-                '<', '>', '&', '=', '\'', ' ', ' ' -> appendUnicodeEscape(out, c)
+                '<', '>', '&', '=', '\'', LINE_SEPARATOR, PARAGRAPH_SEPARATOR -> appendUnicodeEscape(out, c)
                 else -> if (c < ' ') appendUnicodeEscape(out, c) else out.append(c)
             }
         }
@@ -89,39 +66,156 @@ internal actual object PlatformJson {
         out.append("\\u").append(c.code.toString(16).padStart(4, '0'))
     }
 
-    private const val KIND_BOOLEAN = 1
-    private const val KIND_NUMBER = 2
-    private const val KIND_STRING = 3
-    private const val KIND_ARRAY = 4
-    private const val KIND_OBJECT = 5
+    private val LINE_SEPARATOR = Char(0x2028)
+    private val PARAGRAPH_SEPARATOR = Char(0x2029)
 }
 
-@JsFun("(s) => JSON.parse(s)")
-private external fun jsonParse(json: String): JsAny?
 
-@JsFun(
-    """(v) => v === null || v === undefined ? 0 : typeof v === 'boolean' ? 1 : typeof v === 'number' ? 2
-        : typeof v === 'string' ? 3 : Array.isArray(v) ? 4 : 5"""
-)
-private external fun jsKind(value: JsAny?): Int
+// Strict RFC 8259 reader. Kotlin-side so object keys keep source order (Object.keys puts integer-like keys first).
+private class JsonParser(private val src: String) {
+    private var pos = 0
 
-@JsFun("(v) => v")
-private external fun jsToBoolean(value: JsAny): Boolean
+    fun parseDocument(): Any? {
+        val value = readValue()
+        skipWhitespace()
+        if (pos != src.length) fail("trailing data")
+        return value
+    }
 
-@JsFun("(v) => v")
-private external fun jsToDouble(value: JsAny): Double
+    private fun readValue(): Any? {
+        skipWhitespace()
+        if (pos >= src.length) fail("unexpected end")
+        return when (val c = src[pos]) {
+            '{' -> readObject()
+            '[' -> readArray()
+            '"' -> readString()
+            't' -> readLiteral("true", true)
+            'f' -> readLiteral("false", false)
+            'n' -> readLiteral("null", null)
+            else -> if (c == '-' || c in '0'..'9') readNumber() else fail("unexpected '$c'")
+        }
+    }
 
-@JsFun("(v) => v")
-private external fun jsToString(value: JsAny): String
+    private fun readObject(): Map<String, Any?> {
+        pos++
+        val map = LinkedHashMap<String, Any?>()
+        skipWhitespace()
+        if (peek() == '}') { pos++; return map }
+        while (true) {
+            skipWhitespace()
+            if (peek() != '"') fail("expected a key")
+            val key = readString()
+            skipWhitespace()
+            expect(':')
+            map[key] = readValue()
+            skipWhitespace()
+            when (next()) {
+                ',' -> continue
+                '}' -> return map
+                else -> fail("expected ',' or '}'")
+            }
+        }
+    }
 
-@JsFun("(a) => a.length")
-private external fun jsArrayLength(array: JsAny): Int
+    private fun readArray(): List<Any?> {
+        pos++
+        val list = ArrayList<Any?>()
+        skipWhitespace()
+        if (peek() == ']') { pos++; return list }
+        while (true) {
+            list.add(readValue())
+            skipWhitespace()
+            when (next()) {
+                ',' -> continue
+                ']' -> return list
+                else -> fail("expected ',' or ']'")
+            }
+        }
+    }
 
-@JsFun("(a, i) => a[i]")
-private external fun jsArrayGet(array: JsAny, index: Int): JsAny?
+    private fun readString(): String {
+        pos++
+        val out = StringBuilder()
+        while (true) {
+            if (pos >= src.length) fail("unterminated string")
+            val c = src[pos++]
+            when {
+                c == '"' -> return out.toString()
+                c == '\\' -> out.append(readEscape())
+                c < ' ' -> fail("control character in string")
+                else -> out.append(c)
+            }
+        }
+    }
 
-@JsFun("(o) => Object.keys(o)")
-private external fun jsObjectKeys(obj: JsAny): JsAny
+    private fun readEscape(): Char = when (val e = next()) {
+        '"' -> '"'
+        '\\' -> '\\'
+        '/' -> '/'
+        'b' -> '\b'
+        'f' -> Char(0x0C)
+        'n' -> '\n'
+        'r' -> '\r'
+        't' -> '\t'
+        'u' -> {
+            if (pos + 4 > src.length) fail("bad unicode escape")
+            val hex = src.substring(pos, pos + 4)
+            if (!hex.all { it.digitToIntOrNull(16) != null }) fail("bad unicode escape")
+            val code = hex.toInt(16)
+            pos += 4
+            Char(code)
+        }
+        else -> fail("bad escape '$e'")
+    }
 
-@JsFun("(o, k) => o[k]")
-private external fun jsObjectGet(obj: JsAny, key: String): JsAny?
+    private fun readNumber(): Double {
+        val start = pos
+        if (peek() == '-') pos++
+        when {
+            peek() == '0' -> pos++
+            peek() in '1'..'9' -> skipDigits()
+            else -> fail("bad number")
+        }
+        if (peek() == '.') {
+            pos++
+            if (peek() !in '0'..'9') fail("bad number")
+            skipDigits()
+        }
+        if (peek() == 'e' || peek() == 'E') {
+            pos++
+            if (peek() == '+' || peek() == '-') pos++
+            if (peek() !in '0'..'9') fail("bad number")
+            skipDigits()
+        }
+        // JS Number() gives correctly rounded doubles, same as Java's Double.parseDouble
+        return jsNumber(src.substring(start, pos))
+    }
+
+    private fun readLiteral(word: String, value: Any?): Any? {
+        if (!src.startsWith(word, pos)) fail("unexpected token")
+        pos += word.length
+        return value
+    }
+
+    private fun skipDigits() {
+        while (peek() in '0'..'9') pos++
+    }
+
+    private fun skipWhitespace() {
+        while (pos < src.length && (src[pos] == ' ' || src[pos] == '\n' || src[pos] == '\r' || src[pos] == '\t')) pos++
+    }
+
+    private fun peek(): Char = if (pos < src.length) src[pos] else Char(0)
+
+    private fun next(): Char = if (pos < src.length) src[pos++] else fail("unexpected end")
+
+    private fun expect(c: Char) {
+        if (next() != c) fail("expected '$c'")
+    }
+
+    private fun fail(reason: String): Nothing =
+        throw IllegalArgumentException("Malformed JSON at $pos: $reason")
+}
+
+@JsFun("(s) => Number(s)")
+private external fun jsNumber(s: String): Double
