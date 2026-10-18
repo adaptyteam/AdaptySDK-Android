@@ -7,13 +7,11 @@ import com.adapty.ui.internal.platform.AdaptyErrorCode
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.adaptyError
 import com.adapty.ui.internal.platform.getAs
+import com.adapty.ui.internal.text.PlatformFormat
 import com.adapty.ui.internal.utils.DEFAULT_PRODUCT_GROUP
 import com.adapty.ui.internal.utils.FORMAT_VERSION_5_0_0
 import com.adapty.ui.internal.utils.getProductGroupKey
 import com.adapty.ui.internal.utils.isSameOrNewerVersionThan
-import java.net.URI
-import java.util.Calendar
-import java.util.TimeZone
 import kotlin.collections.get
 
 internal const val FORMAT = "format"
@@ -462,7 +460,7 @@ private fun transformAction(action: Map<String, Any?>, bottomSheetKeys: Set<Stri
             "open_url" -> {
                 val url = mapped["url"]
                 val isLiteralUrl = url is String &&
-                    runCatching { URI(url).scheme != null }.getOrDefault(false)
+                    PlatformFormat.uriHasScheme(url)
                 if (isLiteralUrl) mapped
                 else (mapped - "url") + ("stringId" to url)
             }
@@ -650,16 +648,8 @@ internal fun parseLegacyEndTimeToUnixMs(endTime: String, isUtc: Boolean): Long? 
         val (date, time) = endTime.split(" ")
         val (year, month, day) = date.split("-").map { it.toInt() }
         val (hour, minute, second) = time.split(":").map { it.toInt() }
-        val timeZone = if (isUtc) TimeZone.getTimeZone("UTC") else TimeZone.getDefault()
-        Calendar.getInstance(timeZone).apply {
-            set(Calendar.YEAR, year)
-            set(Calendar.MONTH, month - 1)
-            set(Calendar.DAY_OF_MONTH, day)
-            set(Calendar.HOUR_OF_DAY, hour)
-            set(Calendar.MINUTE, minute)
-            set(Calendar.SECOND, second)
-            set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
+        val timeZone = if (isUtc) PlatformFormat.utcTimeZone() else PlatformFormat.defaultTimeZone()
+        PlatformFormat.dateComponentsToMillis(timeZone, year, month, day, hour, minute, second)
     } catch (_: Exception) {
         null
     }

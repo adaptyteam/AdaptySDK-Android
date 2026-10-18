@@ -41,15 +41,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
-import com.adapty.ui.internal.platform.PlatformDate
-import com.adapty.ui.internal.platform.PlatformLocale
 import com.adapty.ui.internal.platform.WARN
 import com.adapty.ui.internal.platform.currentTimeMillis
 import com.adapty.ui.internal.platform.defaultLocale
-import com.adapty.ui.internal.platform.platformDate
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.script.toJsLong
 import com.adapty.ui.internal.store.Message
+import com.adapty.ui.internal.text.PlatformFormat
 import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.LocalUiEnabled
 import com.adapty.ui.internal.ui.attributes.DateTime
@@ -60,10 +58,6 @@ import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.internal.utils.resolveAsset
 import kotlinx.coroutines.flow.distinctUntilChanged
-import java.text.DateFormatSymbols
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.TimeZone
 
 @InternalAdaptyUiApi
 public class DateTimePickerElement internal constructor(
@@ -215,12 +209,12 @@ private fun WheelPicker(
     tint: Color,
     onChange: (Long) -> Unit,
 ) {
-    val cal = remember(currentMs) { Calendar.getInstance().apply { timeInMillis = currentMs } }
-    val year = cal.get(Calendar.YEAR)
-    val month = cal.get(Calendar.MONTH)
-    val day = cal.get(Calendar.DAY_OF_MONTH)
-    val hour = cal.get(Calendar.HOUR_OF_DAY)
-    val minute = cal.get(Calendar.MINUTE)
+    val cal = remember(currentMs) { PlatformFormat.localDateFields(currentMs) }
+    val year = cal.year
+    val month = cal.month
+    val day = cal.day
+    val hour = cal.hour
+    val minute = cal.minute
 
     val minYear = minMs?.let { yearOf(it) } ?: (year - 100)
     val maxYear = maxMs?.let { yearOf(it) } ?: (year + 100)
@@ -231,8 +225,7 @@ private fun WheelPicker(
     }
     val yearLabels = remember(years) { years.map { it.toString() } }
     val monthLabels = remember {
-        val symbols = DateFormatSymbols.getInstance(defaultLocale())
-        symbols.shortMonths.take(12)
+        PlatformFormat.shortMonthNames(defaultLocale())
     }
     val daysInMonth = remember(year, month) { daysInMonth(year, month) }
     val dayLabels = remember(daysInMonth) { (1..daysInMonth).map { it.toString() } }
@@ -374,10 +367,10 @@ private fun CompactPicker(
     }
 
     if (timeDialogOpen) {
-        val cal = remember(currentMs) { Calendar.getInstance().apply { timeInMillis = currentMs } }
+        val cal = remember(currentMs) { PlatformFormat.localDateFields(currentMs) }
         val state = rememberTimePickerState(
-            initialHour = cal.get(Calendar.HOUR_OF_DAY),
-            initialMinute = cal.get(Calendar.MINUTE),
+            initialHour = cal.hour,
+            initialMinute = cal.minute,
             is24Hour = false,
         )
         MaterialTheme(
@@ -442,9 +435,9 @@ private fun InlineTimePicker(
     currentMs: Long,
     onChange: (Int, Int) -> Unit,
 ) {
-    val cal = remember(currentMs) { Calendar.getInstance().apply { timeInMillis = currentMs } }
-    val initialHour = cal.get(Calendar.HOUR_OF_DAY)
-    val initialMinute = cal.get(Calendar.MINUTE)
+    val cal = remember(currentMs) { PlatformFormat.localDateFields(currentMs) }
+    val initialHour = cal.hour
+    val initialMinute = cal.minute
     val state = rememberTimePickerState(
         initialHour = initialHour,
         initialMinute = initialMinute,
@@ -493,61 +486,20 @@ private fun rangeSelectableDates(minMs: Long?, maxMs: Long?): SelectableDates {
     }
 }
 
-private fun startOfDayUtc(ms: Long): Long {
-    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-    cal.timeInMillis = ms
-    cal.set(Calendar.HOUR_OF_DAY, 0)
-    cal.set(Calendar.MINUTE, 0)
-    cal.set(Calendar.SECOND, 0)
-    cal.set(Calendar.MILLISECOND, 0)
-    return cal.timeInMillis
-}
+private fun startOfDayUtc(ms: Long): Long = PlatformFormat.startOfDayUtc(ms)
 
-private fun yearOf(ms: Long): Int =
-    Calendar.getInstance().apply { timeInMillis = ms }.get(Calendar.YEAR)
+private fun yearOf(ms: Long): Int = PlatformFormat.yearOf(ms)
 
-private fun combineDateAndTime(dateMs: Long, currentMs: Long): Long {
-    val datePart = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = dateMs }
-    val cal = Calendar.getInstance().apply { timeInMillis = currentMs }
-    cal.set(Calendar.YEAR, datePart.get(Calendar.YEAR))
-    cal.set(Calendar.MONTH, datePart.get(Calendar.MONTH))
-    cal.set(Calendar.DAY_OF_MONTH, datePart.get(Calendar.DAY_OF_MONTH))
-    return cal.timeInMillis
-}
+private fun combineDateAndTime(dateMs: Long, currentMs: Long): Long =
+    PlatformFormat.combineDateAndTime(dateMs, currentMs)
 
-private fun replaceTime(currentMs: Long, hour: Int, minute: Int): Long {
-    val cal = Calendar.getInstance().apply { timeInMillis = currentMs }
-    cal.set(Calendar.HOUR_OF_DAY, hour)
-    cal.set(Calendar.MINUTE, minute)
-    cal.set(Calendar.SECOND, 0)
-    cal.set(Calendar.MILLISECOND, 0)
-    return cal.timeInMillis
-}
+private fun replaceTime(currentMs: Long, hour: Int, minute: Int): Long =
+    PlatformFormat.replaceTime(currentMs, hour, minute)
 
-private fun buildMs(year: Int, month: Int, day: Int, hour: Int, minute: Int): Long {
-    val safeDay = day.coerceIn(1, daysInMonth(year, month))
-    val cal = Calendar.getInstance().apply {
-        clear()
-        set(Calendar.YEAR, year)
-        set(Calendar.MONTH, month)
-        set(Calendar.DAY_OF_MONTH, safeDay)
-        set(Calendar.HOUR_OF_DAY, hour)
-        set(Calendar.MINUTE, minute)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    return cal.timeInMillis
-}
+private fun buildMs(year: Int, month: Int, day: Int, hour: Int, minute: Int): Long =
+    PlatformFormat.buildDateMs(year, month, day, hour, minute)
 
-private fun daysInMonth(year: Int, month: Int): Int {
-    val cal = Calendar.getInstance().apply {
-        clear()
-        set(Calendar.YEAR, year)
-        set(Calendar.MONTH, month)
-        set(Calendar.DAY_OF_MONTH, 1)
-    }
-    return cal.getActualMaximum(Calendar.DAY_OF_MONTH)
-}
+private fun daysInMonth(year: Int, month: Int): Int = PlatformFormat.daysInMonth(year, month)
 
 private fun clampMs(ms: Long, minMs: Long?, maxMs: Long?): Long {
     var result = ms
@@ -556,8 +508,6 @@ private fun clampMs(ms: Long, minMs: Long?, maxMs: Long?): Long {
     return result
 }
 
-private fun formatDate(ms: Long): String =
-    SimpleDateFormat("MMM d, yyyy", defaultLocale()).format(platformDate(ms))
+private fun formatDate(ms: Long): String = PlatformFormat.formatPickerDate(ms)
 
-private fun formatTime(ms: Long): String =
-    SimpleDateFormat("h:mm a", defaultLocale()).format(platformDate(ms))
+private fun formatTime(ms: Long): String = PlatformFormat.formatPickerTime(ms)

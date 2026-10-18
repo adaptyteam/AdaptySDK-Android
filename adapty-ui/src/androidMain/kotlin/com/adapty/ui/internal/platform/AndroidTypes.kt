@@ -36,3 +36,5 @@ internal fun bigDecimalOf(value: Int): BigDecimalLike = java.math.BigDecimal(val
 internal fun randomUUID(): PlatformUUID = java.util.UUID.randomUUID()
 
 internal typealias PlatformTypeface = android.graphics.Typeface
+
+internal typealias PlatformTimeZone = java.util.TimeZone

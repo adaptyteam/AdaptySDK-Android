@@ -2,9 +2,6 @@ package com.adapty.ui.internal.text
 
 import com.adapty.ui.internal.platform.AdaptyPeriodUnit
 import com.adapty.ui.internal.platform.BigDecimalLike
-import com.adapty.ui.internal.platform.RoundingMode
-import com.adapty.ui.internal.platform.bigDecimalOf
-import com.adapty.ui.internal.platform.bigDecimalOne
 
 internal class PriceConverter {
 
@@ -19,9 +16,7 @@ internal class PriceConverter {
             AdaptyPeriodUnit.WEEK -> 52
             else -> 365
         }
-        val divisor = numberOfUnits.toBigDecimal()
-        val multiplier = unitsInYear.toBigDecimal()
-        return amount.divide(divisor, 4, RoundingMode.CEILING) * multiplier
+        return PlatformFormat.multiply(PlatformFormat.divide(amount, numberOfUnits), unitsInYear)
     }
 
     fun toMonthly(
@@ -29,27 +24,27 @@ internal class PriceConverter {
         unit: AdaptyPeriodUnit,
         numberOfUnits: Int,
     ): BigDecimalLike {
-        val divisor: BigDecimalLike
-        val multiplier: BigDecimalLike
+        val divisor: Int
+        val multiplier: Int
         when (unit) {
             AdaptyPeriodUnit.YEAR -> {
-                divisor = (12 * numberOfUnits).toBigDecimal()
-                multiplier = bigDecimalOne()
+                divisor = 12 * numberOfUnits
+                multiplier = 1
             }
             AdaptyPeriodUnit.MONTH -> {
-                divisor = numberOfUnits.toBigDecimal()
-                multiplier = bigDecimalOne()
+                divisor = numberOfUnits
+                multiplier = 1
             }
             AdaptyPeriodUnit.WEEK -> {
-                divisor = (7 * numberOfUnits).toBigDecimal()
-                multiplier = 30.toBigDecimal()
+                divisor = 7 * numberOfUnits
+                multiplier = 30
             }
             else -> {
-                divisor = numberOfUnits.toBigDecimal()
-                multiplier = 30.toBigDecimal()
+                divisor = numberOfUnits
+                multiplier = 30
             }
         }
-        return amount.divide(divisor, 4, RoundingMode.CEILING) * multiplier
+        return PlatformFormat.multiply(PlatformFormat.divide(amount, divisor), multiplier)
     }
 
     fun toWeekly(
@@ -58,19 +53,16 @@ internal class PriceConverter {
         numberOfUnits: Int,
     ): BigDecimalLike {
         if (unit == AdaptyPeriodUnit.DAY) {
-            return amount.multiply(bigDecimalOf(7))
-                .divide(numberOfUnits.toBigDecimal(), 4, RoundingMode.CEILING)
+            return PlatformFormat.divide(PlatformFormat.multiply(amount, 7), numberOfUnits)
         }
         if (unit == AdaptyPeriodUnit.MONTH) {
-            return amount.multiply(bigDecimalOf(7))
-                .divide((30 * numberOfUnits).toBigDecimal(), 4, RoundingMode.CEILING)
+            return PlatformFormat.divide(PlatformFormat.multiply(amount, 7), 30 * numberOfUnits)
         }
         val weeksInUnit = when (unit) {
             AdaptyPeriodUnit.YEAR -> 52
             else -> 1
         }
-        val divisor = (weeksInUnit * numberOfUnits).toBigDecimal()
-        return amount.divide(divisor, 4, RoundingMode.CEILING)
+        return PlatformFormat.divide(amount, weeksInUnit * numberOfUnits)
     }
 
     fun toDaily(
@@ -84,7 +76,6 @@ internal class PriceConverter {
             AdaptyPeriodUnit.WEEK -> 7
             else -> 1
         }
-        val divisor = (daysInUnit * numberOfUnits).toBigDecimal()
-        return amount.divide(divisor, 4, RoundingMode.CEILING)
+        return PlatformFormat.divide(amount, daysInUnit * numberOfUnits)
     }
 }

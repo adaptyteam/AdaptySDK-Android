@@ -9,9 +9,6 @@ import com.adapty.ui.internal.platform.WARN
 import com.adapty.ui.internal.platform.platformDate
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.log
-import java.text.DateFormat
-import java.text.DecimalFormatSymbols
-import java.text.SimpleDateFormat
 
 private val NUMBER_FORMAT_REGEX = Regex("^%[+\\-0 ]*(\\d+)?(\\.\\d+)?[df]$")
 private val INTEGER_FORMAT_REGEX = Regex("^%[+\\-0 ]*\\d*d$")
@@ -38,9 +35,9 @@ internal sealed class TagConverter {
             val percent = raw.coerceIn(0.0, 1.0) * 100.0
             return runCatching {
                 if (format.endsWith("d")) {
-                    String.format(format, percent.toLong())
+                    PlatformFormat.formatString(format, percent.toLong())
                 } else {
-                    String.format(format, percent).applyDecimalSeparator(locale)
+                    PlatformFormat.formatString(format, percent).applyDecimalSeparator(locale)
                 }
             }.getOrNull()
         }
@@ -51,9 +48,9 @@ internal sealed class TagConverter {
             val raw = value.coerceToDouble() ?: return null
             return runCatching {
                 if (format.endsWith("d")) {
-                    String.format(format, raw.toLong())
+                    PlatformFormat.formatString(format, raw.toLong())
                 } else {
-                    String.format(format, raw).applyDecimalSeparator(locale)
+                    PlatformFormat.formatString(format, raw).applyDecimalSeparator(locale)
                 }
             }.getOrNull()
         }
@@ -73,19 +70,7 @@ internal sealed class TagConverter {
                 else -> return null
             }
             if (pattern == null && dateStyle == STYLE_NONE && timeStyle == STYLE_NONE) return ""
-            val formatter = buildFormatter(locale) ?: return null
-            return runCatching { formatter.format(date) }.getOrNull()
-        }
-
-        private fun buildFormatter(locale: PlatformLocale): DateFormat? {
-            if (pattern != null) {
-                return runCatching { SimpleDateFormat(pattern, locale) }.getOrNull()
-            }
-            return when {
-                dateStyle == STYLE_NONE -> DateFormat.getTimeInstance(timeStyle, locale)
-                timeStyle == STYLE_NONE -> DateFormat.getDateInstance(dateStyle, locale)
-                else -> DateFormat.getDateTimeInstance(dateStyle, timeStyle, locale)
-            }
+            return PlatformFormat.formatDateTime(date, pattern, dateStyle, timeStyle, locale)
         }
 
         internal companion object Factory {
@@ -104,10 +89,10 @@ internal sealed class TagConverter {
             }
 
             private fun parseStyle(s: String?): Int = when (s) {
-                "short" -> DateFormat.SHORT
-                "medium" -> DateFormat.MEDIUM
-                "long" -> DateFormat.LONG
-                "full" -> DateFormat.FULL
+                "short" -> PlatformFormat.STYLE_SHORT
+                "medium" -> PlatformFormat.STYLE_MEDIUM
+                "long" -> PlatformFormat.STYLE_LONG
+                "full" -> PlatformFormat.STYLE_FULL
                 null, "none" -> STYLE_NONE
                 else -> {
                     log(WARN) { "$LOG_PREFIX Unknown date/time style: \"$s\", falling back to \"none\"" }
@@ -128,62 +113,62 @@ internal sealed class TagConverter {
 
         class Days(private val format: String) : Timer(updatesPerSecond = 1) {
             override fun formatSeconds(seconds: Double): String =
-                String.format(format, seconds.toLong() / SECONDS_PER_DAY)
+                PlatformFormat.formatString(format, seconds.toLong() / SECONDS_PER_DAY)
         }
 
         class Hours(private val format: String) : Timer(updatesPerSecond = 1) {
             override fun formatSeconds(seconds: Double): String =
-                String.format(format, seconds.toLong() % SECONDS_PER_DAY / SECONDS_PER_HOUR)
+                PlatformFormat.formatString(format, seconds.toLong() % SECONDS_PER_DAY / SECONDS_PER_HOUR)
         }
 
         class Minutes(private val format: String) : Timer(updatesPerSecond = 1) {
             override fun formatSeconds(seconds: Double): String =
-                String.format(format, seconds.toLong() % SECONDS_PER_HOUR / SECONDS_PER_MINUTE)
+                PlatformFormat.formatString(format, seconds.toLong() % SECONDS_PER_HOUR / SECONDS_PER_MINUTE)
         }
 
         class Seconds(private val format: String) : Timer(updatesPerSecond = 1) {
             override fun formatSeconds(seconds: Double): String =
-                String.format(format, seconds.toLong() % SECONDS_PER_MINUTE)
+                PlatformFormat.formatString(format, seconds.toLong() % SECONDS_PER_MINUTE)
         }
 
         object Deciseconds : Timer(updatesPerSecond = 10) {
             override fun formatSeconds(seconds: Double): String =
-                String.format("%d", (seconds * 10).toLong() % 10)
+                PlatformFormat.formatString("%d", (seconds * 10).toLong() % 10)
         }
 
         object Centiseconds : Timer(updatesPerSecond = 100) {
             override fun formatSeconds(seconds: Double): String =
-                String.format("%02d", (seconds * 100).toLong() % 100)
+                PlatformFormat.formatString("%02d", (seconds * 100).toLong() % 100)
         }
 
         object Milliseconds : Timer(updatesPerSecond = 120) {
             override fun formatSeconds(seconds: Double): String =
-                String.format("%03d", (seconds * 1000).toLong() % 1000)
+                PlatformFormat.formatString("%03d", (seconds * 1000).toLong() % 1000)
         }
 
         class TotalDays(private val format: String) : Timer(updatesPerSecond = 1) {
             override fun formatSeconds(seconds: Double): String =
-                String.format(format, (seconds / SECONDS_PER_DAY).toLong())
+                PlatformFormat.formatString(format, (seconds / SECONDS_PER_DAY).toLong())
         }
 
         class TotalHours(private val format: String) : Timer(updatesPerSecond = 1) {
             override fun formatSeconds(seconds: Double): String =
-                String.format(format, (seconds / SECONDS_PER_HOUR).toLong())
+                PlatformFormat.formatString(format, (seconds / SECONDS_PER_HOUR).toLong())
         }
 
         class TotalMinutes(private val format: String) : Timer(updatesPerSecond = 1) {
             override fun formatSeconds(seconds: Double): String =
-                String.format(format, (seconds / SECONDS_PER_MINUTE).toLong())
+                PlatformFormat.formatString(format, (seconds / SECONDS_PER_MINUTE).toLong())
         }
 
         class TotalSeconds(private val format: String) : Timer(updatesPerSecond = 1) {
             override fun formatSeconds(seconds: Double): String =
-                String.format(format, seconds.toLong())
+                PlatformFormat.formatString(format, seconds.toLong())
         }
 
         class TotalMilliseconds(private val format: String) : Timer(updatesPerSecond = 120) {
             override fun formatSeconds(seconds: Double): String =
-                String.format(format, (seconds * 1000).toLong())
+                PlatformFormat.formatString(format, (seconds * 1000).toLong())
         }
 
         internal companion object Factory {
@@ -251,6 +236,6 @@ private fun Any.coerceToDouble(): Double? = when (this) {
 }
 
 private fun String.applyDecimalSeparator(locale: PlatformLocale): String {
-    val sep = DecimalFormatSymbols.getInstance(locale).decimalSeparator
+    val sep = PlatformFormat.decimalSeparator(locale)
     return if (sep == '.') this else replace('.', sep)
 }

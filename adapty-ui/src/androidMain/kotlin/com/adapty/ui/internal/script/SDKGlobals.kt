@@ -10,6 +10,7 @@ import com.adapty.ui.internal.platform.PaymentMode
 import com.adapty.ui.internal.platform.PlatformLocale
 import com.adapty.ui.internal.platform.englishLocale
 import com.adapty.ui.internal.store.resolveProductKey
+import com.adapty.ui.internal.text.PlatformFormat
 import com.adapty.ui.internal.ui.SdkMetaInfo
 import com.adapty.ui.internal.utils.CONFIGURATION_FORMAT_VERSION
 import com.adapty.ui.internal.utils.FlowMode
@@ -43,7 +44,7 @@ internal object SDKGlobals {
         pairs.add("osName" to "Android")
         pairs.add("osVersion" to metaInfo.os)
         pairs.add("deviceVendor" to metaInfo.manufacturer.replaceFirstChar {
-            if (it.isLowerCase()) it.titlecase(englishLocale()) else it.toString()
+            if (it.isLowerCase()) PlatformFormat.titlecase(it, englishLocale()) else it.toString()
         })
         pairs.add("deviceModel" to metaInfo.deviceName)
         pairs.add("appBundleId" to metaInfo.applicationId)
@@ -82,7 +83,7 @@ internal object SDKGlobals {
         pairs.add("osName" to "Android")
         pairs.add("osVersion" to metaInfo.os)
         pairs.add("deviceVendor" to metaInfo.manufacturer.replaceFirstChar {
-            if (it.isLowerCase()) it.titlecase(englishLocale()) else it.toString()
+            if (it.isLowerCase()) PlatformFormat.titlecase(it, englishLocale()) else it.toString()
         })
         pairs.add("deviceModel" to metaInfo.deviceName)
         pairs.add("appBundleId" to metaInfo.applicationId)
@@ -271,7 +272,7 @@ internal object SDKGlobals {
                 else -> {
                     if (c.code < 0x20) {
                         sb.append("\\u")
-                        sb.append(String.format("%04x", c.code))
+                        sb.append(PlatformFormat.formatString("%04x", c.code))
                     } else {
                         sb.append(c)
                     }

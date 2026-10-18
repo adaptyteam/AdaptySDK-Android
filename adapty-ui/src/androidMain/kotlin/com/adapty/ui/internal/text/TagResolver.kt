@@ -14,16 +14,12 @@ import com.adapty.ui.internal.platform.BigDecimalLike
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.PaymentMode
 import com.adapty.ui.internal.platform.PlatformLocale
-import com.adapty.ui.internal.platform.RoundingMode
-import com.adapty.ui.internal.platform.bigDecimalTen
 import com.adapty.ui.internal.platform.bigDecimalZero
 import com.adapty.ui.internal.platform.defaultLocale
 import com.adapty.ui.internal.ui.PriceFormatting
 import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.utils.firstDiscountOfferOrNull
 import com.adapty.ui.listeners.AdaptyUiTagResolver
-import java.text.NumberFormat
-import java.util.Currency
 
 public enum class MissingTagKind { UNKNOWN_TAG, EMPTY_VARIABLE }
 
@@ -128,11 +124,7 @@ internal class TagResolver(
             unit == targetUnit && numberOfUnits == 1 -> localizedPrice
             else -> {
                 val pricePerPeriod = when (targetUnit) {
-                    unit -> price.amount.divide(
-                        numberOfUnits.toBigDecimal(),
-                        4,
-                        RoundingMode.CEILING
-                    )
+                    unit -> PlatformFormat.divide(price.amount, numberOfUnits)
                     AdaptyPeriodUnit.DAY -> priceConverter.toDaily(price.amount, unit, numberOfUnits)
                     AdaptyPeriodUnit.WEEK -> priceConverter.toWeekly(price.amount, unit, numberOfUnits)
                     AdaptyPeriodUnit.MONTH -> priceConverter.toMonthly(price.amount, unit, numberOfUnits)
@@ -174,7 +166,7 @@ internal class TagResolver(
         }
 
         val singlePeriodPrice = when (targetUnit) {
-            unit -> effectiveAmount.divide(numberOfUnits.toBigDecimal(), 4, RoundingMode.CEILING)
+            unit -> PlatformFormat.divide(effectiveAmount, numberOfUnits)
             AdaptyPeriodUnit.DAY -> priceConverter.toDaily(effectiveAmount, unit, numberOfUnits)
             AdaptyPeriodUnit.WEEK -> priceConverter.toWeekly(effectiveAmount, unit, numberOfUnits)
             AdaptyPeriodUnit.MONTH -> priceConverter.toMonthly(effectiveAmount, unit, numberOfUnits)
@@ -182,49 +174,28 @@ internal class TagResolver(
         }
 
         val pricePerPeriod = if (repeatCount > 1) {
-            singlePeriodPrice.divide(repeatCount.toBigDecimal(), 4, RoundingMode.CEILING)
+            PlatformFormat.divide(singlePeriodPrice, repeatCount)
         } else {
             singlePeriodPrice
         }
         return priceFormatter.format(pricePerPeriod, offer.price.localizedString)
     }
 
-    private fun fractionDigitsForCurrency(currencyCode: String): Int {
-        return try {
-            Currency.getInstance(currencyCode).defaultFractionDigits
-        } catch (_: Exception) {
-            2
-        }
-    }
+    private fun fractionDigitsForCurrency(currencyCode: String): Int =
+        PlatformFormat.currencyFractionDigits(currencyCode)
 
     private fun formatPriceAmount(price: AdaptyPaywallProductPrice): String {
         val fractionDigits = fractionDigitsForCurrency(price.currencyCode)
-        val formatter = NumberFormat.getInstance(locale)
-        formatter.minimumFractionDigits = fractionDigits
-        formatter.maximumFractionDigits = fractionDigits
-        formatter.isGroupingUsed = true
-        return formatter.format(price.amount)
+        return PlatformFormat.formatPriceAmount(price.amount, fractionDigits, locale)
     }
 
-    private fun formatPriceAmountInteger(price: AdaptyPaywallProductPrice): String {
-        val formatter = NumberFormat.getInstance(locale)
-        formatter.maximumFractionDigits = 0
-        formatter.roundingMode = RoundingMode.DOWN
-        formatter.isGroupingUsed = true
-        return formatter.format(price.amount)
-    }
+    private fun formatPriceAmountInteger(price: AdaptyPaywallProductPrice): String =
+        PlatformFormat.formatPriceAmountInteger(price.amount, locale)
 
     private fun formatPriceAmountFraction(price: AdaptyPaywallProductPrice): String? {
         val fractionDigits = fractionDigitsForCurrency(price.currencyCode)
         if (fractionDigits <= 0) return null
-        val multiplier = bigDecimalTen().pow(fractionDigits)
-        val scaled = price.amount.multiply(multiplier)
-            .setScale(0, RoundingMode.HALF_UP)
-            .toBigInteger()
-            .abs()
-        val modulus = multiplier.toBigInteger()
-        val fraction = scaled.mod(modulus)
-        return fraction.toString().padStart(fractionDigits, '0')
+        return PlatformFormat.formatPriceAmountFraction(price.amount, fractionDigits)
     }
 
     @Composable
