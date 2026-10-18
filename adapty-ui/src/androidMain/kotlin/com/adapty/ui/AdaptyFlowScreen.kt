@@ -18,6 +18,7 @@ import com.adapty.ui.internal.ui.AdaptyFlowInternal
 import com.adapty.ui.internal.ui.FlowViewModel
 import com.adapty.ui.internal.ui.FlowViewModelArgs
 import com.adapty.ui.internal.ui.FlowViewModelFactory
+import com.adapty.ui.internal.ui.create
 import com.adapty.ui.internal.ui.UserArgs
 import com.adapty.ui.internal.utils.FlowMode
 import com.adapty.ui.internal.utils.ProductLoadingFailureCallback

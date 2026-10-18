@@ -1,5 +1,4 @@
-@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
-@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui
 
@@ -9,27 +8,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.adapty.internal.data.cache.CacheRepository
-import com.adapty.internal.di.DIObject
-import com.adapty.internal.di.Dependencies
-import com.adapty.internal.di.Dependencies.OBSERVER_MODE
-import com.adapty.internal.utils.MetaInfoRetriever
-import com.adapty.internal.utils.PriceFormatter
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.adapty.ui.AdaptyCustomAssets
 import com.adapty.ui.AdaptyFlowInsets
 import com.adapty.ui.AdaptyUI
-import com.adapty.ui.internal.cache.MediaFetchService
 import com.adapty.ui.internal.listeners.ContextAwareEventListener
 import com.adapty.ui.internal.platform.Activity
 import com.adapty.ui.internal.platform.AdaptyPaywallProduct
-import com.adapty.ui.internal.platform.Context
-import com.adapty.ui.internal.platform.ERROR
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
-import com.adapty.ui.internal.platform.PlatformLocale
 import com.adapty.ui.internal.platform.WARN
 import com.adapty.ui.internal.platform.defaultLocale
 import com.adapty.ui.internal.platform.isMainThread
-import com.adapty.ui.internal.platform.platformMessage
 import com.adapty.ui.internal.platform.runOnMain
 import com.adapty.ui.internal.script.ActionHandler
 import com.adapty.ui.internal.script.StateAccessor
@@ -52,14 +42,11 @@ import com.adapty.ui.internal.store.TimerCallbackScheduler
 import com.adapty.ui.internal.store.TimerEffectHandler
 import com.adapty.ui.internal.store.buildInitialState
 import com.adapty.ui.internal.store.reduce
-import com.adapty.ui.internal.text.PriceConverter
 import com.adapty.ui.internal.text.StringId
-import com.adapty.ui.internal.text.TagResolver
 import com.adapty.ui.internal.text.TextResolver
 import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.ui.event.EventDispatcher
 import com.adapty.ui.internal.utils.LOG_PREFIX
-import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.listeners.AdaptyFlowEventListener
@@ -192,24 +179,18 @@ internal class FlowViewModel(
 
 }
 
-internal class FlowViewModelFactory(
-    private val vmArgs: FlowViewModelArgs,
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return when {
-            modelClass.isAssignableFrom(FlowViewModel::class.java) -> {
-                val vm = FlowViewModel(
-                    vmArgs.flowKey,
-                    vmArgs.isObserverMode,
-                    vmArgs.textResolver,
-                    vmArgs.stateHandler,
-                )
-                vm.effectHandlers = buildEffectHandlers(vm, vmArgs)
-                @Suppress("UNCHECKED_CAST")
-                vm as T
-            }
-            else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
-        }
+internal fun FlowViewModelFactory(
+    vmArgs: FlowViewModelArgs,
+): ViewModelProvider.Factory = viewModelFactory {
+    initializer {
+        val vm = FlowViewModel(
+            vmArgs.flowKey,
+            vmArgs.isObserverMode,
+            vmArgs.textResolver,
+            vmArgs.stateHandler,
+        )
+        vm.effectHandlers = buildEffectHandlers(vm, vmArgs)
+        vm
     }
 }
 
@@ -245,45 +226,8 @@ internal class FlowViewModelArgs(
     val stateHandler: StateHandler,
     val extraEffectHandlerFactory: ((CoroutineScope) -> List<(Effect, (Message) -> Unit) -> Unit>)? = null,
 ) {
-    companion object {
-        fun create(
-            flowKey: String,
-            locale: PlatformLocale,
-            context: Context,
-        ) =
-            runCatching {
-                val mediaFetchService = Dependencies.injectInternal<MediaFetchService>()
-                val cacheRepository = Dependencies.injectInternal<CacheRepository>()
-                val metaInfoRetriever = Dependencies.injectInternal<MetaInfoRetriever>()
-                val isObserverMode = Dependencies.injectInternal<Boolean>(OBSERVER_MODE)
-                val priceFormatter = Dependencies.injectInternal<PriceFormatter>(locale.toString()) {
-                    DIObject({ PriceFormatter(locale) })
-                }
-                val priceConverter = PriceConverter()
-                val tagResolver = TagResolver(
-                    CorePriceFormatting(priceFormatter),
-                    priceConverter,
-                    AdaptyUiTagResolver.Default,
-                    locale,
-                )
-                val textResolver = TextResolver(tagResolver)
-                val stateHandler = Dependencies.injectInternal<StateHandler>()
-                FlowViewModelArgs(
-                    flowKey,
-                    isObserverMode,
-                    MediaFetchServiceSource(mediaFetchService),
-                    CacheRepositoryTimerStore(cacheRepository),
-                    MetaInfoRetrieverSdkMetaInfo(metaInfoRetriever, context),
-                    textResolver,
-                    stateHandler,
-                )
-            }.getOrElse { e ->
-                log(ERROR) {
-                    "$LOG_PREFIX_ERROR $flowKey rendering error: ${e.platformMessage}"
-                }
-                null
-            }
-    }
+    // Live-SDK construction: FlowViewModelArgs.Companion.create (androidMain)
+    companion object
 }
 
 @InternalAdaptyUiApi
