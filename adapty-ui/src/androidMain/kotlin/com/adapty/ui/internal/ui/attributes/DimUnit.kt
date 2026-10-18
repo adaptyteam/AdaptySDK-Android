@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui.attributes
 
@@ -8,7 +8,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.utils.LocalScreenDimensions
 import com.adapty.ui.internal.utils.SafeAreaInsets
 import com.adapty.ui.internal.utils.ScreenDimensions
@@ -45,7 +45,7 @@ internal fun DimUnit.toExactDp(axis: DimSpec.Axis): Dp {
     }
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public sealed class DimUnit {
     public data class Exact internal constructor(internal val value: Float): DimUnit()
     public data class ScreenFraction internal constructor(internal val fraction: Float): DimUnit()

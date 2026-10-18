@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.text
 
@@ -14,12 +14,12 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.NavigationEntry
 import com.adapty.ui.internal.ui.element.Action
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public sealed class StringWrapper {
     internal sealed class Single(val value: String, val attrs: ComposeTextAttrs?, val actions: List<Action> = emptyList()): StringWrapper()
     internal class Str internal constructor(value: String, attrs: ComposeTextAttrs? = null, actions: List<Action> = emptyList()): Single(value, attrs, actions)

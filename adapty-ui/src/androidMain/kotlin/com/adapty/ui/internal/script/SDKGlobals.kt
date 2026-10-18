@@ -1,24 +1,25 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.script
 
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.models.AdaptyFlow
-import com.adapty.models.AdaptyPaywallProduct
-import com.adapty.models.AdaptyProductDiscountPhase.PaymentMode
+import com.adapty.ui.internal.platform.AdaptyFlow
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PaymentMode
+import com.adapty.ui.internal.platform.PlatformLocale
+import com.adapty.ui.internal.platform.englishLocale
 import com.adapty.ui.internal.store.resolveProductKey
 import com.adapty.ui.internal.ui.SdkMetaInfo
 import com.adapty.ui.internal.utils.CONFIGURATION_FORMAT_VERSION
 import com.adapty.ui.internal.utils.FlowMode
-import java.util.Locale
 
 internal object SDKGlobals {
 
     fun buildSDKEnvJson(
         metaInfo: SdkMetaInfo,
         mode: FlowMode,
-        locale: Locale,
+        locale: PlatformLocale,
         localizationId: String? = null,
         isRtl: Boolean = false,
     ): String {
@@ -42,7 +43,7 @@ internal object SDKGlobals {
         pairs.add("osName" to "Android")
         pairs.add("osVersion" to metaInfo.os)
         pairs.add("deviceVendor" to metaInfo.manufacturer.replaceFirstChar {
-            if (it.isLowerCase()) it.titlecase(Locale.ENGLISH) else it.toString()
+            if (it.isLowerCase()) it.titlecase(englishLocale()) else it.toString()
         })
         pairs.add("deviceModel" to metaInfo.deviceName)
         pairs.add("appBundleId" to metaInfo.applicationId)
@@ -61,7 +62,7 @@ internal object SDKGlobals {
 
     fun buildPreviewSDKEnvJson(
         metaInfo: SdkMetaInfo,
-        locale: Locale,
+        locale: PlatformLocale,
         localizationId: String? = null,
         isRtl: Boolean = false,
     ): String {
@@ -81,7 +82,7 @@ internal object SDKGlobals {
         pairs.add("osName" to "Android")
         pairs.add("osVersion" to metaInfo.os)
         pairs.add("deviceVendor" to metaInfo.manufacturer.replaceFirstChar {
-            if (it.isLowerCase()) it.titlecase(Locale.ENGLISH) else it.toString()
+            if (it.isLowerCase()) it.titlecase(englishLocale()) else it.toString()
         })
         pairs.add("deviceModel" to metaInfo.deviceName)
         pairs.add("appBundleId" to metaInfo.applicationId)

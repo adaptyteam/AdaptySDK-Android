@@ -1,13 +1,13 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 
 package com.adapty.ui.internal.utils
 
 import android.content.Context
 import androidx.annotation.RestrictTo
 import com.adapty.internal.di.DIObject
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.getClassForNameOrNull
 import com.adapty.ui.internal.mapping.element.Assets
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import kotlin.reflect.KClass

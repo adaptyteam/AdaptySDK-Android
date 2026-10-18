@@ -6,20 +6,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.ui.internal.store.Message
-import com.adapty.ui.internal.ui.buttonPressDim
-import com.adapty.ui.internal.ui.rememberOpacityProvider
-import androidx.compose.runtime.CompositionLocalProvider
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.get
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.LocalOpacityProvider
 import com.adapty.ui.internal.ui.LocalScreenInstance
+import com.adapty.ui.internal.ui.buttonPressDim
+import com.adapty.ui.internal.ui.rememberOpacityProvider
 import com.adapty.ui.internal.ui.resolveState
 import com.adapty.ui.internal.utils.OneWayBinding
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class LegacyButtonElement internal constructor(
     internal val actions: List<Action>,
     internal val normal: UIElement,

@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.utils
 
@@ -17,8 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyFlowInsets
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 
 internal sealed class InsetWrapper {

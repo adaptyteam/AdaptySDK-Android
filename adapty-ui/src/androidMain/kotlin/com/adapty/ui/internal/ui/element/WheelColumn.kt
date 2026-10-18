@@ -1,5 +1,5 @@
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui.element
 
@@ -42,7 +42,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.toRadians
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -172,15 +173,15 @@ internal fun WheelColumn(
                 val fraction = distanceFromCenter / halfVisible.coerceAtLeast(1)
 
                 val maxAngle = 50f
-                val maxAngleRad = Math.toRadians(maxAngle.toDouble()).toFloat()
+                val maxAngleRad = toRadians(maxAngle.toDouble()).toFloat()
                 val angleX = (-offsetFromCenter / halfVisible.coerceAtLeast(1) * maxAngle)
                     .coerceIn(-80f, 80f)
-                val angleRad = Math.toRadians(angleX.toDouble())
+                val angleRad = toRadians(angleX.toDouble())
                 val cylinderScale = cos(angleRad).toFloat()
 
                 val translationAngle = (offsetFromCenter / halfVisible.coerceAtLeast(1) * maxAngle)
                     .coerceIn(-85f, 85f)
-                val translationAngleRad = Math.toRadians(translationAngle.toDouble())
+                val translationAngleRad = toRadians(translationAngle.toDouble())
                 val cylinderY = (halfVisible / maxAngleRad) * sin(translationAngleRad).toFloat() * itemHeightPx
                 val linearY = offsetFromCenter * itemHeightPx
                 val yCompression = cylinderY - linearY

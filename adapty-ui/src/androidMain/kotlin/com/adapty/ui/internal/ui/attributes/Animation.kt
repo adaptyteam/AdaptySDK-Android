@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui.attributes
 
@@ -15,10 +15,10 @@ import androidx.compose.animation.core.EaseOutElastic
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.runtime.Immutable
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 
 @Immutable
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public data class Animation<T> internal constructor(
     val start: T,
     val end: T,

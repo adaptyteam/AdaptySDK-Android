@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 
 package com.adapty.ui
 
@@ -13,8 +13,8 @@ import androidx.compose.ui.platform.AbstractComposeView
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import com.adapty.internal.di.Dependencies
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.SDKGlobals
 import com.adapty.ui.internal.script.StateHandler
 import com.adapty.ui.internal.ui.AdaptyFlowInternal
@@ -22,14 +22,14 @@ import com.adapty.ui.internal.ui.FlowViewModel
 import com.adapty.ui.internal.ui.FlowViewModelArgs
 import com.adapty.ui.internal.ui.FlowViewModelFactory
 import com.adapty.ui.internal.ui.UserArgs
-import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.FlowMode
+import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
 import com.adapty.ui.internal.utils.adoptFlowStateForConfigChange
 import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.getCurrentLocale
-import com.adapty.ui.internal.utils.log
 import com.adapty.ui.internal.utils.initializeFlowStateAsync
+import com.adapty.ui.internal.utils.log
 import com.adapty.ui.internal.utils.withAdaptyUIActivated
 import com.adapty.ui.listeners.AdaptyFlowDefaultEventListener
 import com.adapty.ui.listeners.AdaptyFlowEventListener

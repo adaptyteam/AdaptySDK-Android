@@ -1,13 +1,13 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.store
 
 import com.adapty.Adapty
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.RemoteImage
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.ui.MediaSource
 import com.adapty.ui.internal.utils.LOADING_PRODUCTS_RETRY_DELAY
 import com.adapty.ui.internal.utils.LOG_PREFIX

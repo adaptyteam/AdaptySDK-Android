@@ -1,10 +1,11 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui
 
 import android.view.WindowManager
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalOverscrollConfiguration
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -19,7 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -39,22 +39,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Screen
 import com.adapty.ui.AdaptyUI.FlowConfiguration.ScreenBundle
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.store.ScrollCommand
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.DimUnit
-import com.adapty.ui.internal.ui.element.OverlayItem
-import com.adapty.ui.internal.ui.element.SingleContainer
-import com.adapty.ui.internal.ui.element.UIElement
-import com.adapty.ui.internal.ui.element.withActiveAnimations
-import com.adapty.ui.internal.utils.TwoWayBinding
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeHorizontalAlignment
 import com.adapty.ui.internal.ui.attributes.toExactDp
+import com.adapty.ui.internal.ui.element.OverlayItem
+import com.adapty.ui.internal.ui.element.SingleContainer
+import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.ui.element.render
+import com.adapty.ui.internal.ui.element.withActiveAnimations
+import com.adapty.ui.internal.utils.TwoWayBinding
 import com.adapty.ui.internal.utils.getActivityOrNull
 import kotlinx.coroutines.flow.first
 

@@ -1,10 +1,8 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui.attributes
 
-import android.content.Context
 import android.content.res.Resources
-import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.Paint
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,8 +20,11 @@ import androidx.compose.ui.graphics.SweepGradientShader
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.platform.Bitmap
+import com.adapty.ui.internal.platform.COLOR_TRANSPARENT
+import com.adapty.ui.internal.platform.Context
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.ui.CircleShape
 import com.adapty.ui.internal.ui.RectWithArcShape
 import com.adapty.ui.internal.utils.StringSource
@@ -32,7 +33,7 @@ import com.adapty.ui.internal.utils.color
 import com.adapty.ui.internal.utils.getBitmap
 import kotlin.math.roundToInt
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class Shape internal constructor(
     internal val fill: VisualValue?,
     internal val type: Type,
@@ -114,8 +115,8 @@ internal fun Asset.Composite<Asset.Color>.toGradientAsset(): Asset.Composite<Ass
         main = Asset.Gradient(
             type = Asset.Gradient.Type.LINEAR,
             values = listOf(
-                Asset.Gradient.Value(0f, Asset.Color(android.graphics.Color.TRANSPARENT)),
-                Asset.Gradient.Value(1f, Asset.Color(android.graphics.Color.TRANSPARENT))
+                Asset.Gradient.Value(0f, Asset.Color(COLOR_TRANSPARENT)),
+                Asset.Gradient.Value(1f, Asset.Color(COLOR_TRANSPARENT))
             ),
             points = Asset.Gradient.Points(0f, 0f, 1f, 1f),
         )

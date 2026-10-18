@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.utils
 
@@ -6,10 +6,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image.Dimension
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image.ScaleType
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import java.io.InputStream
 

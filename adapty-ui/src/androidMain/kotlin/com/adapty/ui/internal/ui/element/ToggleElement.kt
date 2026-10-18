@@ -9,20 +9,20 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.get
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.LocalUiEnabled
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.ui.resolveState
-import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.utils.DISABLED_ALPHA
 import com.adapty.ui.internal.utils.TwoWayBinding
 import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.resolveAsset
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class ToggleElement internal constructor(
     internal val value: TwoWayBinding,
     internal val color: VisualValue?,

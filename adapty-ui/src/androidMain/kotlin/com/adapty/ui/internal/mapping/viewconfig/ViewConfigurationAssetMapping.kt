@@ -1,14 +1,14 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.mapping.viewconfig
 
 import androidx.core.net.toUri
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.adaptyError
-import com.adapty.internal.utils.getAs
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.adaptyError
+import com.adapty.ui.internal.platform.getAs
 import com.adapty.ui.internal.utils.DARK_THEME_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.VIDEO_PREVIEW_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.parseColorInt

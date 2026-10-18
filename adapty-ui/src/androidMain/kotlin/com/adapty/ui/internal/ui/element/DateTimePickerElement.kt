@@ -1,5 +1,5 @@
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
-@file:OptIn(ExperimentalMaterial3Api::class, InternalAdaptyApi::class)
+@file:OptIn(ExperimentalMaterial3Api::class, InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui.element
 
@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
@@ -38,31 +39,33 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformDate
+import com.adapty.ui.internal.platform.PlatformLocale
+import com.adapty.ui.internal.platform.WARN
+import com.adapty.ui.internal.platform.currentTimeMillis
+import com.adapty.ui.internal.platform.defaultLocale
+import com.adapty.ui.internal.platform.platformDate
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.script.toJsLong
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.LocalUiEnabled
 import com.adapty.ui.internal.ui.attributes.DateTime
 import com.adapty.ui.internal.ui.resolveState
-import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.TwoWayBinding
 import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.internal.utils.resolveAsset
-import com.adapty.utils.AdaptyLogLevel.Companion.WARN
-import androidx.compose.material3.ColorScheme
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.text.DateFormatSymbols
 import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 import java.util.TimeZone
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class DateTimePickerElement internal constructor(
     internal val kind: Kind,
     internal val value: TwoWayBinding,
@@ -101,7 +104,7 @@ private fun DateTimePickerContent(
     val state = resolveState()
     val screen = LocalScreenInstance.current
 
-    val nowMs = remember { System.currentTimeMillis() }
+    val nowMs = remember { currentTimeMillis() }
     val currentMs = state[element.value].toJsLong() ?: nowMs
 
     val tint = element.color?.resolveAsset<Asset.Color>()?.main?.value?.let { Color(it) }
@@ -228,7 +231,7 @@ private fun WheelPicker(
     }
     val yearLabels = remember(years) { years.map { it.toString() } }
     val monthLabels = remember {
-        val symbols = DateFormatSymbols.getInstance(Locale.getDefault())
+        val symbols = DateFormatSymbols.getInstance(defaultLocale())
         symbols.shortMonths.take(12)
     }
     val daysInMonth = remember(year, month) { daysInMonth(year, month) }
@@ -554,7 +557,7 @@ private fun clampMs(ms: Long, minMs: Long?, maxMs: Long?): Long {
 }
 
 private fun formatDate(ms: Long): String =
-    SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(ms))
+    SimpleDateFormat("MMM d, yyyy", defaultLocale()).format(platformDate(ms))
 
 private fun formatTime(ms: Long): String =
-    SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(ms))
+    SimpleDateFormat("h:mm a", defaultLocale()).format(platformDate(ms))

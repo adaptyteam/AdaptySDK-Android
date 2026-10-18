@@ -1,12 +1,12 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.mapping.element
 
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.adaptyError
 import com.adapty.ui.internal.mapping.attributes.toAction
 import com.adapty.ui.internal.mapping.attributes.toTextAlign
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.adaptyError
 import com.adapty.ui.internal.text.toStringId
 import com.adapty.ui.internal.ui.element.TimerElement
 import com.adapty.ui.internal.ui.element.TimerElement.Format

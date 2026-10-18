@@ -1,23 +1,23 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.store
 
-import com.adapty.errors.AdaptyError
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.models.AdaptyPaywallProduct
-import com.adapty.models.AdaptyProfile
-import com.adapty.models.AdaptyPurchaseParameters
-import com.adapty.models.AdaptyPurchaseResult
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.AdaptyUI.FlowConfiguration.TextItem
+import com.adapty.ui.internal.platform.AdaptyError
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.AdaptyProfile
+import com.adapty.ui.internal.platform.AdaptyPurchaseParameters
+import com.adapty.ui.internal.platform.AdaptyPurchaseResult
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.ui.NavigationEntry
 import com.adapty.ui.internal.ui.UserArgs
 import com.adapty.ui.internal.ui.element.Action
 import com.adapty.ui.internal.utils.TwoWayBinding
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public sealed interface Message {
     public data class ActionsRequested internal constructor(val actions: List<Action>, val screen: NavigationEntry) : Message
     public data class ToggleChanged internal constructor(val binding: TwoWayBinding, val value: Boolean, val screen: NavigationEntry) : Message

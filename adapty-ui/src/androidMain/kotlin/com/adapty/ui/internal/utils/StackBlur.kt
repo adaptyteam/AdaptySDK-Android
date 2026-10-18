@@ -1,6 +1,6 @@
 package com.adapty.ui.internal.utils
 
-import android.graphics.Bitmap
+import com.adapty.ui.internal.platform.Bitmap
 
 internal class StackBlurWorker(private var maxW: Int, private var maxH: Int) {
 

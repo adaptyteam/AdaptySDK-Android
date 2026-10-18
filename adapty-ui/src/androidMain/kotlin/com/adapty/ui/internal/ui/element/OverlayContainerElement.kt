@@ -20,7 +20,7 @@ import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.LocalInsideButton
 import com.adapty.ui.internal.ui.attributes.DimSpec
@@ -37,7 +37,7 @@ import com.adapty.ui.internal.ui.rememberShadowProvider
 import com.adapty.ui.internal.ui.shadowOrSkip
 import com.adapty.ui.internal.ui.sideDimensionOrSkip
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class OverlayContainerElement internal constructor(
     internal val main: UIElement,
     internal val overlays: List<OverlayItem> = emptyList(),

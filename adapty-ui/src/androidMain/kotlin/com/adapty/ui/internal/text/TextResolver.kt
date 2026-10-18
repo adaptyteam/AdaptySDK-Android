@@ -1,7 +1,9 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.text
 
+import android.graphics.Rect
+import android.text.TextPaint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,8 +13,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
-import android.graphics.Rect
-import android.text.TextPaint
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -20,14 +20,16 @@ import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.models.AdaptyProductDiscountPhase.PaymentMode
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.AdaptyUI.FlowConfiguration.RichText
 import com.adapty.ui.AdaptyUI.FlowConfiguration.TextItem
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.mapping.element.Products
 import com.adapty.ui.internal.mapping.element.Texts
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PaymentMode
+import com.adapty.ui.internal.platform.PlatformLocale
+import com.adapty.ui.internal.platform.identityHashCode
 import com.adapty.ui.internal.ui.element.BaseTextElement
 import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.utils.firstDiscountOfferOrNull
@@ -36,7 +38,6 @@ import com.adapty.ui.internal.utils.getBitmap
 import com.adapty.ui.internal.utils.resolve
 import com.adapty.ui.internal.utils.resolveColorFilter
 import com.adapty.ui.listeners.AdaptyUiTagResolver
-import java.util.Locale
 
 internal class TextResolver(
     private val tagResolver: TagResolver,
@@ -49,7 +50,7 @@ internal class TextResolver(
         texts: Texts,
         products: Products,
         assets: Assets,
-        locale: Locale,
+        locale: PlatformLocale,
     ): StringWrapper? {
         when (stringId) {
             is StringId.Str -> return texts[stringId.source.resolve()]?.toComposeString(textElementAttrs, assets, products, locale, tagValues = stringId.tagValues)
@@ -82,7 +83,7 @@ internal class TextResolver(
     }
 
     @Composable
-    private fun TextItem.toComposeString(textElementAttrs: Attributes?, assets: Assets, products: Products, locale: Locale, productId: String? = null, tagValues: Map<String, TagValueSource>? = null): StringWrapper? {
+    private fun TextItem.toComposeString(textElementAttrs: Attributes?, assets: Assets, products: Products, locale: PlatformLocale, productId: String? = null, tagValues: Map<String, TagValueSource>? = null): StringWrapper? {
         return value.toComposeString(textElementAttrs, assets, products, locale, fallback == null, productId, tagValues).let { actualStr ->
             if (actualStr === StringWrapper.CUSTOM_TAG_NOT_FOUND)
                 fallback?.toComposeString(textElementAttrs, assets, products, locale, true, productId, tagValues)
@@ -96,7 +97,7 @@ internal class TextResolver(
         textElementAttrs: Attributes?,
         assets: Assets,
         products: Products,
-        locale: Locale,
+        locale: PlatformLocale,
         ignoreMissingCustomTag: Boolean,
         productId: String?,
         tagValues: Map<String, TagValueSource>? = null,
@@ -149,7 +150,7 @@ internal class TextResolver(
                         ?: return@forEach
                     val isSystemInDarkTheme = isSystemInDarkTheme()
                     val context = LocalContext.current
-                    val imageBitmap = remember(imageAsset.main.source.javaClass, isSystemInDarkTheme) {
+                    val imageBitmap = remember(imageAsset.main.source::class, isSystemInDarkTheme) {
                         getBitmap(context, imageAsset)
                             ?.asImageBitmap()
                     } ?: return@forEach
@@ -186,7 +187,7 @@ internal class TextResolver(
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
-                    val contentSignature = 31 * System.identityHashCode(imageBitmap) + System.identityHashCode(colorFilter)
+                    val contentSignature = 31 * identityHashCode(imageBitmap) + identityHashCode(colorFilter)
                     parts.add(StringWrapper.ComplexStr.ComplexStrPart.Image(id, inlineImage, item.actions, contentSignature))
                 }
             }
@@ -211,7 +212,7 @@ internal class TextResolver(
         ignoreMissingCustomTag: Boolean,
         assets: Assets,
         products: Products,
-        locale: Locale,
+        locale: PlatformLocale,
         tagValues: Map<String, TagValueSource>? = null,
     ): StringWrapper.Single {
         return tagResolver.tryResolveInlineTag(item, tagValues, textElementAttrs, assets, locale, literalOnly = true)

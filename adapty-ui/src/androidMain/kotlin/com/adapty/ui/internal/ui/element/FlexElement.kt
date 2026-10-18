@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.attributes.Condition
 import com.adapty.ui.internal.ui.attributes.ConditionScope
@@ -15,7 +15,7 @@ import com.adapty.ui.internal.ui.attributes.Transition
 import com.adapty.ui.internal.ui.attributes.evaluateAll
 import com.adapty.ui.internal.utils.LocalScreenDimensions
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class FlexElement internal constructor(
     internal val condition: List<Condition>,
     internal val direction: Direction,

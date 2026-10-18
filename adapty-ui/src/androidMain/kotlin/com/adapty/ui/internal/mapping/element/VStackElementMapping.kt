@@ -1,9 +1,9 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.mapping.element
 
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.mapping.attributes.toHorizontalAlign
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.ui.element.SkippedElement
 import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.ui.element.VStackElement

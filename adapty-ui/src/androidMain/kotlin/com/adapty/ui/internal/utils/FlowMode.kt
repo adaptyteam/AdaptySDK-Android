@@ -1,6 +1,6 @@
 package com.adapty.ui.internal.utils
 
-import com.adapty.models.AdaptyFlow
+import com.adapty.ui.internal.platform.AdaptyFlow
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 

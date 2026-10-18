@@ -1,19 +1,19 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui.event
 
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.ui.attributes.Animation
 import com.adapty.ui.internal.ui.element.Action
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public data class EventHandler internal constructor(
     internal val triggers: List<Trigger>,
     internal val animations: List<Animation<*>>,
     internal val onAnimationsFinish: List<Action>?,
 )
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public data class Trigger internal constructor(
     internal val events: List<String>,
     internal val filter: TriggerFilter?,

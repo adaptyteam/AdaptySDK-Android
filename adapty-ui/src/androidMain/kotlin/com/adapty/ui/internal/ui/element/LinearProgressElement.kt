@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.ui.element
@@ -25,47 +25,47 @@ import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius as ComposeCornerRadius
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape as ComposeShape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.script.toJsFloat
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.LocalScreenInstance
-import com.adapty.ui.internal.ui.fitImageWithinBounds
+import com.adapty.ui.internal.ui.ZeroIntrinsicsModifier
 import com.adapty.ui.internal.ui.attributes.AspectRatio
 import com.adapty.ui.internal.ui.attributes.HorizontalAlign
 import com.adapty.ui.internal.ui.attributes.Interpolator
 import com.adapty.ui.internal.ui.attributes.LocalContentAlignment
-import com.adapty.ui.internal.ui.ZeroIntrinsicsModifier
 import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.VerticalAlign
 import com.adapty.ui.internal.ui.attributes.evaluateComposeImageAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeContentScale
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.ui.attributes.toEasing
+import com.adapty.ui.internal.ui.fitImageWithinBounds
 import com.adapty.ui.internal.ui.resolveState
 import com.adapty.ui.internal.utils.OneWayBinding
 import com.adapty.ui.internal.utils.VisualValue
-import com.adapty.ui.internal.utils.getBitmap
 import com.adapty.ui.internal.utils.getAsset
+import com.adapty.ui.internal.utils.getBitmap
 import com.adapty.ui.internal.utils.resolveAsset
 import kotlinx.coroutines.delay
+import androidx.compose.ui.geometry.CornerRadius as ComposeCornerRadius
+import androidx.compose.ui.graphics.Shape as ComposeShape
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class LinearProgressElement internal constructor(
     internal val orientation: Orientation,
     internal val assetId: VisualValue,

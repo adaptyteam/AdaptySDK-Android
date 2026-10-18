@@ -1,8 +1,7 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.text
 
-import android.content.Context
 import androidx.annotation.ColorInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -10,10 +9,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.RichText
 import com.adapty.ui.internal.mapping.element.Assets
+import com.adapty.ui.internal.platform.Context
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.ui.element.BaseTextElement
 import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.getAsset

@@ -1,26 +1,27 @@
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 
 package com.adapty.ui.internal.script
 
-import android.content.Context
 import com.adapty.internal.data.cloud.AnalyticsTracker
 import com.adapty.internal.data.models.AnalyticsEvent
 import com.adapty.internal.di.Dependencies
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.AtomicBool
+import com.adapty.ui.internal.platform.Context
+import com.adapty.ui.internal.platform.ERROR
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.VERBOSE
+import com.adapty.ui.internal.platform.WARN
+import com.adapty.ui.internal.platform.platformMessage
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.log
-import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
-import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
-import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.google.gson.Gson
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicBoolean
 
 internal class JSStateMachine(
     private val context: Context,
@@ -57,7 +58,7 @@ internal class JSStateMachine(
                     }
                 }
             } catch (e: Throwable) {
-                log(WARN) { "$LOG_PREFIX JSEngineAndroidx unavailable, falling back to JSEngineWebView: ${e.localizedMessage}" }
+                log(WARN) { "$LOG_PREFIX JSEngineAndroidx unavailable, falling back to JSEngineWebView: ${e.platformMessage}" }
                 reportWebViewFallback(e)
                 try { androidx.close() } catch (_: Throwable) {}
                 JSEngineWebView(context, jsActionBridge, gson).also { js ->
@@ -73,7 +74,7 @@ internal class JSStateMachine(
             setupBridgeFunctions()
             freshlyInitialized = true
         } catch (e: Throwable) {
-            log(ERROR) { "$LOG_PREFIX_ERROR JS engine initialization failed; scripting disabled: ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR JS engine initialization failed; scripting disabled: ${e.platformMessage}" }
         } finally {
             initialized.complete(Unit)
         }
@@ -90,7 +91,7 @@ internal class JSStateMachine(
             jsEngine?.reset()
             setupBridgeFunctions()
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error resetting JS engine: ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error resetting JS engine: ${e.platformMessage}" }
         }
     }
 
@@ -100,7 +101,7 @@ internal class JSStateMachine(
         try {
             jsEngine?.loadScript(script)
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error loading script: ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error loading script: ${e.platformMessage}" }
             if (!isSandboxDead(e)) {
                 jsActionBridge.onJsError(e.message ?: e.toString())
             }
@@ -353,7 +354,7 @@ internal class JSStateMachine(
         try {
             jsEngine?.loadScript(bridgeScript)
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error loading bridge script: ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error loading bridge script: ${e.platformMessage}" }
         }
     }
 
@@ -368,7 +369,7 @@ internal class JSStateMachine(
             val result = jsEngine.execute(script)
             if (reportJsErrorIfPresent(result, "action '${funcPath.joinToString(".") { it.value }}'")) return
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error executing action '${funcPath.joinToString(".") { it.value }}': ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error executing action '${funcPath.joinToString(".") { it.value }}': ${e.platformMessage}" }
         }
     }
 
@@ -383,7 +384,7 @@ internal class JSStateMachine(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error in getValue: ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error in getValue: ${e.platformMessage}" }
             null
         }
     }
@@ -397,7 +398,7 @@ internal class JSStateMachine(
             if (reportJsErrorIfPresent(result, "hasFunction '${path.joinToString(".") { it.value }}'")) return false
             result == true || result == "true"
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error checking hasFunction for '${path.joinToString(".") { it.value }}': ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error checking hasFunction for '${path.joinToString(".") { it.value }}': ${e.platformMessage}" }
             false
         }
     }
@@ -410,7 +411,7 @@ internal class JSStateMachine(
             if (reportJsErrorIfPresent(result, "executeScript")) return null
             result
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error executing script: ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error executing script: ${e.platformMessage}" }
             null
         }
     }
@@ -427,7 +428,7 @@ internal class JSStateMachine(
             """.trimIndent()
             jsEngine.loadScript(script)
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error injecting SDK globals: ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error injecting SDK globals: ${e.platformMessage}" }
         }
     }
 
@@ -441,7 +442,7 @@ internal class JSStateMachine(
             """.trimIndent()
             jsEngine.loadScript(script)
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error updating SDKProducts: ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error updating SDKProducts: ${e.platformMessage}" }
         }
     }
 
@@ -460,7 +461,7 @@ internal class JSStateMachine(
                 log(VERBOSE) { "$LOG_PREFIX handleSDKEvent not defined, ignoring event: $eventJson" }
             }
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error sending SDK event: ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error sending SDK event: ${e.platformMessage}" }
         }
     }
 
@@ -472,7 +473,7 @@ internal class JSStateMachine(
             val result = jsEngine.execute("__adapty_invoke_timer_callback__(\"$escapedId\")")
             reportJsErrorIfPresent(result, "timer callback '$timerId'")
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error invoking timer callback for '$timerId': ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error invoking timer callback for '$timerId': ${e.platformMessage}" }
         }
     }
 
@@ -485,7 +486,7 @@ internal class JSStateMachine(
             val result = jsEngine.execute("__adapty_invoke_alert_callback__(\"$escapedId\", $responseJson)")
             reportJsErrorIfPresent(result, "alert callback '$callbackId'")
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error invoking alert callback for '$callbackId': ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error invoking alert callback for '$callbackId': ${e.platformMessage}" }
         }
     }
 
@@ -498,7 +499,7 @@ internal class JSStateMachine(
             val result = jsEngine.execute("__adapty_invoke_purchase_callback__(\"$escapedId\", $responseJson)")
             reportJsErrorIfPresent(result, "purchase callback '$callbackId'")
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error invoking purchase callback for '$callbackId': ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error invoking purchase callback for '$callbackId': ${e.platformMessage}" }
         }
     }
 
@@ -511,7 +512,7 @@ internal class JSStateMachine(
             val result = jsEngine.execute("__adapty_invoke_restore_callback__(\"$escapedId\", $responseJson)")
             reportJsErrorIfPresent(result, "restore callback '$callbackId'")
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error invoking restore callback for '$callbackId': ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error invoking restore callback for '$callbackId': ${e.platformMessage}" }
         }
     }
 
@@ -524,7 +525,7 @@ internal class JSStateMachine(
             val result = jsEngine.execute("__adapty_invoke_permission_callback__(\"$escapedId\", $responseJson)")
             reportJsErrorIfPresent(result, "permission callback '$callbackId'")
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error invoking permission callback for '$callbackId': ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error invoking permission callback for '$callbackId': ${e.platformMessage}" }
         }
     }
 
@@ -548,6 +549,6 @@ internal class JSStateMachine(
     }
 
     private companion object {
-        private val webViewFallbackReported = AtomicBoolean(false)
+        private val webViewFallbackReported = AtomicBool(false)
     }
 }

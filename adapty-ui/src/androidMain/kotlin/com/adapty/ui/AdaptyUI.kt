@@ -1,25 +1,18 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui
 
-import android.app.Activity
-import android.content.Context
 import android.view.View
 import android.view.ViewGroup.LayoutParams
 import androidx.annotation.ColorInt
 import androidx.annotation.UiThread
 import com.adapty.Adapty
-import com.adapty.internal.di.Dependencies
 import com.adapty.internal.data.models.DeviceInfo
+import com.adapty.internal.di.Dependencies
 import com.adapty.internal.di.Dependencies.inject
 import com.adapty.internal.utils.DEFAULT_PLACEMENT_TIMEOUT
 import com.adapty.internal.utils.HashingHelper
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.models.AdaptyFlow
-import com.adapty.models.AdaptyOnboarding
-import com.adapty.models.AdaptyPaywallProduct
-import com.adapty.models.AdaptyWebPresentation
 import com.adapty.ui.internal.cache.CacheCleanupService
 import com.adapty.ui.internal.cache.CacheFileManager
 import com.adapty.ui.internal.cache.MediaCacheConfigManager
@@ -28,17 +21,30 @@ import com.adapty.ui.internal.cache.MediaFetchService
 import com.adapty.ui.internal.cache.MediaSaver
 import com.adapty.ui.internal.cache.SingleMediaHandlerFactory
 import com.adapty.ui.internal.mapping.viewconfig.ViewConfigurationMapper
+import com.adapty.ui.internal.platform.Activity
+import com.adapty.ui.internal.platform.AdaptyFlow
+import com.adapty.ui.internal.platform.AdaptyOnboarding
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.AdaptyWebPresentation
+import com.adapty.ui.internal.platform.Context
+import com.adapty.ui.internal.platform.ERROR
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformLocale
+import com.adapty.ui.internal.platform.ResultCallback
+import com.adapty.ui.internal.platform.TimeInterval
+import com.adapty.ui.internal.platform.VERBOSE
+import com.adapty.ui.internal.platform.days
+import com.adapty.ui.internal.script.JSActionBridge
 import com.adapty.ui.internal.script.JSStateHandler
 import com.adapty.ui.internal.script.JSStateMachine
-import com.adapty.ui.internal.script.JSActionBridge
 import com.adapty.ui.internal.script.StateHandler
 import com.adapty.ui.internal.store.FlowRuntimeState
 import com.adapty.ui.internal.ui.element.BoxElement
 import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.utils.AdaptyUiVideoAccessor
 import com.adapty.ui.internal.utils.ContentWrapper
-import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.FlowMode
+import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.listeners.AdaptyFlowDefaultEventListener
@@ -55,11 +61,6 @@ import com.adapty.ui.onboardings.internal.serialization.OnboardingCommonEventPar
 import com.adapty.ui.onboardings.internal.serialization.OnboardingEventsParser
 import com.adapty.ui.onboardings.internal.serialization.OnboardingStateUpdatedParamsParser
 import com.adapty.ui.onboardings.listeners.AdaptyOnboardingEventListener
-import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
-import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
-import com.adapty.utils.ResultCallback
-import com.adapty.utils.TimeInterval
-import com.adapty.utils.days
 import com.google.gson.Gson
 
 public object AdaptyUI {
@@ -225,7 +226,7 @@ public object AdaptyUI {
         @get:JvmSynthetic internal val mode: FlowMode,
         public val isHard: Boolean,
         @get:JvmSynthetic internal val isRtl: Boolean,
-        @get:JvmSynthetic internal val locale: java.util.Locale,
+        @get:JvmSynthetic internal val locale: PlatformLocale,
         @get:JvmSynthetic internal val localizationId: String? = null,
         @get:JvmSynthetic internal val assets: Map<String, Asset>,
         @get:JvmSynthetic internal val texts: Map<String, TextItem>,
@@ -311,10 +312,10 @@ public object AdaptyUI {
             ): Filling.Local(customId) {
 
                 public sealed class Source {
-                    public class Uri internal constructor(internal val uri: android.net.Uri): Source()
+                    public class Uri internal constructor(internal val uri: com.adapty.ui.internal.platform.Uri): Source()
                     public class Base64Str internal constructor(internal val imageBase64: String?): Source()
                     public class AndroidAsset internal constructor(internal val path: String): Source()
-                    public class Bitmap internal constructor(internal val bitmap: android.graphics.Bitmap): Source()
+                    public class Bitmap internal constructor(internal val bitmap: com.adapty.ui.internal.platform.Bitmap): Source()
                 }
 
                 internal enum class Dimension { WIDTH, HEIGHT }
@@ -338,10 +339,10 @@ public object AdaptyUI {
                     get() = if (hRes > 0 && vRes > 0) hRes.toFloat() / vRes.toFloat() else null
 
                 public sealed class Source {
-                    public class Uri internal constructor(public val uri: android.net.Uri): Source() {
+                    public class Uri internal constructor(public val uri: com.adapty.ui.internal.platform.Uri): Source() {
                         override fun equals(other: Any?): Boolean {
                             if (this === other) return true
-                            if (javaClass != other?.javaClass) return false
+                            if (other == null || this::class != other::class) return false
 
                             other as Uri
 
@@ -355,7 +356,7 @@ public object AdaptyUI {
                     public class AndroidAsset(public val path: String): Source() {
                         override fun equals(other: Any?): Boolean {
                             if (this === other) return true
-                            if (javaClass != other?.javaClass) return false
+                            if (other == null || this::class != other::class) return false
 
                             other as AndroidAsset
 
@@ -382,7 +383,7 @@ public object AdaptyUI {
         /**
          * @suppress
          */
-        @InternalAdaptyApi
+        @InternalAdaptyUiApi
         public class TextItem internal constructor(
             internal val value: RichText,
             internal val fallback: RichText?,
@@ -391,7 +392,7 @@ public object AdaptyUI {
         /**
          * @suppress
          */
-        @InternalAdaptyApi
+        @InternalAdaptyUiApi
         public class RichText internal constructor(internal val items: List<Item>) {
             internal constructor(item: Item): this(listOf(item))
 
@@ -437,7 +438,7 @@ public object AdaptyUI {
         /**
          * @suppress
          */
-        @InternalAdaptyApi
+        @InternalAdaptyUiApi
         public sealed class Screen(
             internal val onSystemBack: List<com.adapty.ui.internal.ui.element.Action>? = null,
             internal val onOutsideTap: List<com.adapty.ui.internal.ui.element.Action>? = null,

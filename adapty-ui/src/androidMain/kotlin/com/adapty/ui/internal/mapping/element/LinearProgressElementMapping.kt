@@ -1,18 +1,18 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.mapping.element
 
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.adaptyError
+import com.adapty.ui.internal.mapping.attributes.toAction
 import com.adapty.ui.internal.mapping.attributes.toAspectRatio
 import com.adapty.ui.internal.mapping.attributes.toCornerRadius
 import com.adapty.ui.internal.mapping.attributes.toHorizontalAlign
 import com.adapty.ui.internal.mapping.attributes.toInterpolator
 import com.adapty.ui.internal.mapping.attributes.toOneWayBinding
-import com.adapty.ui.internal.mapping.attributes.toAction
 import com.adapty.ui.internal.mapping.attributes.toVerticalAlign
 import com.adapty.ui.internal.mapping.attributes.toVisualValue
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.adaptyError
 import com.adapty.ui.internal.ui.attributes.HorizontalAlign
 import com.adapty.ui.internal.ui.attributes.VerticalAlign
 import com.adapty.ui.internal.ui.element.LinearProgressElement

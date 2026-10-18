@@ -1,12 +1,12 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.store
 
 import android.app.Activity
 import com.adapty.Adapty
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyWebPresentation
 import com.adapty.ui.internal.listeners.ContextAwareEventListener
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.log

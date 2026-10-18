@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui
 
@@ -7,13 +7,13 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.mapping.element.Texts
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.StateAccessor
+import com.adapty.ui.internal.store.FocusCommand
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.store.ScrollCommand
-import com.adapty.ui.internal.store.FocusCommand
 import com.adapty.ui.internal.store.TimerSetCommand
 import com.adapty.ui.internal.ui.element.ResolveAssets
 import com.adapty.ui.internal.ui.element.ResolveState
@@ -52,15 +52,15 @@ internal val LocalResolveText = staticCompositionLocalOf<ResolveText> {
     @Composable { _, _ -> error("LocalResolveText not provided") }
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 @Composable
 public fun resolveAssets(): Assets = LocalResolveAssets.current()
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 @Composable
 public fun resolveState(): StateAccessor = LocalResolveState.current()
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public val resolveText: ResolveText @Composable get() = LocalResolveText.current
 
 internal val FAKE_NAVIGATOR_ENTRY = NavigationEntry(

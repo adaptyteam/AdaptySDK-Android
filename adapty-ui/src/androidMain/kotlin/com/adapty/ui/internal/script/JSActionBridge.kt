@@ -1,23 +1,24 @@
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.script
 
-import android.os.Looper
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.runOnMain
+import com.adapty.ui.internal.platform.AtomicRef
+import com.adapty.ui.internal.platform.ConcurrentQueue
+import com.adapty.ui.internal.platform.ERROR
+import com.adapty.ui.internal.platform.INFO
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.VERBOSE
+import com.adapty.ui.internal.platform.WARN
+import com.adapty.ui.internal.platform.isMainThread
+import com.adapty.ui.internal.platform.platformMessage
+import com.adapty.ui.internal.platform.runOnMain
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.NavigationEntry
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.log
-import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
-import com.adapty.utils.AdaptyLogLevel.Companion.INFO
-import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
-import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.atomic.AtomicReference
 
 internal interface ActionHandler {
     fun onOpenUrl(source: Message.JSCallback.OpenUrl.Source, openIn: String?)
@@ -50,8 +51,8 @@ internal interface ActionHandler {
 }
 
 private class ActionHandlerSubject {
-    private val actionQueue = LinkedBlockingQueue<(ActionHandler) -> Unit>()
-    private val handlerRef = AtomicReference<ActionHandler?>()
+    private val actionQueue = ConcurrentQueue<(ActionHandler) -> Unit>()
+    private val handlerRef = AtomicRef<ActionHandler?>()
     private val MAX_QUEUE_SIZE = 100
 
     fun setHandler(handler: ActionHandler?) {
@@ -66,7 +67,7 @@ private class ActionHandlerSubject {
     fun getHandler(): ActionHandler? = handlerRef.get()
 
     private fun executeOnMain(action: () -> Unit) {
-        val isMainThread = Looper.getMainLooper().thread == Thread.currentThread()
+        val isMainThread = isMainThread()
         if (isMainThread) {
             action()
         } else {
@@ -107,7 +108,7 @@ private class ActionHandlerSubject {
             try {
                 executeOnMain { action(handler) }
             } catch (e: Exception) {
-                log(ERROR) { "$LOG_PREFIX Error executing queued action: ${e.localizedMessage}" }
+                log(ERROR) { "$LOG_PREFIX Error executing queued action: ${e.platformMessage}" }
             }
         }
     }
@@ -283,7 +284,7 @@ internal class JSActionBridge(private val gson: Gson) {
                 }
             }
         } catch (e: Exception) {
-            log(WARN) { "$LOG_PREFIX Invalid RPC call: $jsonString: ${e.localizedMessage}" }
+            log(WARN) { "$LOG_PREFIX Invalid RPC call: $jsonString: ${e.platformMessage}" }
         }
     }
 }

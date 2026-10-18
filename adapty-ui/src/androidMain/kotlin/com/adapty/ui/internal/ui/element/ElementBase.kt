@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.ui.element
@@ -10,24 +10,27 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.mapping.element.Assets
+import com.adapty.ui.internal.platform.ERROR
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.StateAccessor
+import com.adapty.ui.internal.script.get
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.text.StringWrapper
+import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.attributes.Animation
 import com.adapty.ui.internal.ui.attributes.Border
 import com.adapty.ui.internal.ui.attributes.Box
-import com.adapty.ui.internal.ui.attributes.toGradientAsset
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.DpOffset
 import com.adapty.ui.internal.ui.attributes.EdgeEntities
@@ -39,24 +42,21 @@ import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.asDpOffset
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.ui.attributes.toExactDp
+import com.adapty.ui.internal.ui.attributes.toGradientAsset
 import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
-import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.event.AnimationPlayback
 import com.adapty.ui.internal.ui.event.LocalEventDispatcher
-import com.adapty.ui.internal.ui.event.rememberActiveAnimations
 import com.adapty.ui.internal.ui.event.appearAnimations
+import com.adapty.ui.internal.ui.event.rememberActiveAnimations
 import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.ui.rememberOpacityProvider
 import com.adapty.ui.internal.ui.resolveAssets
-import com.adapty.ui.internal.script.get
-import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.Scope
 import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.getAsset
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.internal.utils.resolveAsset
-import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 
 internal val LocalActiveAnimations = staticCompositionLocalOf<State<AnimationPlayback?>> {
     mutableStateOf(null)
@@ -94,7 +94,7 @@ public object UnknownElement: UIElement {
     ): @Composable () -> Unit = {}
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public object SkippedElement: UIElement {
     override val baseProps: BaseProps = BaseProps.EMPTY
 
@@ -104,7 +104,7 @@ public object SkippedElement: UIElement {
     ): @Composable () -> Unit = {}
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public data class BaseProps internal constructor(
      internal val widthSpec: DimSpec? = null,
      internal val heightSpec: DimSpec? = null,
@@ -124,21 +124,21 @@ public data class BaseProps internal constructor(
     }
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public interface Container<T> {
     public var content: T
 }
 internal interface SingleContainer: Container<UIElement>
 internal interface MultiContainer: Container<List<UIElement>>
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public sealed class Condition {
     public class SelectedSection internal constructor(internal val sectionId: String, internal val index: Int): Condition()
     public class SelectedProduct internal constructor(internal val productId: String, internal val groupId: String): Condition()
     public object Unknown: Condition()
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class Action internal constructor(
     internal val func: String,
     internal val params: Map<String, Any?>,
@@ -169,11 +169,11 @@ internal fun ColumnScope.fillModifierWithScopedParams(element: UIElement, modifi
     return modifier
 }
 
-@OptIn(InternalAdaptyApi::class)
+@OptIn(InternalAdaptyUiApi::class)
 internal fun UIElement.explicitlyFillsRowHeight(): Boolean =
     layoutRelevantProps.heightSpec is DimSpec.FillMax
 
-@OptIn(InternalAdaptyApi::class)
+@OptIn(InternalAdaptyUiApi::class)
 internal fun UIElement.isVerticallyFlexible(): Boolean {
     when (layoutRelevantProps.heightSpec) {
         is DimSpec.Specified, is DimSpec.Shrink, is DimSpec.Min -> return false
@@ -197,7 +197,7 @@ internal fun UIElement.hugBoxChainEndsInText(): Boolean = when (this) {
     else -> false
 }
 
-@OptIn(InternalAdaptyApi::class)
+@OptIn(InternalAdaptyUiApi::class)
 internal fun UIElement.fillsColumnMainAxis(): Boolean {
     when (layoutRelevantProps.heightSpec) {
         is DimSpec.Specified, is DimSpec.Shrink, is DimSpec.Min -> return false
@@ -211,7 +211,7 @@ internal fun UIElement.fillsColumnMainAxis(): Boolean {
     }
 }
 
-@OptIn(InternalAdaptyApi::class)
+@OptIn(InternalAdaptyUiApi::class)
 @Composable
 internal fun UIElement.fillsColumnMainAxisResolved(): Boolean {
     when (layoutRelevantPropsResolved().heightSpec) {

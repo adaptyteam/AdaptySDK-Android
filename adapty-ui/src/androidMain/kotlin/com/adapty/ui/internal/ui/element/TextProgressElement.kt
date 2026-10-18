@@ -12,7 +12,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.script.toJsFloat
 import com.adapty.ui.internal.store.Message
@@ -36,7 +36,7 @@ private val DEFAULT_PERCENT_CONVERTER = ConverterSpec(
     params = mapOf(CONVERTER_PARAM_FORMAT to "%d"),
 )
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class TextProgressElement internal constructor(
     internal val value: OneWayBinding,
     internal val durationMillis: Int,

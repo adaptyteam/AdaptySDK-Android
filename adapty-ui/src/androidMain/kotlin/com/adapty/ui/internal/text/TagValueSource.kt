@@ -1,9 +1,9 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.text
 
 import androidx.compose.runtime.Composable
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.ui.resolveState
 import com.adapty.ui.internal.utils.Scope

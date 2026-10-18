@@ -1,16 +1,17 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.text
 
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformDate
+import com.adapty.ui.internal.platform.PlatformLocale
+import com.adapty.ui.internal.platform.WARN
+import com.adapty.ui.internal.platform.platformDate
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.log
-import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import java.text.DateFormat
 import java.text.DecimalFormatSymbols
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 private val NUMBER_FORMAT_REGEX = Regex("^%[+\\-0 ]*(\\d+)?(\\.\\d+)?[df]$")
 private val INTEGER_FORMAT_REGEX = Regex("^%[+\\-0 ]*\\d*d$")
@@ -29,10 +30,10 @@ internal data class ConverterSpec(
 
 internal sealed class TagConverter {
 
-    abstract fun format(value: Any, locale: Locale): String?
+    abstract fun format(value: Any, locale: PlatformLocale): String?
 
     class Percent(private val format: String) : TagConverter() {
-        override fun format(value: Any, locale: Locale): String? {
+        override fun format(value: Any, locale: PlatformLocale): String? {
             val raw = value.coerceToDouble() ?: return null
             val percent = raw.coerceIn(0.0, 1.0) * 100.0
             return runCatching {
@@ -46,7 +47,7 @@ internal sealed class TagConverter {
     }
 
     class Number(private val format: String) : TagConverter() {
-        override fun format(value: Any, locale: Locale): String? {
+        override fun format(value: Any, locale: PlatformLocale): String? {
             val raw = value.coerceToDouble() ?: return null
             return runCatching {
                 if (format.endsWith("d")) {
@@ -64,11 +65,11 @@ internal sealed class TagConverter {
         private val timeStyle: Int,
     ) : TagConverter() {
 
-        override fun format(value: Any, locale: Locale): String? {
+        override fun format(value: Any, locale: PlatformLocale): String? {
             val date = when (value) {
-                is Date -> value
+                is PlatformDate -> value
                 is Boolean -> return null
-                is kotlin.Number -> Date(value.toLong())
+                is kotlin.Number -> platformDate(value.toLong())
                 else -> return null
             }
             if (pattern == null && dateStyle == STYLE_NONE && timeStyle == STYLE_NONE) return ""
@@ -76,7 +77,7 @@ internal sealed class TagConverter {
             return runCatching { formatter.format(date) }.getOrNull()
         }
 
-        private fun buildFormatter(locale: Locale): DateFormat? {
+        private fun buildFormatter(locale: PlatformLocale): DateFormat? {
             if (pattern != null) {
                 return runCatching { SimpleDateFormat(pattern, locale) }.getOrNull()
             }
@@ -117,7 +118,7 @@ internal sealed class TagConverter {
     }
 
     sealed class Timer(val updatesPerSecond: Int) : TagConverter() {
-        final override fun format(value: Any, locale: Locale): String? {
+        final override fun format(value: Any, locale: PlatformLocale): String? {
             if (value is Boolean) return null
             val seconds = (value as? kotlin.Number)?.toDouble()?.coerceAtLeast(0.0) ?: return null
             return runCatching { formatSeconds(seconds) }.getOrNull()
@@ -249,7 +250,7 @@ private fun Any.coerceToDouble(): Double? = when (this) {
     else -> null
 }
 
-private fun String.applyDecimalSeparator(locale: Locale): String {
+private fun String.applyDecimalSeparator(locale: PlatformLocale): String {
     val sep = DecimalFormatSymbols.getInstance(locale).decimalSeparator
     return if (sep == '.') this else replace('.', sep)
 }

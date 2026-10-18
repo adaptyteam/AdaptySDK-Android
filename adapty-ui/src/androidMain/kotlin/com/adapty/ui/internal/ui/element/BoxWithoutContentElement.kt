@@ -9,15 +9,15 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.attributes.Align
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorHorizontal
 import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorVertical
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
-import com.adapty.ui.internal.store.Message
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class BoxWithoutContentElement internal constructor(
     internal val align: Align,
     override val baseProps: BaseProps,

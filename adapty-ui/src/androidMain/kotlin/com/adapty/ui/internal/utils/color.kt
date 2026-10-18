@@ -1,19 +1,19 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.utils
 
-import android.graphics.Color
 import androidx.annotation.ColorInt
 import androidx.compose.ui.graphics.Brush
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.adaptyError
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.adaptyError
+import com.adapty.ui.internal.platform.parseColorString
 import com.adapty.ui.internal.ui.attributes.ComposeFill
 
 @ColorInt
 internal fun String.parseColorInt(): Int {
     return try {
-        Color.parseColor(
+        parseColorString(
             when (length) {
                 9 -> rgbaToArgbStr(this)
                 else -> this

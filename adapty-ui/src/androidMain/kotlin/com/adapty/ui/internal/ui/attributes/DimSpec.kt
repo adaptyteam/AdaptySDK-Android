@@ -1,9 +1,9 @@
 package com.adapty.ui.internal.ui.attributes
 
 import androidx.compose.runtime.compositionLocalOf
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public sealed class DimSpec(internal val axis: Axis) {
     internal enum class Axis { X, Y }
 

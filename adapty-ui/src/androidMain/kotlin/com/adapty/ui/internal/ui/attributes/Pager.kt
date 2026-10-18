@@ -1,8 +1,8 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui.attributes
 
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.utils.VisualValue
 
 internal class PagerAnimation(
@@ -35,7 +35,7 @@ internal class PagerIndicator(
     }
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public sealed class PageSize {
     public class Unit internal constructor(internal val value: DimUnit): PageSize()
     public class PageFraction internal constructor(internal val fraction: Float): PageSize()

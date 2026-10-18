@@ -1,10 +1,10 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui.attributes
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 
 internal data class Offset(
     val y: DimUnit,

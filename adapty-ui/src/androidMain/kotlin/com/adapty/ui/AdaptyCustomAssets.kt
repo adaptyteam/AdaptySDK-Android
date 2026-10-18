@@ -2,17 +2,21 @@
 
 package com.adapty.ui
 
-import android.graphics.Bitmap
 import androidx.annotation.ColorInt
 import androidx.compose.ui.geometry.Offset
 import androidx.core.net.toUri
-import com.adapty.ui.AdaptyUI.FlowConfiguration
 import com.adapty.ui.AdaptyCustomImageAsset.Local
+import com.adapty.ui.AdaptyUI.FlowConfiguration
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Gradient
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Gradient.Points
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Gradient.Type
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Gradient.Value
-import com.adapty.utils.FileLocation
+import com.adapty.ui.internal.platform.Bitmap
+import com.adapty.ui.internal.platform.COLOR_BLACK
+import com.adapty.ui.internal.platform.FileLocation
+import com.adapty.ui.internal.platform.FileLocationAsset
+import com.adapty.ui.internal.platform.FileLocationUri
+import com.adapty.ui.internal.platform.toRadians
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -82,8 +86,8 @@ public sealed class AdaptyCustomImageAsset<T>(
         @JvmStatic
         public fun file(fileLocation: FileLocation): Local {
             val source = when (fileLocation) {
-                is FileLocation.Asset -> FlowConfiguration.Asset.Image.Source.AndroidAsset(fileLocation.relativePath)
-                is FileLocation.Uri -> FlowConfiguration.Asset.Image.Source.Uri(fileLocation.uri)
+                is FileLocationAsset -> FlowConfiguration.Asset.Image.Source.AndroidAsset(fileLocation.relativePath)
+                is FileLocationUri -> FlowConfiguration.Asset.Image.Source.Uri(fileLocation.uri)
             }
 
             return Local(
@@ -130,8 +134,8 @@ public class AdaptyCustomVideoAsset internal constructor(
         @JvmOverloads
         public fun file(fileLocation: FileLocation, preview: Local?, resolution: Resolution? = null): AdaptyCustomVideoAsset {
             val source = when (fileLocation) {
-                is FileLocation.Asset -> FlowConfiguration.Asset.Video.Source.AndroidAsset(fileLocation.relativePath)
-                is FileLocation.Uri -> FlowConfiguration.Asset.Video.Source.Uri(fileLocation.uri)
+                is FileLocationAsset -> FlowConfiguration.Asset.Video.Source.AndroidAsset(fileLocation.relativePath)
+                is FileLocationUri -> FlowConfiguration.Asset.Video.Source.Uri(fileLocation.uri)
             }
 
             return AdaptyCustomVideoAsset(
@@ -206,7 +210,7 @@ public class AdaptyCustomGradientAsset internal constructor(
             centerY: Float,
             angle: Float = 0f,
         ): AdaptyCustomGradientAsset {
-            val radians = Math.toRadians(angle.toDouble())
+            val radians = toRadians(angle.toDouble())
             val dx = cos(radians).toFloat()
             val dy = sin(radians).toFloat()
 
@@ -236,7 +240,7 @@ public class AdaptyCustomGradientAsset internal constructor(
             colorStops: List<ColorStop>,
             normalizedStart: Float
         ): List<ColorStop> {
-            val firstColor = colorStops.firstOrNull()?.color ?: android.graphics.Color.BLACK
+            val firstColor = colorStops.firstOrNull()?.color ?: COLOR_BLACK
             val padded = mutableListOf<ColorStop>()
 
             padded += ColorStop(0f, firstColor)

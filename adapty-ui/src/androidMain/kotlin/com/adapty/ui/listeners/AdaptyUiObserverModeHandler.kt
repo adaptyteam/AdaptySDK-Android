@@ -1,6 +1,6 @@
 package com.adapty.ui.listeners
 
-import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
 
 /**
  * If you use Adapty in [Observer mode](https://adapty.io/docs/observer-vs-full-mode),

@@ -1,5 +1,5 @@
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 
 package com.adapty.ui.listeners
 
@@ -8,12 +8,12 @@ import android.net.Uri
 import com.adapty.errors.AdaptyError
 import com.adapty.internal.data.cloud.BrowserLauncher
 import com.adapty.internal.di.Dependencies
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProfile
 import com.adapty.models.AdaptyPurchaseParameters
 import com.adapty.models.AdaptyPurchaseResult
 import com.adapty.ui.AdaptyUI
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.getActivityOrNull

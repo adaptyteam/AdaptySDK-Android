@@ -12,17 +12,17 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.store.Message
+import com.adapty.ui.internal.ui.ZeroIntrinsicsModifier
+import com.adapty.ui.internal.ui.allowVerticalOverflow
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.HorizontalAlign
 import com.adapty.ui.internal.ui.attributes.LocalParentImposesHeight
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
-import com.adapty.ui.internal.ui.allowVerticalOverflow
 import com.adapty.ui.internal.ui.fillWithBaseParams
-import com.adapty.ui.internal.ui.ZeroIntrinsicsModifier
-import com.adapty.ui.internal.store.Message
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class VStackElement internal constructor(
     override var content: List<UIElement>,
     internal val align: HorizontalAlign,

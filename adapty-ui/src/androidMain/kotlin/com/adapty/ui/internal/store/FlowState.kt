@@ -1,15 +1,15 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.store
 
-import com.adapty.errors.AdaptyError
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.AdaptyCustomAssets
 import com.adapty.ui.AdaptyFlowInsets
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.AdaptyUI.FlowConfiguration.TextItem
+import com.adapty.ui.internal.platform.AdaptyError
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.ui.NavigationEntry
 import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
 import com.adapty.ui.listeners.AdaptyFlowEventListener

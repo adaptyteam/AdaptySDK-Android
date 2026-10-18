@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.utils
 
@@ -7,14 +7,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.ui.resolveAssets
 import com.adapty.ui.internal.ui.resolveState
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class VisualValue(public val source: StringSource, public val orderedTypes: Set<Type>) {
     public enum class Type(public val condition: (String) -> Boolean) {
         ColorLiteral({ value -> value.matches(ColorRegex) }),
@@ -30,7 +30,7 @@ public class VisualValue(public val source: StringSource, public val orderedType
     }
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 @Composable
 internal inline fun <reified T: Asset.Filling> VisualValue.resolveAsset(): Asset.Composite<T>? {
     return source.resolve()?.let { value ->
@@ -65,7 +65,7 @@ internal fun VisualValue.resolveColorFilter(): ColorFilter? {
     }
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 @Composable
 public fun StringSource.resolve(): String? {
     return when (this) {
@@ -84,7 +84,7 @@ private fun Any.toBindingString(): String? = when (this) {
     else -> null
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public sealed class StringSource {
     public class Value internal constructor(public val value: String) : StringSource()
     public class Binding internal constructor(
@@ -95,21 +95,21 @@ public sealed class StringSource {
     ) : StringSource(), com.adapty.ui.internal.utils.Binding
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public interface Binding {
     public val variable: String
     public val scope: Scope
     public val converter: String? get() = null
     public val converterParams: Any? get() = null
 }
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class OneWayBinding(
     override val variable: String,
     override val scope: Scope,
     override val converter: String? = null,
     override val converterParams: Any? = null,
 ): Binding
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class TwoWayBinding(
     override val variable: String,
     override val scope: Scope,
@@ -117,5 +117,5 @@ public class TwoWayBinding(
     override val converter: String? = null,
     override val converterParams: Any? = null,
 ): Binding
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public enum class Scope { Screen, Global }

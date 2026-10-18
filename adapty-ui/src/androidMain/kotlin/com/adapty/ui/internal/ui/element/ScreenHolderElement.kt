@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.ui.element
@@ -19,22 +19,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.zIndex
-import com.adapty.ui.internal.utils.getRtlAware
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.LifecycleEvent
 import com.adapty.ui.internal.ui.LocalNavigatorConfig
 import com.adapty.ui.internal.ui.LocalNavigatorEntry
 import com.adapty.ui.internal.ui.LocalScreenBundle
 import com.adapty.ui.internal.ui.LocalScreenInstance
-import com.adapty.ui.internal.ui.attributes.LocalContentAlignment
 import com.adapty.ui.internal.ui.NavigationEntry
 import com.adapty.ui.internal.ui.applyAnimations
+import com.adapty.ui.internal.ui.attributes.LocalContentAlignment
 import com.adapty.ui.internal.ui.renderScreen
 import com.adapty.ui.internal.ui.resolveScreenLifecycle
 import com.adapty.ui.internal.ui.totalDurationMillis
+import com.adapty.ui.internal.utils.getRtlAware
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class ScreenHolderElement internal constructor(
     override val baseProps: BaseProps,
 ) : UIElement {

@@ -7,10 +7,10 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.store.Message
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 @Stable
 public interface UIElement {
     public val baseProps: BaseProps

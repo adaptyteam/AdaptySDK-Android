@@ -14,16 +14,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.script.toJsInt
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.attributes.Interpolator
 import com.adapty.ui.internal.ui.attributes.toEasing
 import com.adapty.ui.internal.ui.resolveState
-import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.utils.OneWayBinding
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class SectionElement internal constructor(
     internal val index: OneWayBinding,
     override var content: List<UIElement>,

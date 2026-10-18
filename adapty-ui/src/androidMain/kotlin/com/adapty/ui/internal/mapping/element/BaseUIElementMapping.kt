@@ -1,32 +1,32 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.mapping.element
 
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.adaptyError
 import com.adapty.ui.internal.mapping.attributes.toAssetVisualValue
 import com.adapty.ui.internal.mapping.attributes.toDimSpec
 import com.adapty.ui.internal.mapping.attributes.toEdgeEntities
 import com.adapty.ui.internal.mapping.attributes.toOffset
-import com.adapty.ui.internal.mapping.attributes.toShape
 import com.adapty.ui.internal.mapping.attributes.toOneWayBinding
+import com.adapty.ui.internal.mapping.attributes.toShape
 import com.adapty.ui.internal.mapping.attributes.toStaticRotation
 import com.adapty.ui.internal.mapping.attributes.toStaticScale
 import com.adapty.ui.internal.mapping.attributes.toVisualValue
-import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.adaptyError
 import com.adapty.ui.internal.ui.attributes.Animation
 import com.adapty.ui.internal.ui.attributes.Box
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.DimUnit
 import com.adapty.ui.internal.ui.attributes.EdgeEntities
 import com.adapty.ui.internal.ui.element.BaseProps
+import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.ui.element.BaseTextElement.OnOverflowMode
 import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.ui.event.EventHandler
 import com.adapty.ui.internal.ui.event.appearAnimations
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public fun Map<*, *>.extractBaseProps(): BaseProps {
     val isBox = this["type"] == "box"
     val eventHandlers = extractEventHandlers()

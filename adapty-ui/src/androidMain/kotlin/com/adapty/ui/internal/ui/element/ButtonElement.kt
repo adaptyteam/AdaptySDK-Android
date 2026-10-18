@@ -6,21 +6,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.store.Message
-import com.adapty.ui.internal.ui.buttonPressDim
-import com.adapty.ui.internal.ui.rememberOpacityProvider
-import androidx.compose.runtime.CompositionLocalProvider
 import com.adapty.ui.internal.ui.LocalInsideButton
 import com.adapty.ui.internal.ui.LocalOpacityProvider
 import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.LocalUiEnabled
+import com.adapty.ui.internal.ui.buttonPressDim
+import com.adapty.ui.internal.ui.rememberOpacityProvider
 import com.adapty.ui.internal.utils.DISABLED_ALPHA
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class ButtonElement internal constructor(
     internal val actions: List<Action>,
     internal val content: UIElement,

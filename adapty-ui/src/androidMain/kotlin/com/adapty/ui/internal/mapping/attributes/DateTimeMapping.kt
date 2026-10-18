@@ -1,5 +1,6 @@
 package com.adapty.ui.internal.mapping.attributes
 
+import com.adapty.ui.internal.platform.currentTimeMillis
 import com.adapty.ui.internal.ui.attributes.DateTime
 import java.util.Calendar
 import java.util.TimeZone
@@ -20,7 +21,7 @@ private fun Map<*, *>.toRelativeDateTime(anchorStr: String): DateTime? {
     val tz = anchorTimeZone ?: TimeZone.getDefault()
 
     val anchorTimeMs: Long = when (anchorStr) {
-        "start" -> System.currentTimeMillis()
+        "start" -> currentTimeMillis()
         "start_of_day" -> {
             Calendar.getInstance(tz).apply {
                 set(Calendar.HOUR_OF_DAY, 0)

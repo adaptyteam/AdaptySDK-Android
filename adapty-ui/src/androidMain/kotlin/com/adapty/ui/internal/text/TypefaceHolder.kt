@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.text
 
@@ -7,8 +7,8 @@ import android.graphics.Typeface
 import androidx.annotation.RestrictTo
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.TypefaceCompat
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import java.util.Locale
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)

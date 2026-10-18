@@ -1,13 +1,8 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.mapping.viewconfig
 
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.adaptyError
-import com.adapty.internal.utils.getAs
-import com.adapty.models.AdaptyFlow
 import com.adapty.ui.AdaptyUI.FlowConfiguration
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.mapping.element.ElementMapper
@@ -23,32 +18,39 @@ import com.adapty.ui.internal.mapping.element.toFlexElement
 import com.adapty.ui.internal.mapping.element.toFlexStackElement
 import com.adapty.ui.internal.mapping.element.toGraphicalDateTimePickerElement
 import com.adapty.ui.internal.mapping.element.toHStackElement
+import com.adapty.ui.internal.mapping.element.toHorizontalProgressElement
 import com.adapty.ui.internal.mapping.element.toIfElement
 import com.adapty.ui.internal.mapping.element.toImageElement
 import com.adapty.ui.internal.mapping.element.toLegacyButtonElement
 import com.adapty.ui.internal.mapping.element.toLegacyColumnElement
 import com.adapty.ui.internal.mapping.element.toLegacyRowElement
 import com.adapty.ui.internal.mapping.element.toPagerElement
+import com.adapty.ui.internal.mapping.element.toRadialProgressElement
 import com.adapty.ui.internal.mapping.element.toRowElement
 import com.adapty.ui.internal.mapping.element.toScreenHolderElement
+import com.adapty.ui.internal.mapping.element.toSectionElement
 import com.adapty.ui.internal.mapping.element.toSliderElement
-import com.adapty.ui.internal.mapping.element.toHorizontalProgressElement
-import com.adapty.ui.internal.mapping.element.toVerticalProgressElement
-import com.adapty.ui.internal.mapping.element.toRadialProgressElement
+import com.adapty.ui.internal.mapping.element.toSpaceElement
+import com.adapty.ui.internal.mapping.element.toSwitchElement
+import com.adapty.ui.internal.mapping.element.toTextElement
+import com.adapty.ui.internal.mapping.element.toTextFieldElement
 import com.adapty.ui.internal.mapping.element.toTextProgressElement
+import com.adapty.ui.internal.mapping.element.toTimerElement
+import com.adapty.ui.internal.mapping.element.toToggleElement
+import com.adapty.ui.internal.mapping.element.toVStackElement
+import com.adapty.ui.internal.mapping.element.toVerticalProgressElement
 import com.adapty.ui.internal.mapping.element.toWheelDateTimePickerElement
 import com.adapty.ui.internal.mapping.element.toWheelItemsPickerElement
 import com.adapty.ui.internal.mapping.element.toWheelPickerElement
 import com.adapty.ui.internal.mapping.element.toWheelRangePickerElement
-import com.adapty.ui.internal.mapping.element.toSectionElement
-import com.adapty.ui.internal.mapping.element.toSpaceElement
-import com.adapty.ui.internal.mapping.element.toSwitchElement
-import com.adapty.ui.internal.mapping.element.toTextElement
-import com.adapty.ui.internal.mapping.element.toTimerElement
-import com.adapty.ui.internal.mapping.element.toTextFieldElement
-import com.adapty.ui.internal.mapping.element.toToggleElement
-import com.adapty.ui.internal.mapping.element.toVStackElement
 import com.adapty.ui.internal.mapping.element.toZStackElement
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.AdaptyFlow
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.adaptyError
+import com.adapty.ui.internal.platform.defaultLocale
+import com.adapty.ui.internal.platform.getAs
+import com.adapty.ui.internal.platform.localeForTag
 import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.utils.FORMAT_VERSION_5_0_0
 import com.adapty.ui.internal.utils.FlowMode
@@ -156,9 +158,9 @@ internal class ViewConfigurationMapper(
         val androidLocaleId = resolvedLocalization?.getAs<String>(ANDROID_LOCALE_ID)
             ?: defaultLocalization?.getAs<String>(ANDROID_LOCALE_ID)
         val converterLocale = androidLocaleId
-            ?.let { runCatching { java.util.Locale.forLanguageTag(it) }.getOrNull() }
+            ?.let { runCatching { localeForTag(it) }.getOrNull() }
             ?.takeUnless { it.language.isNullOrEmpty() }
-            ?: java.util.Locale.getDefault()
+            ?: defaultLocale()
 
         val behavior = config.getAs<JsonObject>("behavior")
         val showPurchaseLoader = behavior?.getAs<Boolean>("show_purchase_loader") ?: true

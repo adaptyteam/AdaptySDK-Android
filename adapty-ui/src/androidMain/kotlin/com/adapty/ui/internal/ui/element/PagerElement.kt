@@ -38,8 +38,15 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isFinite
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.platform.ERROR
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.platformMessage
+import com.adapty.ui.internal.script.get
+import com.adapty.ui.internal.script.toJsInt
+import com.adapty.ui.internal.store.Message
+import com.adapty.ui.internal.ui.LocalScreenInstance
+import com.adapty.ui.internal.ui.ZeroIntrinsicsModifier
 import com.adapty.ui.internal.ui.attributes.ComposeFill
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.EdgeEntities
@@ -64,13 +71,8 @@ import com.adapty.ui.internal.ui.attributes.toPaddingValues
 import com.adapty.ui.internal.ui.attributes.toPositivePaddingValues
 import com.adapty.ui.internal.ui.attributes.verticalSumOrDefault
 import com.adapty.ui.internal.ui.marginsOrSkip
-import com.adapty.ui.internal.ui.resolveAssets
-import com.adapty.ui.internal.script.get
-import com.adapty.ui.internal.script.toJsInt
-import com.adapty.ui.internal.store.Message
-import com.adapty.ui.internal.ui.LocalScreenInstance
-import com.adapty.ui.internal.ui.ZeroIntrinsicsModifier
 import com.adapty.ui.internal.ui.negativePaddingInset
+import com.adapty.ui.internal.ui.resolveAssets
 import com.adapty.ui.internal.ui.resolveState
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.TwoWayBinding
@@ -78,7 +80,6 @@ import com.adapty.ui.internal.utils.areAnimationsDisabled
 import com.adapty.ui.internal.utils.getAsset
 import com.adapty.ui.internal.utils.log
 import com.adapty.ui.internal.utils.resolveAsset
-import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -86,7 +87,7 @@ import kotlinx.coroutines.flow.map
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class PagerElement internal constructor(
     internal val pageWidth: PageSize,
     internal val pageHeight: PageSize,
@@ -200,7 +201,7 @@ public class PagerElement internal constructor(
                     )
                     runCatching { pagerIndicator.vAlign + HorizontalAlign.CENTER }
                         .getOrElse { e ->
-                            log(ERROR) { "$LOG_PREFIX Couldn't resolve pager indicator alignment: ${e.localizedMessage}" }
+                            log(ERROR) { "$LOG_PREFIX Couldn't resolve pager indicator alignment: ${e.platformMessage}" }
                             null
                         }
                         ?.let { pagerIndicatorAlign ->

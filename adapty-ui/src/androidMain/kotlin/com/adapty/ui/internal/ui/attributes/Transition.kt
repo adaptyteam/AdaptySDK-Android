@@ -1,11 +1,11 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui.attributes
 
 import androidx.compose.animation.core.Easing
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class Transition internal constructor(
     internal val durationMillis: Float,
     internal val startDelayMillis: Float,

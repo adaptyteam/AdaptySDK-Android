@@ -1,21 +1,19 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.ui
 
-import android.annotation.SuppressLint
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.isImeVisible
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.clickable
-import androidx.activity.OnBackPressedCallback
-import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
-import androidx.compose.runtime.key
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -23,68 +21,70 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.adapty.ui.internal.ui.attributes.Shape
-import androidx.compose.ui.platform.LocalFocusManager
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
-import androidx.core.graphics.Insets
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.Insets
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyFlowInsets
 import com.adapty.ui.AdaptyUI
+import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.listeners.ContextAwareEventListener
+import com.adapty.ui.internal.platform.AtomicLongRef
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.VERBOSE
+import com.adapty.ui.internal.platform.WARN
+import com.adapty.ui.internal.script.ActionHandler
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.text.StringId
+import com.adapty.ui.internal.ui.attributes.AppearanceAnimation
+import com.adapty.ui.internal.ui.attributes.Shape
+import com.adapty.ui.internal.ui.attributes.toComposeAlignment
+import com.adapty.ui.internal.ui.attributes.toComposeFill
+import com.adapty.ui.internal.ui.element.Action
 import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.ui.element.render
 import com.adapty.ui.internal.ui.event.LocalEventDispatcher
+import com.adapty.ui.internal.utils.INSETS_DELIVERY_WAIT_FRAMES
 import com.adapty.ui.internal.utils.InsetWrapper
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LocalCustomInsets
 import com.adapty.ui.internal.utils.LocalSafeAreaInsets
 import com.adapty.ui.internal.utils.LocalScreenDimensions
-import com.adapty.ui.internal.utils.getRtlAware
-import com.adapty.ui.internal.utils.computeSafeAreaInsets
 import com.adapty.ui.internal.utils.ScreenDimensions
+import com.adapty.ui.internal.utils.computeSafeAreaInsets
+import com.adapty.ui.internal.utils.fallbackBarOrCutoutInsets
 import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.getInsets
-import com.adapty.ui.internal.listeners.ContextAwareEventListener
+import com.adapty.ui.internal.utils.getRtlAware
 import com.adapty.ui.internal.utils.log
-import com.adapty.ui.internal.utils.INSETS_DELIVERY_WAIT_FRAMES
-import com.adapty.ui.internal.utils.fallbackBarOrCutoutInsets
+import com.adapty.ui.internal.utils.resolveAsset
 import com.adapty.ui.internal.utils.rootBarOrCutoutInsets
 import com.adapty.ui.internal.utils.systemInsetsDelivered
 import com.adapty.ui.internal.utils.wrap
-import com.adapty.ui.internal.script.ActionHandler
-import com.adapty.ui.internal.store.Message
-import com.adapty.ui.internal.ui.element.Action
-import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
-import com.adapty.ui.internal.ui.attributes.AppearanceAnimation
-import com.adapty.ui.internal.ui.attributes.toComposeAlignment
-import com.adapty.ui.internal.ui.attributes.toComposeFill
-import com.adapty.ui.internal.utils.resolveAsset
-import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
-import com.adapty.utils.AdaptyLogLevel.Companion.WARN
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public data class NavigationEntry(
     val screenInstanceId: String,
     val screenType: String,
@@ -94,12 +94,12 @@ public data class NavigationEntry(
     val epoch: Long = nextEpoch(),
 ) {
     internal companion object {
-        private val counter = java.util.concurrent.atomic.AtomicLong(0)
+        private val counter = AtomicLongRef(0)
         internal fun nextEpoch(): Long = counter.incrementAndGet()
     }
 }
 
-@SuppressLint("UnusedBoxWithConstraintsScope")
+@Suppress("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {

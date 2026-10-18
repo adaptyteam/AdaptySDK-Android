@@ -1,17 +1,17 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.mapping.viewconfig
 
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.adaptyError
-import com.adapty.internal.utils.getAs
 import com.adapty.ui.AdaptyUI.FlowConfiguration.RichText
 import com.adapty.ui.AdaptyUI.FlowConfiguration.TextItem
 import com.adapty.ui.internal.mapping.attributes.toAction
 import com.adapty.ui.internal.mapping.attributes.toAssetVisualValue
 import com.adapty.ui.internal.mapping.attributes.toVisualValue
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.adaptyError
+import com.adapty.ui.internal.platform.getAs
 import com.adapty.ui.internal.text.CONVERTER_PARAM_DATE_STYLE
 import com.adapty.ui.internal.text.CONVERTER_PARAM_FORMAT
 import com.adapty.ui.internal.text.CONVERTER_PARAM_TIME_STYLE

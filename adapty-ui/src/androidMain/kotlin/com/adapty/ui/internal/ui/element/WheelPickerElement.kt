@@ -1,5 +1,5 @@
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui.element
 
@@ -10,9 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.mapping.element.Assets
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.text.ComposeTextAttrs
@@ -31,7 +31,7 @@ import com.adapty.ui.internal.utils.getAsset
 import com.adapty.ui.internal.utils.parseColorInt
 import com.adapty.ui.internal.utils.resolve
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public sealed class WheelPickerDataSource {
     internal abstract fun generateItems(): List<WheelPickerItem>
 
@@ -105,7 +105,7 @@ internal class WheelPickerItem(
     val stringId: StringId? = null,
 )
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class WheelPickerElement internal constructor(
     internal val value: TwoWayBinding,
     internal val dataSource: WheelPickerDataSource,

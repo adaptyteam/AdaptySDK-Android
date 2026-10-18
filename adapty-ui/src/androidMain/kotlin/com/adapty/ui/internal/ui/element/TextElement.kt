@@ -4,13 +4,13 @@ package com.adapty.ui.internal.ui.element
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.ui.attributes.TextAlign
 import com.adapty.ui.internal.ui.resolveText
-import com.adapty.ui.internal.store.Message
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class TextElement internal constructor(
     internal val stringId: StringId,
     textAlign: TextAlign,

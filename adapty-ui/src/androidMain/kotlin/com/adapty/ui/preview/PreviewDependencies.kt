@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.preview
@@ -10,7 +10,6 @@ import com.adapty.internal.di.Dependencies
 import com.adapty.internal.utils.AdaptyUiAccessor
 import com.adapty.internal.utils.CrossplatformMetaRetriever
 import com.adapty.internal.utils.HashingHelper
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.MetaInfoRetriever
 import com.adapty.internal.utils.PriceFormatter
 import com.adapty.ui.internal.cache.CacheCleanupService
@@ -20,6 +19,7 @@ import com.adapty.ui.internal.cache.MediaDownloader
 import com.adapty.ui.internal.cache.MediaFetchService
 import com.adapty.ui.internal.cache.MediaSaver
 import com.adapty.ui.internal.cache.SingleMediaHandlerFactory
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.JSActionBridge
 import com.adapty.ui.internal.script.JSStateHandler
 import com.adapty.ui.internal.script.JSStateMachine

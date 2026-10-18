@@ -17,13 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.script.toJsFloat
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.LocalUiEnabled
 import com.adapty.ui.internal.ui.resolveState
-import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.utils.DISABLED_ALPHA
 import com.adapty.ui.internal.utils.TwoWayBinding
 
@@ -32,7 +32,7 @@ private val ThumbSize = 28.dp
 private val ThumbElevation = 4.dp
 private val InactiveTrackColor = Color(0xFFE5E5EA)
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class SliderElement internal constructor(
     internal val value: TwoWayBinding,
     internal val min: Float,

@@ -1,12 +1,12 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.mapping.viewconfig
 
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.adaptyError
-import com.adapty.internal.utils.getAs
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.adaptyError
+import com.adapty.ui.internal.platform.getAs
 import com.adapty.ui.internal.utils.DEFAULT_PRODUCT_GROUP
 import com.adapty.ui.internal.utils.FORMAT_VERSION_5_0_0
 import com.adapty.ui.internal.utils.getProductGroupKey

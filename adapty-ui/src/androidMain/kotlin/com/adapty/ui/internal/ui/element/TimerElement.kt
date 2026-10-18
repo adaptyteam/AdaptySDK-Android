@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.ui.element
@@ -12,10 +12,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration
 import com.adapty.ui.AdaptyUI.FlowConfiguration.RichText
 import com.adapty.ui.AdaptyUI.FlowConfiguration.TextItem
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.currentTimeMillis
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.text.ConverterSpec
 import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.text.TagConverter
@@ -25,13 +27,12 @@ import com.adapty.ui.internal.ui.LocalTexts
 import com.adapty.ui.internal.ui.LocalTimerCommands
 import com.adapty.ui.internal.ui.attributes.TextAlign
 import com.adapty.ui.internal.ui.resolveText
-import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.utils.StringSource
 import kotlinx.coroutines.delay
 
 internal const val TIMER_TAG = "TIMER"
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class TimerElement internal constructor(
     internal val id: String,
     internal val actions: List<Action>,
@@ -66,7 +67,7 @@ public class TimerElement internal constructor(
         var timerMillis by rememberSaveable(timerCommand?.endAtSeconds) {
             mutableLongStateOf(
                 if (timerCommand != null)
-                    (timerCommand.endAtSeconds * 1000L - System.currentTimeMillis()).coerceAtLeast(0L)
+                    (timerCommand.endAtSeconds * 1000L - currentTimeMillis()).coerceAtLeast(0L)
                 else 0L
             )
         }
@@ -75,7 +76,7 @@ public class TimerElement internal constructor(
             if (timerCommand == null) return@LaunchedEffect
             val endAtMillis = timerCommand.endAtSeconds * 1000L
             while (true) {
-                val remainingMillis = (endAtMillis - System.currentTimeMillis()).coerceAtLeast(0L)
+                val remainingMillis = (endAtMillis - currentTimeMillis()).coerceAtLeast(0L)
                 timerMillis = remainingMillis
                 if (remainingMillis == 0L) break
                 delay(remainingMillis % tickIntervalMs + 1)

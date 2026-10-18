@@ -1,25 +1,25 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.script
 
-import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.ERROR
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.WARN
+import com.adapty.ui.internal.platform.WeakRef
+import com.adapty.ui.internal.platform.concurrentMapOf
+import com.adapty.ui.internal.platform.concurrentSetOf
+import com.adapty.ui.internal.platform.platformMessage
 import com.adapty.ui.internal.ui.NavigationEntry
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.Scope
 import com.adapty.ui.internal.utils.TwoWayBinding
 import com.adapty.ui.internal.utils.log
-import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
-import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.google.gson.Gson
 import kotlinx.coroutines.CancellationException
-import java.lang.ref.WeakReference
-import java.util.Collections
-import java.util.concurrent.ConcurrentHashMap
 
 internal class JSStateHandler(
     private val stateMachine: JSStateMachine,
@@ -76,15 +76,11 @@ internal class JSStateHandler(
 
     override var onStateRefreshed: (() -> Unit)? = null
 
-    private val stateCells = ConcurrentHashMap<String, MutableState<Any?>>()
+    private val stateCells = concurrentMapOf<String, MutableState<Any?>>()
 
-    private val staticKeys = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        ConcurrentHashMap.newKeySet<String>()
-    } else {
-        Collections.newSetFromMap(ConcurrentHashMap())
-    }
+    private val staticKeys = concurrentSetOf<String>()
 
-    private val setterExistsCache = ConcurrentHashMap<String, Boolean>()
+    private val setterExistsCache = concurrentMapOf<String, Boolean>()
 
     private fun cell(key: String): MutableState<Any?> =
         stateCells.getOrPut(key) { mutableStateOf(null) }
@@ -102,7 +98,7 @@ internal class JSStateHandler(
         stateOwnerRef = null
     }
 
-    private var stateOwnerRef: WeakReference<Any>? = null
+    private var stateOwnerRef: WeakRef<Any>? = null
 
     init {
         stateMachine.onEngineStateLost = { stateOwnerRef = null }
@@ -111,7 +107,7 @@ internal class JSStateHandler(
     override var stateOwner: Any?
         get() = stateOwnerRef?.get()
         set(value) {
-            stateOwnerRef = value?.let { WeakReference(it) }
+            stateOwnerRef = value?.let { WeakRef(it) }
         }
 
     override suspend fun collectStateSnapshot(): Map<String, Any?>? {
@@ -336,7 +332,7 @@ internal class JSStateHandler(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            log(ERROR) { "$LOG_PREFIX_ERROR Error refreshing state cache: ${e.localizedMessage}" }
+            log(ERROR) { "$LOG_PREFIX_ERROR Error refreshing state cache: ${e.platformMessage}" }
         }
     }
 

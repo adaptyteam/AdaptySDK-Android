@@ -1,13 +1,10 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.store
 
 import com.adapty.internal.domain.models.BackendProduct
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.extractProducts
-import com.adapty.models.AdaptyFlow
-import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.AdaptyCustomAssets
 import com.adapty.ui.AdaptyCustomColorAsset
 import com.adapty.ui.AdaptyCustomFontAsset
@@ -17,6 +14,10 @@ import com.adapty.ui.AdaptyCustomVideoAsset
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image
+import com.adapty.ui.internal.platform.AdaptyFlow
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.WARN
 import com.adapty.ui.internal.ui.UserArgs
 import com.adapty.ui.internal.utils.CUSTOM_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.DARK_THEME_ASSET_SUFFIX
@@ -25,7 +26,6 @@ import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.VIDEO_PREVIEW_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.isLive
 import com.adapty.ui.internal.utils.log
-import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 
 internal fun buildInitialState(
     userArgs: UserArgs,

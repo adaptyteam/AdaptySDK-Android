@@ -1,12 +1,12 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.mapping.element
 
 import android.content.res.Resources
 import android.os.Build
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.adaptyError
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.adaptyError
 import com.adapty.ui.internal.ui.attributes.Condition
 import com.adapty.ui.internal.utils.CONFIGURATION_FORMAT_VERSION
 import com.adapty.ui.internal.utils.isSameOrNewerVersionThan

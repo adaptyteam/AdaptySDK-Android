@@ -1,10 +1,11 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.preview
 
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.internal.mapping.viewconfig.ViewConfigurationMapper
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.currentTimeMillis
 import com.adapty.ui.internal.utils.AdaptyUiVideoAccessor
 import com.adapty.ui.internal.utils.FlowMode
 import com.adapty.ui.internal.utils.isSameOrNewerVersionThan
@@ -166,7 +167,7 @@ public object AdaptyUIPreview {
             FlowMode.Preview,
         )
 
-    private fun previewId() = "preview_${System.currentTimeMillis()}"
+    private fun previewId() = "preview_${currentTimeMillis()}"
 
     private fun defaultNavigator(): Map<String, Any?> = mapOf(
         "background" to "#000000FF",

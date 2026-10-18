@@ -1,29 +1,29 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.text
 
 import androidx.compose.runtime.Composable
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.models.AdaptyPaywallProduct
-import com.adapty.models.AdaptyPeriodUnit
-import com.adapty.models.AdaptyPeriodUnit.DAY
-import com.adapty.models.AdaptyPeriodUnit.MONTH
-import com.adapty.models.AdaptyPeriodUnit.WEEK
-import com.adapty.models.AdaptyPeriodUnit.YEAR
-import com.adapty.models.AdaptyProductDiscountPhase
-import com.adapty.models.AdaptyProductDiscountPhase.PaymentMode
 import com.adapty.ui.AdaptyUI.FlowConfiguration.RichText
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.mapping.element.Products
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.AdaptyPaywallProductPrice
+import com.adapty.ui.internal.platform.AdaptyPeriodUnit
+import com.adapty.ui.internal.platform.AdaptyProductDiscountPhase
+import com.adapty.ui.internal.platform.BigDecimalLike
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PaymentMode
+import com.adapty.ui.internal.platform.PlatformLocale
+import com.adapty.ui.internal.platform.RoundingMode
+import com.adapty.ui.internal.platform.bigDecimalTen
+import com.adapty.ui.internal.platform.bigDecimalZero
+import com.adapty.ui.internal.platform.defaultLocale
 import com.adapty.ui.internal.ui.PriceFormatting
 import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.utils.firstDiscountOfferOrNull
 import com.adapty.ui.listeners.AdaptyUiTagResolver
-import java.math.BigDecimal
-import java.math.RoundingMode
 import java.text.NumberFormat
 import java.util.Currency
-import java.util.Locale
 
 public enum class MissingTagKind { UNKNOWN_TAG, EMPTY_VARIABLE }
 
@@ -31,7 +31,7 @@ internal class TagResolver(
     private val priceFormatter: PriceFormatting,
     private val priceConverter: PriceConverter,
     var customTagResolver: AdaptyUiTagResolver,
-    private val locale: Locale = Locale.getDefault(),
+    private val locale: PlatformLocale = defaultLocale(),
     private val missingTagHandler: ((tag: String, kind: MissingTagKind) -> String?)? = null,
 ) {
 
@@ -41,7 +41,7 @@ internal class TagResolver(
         tagValues: Map<String, TagValueSource>?,
         textElementAttrs: Attributes?,
         assets: Assets,
-        locale: Locale,
+        locale: PlatformLocale,
         literalOnly: Boolean,
     ): StringWrapper.Str? {
         val source = tagValues?.get(item.tag) ?: return null
@@ -101,17 +101,17 @@ internal class TagResolver(
             ProductTags.currencyCode -> product.price.currencyCode
             ProductTags.currencySymbol -> product.price.currencySymbol
             ProductTags.subscriptionPeriod -> product.subscriptionDetails?.localizedSubscriptionPeriod
-            ProductTags.pricePerDay -> createPricePerPeriodText(product, DAY)
-            ProductTags.pricePerWeek -> createPricePerPeriodText(product, WEEK)
-            ProductTags.pricePerMonth -> createPricePerPeriodText(product, MONTH)
-            ProductTags.pricePerYear -> createPricePerPeriodText(product, YEAR)
+            ProductTags.pricePerDay -> createPricePerPeriodText(product, AdaptyPeriodUnit.DAY)
+            ProductTags.pricePerWeek -> createPricePerPeriodText(product, AdaptyPeriodUnit.WEEK)
+            ProductTags.pricePerMonth -> createPricePerPeriodText(product, AdaptyPeriodUnit.MONTH)
+            ProductTags.pricePerYear -> createPricePerPeriodText(product, AdaptyPeriodUnit.YEAR)
             ProductTags.offerPrice -> firstDiscountOfferIfExists?.price?.localizedString
             ProductTags.offerPeriod -> firstDiscountOfferIfExists?.localizedSubscriptionPeriod
             ProductTags.offerNumberOfPeriods -> firstDiscountOfferIfExists?.localizedNumberOfPeriods
-            ProductTags.offerPricePerDay -> createOfferPricePerPeriodText(firstDiscountOfferIfExists, DAY)
-            ProductTags.offerPricePerWeek -> createOfferPricePerPeriodText(firstDiscountOfferIfExists, WEEK)
-            ProductTags.offerPricePerMonth -> createOfferPricePerPeriodText(firstDiscountOfferIfExists, MONTH)
-            ProductTags.offerPricePerYear -> createOfferPricePerPeriodText(firstDiscountOfferIfExists, YEAR)
+            ProductTags.offerPricePerDay -> createOfferPricePerPeriodText(firstDiscountOfferIfExists, AdaptyPeriodUnit.DAY)
+            ProductTags.offerPricePerWeek -> createOfferPricePerPeriodText(firstDiscountOfferIfExists, AdaptyPeriodUnit.WEEK)
+            ProductTags.offerPricePerMonth -> createOfferPricePerPeriodText(firstDiscountOfferIfExists, AdaptyPeriodUnit.MONTH)
+            ProductTags.offerPricePerYear -> createOfferPricePerPeriodText(firstDiscountOfferIfExists, AdaptyPeriodUnit.YEAR)
             else -> ""
         }.orEmpty()
         return StringWrapper.Str(text, item.attrs?.let { ComposeTextAttrs.from(it, textElementAttrs, assets) }, item.actions)
@@ -121,7 +121,7 @@ internal class TagResolver(
         val subscriptionPeriod = product.subscriptionDetails?.subscriptionPeriod
         val price = product.price
         val unit =
-            subscriptionPeriod?.unit?.takeIf { it in listOf(DAY, WEEK, MONTH, YEAR) } ?: return null
+            subscriptionPeriod?.unit?.takeIf { it in listOf(AdaptyPeriodUnit.DAY, AdaptyPeriodUnit.WEEK, AdaptyPeriodUnit.MONTH, AdaptyPeriodUnit.YEAR) } ?: return null
         val numberOfUnits = subscriptionPeriod.numberOfUnits.takeIf { it > 0 } ?: return null
         val localizedPrice = price.localizedString
         return when {
@@ -133,9 +133,9 @@ internal class TagResolver(
                         4,
                         RoundingMode.CEILING
                     )
-                    DAY -> priceConverter.toDaily(price.amount, unit, numberOfUnits)
-                    WEEK -> priceConverter.toWeekly(price.amount, unit, numberOfUnits)
-                    MONTH -> priceConverter.toMonthly(price.amount, unit, numberOfUnits)
+                    AdaptyPeriodUnit.DAY -> priceConverter.toDaily(price.amount, unit, numberOfUnits)
+                    AdaptyPeriodUnit.WEEK -> priceConverter.toWeekly(price.amount, unit, numberOfUnits)
+                    AdaptyPeriodUnit.MONTH -> priceConverter.toMonthly(price.amount, unit, numberOfUnits)
                     else -> priceConverter.toYearly(price.amount, unit, numberOfUnits)
                 }
                 priceFormatter.format(pricePerPeriod, localizedPrice)
@@ -149,14 +149,14 @@ internal class TagResolver(
     ): String? {
         offer ?: return null
         val period = offer.subscriptionPeriod
-        val unit = period.unit.takeIf { it in listOf(DAY, WEEK, MONTH, YEAR) } ?: return null
+        val unit = period.unit.takeIf { it in listOf(AdaptyPeriodUnit.DAY, AdaptyPeriodUnit.WEEK, AdaptyPeriodUnit.MONTH, AdaptyPeriodUnit.YEAR) } ?: return null
         val numberOfUnits = period.numberOfUnits.takeIf { it > 0 } ?: return null
 
-        val effectiveAmount: BigDecimal
+        val effectiveAmount: BigDecimalLike
         val repeatCount: Int
         when (offer.paymentMode) {
             PaymentMode.FREE_TRIAL -> {
-                effectiveAmount = BigDecimal.ZERO
+                effectiveAmount = bigDecimalZero()
                 repeatCount = 1
             }
             PaymentMode.PAY_UPFRONT -> {
@@ -169,15 +169,15 @@ internal class TagResolver(
             }
         }
 
-        if (effectiveAmount.compareTo(BigDecimal.ZERO) == 0) {
-            return priceFormatter.format(BigDecimal.ZERO, offer.price.localizedString)
+        if (effectiveAmount.compareTo(bigDecimalZero()) == 0) {
+            return priceFormatter.format(bigDecimalZero(), offer.price.localizedString)
         }
 
         val singlePeriodPrice = when (targetUnit) {
             unit -> effectiveAmount.divide(numberOfUnits.toBigDecimal(), 4, RoundingMode.CEILING)
-            DAY -> priceConverter.toDaily(effectiveAmount, unit, numberOfUnits)
-            WEEK -> priceConverter.toWeekly(effectiveAmount, unit, numberOfUnits)
-            MONTH -> priceConverter.toMonthly(effectiveAmount, unit, numberOfUnits)
+            AdaptyPeriodUnit.DAY -> priceConverter.toDaily(effectiveAmount, unit, numberOfUnits)
+            AdaptyPeriodUnit.WEEK -> priceConverter.toWeekly(effectiveAmount, unit, numberOfUnits)
+            AdaptyPeriodUnit.MONTH -> priceConverter.toMonthly(effectiveAmount, unit, numberOfUnits)
             else -> priceConverter.toYearly(effectiveAmount, unit, numberOfUnits)
         }
 
@@ -197,7 +197,7 @@ internal class TagResolver(
         }
     }
 
-    private fun formatPriceAmount(price: AdaptyPaywallProduct.Price): String {
+    private fun formatPriceAmount(price: AdaptyPaywallProductPrice): String {
         val fractionDigits = fractionDigitsForCurrency(price.currencyCode)
         val formatter = NumberFormat.getInstance(locale)
         formatter.minimumFractionDigits = fractionDigits
@@ -206,7 +206,7 @@ internal class TagResolver(
         return formatter.format(price.amount)
     }
 
-    private fun formatPriceAmountInteger(price: AdaptyPaywallProduct.Price): String {
+    private fun formatPriceAmountInteger(price: AdaptyPaywallProductPrice): String {
         val formatter = NumberFormat.getInstance(locale)
         formatter.maximumFractionDigits = 0
         formatter.roundingMode = RoundingMode.DOWN
@@ -214,10 +214,10 @@ internal class TagResolver(
         return formatter.format(price.amount)
     }
 
-    private fun formatPriceAmountFraction(price: AdaptyPaywallProduct.Price): String? {
+    private fun formatPriceAmountFraction(price: AdaptyPaywallProductPrice): String? {
         val fractionDigits = fractionDigitsForCurrency(price.currencyCode)
         if (fractionDigits <= 0) return null
-        val multiplier = BigDecimal.TEN.pow(fractionDigits)
+        val multiplier = bigDecimalTen().pow(fractionDigits)
         val scaled = price.amount.multiply(multiplier)
             .setScale(0, RoundingMode.HALF_UP)
             .toBigInteger()

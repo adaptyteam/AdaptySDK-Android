@@ -1,18 +1,18 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.store
 
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.concurrentMapOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentHashMap
 
 internal class TimerCallbackScheduler(
     private val scope: CoroutineScope,
 ) : EffectHandler {
-    private val activeJobs = ConcurrentHashMap<String, Job>()
+    private val activeJobs = concurrentMapOf<String, Job>()
 
     override fun handle(effect: Effect, dispatch: (Message) -> Unit) {
         if (effect !is Effect.ScheduleTimerCallback) return

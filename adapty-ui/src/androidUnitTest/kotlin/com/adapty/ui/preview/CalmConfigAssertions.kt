@@ -1,4 +1,4 @@
-@file:OptIn(com.adapty.internal.utils.InternalAdaptyApi::class)
+@file:OptIn(com.adapty.ui.internal.platform.InternalAdaptyUiApi::class)
 
 package com.adapty.ui.preview
 

@@ -11,7 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.attributes.Align
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorHorizontal
@@ -21,9 +22,8 @@ import com.adapty.ui.internal.ui.attributes.toComposeAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeHorizontalAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeVerticalAlignment
 import com.adapty.ui.internal.ui.fillWithBaseParams
-import com.adapty.ui.internal.store.Message
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class GridItem internal constructor(
     dimAxis: DimSpec.Axis,
     sideSpec: DimSpec?,

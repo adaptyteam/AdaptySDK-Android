@@ -1,10 +1,13 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui
 
-import androidx.compose.runtime.Composable
+import android.graphics.BlurMaskFilter
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,8 +22,25 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
@@ -30,83 +50,65 @@ import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.currentValueOf
-import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.constrainHeight
-import androidx.compose.ui.unit.constrainWidth
-import androidx.compose.ui.unit.offset
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.asAndroidPath
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
-import com.adapty.internal.utils.InternalAdaptyApi
+import androidx.compose.ui.unit.offset
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.platform.Context
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.toRadians
+import com.adapty.ui.internal.script.get
+import com.adapty.ui.internal.store.Message
+import com.adapty.ui.internal.ui.attributes.Animation
+import com.adapty.ui.internal.ui.attributes.Border
 import com.adapty.ui.internal.ui.attributes.DimSpec
+import com.adapty.ui.internal.ui.attributes.DpOffset
+import com.adapty.ui.internal.ui.attributes.EdgeEntities
 import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorHorizontal
 import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorVertical
-import com.adapty.ui.internal.ui.attributes.EdgeEntities
-import com.adapty.ui.internal.ui.attributes.hasAnyNegative
 import com.adapty.ui.internal.ui.attributes.Offset
+import com.adapty.ui.internal.ui.attributes.Rotation
+import com.adapty.ui.internal.ui.attributes.Scale
 import com.adapty.ui.internal.ui.attributes.asDpOffset
 import com.adapty.ui.internal.ui.attributes.asTransformOrigin
 import com.adapty.ui.internal.ui.attributes.degreesIn
+import com.adapty.ui.internal.ui.attributes.hasAnyNegative
 import com.adapty.ui.internal.ui.attributes.horizontalSumOrDefault
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.ui.attributes.toComposeShape
 import com.adapty.ui.internal.ui.attributes.toExactDp
-import com.adapty.ui.internal.ui.attributes.verticalSumOrDefault
-import com.adapty.ui.internal.ui.attributes.Animation
-import com.adapty.ui.internal.ui.attributes.Border
-import com.adapty.ui.internal.ui.element.BaseProps
-import com.adapty.ui.internal.ui.element.OffsetProvider
-import com.adapty.ui.internal.ui.element.ResolveAssets
-import com.adapty.ui.internal.ui.element.TextFieldElement
-import com.adapty.ui.internal.ui.element.UIElement
-import com.adapty.ui.internal.utils.LocalSafeAreaInsets
-import com.adapty.ui.internal.utils.LocalScreenDimensions
-import com.adapty.ui.internal.ui.element.BoxProvider
 import com.adapty.ui.internal.ui.attributes.toExactDpInLayout
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.foundation.focusable
-import com.adapty.ui.internal.script.get
-import com.adapty.ui.internal.store.Message
-import androidx.compose.ui.graphics.toArgb
-import android.graphics.BlurMaskFilter
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
-import com.adapty.ui.internal.ui.attributes.DpOffset
-import com.adapty.ui.internal.ui.attributes.Rotation
-import com.adapty.ui.internal.ui.attributes.Scale
+import com.adapty.ui.internal.ui.attributes.verticalSumOrDefault
+import com.adapty.ui.internal.ui.element.BaseProps
 import com.adapty.ui.internal.ui.element.BlurProvider
+import com.adapty.ui.internal.ui.element.BoxProvider
 import com.adapty.ui.internal.ui.element.InnerShadowProvider
 import com.adapty.ui.internal.ui.element.LocalActiveAnimations
+import com.adapty.ui.internal.ui.element.OffsetProvider
+import com.adapty.ui.internal.ui.element.OverlayContainerElement
+import com.adapty.ui.internal.ui.element.ResolveAssets
+import com.adapty.ui.internal.ui.element.ShadowProvider
+import com.adapty.ui.internal.ui.element.TextFieldElement
+import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.ui.element.activeAnimationsFor
 import com.adapty.ui.internal.ui.element.hasVisualAnimations
 import com.adapty.ui.internal.ui.element.pendingAppearAnimationsFor
-import com.adapty.ui.internal.ui.element.OverlayContainerElement
-import com.adapty.ui.internal.ui.element.ShadowProvider
-import com.adapty.ui.internal.utils.resolveAsset
+import com.adapty.ui.internal.utils.LocalSafeAreaInsets
+import com.adapty.ui.internal.utils.LocalScreenDimensions
 import com.adapty.ui.internal.utils.VisualValue
+import com.adapty.ui.internal.utils.resolveAsset
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 @Composable
 public fun Modifier.fillWithBaseParams(element: UIElement): Modifier =
     fillWithBaseParams(
@@ -525,7 +527,7 @@ private fun Modifier.background(
 private data class ImageBackgroundElement(
     private val background: Asset.Composite<Asset.Filling.Local>,
     private val shape: Shape,
-    private val context: android.content.Context,
+    private val context: Context,
 ) : ModifierNodeElement<ImageBackgroundNode>() {
     override fun create() = ImageBackgroundNode(background, shape, context)
     override fun update(node: ImageBackgroundNode) {
@@ -538,7 +540,7 @@ private data class ImageBackgroundElement(
 private class ImageBackgroundNode(
     var background: Asset.Composite<Asset.Filling.Local>,
     var shape: Shape,
-    var context: android.content.Context,
+    var context: Context,
 ) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
 
     override fun ContentDrawScope.draw() {
@@ -1035,7 +1037,7 @@ private class ShadowNode(
 
         val sx = if (scale.x != 0f) scale.x else Float.MIN_VALUE
         val sy = if (scale.y != 0f) scale.y else Float.MIN_VALUE
-        val angle = Math.toRadians(-rotation.degrees.toDouble())
+        val angle = toRadians(-rotation.degrees.toDouble())
         val cosA = kotlin.math.cos(angle)
         val sinA = kotlin.math.sin(angle)
         val ux = offsetXPx / sx
@@ -1249,7 +1251,7 @@ private class BlurNode(
     private var renderNode: android.graphics.RenderNode? = null
     private var cachedHwBlurPx: Float = Float.NaN
 
-    private var cachedBitmap: android.graphics.Bitmap? = null
+    private var cachedBitmap: com.adapty.ui.internal.platform.Bitmap? = null
     private var cachedSwCanvas: android.graphics.Canvas? = null
     private var cachedComposeCanvas: androidx.compose.ui.graphics.Canvas? = null
     private var blurWorker: com.adapty.ui.internal.utils.StackBlurWorker? = null

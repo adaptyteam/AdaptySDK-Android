@@ -1,7 +1,8 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui
 
+import android.content.res.Resources
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
@@ -17,28 +18,27 @@ import androidx.compose.ui.graphics.RadialGradientShader
 import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SweepGradientShader
-import android.content.res.Resources
 import androidx.compose.ui.graphics.lerp
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.ui.attributes.Animation
+import com.adapty.ui.internal.ui.attributes.Border
+import com.adapty.ui.internal.ui.attributes.adjustRadialColorStops
+import com.adapty.ui.internal.ui.attributes.toComposeFill
+import com.adapty.ui.internal.ui.attributes.toGradientAsset
 import com.adapty.ui.internal.ui.element.AnimationBehavior
 import com.adapty.ui.internal.ui.element.BaseProps
 import com.adapty.ui.internal.ui.element.BrushProvider
 import com.adapty.ui.internal.ui.element.LocalActiveAnimations
 import com.adapty.ui.internal.ui.element.ResolveAssets
+import com.adapty.ui.internal.ui.element.borderGradientBehaviour
+import com.adapty.ui.internal.ui.element.gradientBehaviour
 import com.adapty.ui.internal.ui.element.hasVisualAnimations
 import com.adapty.ui.internal.ui.element.pendingAppearAnimationsFor
-import com.adapty.ui.internal.ui.element.gradientBehaviour
-import com.adapty.ui.internal.ui.element.borderGradientBehaviour
-import com.adapty.ui.internal.ui.attributes.adjustRadialColorStops
-import com.adapty.ui.internal.ui.attributes.toComposeFill
-import com.adapty.ui.internal.ui.attributes.toGradientAsset
-import com.adapty.ui.internal.ui.attributes.Border
-import com.adapty.ui.internal.utils.getAsset
 import com.adapty.ui.internal.ui.resolveAssets
 import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.color
+import com.adapty.ui.internal.utils.getAsset
 import com.adapty.ui.internal.utils.resolveAsset
 
 @Composable

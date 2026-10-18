@@ -1,15 +1,18 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.store
 
-import com.adapty.errors.AdaptyError
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.models.AdaptyFlow
-import com.adapty.models.AdaptyPaywallProduct
-import com.adapty.models.AdaptyProfile
-import com.adapty.models.AdaptyPurchaseParameters
-import com.adapty.models.AdaptyPurchaseResult
 import com.adapty.ui.AdaptyUI
+import com.adapty.ui.internal.platform.AdaptyError
+import com.adapty.ui.internal.platform.AdaptyFlow
+import com.adapty.ui.internal.platform.AdaptyLogLevel
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.AdaptyProfile
+import com.adapty.ui.internal.platform.AdaptyPurchaseParameters
+import com.adapty.ui.internal.platform.AdaptyPurchaseResult
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.VERBOSE
+import com.adapty.ui.internal.platform.WARN
 import com.adapty.ui.internal.ui.NavigationEntry
 import com.adapty.ui.internal.ui.element.Action
 import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
@@ -17,9 +20,6 @@ import com.adapty.ui.internal.utils.TwoWayBinding
 import com.adapty.ui.listeners.AdaptyUiObserverModeHandler
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.adapty.ui.listeners.AdaptyUiTimerResolver
-import com.adapty.utils.AdaptyLogLevel
-import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
-import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 
 internal sealed interface Effect {
     data class ExecuteJSActions(val actions: List<Action>, val screen: NavigationEntry) : Effect

@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.ui
@@ -6,12 +6,12 @@ package com.adapty.ui.internal.ui
 import android.content.Context
 import android.os.Build
 import com.adapty.internal.data.cache.CacheRepository
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.MetaInfoRetriever
 import com.adapty.internal.utils.PriceFormatter
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.RemoteImage
 import com.adapty.ui.internal.cache.MediaFetchService
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import java.math.BigDecimal
 import java.util.Locale
 

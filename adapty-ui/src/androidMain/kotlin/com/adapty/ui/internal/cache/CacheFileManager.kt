@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 
 package com.adapty.ui.internal.cache
 
@@ -6,7 +6,7 @@ import android.content.Context
 import android.system.Os
 import androidx.annotation.RestrictTo
 import com.adapty.internal.utils.HashingHelper
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.utils.TimeInterval
 import java.io.File
 

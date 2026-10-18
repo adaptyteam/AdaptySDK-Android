@@ -36,16 +36,16 @@ import androidx.compose.ui.node.invalidateMeasurement
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Constraints
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image.ScaleType
-import com.adapty.ui.internal.ui.fitImageWithinBounds
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.attributes.AspectRatio
 import com.adapty.ui.internal.ui.attributes.LocalContentAlignment
 import com.adapty.ui.internal.ui.attributes.evaluateComposeImageAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeContentScale
-import com.adapty.ui.internal.store.Message
+import com.adapty.ui.internal.ui.fitImageWithinBounds
 import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.getBitmap
 import com.adapty.ui.internal.utils.getImageNaturalSize
@@ -53,7 +53,7 @@ import com.adapty.ui.internal.utils.resolve
 import com.adapty.ui.internal.utils.resolveAsset
 import com.adapty.ui.internal.utils.resolveColorFilter
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class ImageElement internal constructor(
     internal val assetId: VisualValue,
     internal val aspectRatio: AspectRatio,

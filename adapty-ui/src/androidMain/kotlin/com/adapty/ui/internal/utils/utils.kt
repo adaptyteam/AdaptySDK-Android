@@ -1,9 +1,7 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.utils
 
-import android.app.Activity
-import android.content.Context
 import android.content.ContextWrapper
 import android.os.Build
 import android.provider.Settings
@@ -14,22 +12,24 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.core.content.ContextCompat
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.models.AdaptyEligibility.ELIGIBLE
-import com.adapty.models.AdaptyPaywallProduct
-import com.adapty.models.AdaptyProductDiscountPhase
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.R
 import com.adapty.ui.internal.mapping.element.Assets
+import com.adapty.ui.internal.platform.Activity
+import com.adapty.ui.internal.platform.AdaptyEligibility
+import com.adapty.ui.internal.platform.AdaptyLogLevel
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.AdaptyProductDiscountPhase
+import com.adapty.ui.internal.platform.Context
+import com.adapty.ui.internal.platform.ERROR
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformLocale
+import com.adapty.ui.internal.platform.VERBOSE
+import com.adapty.ui.internal.platform.WARN
+import com.adapty.ui.internal.platform.defaultLocale
 import com.adapty.ui.internal.script.StateAccessor
 import com.adapty.ui.internal.script.StateHandler
-import com.adapty.utils.AdaptyLogLevel
-import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
-import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
-import com.adapty.utils.AdaptyLogLevel.Companion.WARN
-import java.util.Locale
-import java.util.concurrent.Executors
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.startCoroutine
@@ -40,7 +40,7 @@ internal fun Context.getCurrentLocale() =
     } else {
         resources.configuration.locale
     })
-        ?: Locale.getDefault().also {
+        ?: defaultLocale().also {
             log(WARN) { "Failed to get locale from resources. Falling back to default." }
         }
 
@@ -55,7 +55,7 @@ internal fun Context.areAnimationsDisabled() =
 
 internal fun AdaptyPaywallProduct.firstDiscountOfferOrNull(): AdaptyProductDiscountPhase? {
     return subscriptionDetails?.let { subDetails ->
-        subDetails.introductoryOfferPhases.firstOrNull()?.takeIf { subDetails.introductoryOfferEligibility == ELIGIBLE }
+        subDetails.introductoryOfferPhases.firstOrNull()?.takeIf { subDetails.introductoryOfferEligibility == AdaptyEligibility.ELIGIBLE }
     }
 }
 
@@ -102,7 +102,7 @@ private fun ensureAdaptyUIInitialized() {
     AdaptyUI
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 @Composable
 public inline fun <reified T: Asset> Assets.getAsset(assetId: String): Asset.Composite<T>? {
     val customAsset = getAsset(assetId, true)?.let { it as? T }
@@ -197,9 +197,7 @@ internal fun StateHandler.adoptFlowStateForConfigChange(
     if (stateOwner === previous) stateOwner = next
 }
 
-private val logExecutor = Executors.newSingleThreadExecutor()
-
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public fun log(messageLogLevel: AdaptyLogLevel, msg: () -> String) {
-    logExecutor.execute { com.adapty.internal.utils.log(messageLogLevel, msg) }
+    com.adapty.ui.internal.platform.log(messageLogLevel, msg)
 }

@@ -1,11 +1,11 @@
 package com.adapty.ui.internal.listeners
 
-import android.content.Context
-import com.adapty.errors.AdaptyError
-import com.adapty.models.AdaptyPaywallProduct
-import com.adapty.models.AdaptyProfile
-import com.adapty.models.AdaptyPurchaseResult
 import com.adapty.ui.AdaptyUI
+import com.adapty.ui.internal.platform.AdaptyError
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.AdaptyProfile
+import com.adapty.ui.internal.platform.AdaptyPurchaseResult
+import com.adapty.ui.internal.platform.Context
 import com.adapty.ui.listeners.AdaptyFlowEventListener
 import com.adapty.ui.listeners.AdaptyFlowEventListener.PurchaseParamsCallback
 

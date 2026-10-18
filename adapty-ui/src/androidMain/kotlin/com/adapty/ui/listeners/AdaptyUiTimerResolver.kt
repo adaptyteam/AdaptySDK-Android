@@ -1,7 +1,9 @@
 package com.adapty.ui.listeners
 
+import com.adapty.ui.internal.platform.PlatformDate
+import com.adapty.ui.internal.platform.currentTimeMillis
+import com.adapty.ui.internal.platform.platformDate
 import com.adapty.ui.internal.utils.HOUR_MILLIS
-import java.util.Date
 
 /**
  * Implement this interface to use custom timer functionality
@@ -14,11 +16,11 @@ public fun interface AdaptyUiTimerResolver {
      *
      * @return The date the timer with [timerId] should end at.
      */
-    public fun timerEndAtDate(timerId: String): Date
+    public fun timerEndAtDate(timerId: String): PlatformDate
 
     public companion object {
         @JvmField
         public val Default: AdaptyUiTimerResolver =
-            AdaptyUiTimerResolver { _ -> Date(System.currentTimeMillis() + HOUR_MILLIS) }
+            AdaptyUiTimerResolver { _ -> platformDate(currentTimeMillis() + HOUR_MILLIS) }
     }
 }

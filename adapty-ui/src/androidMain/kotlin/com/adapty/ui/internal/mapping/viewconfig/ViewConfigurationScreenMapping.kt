@@ -1,34 +1,34 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.mapping.viewconfig
 
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.adaptyError
-import com.adapty.internal.utils.getAs
 import com.adapty.ui.AdaptyUI.FlowConfiguration.NavigatorConfig
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Screen
 import com.adapty.ui.AdaptyUI.FlowConfiguration.ScreenBundle
 import com.adapty.ui.internal.mapping.attributes.toAction
 import com.adapty.ui.internal.mapping.attributes.toAnimation
-import com.adapty.ui.internal.mapping.attributes.toTwoWayBinding
-import com.adapty.ui.internal.mapping.attributes.toVisualValue
-import com.adapty.ui.internal.mapping.attributes.toHorizontalAlign
 import com.adapty.ui.internal.mapping.attributes.toEdgeEntities
+import com.adapty.ui.internal.mapping.attributes.toHorizontalAlign
 import com.adapty.ui.internal.mapping.attributes.toOffset
 import com.adapty.ui.internal.mapping.attributes.toShape
 import com.adapty.ui.internal.mapping.attributes.toStaticRotation
 import com.adapty.ui.internal.mapping.attributes.toStaticScale
+import com.adapty.ui.internal.mapping.attributes.toTwoWayBinding
 import com.adapty.ui.internal.mapping.attributes.toVerticalAlign
-import com.adapty.ui.internal.ui.attributes.AppearanceAnimation
-import com.adapty.ui.internal.ui.attributes.ScreenTransition
+import com.adapty.ui.internal.mapping.attributes.toVisualValue
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.mapping.element.StateMap
 import com.adapty.ui.internal.mapping.element.UIElementFactory
 import com.adapty.ui.internal.mapping.element.extractEventHandlers
-import com.adapty.ui.internal.ui.attributes.plus
 import com.adapty.ui.internal.mapping.element.toOverlayItem
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.adaptyError
+import com.adapty.ui.internal.platform.getAs
+import com.adapty.ui.internal.ui.attributes.AppearanceAnimation
+import com.adapty.ui.internal.ui.attributes.ScreenTransition
+import com.adapty.ui.internal.ui.attributes.plus
 import com.adapty.ui.internal.ui.element.BaseProps
 import com.adapty.ui.internal.ui.element.BoxElement
 import com.adapty.ui.internal.ui.element.OverlayItem

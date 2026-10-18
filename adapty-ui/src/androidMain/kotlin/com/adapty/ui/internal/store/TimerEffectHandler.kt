@@ -1,8 +1,9 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.store
 
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.currentTimeMillis
 import com.adapty.ui.internal.ui.TimerValueStore
 
 internal class TimerEffectHandler(
@@ -10,7 +11,7 @@ internal class TimerEffectHandler(
 ) : EffectHandler {
     override fun handle(effect: Effect, dispatch: (Message) -> Unit) {
         if (effect !is Effect.ResolveTimerCommand) return
-        val now = System.currentTimeMillis() / 1000L
+        val now = currentTimeMillis() / 1000L
         val key = "${effect.placementId}_timer_${effect.timerId}_end"
         val endAtSeconds: Long = when (effect.behavior) {
             "restart" -> now + effect.durationSeconds

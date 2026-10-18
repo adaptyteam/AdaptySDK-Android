@@ -19,10 +19,10 @@ import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.LinkAnnotation
-import androidx.compose.ui.text.TextLinkStyles
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
@@ -30,20 +30,21 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.identityHashCode
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.text.ComposeTextAttrs
 import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.LocalScreenInstance
-import com.adapty.ui.internal.ui.attributes.TextAlign
-import com.adapty.ui.internal.ui.attributes.toComposeTextAlign
 import com.adapty.ui.internal.ui.OverflowResult
 import com.adapty.ui.internal.ui.ScaleDownToFit
 import com.adapty.ui.internal.ui.ScaleDownToFitTextAutoSize
+import com.adapty.ui.internal.ui.attributes.TextAlign
+import com.adapty.ui.internal.ui.attributes.toComposeTextAlign
 import com.adapty.ui.internal.ui.resolveAssets
 import com.adapty.ui.internal.utils.VisualValue
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public abstract class BaseTextElement(
     protected val textAlign: TextAlign,
     protected val attributes: Attributes,
@@ -323,7 +324,7 @@ public abstract class BaseTextElement(
         h = 31 * h + (backgroundColor?.hashCode() ?: 0)
         h = 31 * h + (fontSize?.hashCode() ?: 0)
         h = 31 * h + (textDecoration?.hashCode() ?: 0)
-        h = 31 * h + System.identityHashCode(typeface)
+        h = 31 * h + identityHashCode(typeface)
         h = 31 * h + (letterSpacing?.hashCode() ?: 0)
         return h
     }

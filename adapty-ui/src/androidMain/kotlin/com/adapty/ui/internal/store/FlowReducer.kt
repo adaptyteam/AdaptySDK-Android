@@ -1,27 +1,31 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.store
 
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.adaptyError
-import com.adapty.models.AdaptyPaywallProduct
-import com.adapty.models.AdaptyPurchaseResult
-import com.adapty.models.AdaptyWebPresentation
 import com.adapty.ui.AdaptyCustomImageAsset
 import com.adapty.ui.AdaptyCustomVideoAsset
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.AdaptyPurchaseResult
+import com.adapty.ui.internal.platform.AdaptyPurchaseResultPending
+import com.adapty.ui.internal.platform.AdaptyPurchaseResultSuccess
+import com.adapty.ui.internal.platform.AdaptyPurchaseResultUserCanceled
+import com.adapty.ui.internal.platform.AdaptyWebPresentation
+import com.adapty.ui.internal.platform.ERROR
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.WARN
+import com.adapty.ui.internal.platform.adaptyError
+import com.adapty.ui.internal.platform.currentTimeMillis
 import com.adapty.ui.internal.ui.element.Action
 import com.adapty.ui.internal.utils.CUSTOM_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.DARK_THEME_ASSET_SUFFIX
-import com.adapty.ui.internal.utils.VIDEO_PREVIEW_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX
+import com.adapty.ui.internal.utils.VIDEO_PREVIEW_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.isLive
 import com.adapty.ui.internal.utils.log
-import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
-import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 
 internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Effect>> {
     return when (message) {
@@ -74,9 +78,9 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
     is Message.PurchaseSucceeded -> {
         val productId = resolveProductKey(message.product)
         val resultStr = when (message.result) {
-            is AdaptyPurchaseResult.Success -> "success"
-            is AdaptyPurchaseResult.UserCanceled -> "userCanceled"
-            is AdaptyPurchaseResult.Pending -> "pending"
+            is AdaptyPurchaseResultSuccess -> "success"
+            is AdaptyPurchaseResultUserCanceled -> "userCanceled"
+            is AdaptyPurchaseResultPending -> "pending"
         }
         val cbId = (state.purchase as? PurchaseFlowState.InProgress)?.callbackId
         val effects = mutableListOf<Effect>(
@@ -271,7 +275,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
     is Message.JSCallback.SetTimer -> {
         if (message.endAtMs != null) {
             val command = TimerSetCommand(message.endAtMs / 1000L)
-            val delayMs = (message.endAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+            val delayMs = (message.endAtMs - currentTimeMillis()).coerceAtLeast(0L)
             state.copy(
                 ui = state.ui.copy(
                     timerCommands = state.ui.timerCommands + (message.timerId to command)
@@ -280,7 +284,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
         } else if (message.durationSeconds != null) {
             val behavior = message.behavior ?: "restart"
             if (behavior == "continue") {
-                val now = System.currentTimeMillis() / 1000L
+                val now = currentTimeMillis() / 1000L
                 val existing = state.ui.timerCommands[message.timerId]
                 if (existing != null && existing.endAtSeconds > now) {
                     return state to emptyList()
@@ -300,7 +304,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
 
     is Message.TimerCommandResolved -> {
         val command = TimerSetCommand(message.endAtSeconds)
-        val delayMs = (message.endAtSeconds * 1000L - System.currentTimeMillis()).coerceAtLeast(0L)
+        val delayMs = (message.endAtSeconds * 1000L - currentTimeMillis()).coerceAtLeast(0L)
         state.copy(
             ui = state.ui.copy(
                 timerCommands = state.ui.timerCommands + (message.timerId to command)

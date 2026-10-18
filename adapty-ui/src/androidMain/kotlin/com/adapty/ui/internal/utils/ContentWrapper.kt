@@ -1,8 +1,8 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.utils
 
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.ui.attributes.Align
 import com.adapty.ui.internal.ui.attributes.Offset
 import com.adapty.ui.internal.ui.element.BaseProps

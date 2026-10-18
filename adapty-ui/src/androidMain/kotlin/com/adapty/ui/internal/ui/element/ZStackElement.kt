@@ -7,7 +7,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.IntSize
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.attributes.Align
 import com.adapty.ui.internal.ui.attributes.AspectRatio
 import com.adapty.ui.internal.ui.attributes.DimSpec
@@ -15,9 +16,8 @@ import com.adapty.ui.internal.ui.attributes.LocalParentImposesHeight
 import com.adapty.ui.internal.ui.attributes.MainAxisBehaviour
 import com.adapty.ui.internal.ui.attributes.PageSize
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
-import com.adapty.ui.internal.store.Message
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class ZStackElement internal constructor(
     override var content: List<UIElement>,
     internal val align: Align,
@@ -79,7 +79,7 @@ public class ZStackElement internal constructor(
     }
 }
 
-@OptIn(InternalAdaptyApi::class)
+@OptIn(InternalAdaptyUiApi::class)
 private fun UIElement.isHeightGreedy(): Boolean {
     when (val spec = baseProps.heightSpec) {
         is DimSpec.Specified, is DimSpec.Shrink -> return false

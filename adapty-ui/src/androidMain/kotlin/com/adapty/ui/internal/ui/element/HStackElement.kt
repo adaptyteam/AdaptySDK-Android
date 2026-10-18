@@ -8,18 +8,18 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.store.Message
+import com.adapty.ui.internal.ui.allowHorizontalOverflow
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.LocalParentImposesHeight
 import com.adapty.ui.internal.ui.attributes.VerticalAlign
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
-import com.adapty.ui.internal.ui.allowHorizontalOverflow
 import com.adapty.ui.internal.ui.fillBoundedHeightOrIntrinsic
 import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.ui.intrinsicHeightOrHug
-import com.adapty.ui.internal.store.Message
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class HStackElement internal constructor(
     override var content: List<UIElement>,
     internal val align: VerticalAlign,

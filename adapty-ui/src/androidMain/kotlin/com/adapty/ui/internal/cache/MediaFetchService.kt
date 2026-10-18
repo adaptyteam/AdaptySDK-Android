@@ -1,15 +1,15 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.cache
 
-import android.net.Uri
 import androidx.annotation.RestrictTo
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.Uri
+import com.adapty.ui.internal.platform.VERBOSE
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.log
-import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class MediaFetchService(

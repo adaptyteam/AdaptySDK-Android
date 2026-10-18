@@ -36,6 +36,7 @@ kotlin {
     explicitApi()
     compilerOptions {
         freeCompilerArgs.add('-opt-in=kotlin.RequiresOptIn')
+        freeCompilerArgs.add('-opt-in=com.adapty.ui.internal.platform.InternalAdaptyUiApi')
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
         // Keep pre-2.2 interface ABI (DefaultImpls only, no JVM default methods)
         jvmDefault = org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode.DISABLE

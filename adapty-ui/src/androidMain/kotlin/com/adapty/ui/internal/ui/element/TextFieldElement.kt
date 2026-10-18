@@ -25,26 +25,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.autofill.ContentType as ComposeContentType
-import androidx.compose.ui.text.input.KeyboardType as ComposeKeyboardType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.WARN
 import com.adapty.ui.internal.script.get
+import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.text.ComposeTextAttrs
 import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.text.toPlainString
@@ -52,24 +54,22 @@ import com.adapty.ui.internal.ui.LocalCurrentFocusId
 import com.adapty.ui.internal.ui.LocalFocusCommand
 import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.LocalUiEnabled
+import com.adapty.ui.internal.ui.OverflowResult
+import com.adapty.ui.internal.ui.ScaleDownToFit
+import com.adapty.ui.internal.ui.ScaleDownToFitTextAutoSize
 import com.adapty.ui.internal.ui.attributes.TextAlign
 import com.adapty.ui.internal.ui.attributes.toComposeTextAlign
 import com.adapty.ui.internal.ui.resolveAssets
 import com.adapty.ui.internal.ui.resolveState
 import com.adapty.ui.internal.ui.resolveText
-import com.adapty.ui.internal.ui.OverflowResult
-import com.adapty.ui.internal.ui.ScaleDownToFit
-import com.adapty.ui.internal.ui.ScaleDownToFitTextAutoSize
-import androidx.compose.ui.semantics.contentType
-import androidx.compose.ui.semantics.semantics
-import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.OneWayBinding
 import com.adapty.ui.internal.utils.TwoWayBinding
 import com.adapty.ui.internal.utils.log
-import com.adapty.utils.AdaptyLogLevel.Companion.WARN
+import androidx.compose.ui.autofill.ContentType as ComposeContentType
+import androidx.compose.ui.text.input.KeyboardType as ComposeKeyboardType
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class TextFieldElement internal constructor(
     internal val value: TwoWayBinding,
     internal val textAlign: TextAlign,
@@ -87,14 +87,14 @@ public class TextFieldElement internal constructor(
     override val baseProps: BaseProps,
 ) : UIElement {
 
-    @InternalAdaptyApi
+    @InternalAdaptyUiApi
     public class Placeholder internal constructor(
         internal val stringId: StringId,
         internal val attributes: BaseTextElement.Attributes,
         internal val onOverflow: BaseTextElement.OnOverflowMode?,
     )
 
-    @InternalAdaptyApi
+    @InternalAdaptyUiApi
     public class TextFieldKeyboardOptions internal constructor(
         internal val keyboardType: KeyboardType?,
         internal val contentType: ContentType?,
@@ -102,7 +102,7 @@ public class TextFieldElement internal constructor(
         internal val submitButton: SubmitButton?,
     )
 
-    @InternalAdaptyApi
+    @InternalAdaptyUiApi
     public enum class KeyboardType {
         DEFAULT, EMAIL, NUMBER, DECIMAL, PHONE, URL, ASCII;
 
@@ -117,7 +117,7 @@ public class TextFieldElement internal constructor(
         }
     }
 
-    @InternalAdaptyApi
+    @InternalAdaptyUiApi
     public enum class ContentType {
         EMAIL, PHONE, USERNAME, PASSWORD, NEW_PASSWORD,
         NAME, GIVEN_NAME, FAMILY_NAME, MIDDLE_NAME, NAME_PREFIX, NAME_SUFFIX,
@@ -157,7 +157,7 @@ public class TextFieldElement internal constructor(
         }
     }
 
-    @InternalAdaptyApi
+    @InternalAdaptyUiApi
     public enum class AutoCapitalization {
         NEVER, SENTENCES, WORDS, CHARACTERS;
 
@@ -169,7 +169,7 @@ public class TextFieldElement internal constructor(
         }
     }
 
-    @InternalAdaptyApi
+    @InternalAdaptyUiApi
     public enum class SubmitButton {
         DONE, GO, SEARCH, SEND, NEXT, RETURN;
 
@@ -183,7 +183,7 @@ public class TextFieldElement internal constructor(
         }
     }
 
-    @InternalAdaptyApi
+    @InternalAdaptyUiApi
     public class InputConstraints internal constructor(
         internal val regex: Regex?,
         internal val maxLength: Int?,

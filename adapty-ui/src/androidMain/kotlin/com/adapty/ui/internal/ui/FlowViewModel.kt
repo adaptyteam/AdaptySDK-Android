@@ -1,30 +1,36 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 
 package com.adapty.ui.internal.ui
 
-import android.app.Activity
-import android.content.Context
-import android.os.Looper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.di.DIObject
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.di.Dependencies.OBSERVER_MODE
-import com.adapty.internal.data.cache.CacheRepository
-import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.MetaInfoRetriever
 import com.adapty.internal.utils.PriceFormatter
-import com.adapty.internal.utils.runOnMain
-import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.AdaptyCustomAssets
 import com.adapty.ui.AdaptyFlowInsets
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.internal.cache.MediaFetchService
+import com.adapty.ui.internal.listeners.ContextAwareEventListener
+import com.adapty.ui.internal.platform.Activity
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.Context
+import com.adapty.ui.internal.platform.ERROR
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.PlatformLocale
+import com.adapty.ui.internal.platform.WARN
+import com.adapty.ui.internal.platform.defaultLocale
+import com.adapty.ui.internal.platform.isMainThread
+import com.adapty.ui.internal.platform.platformMessage
+import com.adapty.ui.internal.platform.runOnMain
 import com.adapty.ui.internal.script.ActionHandler
 import com.adapty.ui.internal.script.StateAccessor
 import com.adapty.ui.internal.script.StateHandler
@@ -34,13 +40,13 @@ import com.adapty.ui.internal.store.DataLoadingEffectHandler
 import com.adapty.ui.internal.store.Effect
 import com.adapty.ui.internal.store.EffectHandler
 import com.adapty.ui.internal.store.EventDispatcherEffectHandler
+import com.adapty.ui.internal.store.FlowState
 import com.adapty.ui.internal.store.FocusLossVerifier
 import com.adapty.ui.internal.store.JsEffectHandler
 import com.adapty.ui.internal.store.ListenerEffectHandler
 import com.adapty.ui.internal.store.Message
-import com.adapty.ui.internal.store.ObserverModeEffectHandler
-import com.adapty.ui.internal.store.FlowState
 import com.adapty.ui.internal.store.NavigationState
+import com.adapty.ui.internal.store.ObserverModeEffectHandler
 import com.adapty.ui.internal.store.PurchaseEffectHandler
 import com.adapty.ui.internal.store.TimerCallbackScheduler
 import com.adapty.ui.internal.store.TimerEffectHandler
@@ -56,15 +62,11 @@ import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
 import com.adapty.ui.internal.utils.log
-import com.adapty.ui.internal.listeners.ContextAwareEventListener
 import com.adapty.ui.listeners.AdaptyFlowEventListener
 import com.adapty.ui.listeners.AdaptyUiObserverModeHandler
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.adapty.ui.listeners.AdaptyUiTimerResolver
-import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
-import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import kotlinx.coroutines.CoroutineScope
-import java.util.Locale
 
 internal class FlowViewModel(
     val flowKey: String,
@@ -102,7 +104,7 @@ internal class FlowViewModel(
     val eventDispatcher: EventDispatcher = EventDispatcher()
 
     fun dispatch(message: Message) {
-        if (Looper.getMainLooper().thread != Thread.currentThread()) {
+        if (!isMainThread()) {
             runOnMain { dispatch(message) }
             return
         }
@@ -184,7 +186,7 @@ internal class FlowViewModel(
     ): com.adapty.ui.internal.text.StringWrapper? {
         val locale = state?.config?.viewConfig?.locale
             ?: dataState.value?.viewConfig?.locale
-            ?: Locale.getDefault()
+            ?: defaultLocale()
         return textResolver.resolve(stringId, textAttrs, texts, products, assets, locale)
     }
 
@@ -246,7 +248,7 @@ internal class FlowViewModelArgs(
     companion object {
         fun create(
             flowKey: String,
-            locale: Locale,
+            locale: PlatformLocale,
             context: Context,
         ) =
             runCatching {
@@ -277,14 +279,14 @@ internal class FlowViewModelArgs(
                 )
             }.getOrElse { e ->
                 log(ERROR) {
-                    "$LOG_PREFIX_ERROR $flowKey rendering error: ${e.localizedMessage}"
+                    "$LOG_PREFIX_ERROR $flowKey rendering error: ${e.platformMessage}"
                 }
                 null
             }
     }
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public class UserArgs internal constructor(
     internal val viewConfig: AdaptyUI.FlowConfiguration,
     internal val eventListener: AdaptyFlowEventListener,

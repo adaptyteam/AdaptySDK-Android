@@ -1,13 +1,16 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.mapping.attributes
 
-import com.adapty.errors.AdaptyErrorCode
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.internal.utils.adaptyError
+import com.adapty.ui.internal.platform.AdaptyErrorCode
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.adaptyError
+import com.adapty.ui.internal.platform.platformTypeName
 import com.adapty.ui.internal.ui.attributes.Align
 import com.adapty.ui.internal.ui.attributes.Animation
 import com.adapty.ui.internal.ui.attributes.AspectRatio
+import com.adapty.ui.internal.ui.attributes.Border
+import com.adapty.ui.internal.ui.attributes.Box
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.DimUnit
 import com.adapty.ui.internal.ui.attributes.EdgeEntities
@@ -17,18 +20,16 @@ import com.adapty.ui.internal.ui.attributes.Offset
 import com.adapty.ui.internal.ui.attributes.Point
 import com.adapty.ui.internal.ui.attributes.Rotation
 import com.adapty.ui.internal.ui.attributes.Scale
+import com.adapty.ui.internal.ui.attributes.Shadow
 import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.Transition
 import com.adapty.ui.internal.ui.attributes.VerticalAlign
 import com.adapty.ui.internal.ui.attributes.plus
-import com.adapty.ui.internal.ui.attributes.Border
-import com.adapty.ui.internal.ui.attributes.Box
-import com.adapty.ui.internal.ui.attributes.Shadow
 import com.adapty.ui.internal.utils.OneWayBinding
 import com.adapty.ui.internal.utils.Scope
-import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.StringSource
 import com.adapty.ui.internal.utils.TwoWayBinding
+import com.adapty.ui.internal.utils.VisualValue
 import kotlin.collections.get
 
 internal fun Map<*, *>.toTransition(): Transition {
@@ -446,7 +447,7 @@ internal fun Any.toDimUnit(): DimUnit {
                 }
             }
             val value = this["value"] as? Number ?: throw adaptyError(
-                message = "Unknown dimension format (${this["value"]?.javaClass})",
+                message = "Unknown dimension format (${this["value"]?.platformTypeName})",
                 adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
             )
             if (unit == "screen")
@@ -454,7 +455,7 @@ internal fun Any.toDimUnit(): DimUnit {
             return DimUnit.Exact(value.toFloat())
         }
         else -> throw adaptyError(
-            message = "Unknown dimension format (${this.javaClass})",
+            message = "Unknown dimension format (${this.platformTypeName})",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         )
     }
@@ -504,13 +505,13 @@ internal fun Any.toEdgeEntities(): EdgeEntities? {
             )
         }
         else -> throw adaptyError(
-            message = "Unknown padding format (${this.javaClass})",
+            message = "Unknown padding format (${this.platformTypeName})",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         )
     }
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public fun Any?.toAspectRatio(): AspectRatio {
     return when (this) {
         "fill" -> AspectRatio.FILL
@@ -546,7 +547,7 @@ internal fun Any.toOffset(): Offset? {
             }
         }
         else -> throw adaptyError(
-            message = "Unknown offset format (${this.javaClass})",
+            message = "Unknown offset format (${this.platformTypeName})",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         )
     }
@@ -575,7 +576,7 @@ private fun Any.toPoint(): Point? {
             }
         }
         else -> throw adaptyError(
-            message = "Unknown point format (${this.javaClass})",
+            message = "Unknown point format (${this.platformTypeName})",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         )
     }
@@ -604,7 +605,7 @@ private fun Any.toScalePoint(): Point {
             }
         }
         else -> throw adaptyError(
-            message = "Unknown scale point format (${this.javaClass})",
+            message = "Unknown scale point format (${this.platformTypeName})",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         )
     }
@@ -687,7 +688,7 @@ internal fun Any.toVisualValue(): VisualValue? {
     return this.toStringSource()?.let { VisualValue.any(it) }
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public fun Any.toAssetVisualValue(): VisualValue? {
     return this.toStringSource()?.let { VisualValue.assetId(it) }
 }
@@ -774,7 +775,7 @@ internal fun Any.toCornerRadius(): Shape.CornerRadius {
             )
         }
         else -> throw adaptyError(
-            message = "Unknown corner radius format (${this.javaClass})",
+            message = "Unknown corner radius format (${this.platformTypeName})",
             adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
         )
     }

@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.ui
 
@@ -21,12 +21,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.ui.attributes.Animation
 import com.adapty.ui.internal.ui.attributes.DpOffset
 import com.adapty.ui.internal.ui.attributes.Point
@@ -35,35 +35,35 @@ import com.adapty.ui.internal.ui.attributes.Scale
 import com.adapty.ui.internal.ui.attributes.easing
 import com.adapty.ui.internal.ui.element.AnimationBehavior
 import com.adapty.ui.internal.ui.element.BaseProps
+import com.adapty.ui.internal.ui.element.BlurProvider
 import com.adapty.ui.internal.ui.element.BoxProvider
+import com.adapty.ui.internal.ui.element.BrushProvider
+import com.adapty.ui.internal.ui.element.InnerShadowProvider
+import com.adapty.ui.internal.ui.element.LocalRoleSequences
 import com.adapty.ui.internal.ui.element.OffsetProvider
 import com.adapty.ui.internal.ui.element.OpacityProvider
 import com.adapty.ui.internal.ui.element.ResolveAssets
 import com.adapty.ui.internal.ui.element.RotationProvider
 import com.adapty.ui.internal.ui.element.ScaleProvider
-import com.adapty.ui.internal.ui.element.BrushProvider
 import com.adapty.ui.internal.ui.element.ShadowProvider
+import com.adapty.ui.internal.ui.element.blurBehaviour
+import com.adapty.ui.internal.ui.element.borderColorBehaviour
+import com.adapty.ui.internal.ui.element.borderThicknessBehaviour
 import com.adapty.ui.internal.ui.element.colorBehaviour
+import com.adapty.ui.internal.ui.element.heightBehaviour
+import com.adapty.ui.internal.ui.element.innerShadowBlurRadiusBehaviour
+import com.adapty.ui.internal.ui.element.innerShadowColorBehaviour
+import com.adapty.ui.internal.ui.element.innerShadowOffsetBehaviour
 import com.adapty.ui.internal.ui.element.offsetBehaviour
 import com.adapty.ui.internal.ui.element.opacityBehaviour
 import com.adapty.ui.internal.ui.element.rotationBehaviour
 import com.adapty.ui.internal.ui.element.scaleBehaviour
-import com.adapty.ui.internal.ui.element.borderColorBehaviour
-import com.adapty.ui.internal.ui.element.borderThicknessBehaviour
-import kotlinx.coroutines.delay
-import com.adapty.ui.internal.ui.element.widthBehaviour
-import com.adapty.ui.internal.ui.element.heightBehaviour
-import com.adapty.ui.internal.ui.element.blurBehaviour
-import com.adapty.ui.internal.ui.element.BlurProvider
-import com.adapty.ui.internal.ui.element.InnerShadowProvider
-import com.adapty.ui.internal.ui.element.LocalRoleSequences
-import com.adapty.ui.internal.ui.element.innerShadowBlurRadiusBehaviour
-import com.adapty.ui.internal.ui.element.innerShadowColorBehaviour
-import com.adapty.ui.internal.ui.element.innerShadowOffsetBehaviour
 import com.adapty.ui.internal.ui.element.shadowBlurRadiusBehaviour
 import com.adapty.ui.internal.ui.element.shadowColorBehaviour
 import com.adapty.ui.internal.ui.element.shadowOffsetBehaviour
+import com.adapty.ui.internal.ui.element.widthBehaviour
 import com.adapty.ui.internal.utils.areAnimationsDisabled
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun <T> rememberAnimatedValue(

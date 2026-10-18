@@ -1,9 +1,10 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class)
 
 package com.adapty.ui.internal.script
 
 import androidx.compose.runtime.Composable
-import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.platform.ERROR
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.NavigationEntry
 import com.adapty.ui.internal.utils.Binding
@@ -11,7 +12,6 @@ import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.Scope
 import com.adapty.ui.internal.utils.TwoWayBinding
 import com.adapty.ui.internal.utils.log
-import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 
 internal interface StateHandler {
 
@@ -57,7 +57,7 @@ internal interface StateHandler {
     fun setActionHandler(handler: ActionHandler?)
 }
 
-@InternalAdaptyApi
+@InternalAdaptyUiApi
 public interface StateAccessor {
 
     public operator fun get(key: String): Any?

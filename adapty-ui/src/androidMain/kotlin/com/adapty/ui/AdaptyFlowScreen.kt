@@ -1,4 +1,4 @@
-@file:OptIn(InternalAdaptyApi::class)
+@file:OptIn(InternalAdaptyUiApi::class, com.adapty.internal.utils.InternalAdaptyApi::class)
 
 package com.adapty.ui
 
@@ -8,8 +8,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.adapty.internal.di.Dependencies
-import com.adapty.internal.utils.InternalAdaptyApi
-import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.AdaptyPaywallProduct
+import com.adapty.ui.internal.platform.InternalAdaptyUiApi
+import com.adapty.ui.internal.platform.identityHashCode
+import com.adapty.ui.internal.platform.randomUUID
 import com.adapty.ui.internal.script.SDKGlobals
 import com.adapty.ui.internal.script.StateHandler
 import com.adapty.ui.internal.ui.AdaptyFlowInternal
@@ -29,7 +31,6 @@ import com.adapty.ui.listeners.AdaptyFlowEventListener
 import com.adapty.ui.listeners.AdaptyUiObserverModeHandler
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.adapty.ui.listeners.AdaptyUiTimerResolver
-import java.util.UUID
 
 /**
  * Flow screen composable representation
@@ -70,7 +71,7 @@ public fun AdaptyFlowScreen(
     val context = LocalContext.current
     val vmArgs = remember {
         FlowViewModelArgs.create(
-            "${UUID.randomUUID().toString().hashCode()}",
+            "${randomUUID().toString().hashCode()}",
             context.getCurrentLocale(),
             context,
         )
@@ -80,7 +81,7 @@ public fun AdaptyFlowScreen(
         key = flowConfiguration.id,
         factory = FlowViewModelFactory(vmArgs)
     )
-    val vmId = System.identityHashCode(viewModel)
+    val vmId = identityHashCode(viewModel)
 
     DisposableEffect(flowConfiguration) {
         val stateHandler = withAdaptyUIActivated {
