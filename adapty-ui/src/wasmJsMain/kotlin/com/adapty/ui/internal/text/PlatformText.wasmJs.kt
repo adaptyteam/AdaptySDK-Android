@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import org.jetbrains.skia.Font
+import org.jetbrains.skia.Typeface as SkTypeface
 
 @Composable
 internal actual fun PlatformBasicText(
@@ -50,8 +51,9 @@ internal actual fun PlatformBasicText(
 ) {
     val emoji = WebFonts.emojiFamily()
     val presented = remember(text, emoji) { text.withEmojiPresentation(emoji) }
-    // Reflow edits depend on the font size, which auto-size changes per layout: not applied with auto-size
-    val reflow = remember(presented, overflow, autoSize == null) { if (autoSize == null) ReflowState() else null }
+    // Reflow edits depend on the font size, which auto-size changes per layout: not applied with auto-size.
+    // Not keyed on the text: the previous edits are shown for a changed text (e.g. a timer tick) until checked.
+    val reflow = remember(overflow, autoSize == null) { if (autoSize == null) ReflowState() else null }
     val lineBox = remember { LineBoxState() }
     val userOnTextLayout by rememberUpdatedState(onTextLayout)
     val layoutCallback = remember(presented, reflow) {
@@ -99,16 +101,12 @@ internal actual fun PlatformLabelText(
 private class ReflowState {
     private var reflow by mutableStateOf<TextReflow?>(null)
 
-    fun display(original: AnnotatedString): AnnotatedString =
-        reflow?.let { original.withReflow(it.breaks, it.cut) } ?: original
+    fun display(original: AnnotatedString): AnnotatedString = reflow?.applyTo(original) ?: original
 
-    /** Updates the edits for [result]'s constraints; true when the displayed text changes (a new layout follows). */
+    /** Updates the edits for [result]; true when the displayed text changes (a new layout follows). */
     fun onLayout(original: AnnotatedString, result: TextLayoutResult): Boolean {
         val input = result.layoutInput
-        val current = reflow
-        if (current == null || current.width != input.constraints.maxWidth || current.maxLines != input.maxLines) {
-            reflow = textReflow(original, result)
-        }
+        if (reflow?.holdsFor(original, input) != true) reflow = textReflow(original, result)
         return display(original) != input.text
     }
 }
@@ -130,8 +128,21 @@ private class LineBoxState {
     }
 }
 
+private var metricsTypeface: SkTypeface? = null
+private val metricsBySize = HashMap<Float, Pair<Float, Float>>()
+
 private fun systemFontMetrics(sizePx: Float): Pair<Float, Float>? {
     val typeface = WebFonts.defaultTypeface()?.skia ?: return null
-    val metrics = Font(typeface, sizePx).metrics
-    return metrics.ascent to metrics.descent
+    if (typeface !== metricsTypeface) {
+        metricsTypeface = typeface
+        metricsBySize.clear()
+    }
+    return metricsBySize.getOrPut(sizePx) {
+        val font = Font(typeface, sizePx)
+        try {
+            font.metrics.let { it.ascent to it.descent }
+        } finally {
+            font.close()
+        }
+    }
 }

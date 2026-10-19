@@ -21,9 +21,10 @@ internal fun AnnotatedString.withEmojiPresentation(emoji: FontFamily?): Annotate
 }
 
 /**
- * Char ranges rendered with emoji presentation: a code point with Emoji_Presentation=Yes or followed by VS16
- * (U+FE0F), or a keycap base followed by U+20E3, together with its sequence (VS16, keycap, skin tones, tags,
- * ZWJ-joined code points). VS15 (U+FE0E) keeps text presentation. Adjacent runs are merged.
+ * Char ranges rendered with emoji presentation: a code point with Emoji_Presentation=Yes, followed by VS16
+ * (U+FE0F) or by a skin-tone modifier (☝🏽), or a keycap base followed by U+20E3, together with its sequence
+ * (VS16, keycap, skin tones, tags, ZWJ-joined code points). VS15 (U+FE0E) keeps text presentation.
+ * Adjacent runs are merged.
  */
 internal fun emojiRuns(text: String): List<IntRange> {
     val runs = ArrayList<IntRange>()
@@ -33,7 +34,7 @@ internal fun emojiRuns(text: String): List<IntRange> {
         val next = i + charCount(cp)
         val following = if (next < text.length) codePointAt(text, next) else -1
         val starts = following != VS15 &&
-            (isEmojiPresentation(cp) || following == VS16 || (following == KEYCAP && isKeycapBase(cp)))
+            (isEmojiPresentation(cp) || following == VS16 || following in SKIN_TONES || (following == KEYCAP && isKeycapBase(cp)))
         if (!starts) {
             i = next
             continue

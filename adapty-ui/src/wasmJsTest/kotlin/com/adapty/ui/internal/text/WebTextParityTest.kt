@@ -9,6 +9,7 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.createFontFamilyResolver
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,6 +29,7 @@ import org.jetbrains.skia.FontMgr
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -65,6 +67,8 @@ class WebTextParityTest {
         assertEquals(listOf(0..5), emojiRuns("🏳️‍🌈"), "VS16 + ZWJ")
         assertEquals(listOf(0..13), emojiRuns("🏴󠁧󠁢󠁥󠁮󠁧󠁿"), "tag sequence")
         assertEquals(listOf(0..3), emojiRuns("🌙🎧"), "adjacent runs merge")
+        assertEquals(listOf(0..2), emojiRuns("☝🏽"), "text-default base + skin tone")
+        assertEquals(listOf(2..4), emojiRuns("a ✌🏽 b"), "text-default base + skin tone")
     }
 
     @Test
@@ -101,6 +105,37 @@ class WebTextParityTest {
     }
 
     @Test
+    fun reflowIsRecomputedWhenTheLayoutChanges() = runTest {
+        val family = registerSystemFont(700)
+        val text = AnnotatedString("Lorem ipsum dolor sit amet, consectetur adipiscing elit")
+        val style = TextStyle(fontFamily = family, fontSize = 16.sp)
+        val layout = measurer().measure(text, style, constraints = Constraints(maxWidth = 130))
+        val reflow = assertNotNull(textReflow(text, layout))
+        assertTrue(reflow.holdsFor(text, layout.layoutInput))
+
+        // Same text and width, smaller font: the long word fits, the old break no longer holds
+        val small = measurer().measure(text, style.copy(fontSize = 8.sp), constraints = Constraints(maxWidth = 130))
+        assertFalse(reflow.holdsFor(text, small.layoutInput))
+        assertNull(textReflow(text, small))
+        assertFalse(reflow.holdsFor(text, measurer().measure(text, style.copy(fontWeight = FontWeight.Normal), constraints = Constraints(maxWidth = 130)).layoutInput))
+        val otherDensity = TextMeasurer(createFontFamilyResolver(), Density(3f), LayoutDirection.Ltr)
+            .measure(text, style, constraints = Constraints(maxWidth = 130))
+        assertFalse(reflow.holdsFor(text, otherDensity.layoutInput))
+        assertFalse(reflow.holdsFor(AnnotatedString(text.text + "!"), layout.layoutInput))
+    }
+
+    @Test
+    fun scriptsWithoutSpacesAreNotReflowed() = runTest {
+        val family = registerSystemFont(400)
+        // Thai has no spaces between words; Skia breaks it by dictionary like Minikin
+        val text = AnnotatedString("Hello สวัสดีครับยินดีต้อนรับสู่แอปพลิเคชันของเราขอบคุณมากครับ")
+        val layout = measurer().measure(text, TextStyle(fontFamily = family, fontSize = 16.sp), constraints = Constraints(maxWidth = 200))
+        // Precondition: line 1 starts inside the phrase that began after "Hello " on line 0 (the too-long-word shape)
+        assertTrue(layout.lineCount > 1 && layout.getLineStart(1) > 6, "precondition: ${layout.lines()}")
+        assertNull(textReflow(text, layout))
+    }
+
+    @Test
     fun wordsThatFitAreNotEdited() = runTest {
         val family = registerSystemFont(400)
         val text = AnnotatedString("Unlimited free access for 7 days")
@@ -123,6 +158,10 @@ class WebTextParityTest {
         assertEquals(listOf("00:59:55…"), fixed.lines())
         // Like Android, the paragraph is as wide as the widest line of the whole text
         assertEquals(layout.size.width, fixed.size.width)
+
+        // The next timer tick reuses the edits until they are checked (no frame without the ellipsis)
+        assertEquals("00:59:56…\nRemaining", reflow.applyTo(AnnotatedString("00:59:56\nRemaining"))?.text)
+        assertNull(reflow.applyTo(AnnotatedString("1:00\nRemaining")), "structure changed")
 
         // Not when the text fits, nor for Clip (Android ellipsizes only with Ellipsis)
         assertNull(textReflow(text, measurer().measure(text, style, overflow = TextOverflow.Ellipsis, maxLines = 2)))
