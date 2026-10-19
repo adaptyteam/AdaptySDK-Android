@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.toRadians
+import com.adapty.ui.internal.text.PlatformLabelText
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -202,7 +203,7 @@ internal fun WheelColumn(
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    androidx.compose.material3.Text(
+                    PlatformLabelText(
                         text = labels[index],
                         modifier = if (backgroundColor != null)
                             Modifier.background(backgroundColor) else Modifier,

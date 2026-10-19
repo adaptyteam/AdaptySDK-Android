@@ -33,8 +33,14 @@ internal object WebFonts {
         val generation: Int,
         val system: ByteArray,
         val systemTypeface: SkTypeface,
-        val fallbacks: List<ByteArray>,
-    )
+        val symbolFallbacks: List<ByteArray>,
+        val emoji: ByteArray?,
+    ) {
+        // Shared by the fallback chain and the emoji-presentation spans (one font in the collection)
+        val emojiFamily: FontFamily? = emoji?.let {
+            FontFamily(Font("adapty-web-emoji-g$generation", it, FontWeight.Normal, FontStyle.Normal))
+        }
+    }
 
     private var registered: Registered? = null
 
@@ -51,14 +57,19 @@ internal object WebFonts {
             log(ERROR) { "[AdaptyUI] web fonts: the system font could not be parsed; fonts are not registered" }
             return
         }
-        val fallbacks = (symbolFallbacks + listOfNotNull(emoji)).filterIndexed { i, bytes ->
+        val symbols = symbolFallbacks.filterIndexed { i, bytes ->
             (makeTypeface(bytes) != null).also { ok ->
                 if (!ok) log(ERROR) { "[AdaptyUI] web fonts: fallback font #$i could not be parsed; skipped" }
             }
         }
+        val parsedEmoji = emoji?.takeIf { bytes ->
+            (makeTypeface(bytes) != null).also { ok ->
+                if (!ok) log(ERROR) { "[AdaptyUI] web fonts: the emoji font could not be parsed; skipped" }
+            }
+        }
         families.clear()
         typefaces.clear()
-        registered = Registered(generationState + 1, system, systemTypeface, fallbacks)
+        registered = Registered(generationState + 1, system, systemTypeface, symbols, parsedEmoji)
         generationState += 1
     }
 
@@ -87,6 +98,9 @@ internal object WebFonts {
         }
     }
 
+    /** The color emoji font, for runs with emoji presentation (Android picks it over the symbol fonts for those). */
+    fun emojiFamily(): FontFamily? = registered?.emojiFamily
+
     /** Default (no font asset) typeface: Android's default is sans-serif at 400. */
     fun defaultTypeface(): PlatformTypeface? = if (registered == null) null else typeface(400, false)
 
@@ -96,9 +110,10 @@ internal object WebFonts {
      */
     private fun fallbackFamilies(reg: Registered): List<FontFamily> =
         listOf(FontFamily(systemFont(reg, 400, false))) +
-            reg.fallbacks.mapIndexed { i, bytes ->
+            reg.symbolFallbacks.mapIndexed { i, bytes ->
                 FontFamily(Font("adapty-web-fallback-$i-g${reg.generation}", bytes, FontWeight.Normal, FontStyle.Normal))
-            }
+            } +
+            listOfNotNull(reg.emojiFamily)
 
     /**
      * Loads the fallback fonts through the current [LocalFontFamilyResolver] during composition.

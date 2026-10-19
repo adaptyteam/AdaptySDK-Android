@@ -121,7 +121,7 @@ private fun font(weight: Int) = Asset.Font("adapty_system", emptyList(), weight,
 private fun measurer(resolver: FontFamily.Resolver = createFontFamilyResolver()) =
     TextMeasurer(resolver, Density(1f), LayoutDirection.Ltr)
 
-private suspend fun fetchResource(name: String): ByteArray {
+internal suspend fun fetchResource(name: String): ByteArray {
     val base = resourcesBaseUrl()
     if (base.isEmpty()) {
         fail("fixture base URL is not configured: karma.config.d/fixtures.js or the generated paths.js was not loaded")

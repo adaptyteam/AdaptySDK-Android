@@ -1,6 +1,5 @@
 package com.adapty.ui.internal.ui.element
 
-import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
@@ -34,6 +33,7 @@ import com.adapty.ui.internal.platform.PlatformTypeface
 import com.adapty.ui.internal.platform.identityHashCode
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.text.ComposeTextAttrs
+import com.adapty.ui.internal.text.PlatformBasicText
 import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.text.naturalLineHeightSp
 import com.adapty.ui.internal.text.platformTextStyle
@@ -133,17 +133,18 @@ public abstract class BaseTextElement(
                             append(text.value)
                         }
                     }
-                    BasicText(
+                    PlatformBasicText(
                         text = annotatedText,
                         maxLines = heightFit?.maxLines?.value ?: maxLines ?: Int.MAX_VALUE,
                         overflow = TextOverflow.Ellipsis,
                         onTextLayout = heightFit?.onTextLayout,
                         style = textStyle,
+                        inlineContent = emptyMap(),
                         autoSize = if (overflowAtMin != null) null else autoSize,
                         modifier = bgModifier,
                     )
                 } else {
-                    BasicText(
+                    PlatformBasicText(
                         text = text.value,
                         maxLines = heightFit?.maxLines?.value ?: maxLines ?: Int.MAX_VALUE,
                         overflow = TextOverflow.Ellipsis,
@@ -182,7 +183,7 @@ public abstract class BaseTextElement(
                 }
                 val resolvedLineHeight = resolveLineHeight(elementTextAttrs.lineHeight, autoSize, originalFontSize, elementTextAttrs.typeface)
                 val heightFit = rememberHeightFitController(contentKey, maxLines, onOverflow == null)
-                BasicText(
+                PlatformBasicText(
                     text = text.value,
                     inlineContent = text.inlineContent,
                     maxLines = heightFit?.maxLines?.value ?: maxLines ?: Int.MAX_VALUE,

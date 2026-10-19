@@ -14,7 +14,8 @@ public object AdaptyUIWeb {
     /**
      * Registers the fonts Android takes from /system/fonts.
      * [system] is the variable system font (Android `Roboto-Regular.ttf`), used for every font asset with
-     * `wght`/`ital` variations. [symbolFallbacks] and [emoji] are glyph fallbacks, consulted in that order.
+     * `wght`/`ital` variations. [symbolFallbacks] and [emoji] are glyph fallbacks, consulted in that order;
+     * like on Android, emoji-presentation sequences (e.g. ✅, ⚠️, flags, ZWJ sequences) always use [emoji].
      * Call before the first flow is composed; unparsable fonts are logged and skipped.
      */
     public fun registerFonts(system: ByteArray, symbolFallbacks: List<ByteArray> = emptyList(), emoji: ByteArray? = null) {
