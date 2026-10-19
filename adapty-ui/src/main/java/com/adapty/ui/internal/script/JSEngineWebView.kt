@@ -170,7 +170,7 @@ internal class JSEngineWebView(
         val wrapped = """
             (function() {
               function safeStringify(v) {
-                try { return JSON.stringify(v) ?? "null"; }
+                try { return JSON.stringify(v) || "null"; }
                 catch(e) { return JSON.stringify({ "$JS_ERROR_KEY": e.toString() }); }
               }
               try {

@@ -285,6 +285,9 @@ internal object SDKGlobals {
                 '\t' -> sb.append("\\t")
                 '\b' -> sb.append("\\b")
                 '' -> sb.append("\\f")
+                // Raw U+2028 / U+2029 end a JS string literal before ES2019 (WebView < 66)
+                '\u2028' -> sb.append("\\u2028")
+                '\u2029' -> sb.append("\\u2029")
                 else -> {
                     if (c.code < 0x20) {
                         sb.append("\\u")

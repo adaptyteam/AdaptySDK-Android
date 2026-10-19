@@ -30,7 +30,7 @@ internal class JSStateHandler(
         private val COLLECT_STATE_SCRIPT = """
             (function() {
                 var result = {};
-                var g = (typeof globalThis !== 'undefined') ? globalThis : this;
+                var g = $JS_GLOBAL_OBJECT;
                 var skip = (typeof __adapty_baseline_keys__ !== 'undefined')
                     ? __adapty_baseline_keys__
                     : {'SDK':1,'console':1,'undefined':1,'NaN':1,'Infinity':1,
@@ -123,7 +123,7 @@ internal class JSStateHandler(
         val snapshotJson = gson.toJson(snapshot)
         val applyScript = """
             (function(saved) {
-                var g = (typeof globalThis !== 'undefined') ? globalThis : this;
+                var g = $JS_GLOBAL_OBJECT;
                 function mergeInto(target, source) {
                     for (var p in source) {
                         if (Object.prototype.hasOwnProperty.call(source, p)) target[p] = source[p];
@@ -155,7 +155,7 @@ internal class JSStateHandler(
     }
 
     override suspend fun setActionsSuppressed(suppressed: Boolean) {
-        stateMachine.executeScript("globalThis.__adapty_suppress_actions__ = $suppressed")
+        stateMachine.executeScript("$JS_GLOBAL_OBJECT.__adapty_suppress_actions__ = $suppressed")
     }
 
     override suspend fun loadScript(script: String) {
