@@ -343,7 +343,7 @@ internal class JSStateMachine(
             // can distinguish user-defined variables from browser/engine built-ins.
             var __adapty_baseline_keys__ = {};
             (function() {
-                var g = (typeof globalThis !== 'undefined') ? globalThis : this;
+                var g = $JS_GLOBAL_OBJECT;
                 var names = Object.getOwnPropertyNames(g);
                 for (var i = 0; i < names.length; i++) __adapty_baseline_keys__[names[i]] = 1;
                 __adapty_baseline_keys__['__adapty_baseline_keys__'] = 1;
@@ -421,9 +421,9 @@ internal class JSStateMachine(
         try {
             val script = """
                 var __sdkEnv__ = $sdkEnvJson; Object.freeze(__sdkEnv__);
-                Object.defineProperty(globalThis, 'SDKEnv', { value: __sdkEnv__, writable: false, configurable: false, enumerable: false });
+                Object.defineProperty($JS_GLOBAL_OBJECT, 'SDKEnv', { value: __sdkEnv__, writable: false, configurable: false, enumerable: false });
                 var __sdkProducts__ = $sdkProductsJson; Object.freeze(__sdkProducts__);
-                Object.defineProperty(globalThis, 'SDKProducts', { value: __sdkProducts__, writable: false, configurable: true, enumerable: false });
+                Object.defineProperty($JS_GLOBAL_OBJECT, 'SDKProducts', { value: __sdkProducts__, writable: false, configurable: true, enumerable: false });
             """.trimIndent()
             jsEngine.loadScript(script)
         } catch (e: Exception) {
@@ -437,7 +437,7 @@ internal class JSStateMachine(
         try {
             val script = """
                 var __sdkProducts__ = $sdkProductsJson; Object.freeze(__sdkProducts__);
-                Object.defineProperty(globalThis, 'SDKProducts', { value: __sdkProducts__, writable: false, configurable: true, enumerable: false });
+                Object.defineProperty($JS_GLOBAL_OBJECT, 'SDKProducts', { value: __sdkProducts__, writable: false, configurable: true, enumerable: false });
             """.trimIndent()
             jsEngine.loadScript(script)
         } catch (e: Exception) {
