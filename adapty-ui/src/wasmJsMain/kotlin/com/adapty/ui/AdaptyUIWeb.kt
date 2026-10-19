@@ -21,7 +21,7 @@ public object AdaptyUIWeb {
         WebFonts.register(system, symbolFallbacks, emoji)
     }
 
-    /** Screen environment for `screenSmallestWidthDp`, `isLandscape`, `screenHeightDp` and safe-area insets. Observable by Compose. */
+    /** Device environment: `screenSmallestWidthDp`, `isLandscape`, `screenHeightDp`, safe-area insets and OS version. Observable by Compose. */
     public var environment: WebEnvironment by mutableStateOf(WebEnvironment())
 
     internal fun resetFontsForTest() {
@@ -34,10 +34,12 @@ public object AdaptyUIWeb {
  * @param smallestScreenWidthDp Android `Configuration.smallestScreenWidthDp`.
  * @param isLandscape Android orientation.
  * @param screenHeightDp Android `Configuration.screenHeightDp` (the screen, not the browser viewport).
+ * @param osVersion Android `Build.VERSION.RELEASE` (SDK environment `osVersion`, OS version conditions); empty = unknown.
  */
 public data class WebEnvironment(
     val safeInsets: AdaptyFlowInsets = AdaptyFlowInsets.None,
     val smallestScreenWidthDp: Int = 800,
     val isLandscape: Boolean = true,
     val screenHeightDp: Int = 800,
+    val osVersion: String = "",
 )

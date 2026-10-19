@@ -32,10 +32,7 @@ private fun devicePixelRatio(): Double = js("window.devicePixelRatio || 1")
 
 internal actual fun screenSmallestWidthDp(): Int = AdaptyUIWeb.environment.smallestScreenWidthDp
 
-internal actual fun osVersion(): String {
-    webStub("osVersion")
-    return ""
-}
+internal actual fun osVersion(): String = AdaptyUIWeb.environment.osVersion
 
 internal actual fun systemDensity(): Float = devicePixelRatio().toFloat()
 

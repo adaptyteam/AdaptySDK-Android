@@ -11,7 +11,9 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import com.adapty.ui.AdaptyUIWeb
 import com.adapty.ui.internal.mapping.element.Assets
+import com.adapty.ui.internal.platform.ADAPTY_SDK_VERSION
 import com.adapty.ui.internal.platform.InternalAdaptyUiApi
 import com.adapty.ui.internal.platform.PlatformContextHandle
 import com.adapty.ui.internal.platform.PlatformLocale
@@ -26,15 +28,16 @@ import com.adapty.ui.internal.ui.MediaSource
 import com.adapty.ui.internal.ui.SdkMetaInfo
 import com.adapty.ui.internal.ui.TimerValueStore
 import com.adapty.ui.internal.ui.WebMediaSource
+import com.adapty.ui.internal.ui.WebTimerValueStore
 import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.listeners.AdaptyFlowEventListener
 import com.adapty.ui.listeners.AdaptyFlowEventListenerBase
 
-// Browser preview: no core SDK, no disk cache; timers live in memory, remote media is fetched by the browser.
+// Browser preview: no core SDK, no disk cache; persisted timers go to localStorage, remote media is fetched by the browser.
 
 private var sharedPreviewStateHandler: JSStateHandler? = null
 
-private val previewTimerStore: TimerValueStore by lazy { InMemoryTimerValueStore() }
+private val previewTimerStore: TimerValueStore by lazy { WebTimerValueStore() }
 
 private val previewSdkMetaInfo: SdkMetaInfo by lazy { WebPreviewSdkMetaInfo() }
 
@@ -72,24 +75,16 @@ internal actual fun ProvidePreviewViewModelStoreOwner(content: @Composable () ->
     CompositionLocalProvider(LocalViewModelStoreOwner provides owner, content = content)
 }
 
-private class InMemoryTimerValueStore : TimerValueStore {
-    private val values = HashMap<String, Long>()
-
-    override fun getLong(key: String, isPersisted: Boolean): Long? = values[key]
-
-    override fun setLong(key: String, value: Long, isPersisted: Boolean) {
-        values[key] = value
-    }
-}
-
 private class WebPreviewSdkMetaInfo : SdkMetaInfo {
     override val appBuildAndVersion: Pair<String, String> = "1" to "1.0"
     override val currentLocale: PlatformLocale? get() = defaultLocale()
     override val userLocales: List<String>
         get() = defaultLocale().let { if (it.country.isEmpty()) it.language else "${it.language}-${it.country}" }
             .let(::listOf)
-    override val adaptySdkVersion: String = "4.2.2"
-    override val os: String = "Android"
+    override val adaptySdkVersion: String = ADAPTY_SDK_VERSION
+
+    // OS version, as on Android (MetaInfoRetriever.os = Build.VERSION.RELEASE); the OS name stays "Android"
+    override val os: String get() = AdaptyUIWeb.environment.osVersion
     override val deviceName: String = "web"
     override val applicationId: String = "io.adapty.ui.gallery.web"
     override val manufacturer: String = "web"
