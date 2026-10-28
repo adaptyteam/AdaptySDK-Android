@@ -15,6 +15,7 @@ import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.ui.element.Action
 import com.adapty.ui.internal.utils.CUSTOM_ASSET_SUFFIX
+import com.adapty.ui.internal.utils.normalizeJsonNumbers
 import com.adapty.ui.internal.utils.DARK_THEME_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.VIDEO_PREVIEW_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX
@@ -355,6 +356,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
     is Message.JSCallback.SendAnalyticsEvent -> {
         val isBackend = message.params["isBackendEvent"] as? Boolean ?: true
         val isCustomer = message.params["isCustomerEvent"] as? Boolean ?: false
+        val params = message.params.normalizeJsonNumbers()
         val effects = mutableListOf<Effect>()
         if (isBackend && state.config.viewConfig.mode.isLive())
             effects.add(
@@ -362,11 +364,11 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
                     state.config.viewConfig.mode.flow,
                     state.config.viewConfig.id,
                     message.name,
-                    message.params,
+                    params,
                 )
             )
         if (isCustomer)
-            effects.add(Effect.NotifyListener.AnalyticEvent(message.name, message.params))
+            effects.add(Effect.NotifyListener.AnalyticEvent(message.name, params))
         state to effects
     }
 
@@ -438,9 +440,12 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
             state.assets.items[customId]?.let { mergedAssets[customId] = it }
         }
 
+        val pushProductsToScript = mergedProducts.isNotEmpty() &&
+            (mergedProducts != state.products.items || !state.products.syncedToScript)
         val (resolvedProductsState, selectionEffects) = state.products.copy(
             items = mergedProducts,
             loadingStatus = if (mergedProducts.isNotEmpty()) LoadingStatus.Loaded else state.products.loadingStatus,
+            syncedToScript = state.products.syncedToScript || pushProductsToScript,
         ).resolvePendingSelections(state.ui.flowShown)
 
         val newState = state.copy(
@@ -457,8 +462,9 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
         if (mode.isLive() && mergedProducts.isEmpty()) {
             effects.add(Effect.LoadProducts(mode.flow, newData.productLoadingFailureCallback))
         }
-        if (mergedProducts.isNotEmpty() && mergedProducts != state.products.items) {
+        if (pushProductsToScript) {
             effects.add(Effect.UpdateJSProducts(mergedProducts))
+            effects.add(Effect.SendSDKEvent.ProductsLoaded)
         }
 
         viewConfig.assets.forEach { (id, asset) ->
@@ -506,7 +512,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
     is Message.ProductsLoaded -> {
         val mergedProducts = state.products.items + message.products
         val (productsState, selectionEffects) = state.products
-            .copy(items = mergedProducts, loadingStatus = LoadingStatus.Loaded)
+            .copy(items = mergedProducts, loadingStatus = LoadingStatus.Loaded, syncedToScript = true)
             .resolvePendingSelections(state.ui.flowShown)
         state.copy(products = productsState, ui = state.ui.copy(isLoading = false)) to
             (listOf(Effect.UpdateJSProducts(mergedProducts), Effect.SendSDKEvent.ProductsLoaded) + selectionEffects)

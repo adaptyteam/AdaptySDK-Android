@@ -115,6 +115,7 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
     CompositionLocalProvider(
         LocalLayoutDirection provides if (viewConfig.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
         LocalCustomInsets provides effectiveInsets.wrap(),
+        LocalIsLegacyFormat provides viewConfig.isLegacyFormat,
     ) {
         val insets = getInsets()
         Box {

@@ -57,7 +57,7 @@ internal class AuthInteractor(
                     }
                     val (profile, _) = cloudRepository.createProfile(newIdentityParams, installationMeta, params)
 
-                    val profileStateChange = profileStateChangeChecker.getProfileStateChange(profile)
+                    val profileStateChange = profileStateChangeChecker.getProfileStateChange(profile, newProfileId)
                     when (profileStateChange) {
                         ProfileStateChange.NEW -> {
                             cacheRepository.updateDataOnCreateProfile(profile, installationMeta, profileStateChange)
@@ -116,7 +116,8 @@ internal class AuthInteractor(
             appSetIdRetriever.getAppSetIdIfAvailable(),
             userAgentRetriever.getUserAgentIfAvailable(),
         ) { adId, storeCountry, appSetId, userAgent ->
-            installationMetaCreator.create(adId, appSetId, storeCountry, userAgent)
+            val userAgentOrLastSent = userAgent ?: cacheRepository.getInstallationMeta()?.userAgent
+            installationMetaCreator.create(adId, appSetId, storeCountry, userAgentOrLastSent)
         }
 
     fun prepareAuthDataToSync(newCustomerUserId: String?, newObfuscatedAccountId: String?) {

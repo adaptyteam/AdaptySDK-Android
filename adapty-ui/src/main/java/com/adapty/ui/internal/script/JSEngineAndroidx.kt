@@ -18,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -96,9 +97,10 @@ internal class JSEngineAndroidx(
         }
     }
 
-    private suspend fun reinitializeSandbox(failedGeneration: Long) {
+    private suspend fun reinitializeSandbox(failedGeneration: Long) = withContext(NonCancellable) {
+        var recovered = false
         reinitMutex.withLock {
-            if (sandboxGeneration != failedGeneration) return
+            if (sandboxGeneration != failedGeneration) return@withLock
             sandboxGeneration++
             log(WARN) { "$LOG_PREFIX Sandbox died, re-creating…" }
             tearDownIsolate()
@@ -109,12 +111,13 @@ internal class JSEngineAndroidx(
                 jsIsolate = sandbox.createIsolate()
                 setupGlobalBridge()
                 startPollLoop()
-                onSandboxDied?.invoke()
+                recovered = true
                 log(INFO) { "$LOG_PREFIX Sandbox re-created successfully" }
             } catch (e: Exception) {
                 log(ERROR) { "$LOG_PREFIX_ERROR Failed to re-create sandbox: ${e.localizedMessage}" }
             }
         }
+        if (recovered) onSandboxDied?.invoke()
     }
 
     private fun tearDownIsolate() {

@@ -18,6 +18,7 @@ import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.mapping.element.Products
 import com.adapty.ui.internal.ui.element.BaseTextElement.Attributes
 import com.adapty.ui.internal.utils.firstDiscountOfferOrNull
+import com.adapty.ui.internal.utils.toJsString
 import com.adapty.ui.listeners.AdaptyUiTagResolver
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -98,9 +99,14 @@ internal class TagResolver(
             ProductTags.priceAmount -> formatPriceAmount(product.price)
             ProductTags.priceAmountInteger -> formatPriceAmountInteger(product.price)
             ProductTags.priceAmountFraction -> formatPriceAmountFraction(product.price)
+            ProductTags.billingPrice -> product.price.localizedString
+            ProductTags.billingPriceAmount -> formatPriceAmount(product.price)
+            ProductTags.billingPriceAmountInteger -> formatPriceAmountInteger(product.price)
+            ProductTags.billingPriceAmountFraction -> formatPriceAmountFraction(product.price)
             ProductTags.currencyCode -> product.price.currencyCode
             ProductTags.currencySymbol -> product.price.currencySymbol
             ProductTags.subscriptionPeriod -> product.subscriptionDetails?.localizedSubscriptionPeriod
+            ProductTags.billingPeriod -> product.subscriptionDetails?.localizedSubscriptionPeriod
             ProductTags.pricePerDay -> createPricePerPeriodText(product, DAY)
             ProductTags.pricePerWeek -> createPricePerPeriodText(product, WEEK)
             ProductTags.pricePerMonth -> createPricePerPeriodText(product, MONTH)
@@ -255,10 +261,7 @@ internal class TagResolver(
 
 private fun Any.toTagString(): String? = when (this) {
     is String -> this
-    is Number -> {
-        val d = toDouble()
-        if (d == d.toLong().toDouble()) d.toLong().toString() else d.toString()
-    }
+    is Number -> toDouble().toJsString()
     is Boolean -> toString()
     else -> null
 }
@@ -270,9 +273,14 @@ private object ProductTags {
     const val priceAmount = "PRICE_AMOUNT"
     const val priceAmountInteger = "PRICE_AMOUNT_INTEGER"
     const val priceAmountFraction = "PRICE_AMOUNT_FRACTION"
+    const val billingPrice = "BIL_PRICE"
+    const val billingPriceAmount = "BIL_PRICE_AMT"
+    const val billingPriceAmountInteger = "BIL_PRICE_AMT_INT"
+    const val billingPriceAmountFraction = "BIL_PRICE_AMT_FRC"
     const val currencyCode = "CURRENCY_CODE"
     const val currencySymbol = "CURRENCY_SYMBOL"
     const val subscriptionPeriod = "SUBSCRIPTION_PERIOD"
+    const val billingPeriod = "BIL_PERIOD"
     const val pricePerDay = "PRICE_PER_DAY"
     const val pricePerWeek = "PRICE_PER_WEEK"
     const val pricePerMonth = "PRICE_PER_MONTH"
@@ -292,9 +300,14 @@ private object ProductTags {
         priceAmount,
         priceAmountInteger,
         priceAmountFraction,
+        billingPrice,
+        billingPriceAmount,
+        billingPriceAmountInteger,
+        billingPriceAmountFraction,
         currencyCode,
         currencySymbol,
         subscriptionPeriod,
+        billingPeriod,
         pricePerDay,
         pricePerWeek,
         pricePerMonth,

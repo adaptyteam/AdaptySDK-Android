@@ -7,6 +7,7 @@ import android.content.ContentResolver
 import android.net.Uri
 import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
+import com.adapty.errors.AdaptyErrorCode
 import com.adapty.errors.AdaptyPreloadPlacementsError
 import com.adapty.errors.AdaptyErrorCode.LOGGING_OUT_UNIDENTIFIED_USER
 import com.adapty.errors.AdaptyErrorCode.NO_PURCHASES_TO_RESTORE
@@ -15,6 +16,8 @@ import com.adapty.internal.data.cloud.AnalyticsTracker
 import com.adapty.internal.data.models.DeviceInfo
 import com.adapty.internal.data.models.AnalyticsEvent.SDKMethodRequestData
 import com.adapty.internal.data.models.AnalyticsEvent.SDKMethodResponseData
+import com.adapty.internal.data.models.StoreMessagesOutcome
+import com.adapty.internal.data.models.StoreMessagesTrigger
 import com.adapty.internal.domain.AuthInteractor
 import com.adapty.internal.domain.FlowInteractor
 import com.adapty.internal.domain.OnboardingInteractor
@@ -36,6 +39,7 @@ import com.adapty.utils.TransactionInfo
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.*
+import java.lang.ref.WeakReference
 import java.util.Locale
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
@@ -54,6 +58,7 @@ internal class AdaptyInternal(
     private val isObserverMode: Boolean,
     private val ipAddressCollectionDisabled: Boolean,
     private val adaptyAttributionEnabled: Boolean,
+    private val storeMessagesHandling: AdaptyConfig.StoreMessagesHandling,
 ) {
 
     var onProfileUpdatedListener: OnProfileUpdatedListener? = null
@@ -94,6 +99,11 @@ internal class AdaptyInternal(
             adaptyAttributionInteractor.handleFirstLaunch()
         }
         authInteractor.handleAppKey(appKey)
+        if (storeMessagesHandling == AdaptyConfig.StoreMessagesHandling.AUTO) {
+            lifecycleManager.activityStartCallback = LifecycleManager.ActivityStartCallback { activity ->
+                showStoreMessagesOnActivityStart(activity)
+            }
+        }
         lifecycleManager.init()
     }
 
@@ -142,13 +152,13 @@ internal class AdaptyInternal(
     ) {
         val requestEvent =
             if (isInitialActivation)
-                SDKMethodRequestData.Activate.create(isObserverMode, ipAddressCollectionDisabled, customerUserId != null)
+                SDKMethodRequestData.Activate.create(isObserverMode, ipAddressCollectionDisabled, customerUserId != null, storeMessagesHandling)
             else
                 SDKMethodRequestData.create("logout")
         analyticsTracker.trackSystemEvent(requestEvent)
-        execute {
-            authInteractor.prepareAuthDataToSync(customerUserId, obfuscatedAccountId)
+        authInteractor.prepareAuthDataToSync(customerUserId, obfuscatedAccountId)
 
+        execute {
             authInteractor
                 .activateOrIdentify()
                 .onSingleResult { result ->
@@ -239,6 +249,37 @@ internal class AdaptyInternal(
                     )
                     callback.onResult(result)
                 }
+                .collect()
+        }
+    }
+
+    fun showStoreMessages(activity: Activity) {
+        val requestEvent = SDKMethodRequestData.create("show_store_messages")
+        analyticsTracker.trackSystemEvent(requestEvent)
+        val hostActivity = WeakReference(activity)
+        execute {
+            purchasesInteractor.showStoreMessages(hostActivity, StoreMessagesTrigger.EXPLICIT)
+                .onEach { outcome ->
+                    val rejection = (outcome as? StoreMessagesOutcome.Rejected)?.let { rejected ->
+                        AdaptyError(
+                            message = "Play Market request failed on show in-app messages: responseCode=${rejected.billingResponseCode}",
+                            adaptyErrorCode = AdaptyErrorCode.fromBilling(rejected.billingResponseCode),
+                        )
+                    }
+                    analyticsTracker.trackSystemEvent(SDKMethodResponseData.create(requestEvent, rejection))
+                }
+                .catch { error ->
+                    analyticsTracker.trackSystemEvent(SDKMethodResponseData.create(requestEvent, error.asAdaptyError()))
+                }
+                .collect()
+        }
+    }
+
+    private fun showStoreMessagesOnActivityStart(activity: Activity) {
+        val hostActivity = WeakReference(activity)
+        execute {
+            purchasesInteractor.showStoreMessages(hostActivity, StoreMessagesTrigger.AUTOMATIC)
+                .catch { }
                 .collect()
         }
     }
@@ -430,7 +471,11 @@ internal class AdaptyInternal(
             "flow_showed",
             mutableMapOf<String, Any>(
                 "variation_id" to flow.variationId
-            ),
+            ).apply {
+                flow.layoutsConfiguration?.versionId?.let { versionId ->
+                    put("flow_version_id", versionId)
+                }
+            },
             completion = callback,
         )
     }

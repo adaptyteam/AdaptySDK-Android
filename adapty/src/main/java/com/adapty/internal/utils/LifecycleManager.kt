@@ -24,6 +24,14 @@ internal class LifecycleManager(private val app: Application, cacheRepository: C
     @JvmField
     var stateCallback: StateCallback? = null
 
+    fun interface ActivityStartCallback {
+        fun onActivityStarted(activity: Activity)
+    }
+
+    @JvmField
+    @Volatile
+    var activityStartCallback: ActivityStartCallback? = null
+
     private var isFirstStart = true
 
     private val isActivateAllowed = MutableStateFlow(!cacheRepository.hasLocalProfile())
@@ -42,6 +50,10 @@ internal class LifecycleManager(private val app: Application, cacheRepository: C
         app.registerActivityLifecycleCallbacks(object: ActivityCallbacks() {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
                 allowActivateOnce()
+            }
+
+            override fun onActivityStarted(activity: Activity) {
+                activityStartCallback?.onActivityStarted(activity)
             }
         })
 

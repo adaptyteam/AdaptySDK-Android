@@ -72,7 +72,7 @@ internal class CacheRepository(
         saveLastSentInstallationMeta(installationMeta)
     }
 
-    suspend fun updateOnProfileReceived(
+    fun updateOnProfileReceived(
         profile: ProfileDto,
         profileIdWhenRequestSent: String?,
     ): ProfileDto {
@@ -83,7 +83,7 @@ internal class CacheRepository(
         return saveProfile(profile)
     }
 
-    private suspend fun saveProfile(profile: ProfileDto) =
+    private fun saveProfile(profile: ProfileDto) =
         profile.also {
             execute {
                 currentProfile.emit(profile)
@@ -221,11 +221,6 @@ internal class CacheRepository(
     }
 
     fun getUserAgentAttempt() = getString(USER_AGENT_ATTEMPT)
-
-    fun saveUserAgentAttempt(webViewVersion: String) {
-        cache[USER_AGENT_ATTEMPT] = webViewVersion
-        preferenceManager.saveString(USER_AGENT_ATTEMPT, webViewVersion)
-    }
 
     fun clearUserAgentAttempt() {
         cache.remove(USER_AGENT_ATTEMPT)
@@ -627,6 +622,31 @@ internal class CacheRepository(
         }
     }
 
+    fun getPendingPurchases() =
+        validateDataLock.readLock().withLockSafe {
+            getPendingPurchasesInternal()
+        }
+
+    fun getPendingPurchase(purchaseToken: String) =
+        getPendingPurchases()?.get(purchaseToken)
+
+    private fun getPendingPurchasesInternal() =
+        getData<CacheEntity<Map<String, PendingPurchase>>>(PENDING_PURCHASES)?.value
+
+    fun savePendingPurchase(purchaseToken: String, pendingPurchase: PendingPurchase) {
+        validateDataLock.writeLock().withLockSafe {
+            val pendingPurchases = getPendingPurchasesInternal().orEmpty() + (purchaseToken to pendingPurchase)
+            saveData(PENDING_PURCHASES, CacheEntity(pendingPurchases))
+        }
+    }
+
+    fun removePendingPurchase(purchaseToken: String) {
+        validateDataLock.writeLock().withLockSafe {
+            val pendingPurchases = getPendingPurchasesInternal()?.minus(purchaseToken) ?: return@withLockSafe
+            saveData(PENDING_PURCHASES, CacheEntity(pendingPurchases))
+        }
+    }
+
     fun getSessionCount() =
         cache.safeGetOrPut(
             SESSION_COUNT,
@@ -692,6 +712,7 @@ internal class CacheRepository(
                 CROSS_PLACEMENT_INFO,
                 ANALYTICS_DATA,
                 YET_UNPROCESSED_VALIDATE_PRODUCT_INFO,
+                PENDING_PURCHASES,
                 EXTERNAL_ANALYTICS_ENABLED,
             ),
             startsWithKeys = setOf(PAYWALL_RESPONSE_START_PART, ONBOARDING_RESPONSE_START_PART, FLOW_RESPONSE_START_PART, VARIATION_ASSIGNED_EVENT_START_PART),

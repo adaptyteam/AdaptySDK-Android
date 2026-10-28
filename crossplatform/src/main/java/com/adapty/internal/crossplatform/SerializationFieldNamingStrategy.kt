@@ -85,6 +85,12 @@ internal class SerializationFieldNamingStrategy(
                 "appliedExternalAttributionProviders" -> "applied_attribution_sources"
                 else -> translateDefault(f)
             }
+            AdaptyProfile.AccessLevel::class.java,
+            AdaptyProfile.Subscription::class.java -> when (f.name) {
+                "billingPlan" -> "billing_plan_id"
+                "commitmentInfo" -> "commitment"
+                else -> translateDefault(f)
+            }
             AdaptyInstallationDetails::class.java -> when (f.name) {
                 "id" -> "install_id"
                 "installedAt" -> "install_time"

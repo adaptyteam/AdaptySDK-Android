@@ -2,7 +2,6 @@ package com.adapty.ui.internal.ui.element
 
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -18,11 +17,14 @@ import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
@@ -101,7 +103,7 @@ public abstract class BaseTextElement(
                     else -> null
                 }
                 val resolvedLineHeight = resolveLineHeight(elementTextAttrs.lineHeight, autoSize, originalFontSize, elementTextAttrs.typeface)
-                val textStyle = LocalTextStyle.current.merge(
+                val textStyle = TextStyle.Default.merge(
                     platformStyle = PlatformTextStyle(includeFontPadding = false),
                     color = text.attrs?.textColor ?: elementTextAttrs.textColor ?: DEFAULT_TEXT_COLOR,
                     fontFamily = text.attrs?.fontFamily ?: elementTextAttrs.fontFamily,
@@ -114,7 +116,15 @@ public abstract class BaseTextElement(
                     background = text.attrs?.backgroundColor ?: elementTextAttrs.backgroundColor ?: Color.Unspecified,
                 )
                 val heightFit = rememberHeightFitController(text.value, maxLines, onOverflow == null)
-                val bgModifier = modifier.then(heightFit?.modifier ?: Modifier)
+                val tightWidth = remember(text.value) { TightWidthController() }
+                val onLayout = combineTextLayout(heightFit?.onTextLayout, tightWidth.onTextLayout)
+                val lines = heightFit?.maxLines?.value ?: maxLines ?: Int.MAX_VALUE
+                val pushOut = if (onOverflow == null) {
+                    PushOutInput(AnnotatedString(text.value), textStyle, lines, rememberTextMeasurer())
+                } else {
+                    null
+                }
+                val bgModifier = modifier.then(heightFit?.modifier(pushOut, lines) ?: Modifier).then(tightWidth.modifier(pushOut))
                 if (text.actions.isNotEmpty() && dispatch != null) {
                     val actions = text.actions
                     val screen = LocalScreenInstance.current
@@ -132,9 +142,9 @@ public abstract class BaseTextElement(
                     }
                     BasicText(
                         text = annotatedText,
-                        maxLines = heightFit?.maxLines?.value ?: maxLines ?: Int.MAX_VALUE,
+                        maxLines = lines,
                         overflow = TextOverflow.Ellipsis,
-                        onTextLayout = heightFit?.onTextLayout,
+                        onTextLayout = onLayout,
                         style = textStyle,
                         autoSize = if (overflowAtMin != null) null else autoSize,
                         modifier = bgModifier,
@@ -142,9 +152,9 @@ public abstract class BaseTextElement(
                 } else {
                     BasicText(
                         text = text.value,
-                        maxLines = heightFit?.maxLines?.value ?: maxLines ?: Int.MAX_VALUE,
+                        maxLines = lines,
                         overflow = TextOverflow.Ellipsis,
-                        onTextLayout = heightFit?.onTextLayout,
+                        onTextLayout = onLayout,
                         style = textStyle,
                         autoSize = if (overflowAtMin != null) null else autoSize,
                         modifier = bgModifier,
@@ -179,65 +189,62 @@ public abstract class BaseTextElement(
                 }
                 val resolvedLineHeight = resolveLineHeight(elementTextAttrs.lineHeight, autoSize, originalFontSize, elementTextAttrs.typeface)
                 val heightFit = rememberHeightFitController(contentKey, maxLines, onOverflow == null)
+                val tightWidth = remember(contentKey) { TightWidthController() }
+                val lines = heightFit?.maxLines?.value ?: maxLines ?: Int.MAX_VALUE
+                val textStyle = TextStyle.Default.merge(
+                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    color = elementTextAttrs.textColor ?: DEFAULT_TEXT_COLOR,
+                    fontFamily = elementTextAttrs.fontFamily,
+                    fontSize = fontSize.sp,
+                    lineHeight = resolvedLineHeight,
+                    lineHeightStyle = lineHeightStyle,
+                    textDecoration = elementTextAttrs.textDecoration,
+                    textAlign = textAlign.toComposeTextAlign(),
+                    letterSpacing = elementTextAttrs.letterSpacing?.sp ?: TextUnit.Unspecified,
+                    background = elementTextAttrs.backgroundColor ?: Color.Unspecified,
+                )
+                val pushOut = if (onOverflow == null && text.inlineContent.isEmpty()) {
+                    PushOutInput(text.value, textStyle, lines, rememberTextMeasurer())
+                } else {
+                    null
+                }
                 BasicText(
                     text = text.value,
                     inlineContent = text.inlineContent,
-                    maxLines = heightFit?.maxLines?.value ?: maxLines ?: Int.MAX_VALUE,
+                    maxLines = lines,
                     overflow = TextOverflow.Ellipsis,
-                    onTextLayout = heightFit?.onTextLayout,
-                    style = LocalTextStyle.current.merge(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false),
-                        color = elementTextAttrs.textColor ?: DEFAULT_TEXT_COLOR,
-                        fontFamily = elementTextAttrs.fontFamily,
-                        fontSize = fontSize.sp,
-                        lineHeight = resolvedLineHeight,
-                        lineHeightStyle = lineHeightStyle,
-                        textDecoration = elementTextAttrs.textDecoration,
-                        textAlign = textAlign.toComposeTextAlign(),
-                        letterSpacing = elementTextAttrs.letterSpacing?.sp ?: TextUnit.Unspecified,
-                        background = elementTextAttrs.backgroundColor ?: Color.Unspecified,
-                    ),
+                    onTextLayout = combineTextLayout(heightFit?.onTextLayout, tightWidth.onTextLayout),
+                    style = textStyle,
                     autoSize = if (overflowAtMin != null) null else autoSize,
-                    modifier = modifier.then(heightFit?.modifier ?: Modifier),
+                    modifier = modifier.then(heightFit?.modifier(pushOut, lines) ?: Modifier).then(tightWidth.modifier(pushOut)),
                 )
             }
         }
     }
 
-    private class HeightFitController(val cap: Int) {
+    private class HeightFitController(private val cap: Int) {
+        private val budget = HeightFitBudget(cap)
         val maxLines: MutableState<Int> = mutableStateOf(cap)
-        private var idealBottoms: FloatArray? = null
-        private var capturedWidth: Int = -1
+        private var proposedWidth: Int = -1
 
         val onTextLayout: (TextLayoutResult) -> Unit = { result ->
-            if (maxLines.value == cap) {
-                idealBottoms = FloatArray(result.lineCount) { result.getLineBottom(it) }
-                capturedWidth = result.layoutInput.constraints.maxWidth
-            } else if (result.layoutInput.constraints.maxWidth != capturedWidth) {
-                idealBottoms = null
-                maxLines.value = cap
-            }
+            budget.onLayout(proposedWidth) { FloatArray(result.lineCount) { result.getLineBottom(it) } }
+            if (budget.maxLines != maxLines.value) maxLines.value = budget.maxLines
         }
 
+        fun modifier(uncapped: PushOutInput?, lines: Int): Modifier =
+            HeightFitModifier(uncapped?.takeIf { lines < cap })
+
         @Suppress("DEPRECATION")
-        val modifier: Modifier = object : LayoutModifier {
+        private inner class HeightFitModifier(private val uncapped: PushOutInput?) : LayoutModifier {
             override fun MeasureScope.measure(
                 measurable: Measurable,
                 constraints: Constraints,
             ): MeasureResult {
+                proposedWidth = constraints.maxWidth
                 val placeable = measurable.measure(constraints.copy(maxHeight = Constraints.Infinity))
-                idealBottoms?.takeIf { it.isNotEmpty() }?.let { bottoms ->
-                    val target = if (constraints.maxHeight == Constraints.Infinity) {
-                        cap
-                    } else {
-                        var fit = 0
-                        for (i in bottoms.indices) {
-                            if (bottoms[i] <= constraints.maxHeight + 0.5f) fit = i + 1 else break
-                        }
-                        fit.coerceAtLeast(1).coerceAtMost(cap)
-                    }
-                    if (target != maxLines.value) maxLines.value = target
-                }
+                budget.fit(constraints.maxHeight)
+                if (budget.maxLines != maxLines.value) maxLines.value = budget.maxLines
                 return layout(
                     placeable.width.coerceIn(constraints.minWidth, constraints.maxWidth),
                     placeable.height.coerceIn(constraints.minHeight, constraints.maxHeight),
@@ -251,10 +258,10 @@ public abstract class BaseTextElement(
                 measurable.maxIntrinsicWidth(height)
 
             override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
-                measurable.minIntrinsicHeight(width)
+                uncapped?.heightAt(width, cap, this) ?: measurable.minIntrinsicHeight(width)
 
             override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
-                measurable.maxIntrinsicHeight(width)
+                uncapped?.heightAt(width, cap, this) ?: measurable.maxIntrinsicHeight(width)
         }
     }
 

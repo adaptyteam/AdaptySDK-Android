@@ -6,7 +6,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Constraints
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.ui.IntrinsicSafeBoxWithConstraints
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image.ScaleType
 import com.adapty.ui.internal.ui.fitImageWithinBounds
@@ -59,6 +59,7 @@ public class ImageElement internal constructor(
     internal val aspectRatio: AspectRatio,
     internal val tint: VisualValue?,
     override val baseProps: BaseProps,
+    internal val fillOverflowAlignment: Alignment.Vertical = Alignment.Top,
 ) : UIElement, SizeDrivenElement {
 
     public constructor(
@@ -98,7 +99,7 @@ public class ImageElement internal constructor(
         if (headerSize != null && naturalSize == null) {
             naturalSize = headerSize
         }
-        BoxWithConstraints(
+        IntrinsicSafeBoxWithConstraints(
             modifier = Modifier
                 .then(if (aspectRatio == AspectRatio.FILL) Modifier else Modifier.clipToBounds())
                 .then(ImageIntrinsicsModifier(
@@ -113,7 +114,7 @@ public class ImageElement internal constructor(
                 }
             }
 
-            if (imageBitmap == null) return@BoxWithConstraints
+            if (imageBitmap == null) return@IntrinsicSafeBoxWithConstraints
 
             SideEffect {
                 if (naturalSize == null) {
@@ -138,7 +139,7 @@ public class ImageElement internal constructor(
                                     constraints.maxWidth.toFloat() / bitmapRatio >= constraints.maxHeight
                                 if (fillsWidth)
                                     Modifier
-                                        .wrapContentHeight(Alignment.Top, unbounded = true)
+                                        .wrapContentHeight(fillOverflowAlignment, unbounded = true)
                                         .fillMaxWidth()
                                         .aspectRatio(bitmapRatio)
                                 else

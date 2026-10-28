@@ -55,3 +55,16 @@ internal fun <T> AdaptiveContentTransition(
         }
     }
 }
+
+@Composable
+internal fun <T> AdaptiveVariant(
+    variant: T,
+    transition: Transition?,
+    content: @Composable (T) -> Unit,
+) {
+    if (transition == null) {
+        content(variant)
+    } else {
+        AdaptiveContentTransition(variant, transition, content)
+    }
+}

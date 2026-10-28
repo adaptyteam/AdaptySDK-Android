@@ -436,6 +436,33 @@ public object Adapty {
     }
 
     /**
+     * Asks Google Play to show its in-app messages, such as a payment decline notice,
+     * on top of the given [activity].
+     *
+     * With the default [AdaptyConfig.StoreMessagesHandling.AUTO] mode the SDK already does this
+     * every time an `Activity` is started, so call this method only for an additional attempt.
+     * With [AdaptyConfig.StoreMessagesHandling.MANUAL] this method is the only way to show store messages.
+     *
+     * Google Play decides whether an applicable message exists, so the call does not guarantee
+     * any UI, user action or an immediate profile change.
+     *
+     * Should not be called before [activate]. The call is a no-op if the SDK is not activated,
+     * or if [activity] is finishing, destroyed or not attached to a window by the time
+     * Google Play is asked.
+     *
+     * @param[activity] The `Activity` that should host the Google Play UI.
+     */
+    @JvmStatic
+    public fun showStoreMessages(activity: Activity) {
+        Logger.log(VERBOSE) { "showStoreMessages()" }
+        if (!isActivated) {
+            logNotInitializedError()
+            return
+        }
+        adaptyInternal.showStoreMessages(activity)
+    }
+
+    /**
      * To set external attribution data for the profile, use this method.
      *
      * The callback is invoked after the backend accepts the data for asynchronous

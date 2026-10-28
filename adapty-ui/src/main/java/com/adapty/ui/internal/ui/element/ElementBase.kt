@@ -13,6 +13,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
@@ -31,6 +32,7 @@ import com.adapty.ui.internal.ui.attributes.toGradientAsset
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.DpOffset
 import com.adapty.ui.internal.ui.attributes.EdgeEntities
+import com.adapty.ui.internal.ui.attributes.MainAxisBehaviour
 import com.adapty.ui.internal.ui.attributes.Offset
 import com.adapty.ui.internal.ui.attributes.Rotation
 import com.adapty.ui.internal.ui.attributes.Scale
@@ -48,6 +50,7 @@ import com.adapty.ui.internal.ui.event.appearAnimations
 import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.ui.rememberOpacityProvider
 import com.adapty.ui.internal.ui.resolveAssets
+import com.adapty.ui.internal.ui.LocalSectionPresenceSlot
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
@@ -131,6 +134,11 @@ public interface Container<T> {
 internal interface SingleContainer: Container<UIElement>
 internal interface MultiContainer: Container<List<UIElement>>
 
+internal val UIElement.drawsOnlyDecorator: Boolean
+    get() = this is Container<*> || this is OverlayContainerElement || this is FlexElement ||
+        this is FlexStackElement || this is SpaceElement || this is ScreenHolderElement ||
+        this is BoxWithoutContentElement
+
 @InternalAdaptyApi
 public sealed class Condition {
     public class SelectedSection internal constructor(internal val sectionId: String, internal val index: Int): Condition()
@@ -147,14 +155,20 @@ public class Action internal constructor(
 
 @Composable
 internal fun RowScope.fillModifierWithScopedParams(element: UIElement, modifier: Modifier): Modifier {
-    var modifier = modifier
     val props = element.layoutRelevantPropsResolved()
-    val weight = props.weight
-    if (weight != null)
-        modifier = modifier.weight(weight)
-    else if (props.widthSpec is DimSpec.FillMax)
-        modifier = modifier.weight(1f)
-    return modifier
+    val cellWeight = props.weight ?: if (props.widthSpec is DimSpec.FillMax) 1f else null
+    return modifier.weightOrFadingSection(element, cellWeight) { w, fill -> weight(w, fill) }
+}
+
+@Composable
+internal inline fun Modifier.weightOrFadingSection(
+    element: UIElement,
+    weight: Float?,
+    applyWeight: Modifier.(Float, Boolean) -> Modifier,
+): Modifier {
+    val slot = if (element is SectionElement && element.isAnimated) LocalSectionPresenceSlot.current else null
+    if (slot != null) SideEffect { slot.fillsMainAxis = weight != null }
+    return if (weight == null) this else applyWeight(weight, slot == null)
 }
 
 @Composable
@@ -182,11 +196,17 @@ internal fun UIElement.isVerticallyFlexible(): Boolean {
     }
     return when (this) {
         is BoxWithoutContentElement -> true
+        is ColumnElement -> hasWeightedFillItems() || content.any { it.isVerticallyFlexible() }
+        is FlexElement -> columnElement.isVerticallyFlexible() || rowElement.isVerticallyFlexible()
         is SingleContainer -> content.isVerticallyFlexible()
         is MultiContainer -> content.any { it.isVerticallyFlexible() }
         else -> false
     }
 }
+
+@OptIn(InternalAdaptyApi::class)
+private fun ColumnElement.hasWeightedFillItems(): Boolean =
+    (height ?: MainAxisBehaviour.FILL) == MainAxisBehaviour.FILL && items.any { it.baseProps.weight != null }
 
 internal fun UIElement.hugBoxChainEndsInText(): Boolean = when (this) {
     is TextElement -> onOverflow == null
@@ -221,7 +241,7 @@ internal fun UIElement.fillsColumnMainAxisResolved(): Boolean {
     }
     return when (this) {
         is BoxWithoutContentElement -> true
-        is SectionElement -> activeSlotOrNull()?.fillsColumnMainAxisResolved() ?: false
+        is SectionElement -> layoutSlotOrNull()?.fillsColumnMainAxisResolved() ?: false
         is SingleContainer -> content.fillsColumnMainAxisResolved()
         else -> false
     }
@@ -270,7 +290,9 @@ private fun uiEnabledGatedContent(
     val needsGate = uiEnabledBinding != null || baseProps.hasOpacityAnimation() || baseProps.opacity <= 0f
     if (needsGate) {
         CompositionLocalProvider(
-            com.adapty.ui.internal.ui.LocalUiEnabled provides isEnabled
+            com.adapty.ui.internal.ui.LocalUiEnabled provides isEnabled,
+            com.adapty.ui.internal.ui.LocalBlocksTouchesBelow provides
+                (com.adapty.ui.internal.ui.LocalBlocksTouchesBelow.current && visible),
         ) {
             content()
         }

@@ -62,6 +62,8 @@ public class AdaptyProfile internal constructor(
      * @property[activeIntroductoryOfferType] A type of an active introductory offer.
      * If the value is not null, it means that the offer was applied during the current
      * subscription period.
+     * @property[billingPlan] A [billing plan][AdaptySubscriptionBillingPlan] of the purchase that unlocked this access level.
+     * @property[commitmentInfo] Progress through the [commitment][SubscriptionCommitmentInfo] of the purchase that unlocked this access level.
      * @property[activePromotionalOfferId] An id of active promotional offer.
      * @property[activePromotionalOfferType] A type of an active promotional offer. If the value is
      * not null, it means that the offer was applied during the current subscription period.
@@ -104,7 +106,9 @@ public class AdaptyProfile internal constructor(
         public val willRenew: Boolean,
         public val isInGracePeriod: Boolean,
         public val unsubscribedAt: String?,
-        public val billingIssueDetectedAt: String?
+        public val billingIssueDetectedAt: String?,
+        public val billingPlan: AdaptySubscriptionBillingPlan?,
+        public val commitmentInfo: SubscriptionCommitmentInfo?,
     ) {
 
         override fun equals(other: Any?): Boolean {
@@ -132,6 +136,8 @@ public class AdaptyProfile internal constructor(
             if (isInGracePeriod != other.isInGracePeriod) return false
             if (unsubscribedAt != other.unsubscribedAt) return false
             if (billingIssueDetectedAt != other.billingIssueDetectedAt) return false
+            if (billingPlan != other.billingPlan) return false
+            if (commitmentInfo != other.commitmentInfo) return false
 
             return true
         }
@@ -156,11 +162,13 @@ public class AdaptyProfile internal constructor(
             result = 31 * result + isInGracePeriod.hashCode()
             result = 31 * result + (unsubscribedAt?.hashCode() ?: 0)
             result = 31 * result + (billingIssueDetectedAt?.hashCode() ?: 0)
+            result = 31 * result + (billingPlan?.hashCode() ?: 0)
+            result = 31 * result + (commitmentInfo?.hashCode() ?: 0)
             return result
         }
 
         override fun toString(): String {
-            return "AccessLevel(id=$id, isActive=$isActive, vendorProductId=$vendorProductId, offerId=$offerId, store=$store, activatedAt=$activatedAt, startsAt=$startsAt, renewedAt=$renewedAt, expiresAt=$expiresAt, isLifetime=$isLifetime, cancellationReason=$cancellationReason, isRefund=$isRefund, activeIntroductoryOfferType=$activeIntroductoryOfferType, activePromotionalOfferType=$activePromotionalOfferType, activePromotionalOfferId=$activePromotionalOfferId, willRenew=$willRenew, isInGracePeriod=$isInGracePeriod, unsubscribedAt=$unsubscribedAt, billingIssueDetectedAt=$billingIssueDetectedAt)"
+            return "AccessLevel(id=$id, isActive=$isActive, vendorProductId=$vendorProductId, offerId=$offerId, store=$store, activatedAt=$activatedAt, startsAt=$startsAt, renewedAt=$renewedAt, expiresAt=$expiresAt, isLifetime=$isLifetime, cancellationReason=$cancellationReason, isRefund=$isRefund, activeIntroductoryOfferType=$activeIntroductoryOfferType, activePromotionalOfferType=$activePromotionalOfferType, activePromotionalOfferId=$activePromotionalOfferId, willRenew=$willRenew, isInGracePeriod=$isInGracePeriod, unsubscribedAt=$unsubscribedAt, billingIssueDetectedAt=$billingIssueDetectedAt, billingPlan=$billingPlan, commitmentInfo=$commitmentInfo)"
         }
     }
 
@@ -172,7 +180,11 @@ public class AdaptyProfile internal constructor(
      * @property[activePromotionalOfferType] A type of an active promotional offer. If the value is
      * not null, it means that the offer was applied during the current subscription period.
      * @property[billingIssueDetectedAt] ISO 8601 datetime when a billing issue was detected. Subscription can still be active.
+     * @property[billingPlan] A [billing plan][AdaptySubscriptionBillingPlan] of the purchase.
+     * [UP_FRONT][AdaptySubscriptionBillingPlan.UP_FRONT] if the backend did not report it.
      * @property[cancellationReason] A reason why a subscription was cancelled.
+     * @property[commitmentInfo] Progress through the [commitment][SubscriptionCommitmentInfo] of the purchase.
+     * Null if the purchase has no commitment.
      * @property[expiresAt] ISO 8601 datetime when the access level will expire (could be in the past and could be null for lifetime access).
      * @property[isActive] `true` if the subscription is active.
      * @property[isInGracePeriod] Whether the auto-renewable subscription is in a grace period.
@@ -216,7 +228,9 @@ public class AdaptyProfile internal constructor(
         public val billingIssueDetectedAt: String?,
         public val isSandbox: Boolean,
         public val isRefund: Boolean,
-        public val cancellationReason: String?
+        public val cancellationReason: String?,
+        public val billingPlan: AdaptySubscriptionBillingPlan = AdaptySubscriptionBillingPlan.UP_FRONT,
+        public val commitmentInfo: SubscriptionCommitmentInfo?,
     ) {
 
         override fun equals(other: Any?): Boolean {
@@ -246,6 +260,8 @@ public class AdaptyProfile internal constructor(
             if (isSandbox != other.isSandbox) return false
             if (isRefund != other.isRefund) return false
             if (cancellationReason != other.cancellationReason) return false
+            if (billingPlan != other.billingPlan) return false
+            if (commitmentInfo != other.commitmentInfo) return false
 
             return true
         }
@@ -272,11 +288,52 @@ public class AdaptyProfile internal constructor(
             result = 31 * result + isSandbox.hashCode()
             result = 31 * result + isRefund.hashCode()
             result = 31 * result + (cancellationReason?.hashCode() ?: 0)
+            result = 31 * result + billingPlan.hashCode()
+            result = 31 * result + (commitmentInfo?.hashCode() ?: 0)
             return result
         }
 
         override fun toString(): String {
-            return "Subscription(isActive=$isActive, vendorProductId='$vendorProductId', vendorTransactionId=$vendorTransactionId, vendorOriginalTransactionId=$vendorOriginalTransactionId, offerId=$offerId, store='$store', activatedAt=$activatedAt, renewedAt=$renewedAt, expiresAt=$expiresAt, startsAt=$startsAt, isLifetime=$isLifetime, activeIntroductoryOfferType=$activeIntroductoryOfferType, activePromotionalOfferType=$activePromotionalOfferType, activePromotionalOfferId=$activePromotionalOfferId, willRenew=$willRenew, isInGracePeriod=$isInGracePeriod, unsubscribedAt=$unsubscribedAt, billingIssueDetectedAt=$billingIssueDetectedAt, isSandbox=$isSandbox, isRefund=$isRefund, cancellationReason=$cancellationReason)"
+            return "Subscription(isActive=$isActive, vendorProductId='$vendorProductId', vendorTransactionId=$vendorTransactionId, vendorOriginalTransactionId=$vendorOriginalTransactionId, offerId=$offerId, store='$store', activatedAt=$activatedAt, renewedAt=$renewedAt, expiresAt=$expiresAt, startsAt=$startsAt, isLifetime=$isLifetime, activeIntroductoryOfferType=$activeIntroductoryOfferType, activePromotionalOfferType=$activePromotionalOfferType, activePromotionalOfferId=$activePromotionalOfferId, willRenew=$willRenew, isInGracePeriod=$isInGracePeriod, unsubscribedAt=$unsubscribedAt, billingIssueDetectedAt=$billingIssueDetectedAt, isSandbox=$isSandbox, isRefund=$isRefund, cancellationReason=$cancellationReason, billingPlan=$billingPlan, commitmentInfo=$commitmentInfo)"
+        }
+    }
+
+    /**
+     * Progress through a subscription commitment: a billing plan where the user commits to
+     * a longer period (for example, 12 months) and pays for it in several billing periods.
+     *
+     * @property[billingPeriodNumber] The number of the current billing period within the commitment.
+     * @property[totalBillingPeriods] The total number of billing periods in the commitment.
+     * @property[expiresAt] ISO 8601 datetime when the commitment ends.
+     */
+    public class SubscriptionCommitmentInfo(
+        public val billingPeriodNumber: Int,
+        public val totalBillingPeriods: Int,
+        public val expiresAt: String,
+    ) {
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as SubscriptionCommitmentInfo
+
+            if (billingPeriodNumber != other.billingPeriodNumber) return false
+            if (totalBillingPeriods != other.totalBillingPeriods) return false
+            if (expiresAt != other.expiresAt) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = billingPeriodNumber
+            result = 31 * result + totalBillingPeriods
+            result = 31 * result + expiresAt.hashCode()
+            return result
+        }
+
+        override fun toString(): String {
+            return "SubscriptionCommitmentInfo(billingPeriodNumber=$billingPeriodNumber, totalBillingPeriods=$totalBillingPeriods, expiresAt=$expiresAt)"
         }
     }
 

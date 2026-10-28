@@ -4,6 +4,7 @@ import androidx.annotation.RestrictTo
 import com.adapty.errors.AdaptyError
 import com.adapty.internal.data.models.requests.ValidateReceiptRequest
 import com.adapty.internal.domain.models.PurchaseableProduct
+import com.adapty.models.AdaptyConfig
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyPlacementFetchPolicy
 import com.adapty.models.AdaptySubscriptionUpdateParameters
@@ -246,6 +247,7 @@ internal class AnalyticsEvent(
             val observerMode: Boolean,
             val ipAddressCollectionDisabled: Boolean,
             val hasCustomerUserId: Boolean,
+            val storeMessagesHandling: String,
             methodName: String
         ) : SDKMethodRequestData(methodName) {
 
@@ -254,11 +256,13 @@ internal class AnalyticsEvent(
                     observerMode: Boolean,
                     ipAddressCollectionDisabled: Boolean,
                     hasCustomerUserId: Boolean,
+                    storeMessagesHandling: AdaptyConfig.StoreMessagesHandling,
                 ) =
                     Activate(
                         observerMode,
                         ipAddressCollectionDisabled,
                         hasCustomerUserId,
+                        storeMessagesHandling.name.lowercase(Locale.ENGLISH),
                         "activate",
                     )
             }
@@ -940,6 +944,20 @@ internal class AnalyticsEvent(
                     )
             }
         }
+
+        class ShowInAppMessages private constructor(
+            val trigger: String,
+            methodName: String,
+        ) : GoogleAPIRequestData(methodName) {
+
+            companion object {
+                fun create(trigger: StoreMessagesTrigger) =
+                    ShowInAppMessages(
+                        trigger.analyticsName,
+                        "show_in_app_messages",
+                    )
+            }
+        }
     }
 
     sealed class GoogleAPIResponseData private constructor(
@@ -1098,6 +1116,38 @@ internal class AnalyticsEvent(
                 }
             }
         }
+
+        class ShowInAppMessages private constructor(
+            val outcome: String,
+            val billingResponseCode: Int?,
+            val inAppMessageResponseCode: Int?,
+            eventName: String,
+            flowId: String?,
+            success: Boolean,
+            error: String?,
+        ) : GoogleAPIResponseData(eventName, flowId, success, error) {
+
+            companion object {
+                fun create(
+                    paired: GoogleAPIRequestData.ShowInAppMessages,
+                    outcome: StoreMessagesOutcome,
+                    error: String? = null,
+                ) =
+                    ShowInAppMessages(
+                        when (outcome) {
+                            is StoreMessagesOutcome.HostUnavailable -> "host_unavailable"
+                            is StoreMessagesOutcome.Rejected -> "rejected"
+                            is StoreMessagesOutcome.Completed -> "completed"
+                        },
+                        (outcome as? StoreMessagesOutcome.Rejected)?.billingResponseCode,
+                        (outcome as? StoreMessagesOutcome.Completed)?.responseCode,
+                        paired.eventName.replace(GOOGLE_REQUEST_PREFIX, GOOGLE_RESPONSE_PREFIX),
+                        paired.sdkFlowId,
+                        error == null,
+                        error,
+                    )
+            }
+        }
     }
 
     class InternalEventData private constructor(
@@ -1107,6 +1157,16 @@ internal class AnalyticsEvent(
 
         companion object {
             fun create(eventName: String, error: String? = null) = InternalEventData(eventName, error)
+        }
+    }
+
+    class UserAgentIdleFallbackData private constructor(
+        val waitedMs: Long,
+        val readMs: Long,
+    ) : CustomData("${INTERNAL_PREFIX}user_agent_idle_fallback", null) {
+
+        companion object {
+            fun create(waitedMs: Long, readMs: Long) = UserAgentIdleFallbackData(waitedMs, readMs)
         }
     }
 

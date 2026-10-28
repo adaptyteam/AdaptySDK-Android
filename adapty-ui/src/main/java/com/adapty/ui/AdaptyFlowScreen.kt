@@ -104,7 +104,9 @@ public fun AdaptyFlowScreen(
         val previousConfig = viewModel.dataState.value?.viewConfig
         val configChangeHandoff = viewModel.configChangeHandoffPending
         viewModel.configChangeHandoffPending = false
-        if (previousConfig === flowConfiguration && viewModel.state != null) {
+        if (previousConfig === flowConfiguration && viewModel.state != null &&
+            stateHandler.stateOwner === flowConfiguration
+        ) {
             pushData()
         } else {
             if (configChangeHandoff && previousConfig != null &&

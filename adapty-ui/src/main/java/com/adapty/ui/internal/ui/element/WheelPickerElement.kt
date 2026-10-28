@@ -169,7 +169,7 @@ private fun WheelPickerContent(
         resolveItemLabel(element.stringId, item, resolveTextFn) ?: item.label
     }
 
-    androidx.compose.foundation.layout.Box(modifier = modifier) {
+    androidx.compose.foundation.layout.Box(modifier = modifier.wheelPickerNaturalWidth()) {
         WheelColumn(
             labels = labels,
             selectedIndex = currentIndex,

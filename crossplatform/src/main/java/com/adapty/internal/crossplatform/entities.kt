@@ -47,6 +47,11 @@ class GetPlacementForDefaultAudienceArgs(
     val fetchPolicy: AdaptyPlacementFetchPolicy?,
 )
 
+class PreloadPlacementsArgs(
+    val placementIds: List<String>,
+    val loadTimeout: TimeInterval?,
+)
+
 class GetPaywallProductsArgs(
     val flow: AdaptyFlow,
 )

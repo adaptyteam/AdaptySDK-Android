@@ -8,7 +8,7 @@ internal class InstallationMetaCreator(
     private val metaInfoRetriever: MetaInfoRetriever,
 ) {
 
-    fun create(adId: String, appSetId: String, storeCountry: String, userAgent: String): InstallationMeta {
+    fun create(adId: String, appSetId: String, storeCountry: String, userAgent: String?): InstallationMeta {
         val (appBuild, appVersion) = metaInfoRetriever.appBuildAndVersion
 
         return InstallationMeta(
@@ -19,13 +19,14 @@ internal class InstallationMetaCreator(
             androidId = metaInfoRetriever.androidId,
             appBuild = appBuild,
             appVersion = appVersion,
+            appMinimumAndroidApiLevel = metaInfoRetriever.appMinimumAndroidApiLevel,
             device = metaInfoRetriever.deviceName,
             locale = metaInfoRetriever.currentLocaleFormatted,
             os = metaInfoRetriever.os,
             platform = metaInfoRetriever.platform,
             storeCountry = storeCountry.takeIf(String::isNotEmpty),
             timezone = metaInfoRetriever.timezone,
-            userAgent = userAgent.takeIf(String::isNotEmpty),
+            userAgent = userAgent?.takeIf(String::isNotEmpty),
         )
     }
 }

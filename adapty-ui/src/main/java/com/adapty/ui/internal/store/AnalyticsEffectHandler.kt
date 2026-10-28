@@ -44,20 +44,13 @@ internal class AnalyticsEffectHandler(
         val jsInternalKeys = setOf("name", "instanceId", "isBackendEvent", "isCustomerEvent")
     }
 
-    private fun Effect.LogFlowEvent.toEventProperties(): Map<String, Any> {
+    internal fun Effect.LogFlowEvent.toEventProperties(): Map<String, Any> {
         val properties = mutableMapOf<String, Any>()
         params.forEach { (key, value) ->
-            if (key !in jsInternalKeys && value != null) properties[key] = normalizeJsonValue(value)
+            if (key !in jsInternalKeys && value != null) properties[key] = value
         }
         properties["event_type"] = name
         (params["instanceId"] as? String)?.let { properties["screen_id"] = it }
         return properties
-    }
-
-    private fun normalizeJsonValue(value: Any): Any = when (value) {
-        is Double -> value.toLong().takeIf { it.toDouble() == value } ?: value
-        is Map<*, *> -> value.mapValues { (_, v) -> v?.let(::normalizeJsonValue) }
-        is List<*> -> value.map { v -> v?.let(::normalizeJsonValue) }
-        else -> value
     }
 }

@@ -9,6 +9,7 @@ import com.adapty.models.AdaptyPeriodUnit
 import com.adapty.models.AdaptyPlacementFetchPolicy
 import com.adapty.models.AdaptyProductDiscountPhase
 import com.adapty.models.AdaptyProductSubscriptionDetails
+import com.adapty.models.AdaptySubscriptionBillingPlan
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.ui.AdaptyCustomAssets
 import com.adapty.ui.AdaptyUI
@@ -56,6 +57,10 @@ internal class SerializationHelper(
                 AdaptyExternalAttributionProviderSerializer()
             )
             .registerTypeAdapter(
+                AdaptySubscriptionBillingPlan::class.java,
+                AdaptySubscriptionBillingPlanSerializer()
+            )
+            .registerTypeAdapter(
                 AdaptyPeriodUnit::class.java,
                 AdaptyPeriodUnitSerializer()
             )
@@ -98,6 +103,10 @@ internal class SerializationHelper(
             .registerTypeAdapter(
                 AdaptyConfig.ServerCluster::class.java,
                 AdaptyConfigServerClusterDeserializer()
+            )
+            .registerTypeAdapter(
+                AdaptyConfig.StoreMessagesHandling::class.java,
+                AdaptyConfigStoreMessagesHandlingDeserializer()
             )
             .registerTypeAdapter(
                 ImmutableList::class.java,

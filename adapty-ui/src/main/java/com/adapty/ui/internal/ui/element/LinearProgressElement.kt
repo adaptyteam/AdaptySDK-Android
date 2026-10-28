@@ -10,7 +10,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,6 +39,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.ui.IntrinsicSafeBoxWithConstraints
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.script.toJsFloat
@@ -50,7 +50,6 @@ import com.adapty.ui.internal.ui.attributes.AspectRatio
 import com.adapty.ui.internal.ui.attributes.HorizontalAlign
 import com.adapty.ui.internal.ui.attributes.Interpolator
 import com.adapty.ui.internal.ui.attributes.LocalContentAlignment
-import com.adapty.ui.internal.ui.ZeroIntrinsicsModifier
 import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.VerticalAlign
 import com.adapty.ui.internal.ui.attributes.evaluateComposeImageAlignment
@@ -131,7 +130,7 @@ public class LinearProgressElement internal constructor(
             RoundedCornerShape(it.topLeft.dp, it.topRight.dp, it.bottomRight.dp, it.bottomLeft.dp)
         }
 
-        BoxWithConstraints(modifier = modifier.then(ZeroIntrinsicsModifier)) {
+        IntrinsicSafeBoxWithConstraints(modifier = modifier) {
             val imageBitmap = remember(fillImage?.main?.source, isSystemInDarkTheme, constraints.maxWidth, constraints.maxHeight) {
                 fillImage?.let {
                     getBitmap(context, it, constraints.maxWidth, constraints.maxHeight, Asset.Image.ScaleType.FIT_MAX)

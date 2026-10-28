@@ -13,10 +13,12 @@ import com.adapty.internal.crossplatform.ActivityProvider
 import com.adapty.internal.crossplatform.R
 import com.adapty.internal.utils.DEFAULT_PLACEMENT_TIMEOUT
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.internal.utils.log
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyWebPresentation
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.onboardings.AdaptyOnboardingConfiguration
+import com.adapty.utils.AdaptyLogLevel
 import com.adapty.utils.AdaptyResult
 
 class CrossplatformUiHelper internal constructor(
@@ -148,6 +150,46 @@ class CrossplatformUiHelper internal constructor(
             clearFlowUiDataCache(id)
         }
         onSuccess(Unit)
+    }
+
+    fun handleDestroyView(
+        id: String,
+        onSuccess: Callback<Unit>,
+        onError: Callback<AdaptyUiBridgeError>,
+    ) {
+        if (!flowUiManager.hasData(id)) {
+            onError(AdaptyUiBridgeError.ViewNotFound(id))
+            return
+        }
+        clearFlowUiDataCache(id)
+
+        if (isPresentationEmbedded) {
+            (activity() as? FragmentActivity)?.let { activity ->
+                activity.runOnUiThread {
+                    val fragment =
+                        activity.supportFragmentManager.findFragmentByTag(id) as? AdaptyUiFlowDialogFragment
+                    if (fragment != null) {
+                        logDestroyOfPresentedView(id)
+                        fragment.close()
+                        flowUiManager.isShown = false
+                    }
+                }
+            }
+        } else {
+            val currentActivity = flowUiManager.getCurrentView()?.context as? AdaptyUiActivity
+            if (currentActivity != null && flowUiManager.currentViewId == id) {
+                logDestroyOfPresentedView(id)
+                currentActivity.runOnUiThread {
+                    currentActivity.close()
+                    flowUiManager.isShown = false
+                }
+            }
+        }
+        onSuccess(Unit)
+    }
+
+    private fun logDestroyOfPresentedView(id: String) {
+        log(AdaptyLogLevel.WARN, { "destroyFlowView: view $id is still presented, use dismissFlowView(destroy: true) instead" })
     }
 
     fun answerPermission(eventId: String, granted: Boolean, detail: String?) {

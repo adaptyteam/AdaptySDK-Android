@@ -4,7 +4,6 @@ package com.adapty.ui.internal.ui.element
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,12 +13,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.ui.IntrinsicSafeBoxWithConstraints
 import com.adapty.ui.internal.ui.attributes.DimSpec
 import com.adapty.ui.internal.ui.attributes.MainAxisBehaviour
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
 import com.adapty.ui.internal.ui.allowVerticalOverflow
 import com.adapty.ui.internal.ui.fillWithBaseParams
-import com.adapty.ui.internal.ui.ZeroIntrinsicsModifier
 import com.adapty.ui.internal.store.Message
 
 @InternalAdaptyApi
@@ -41,9 +40,8 @@ public class ColumnElement internal constructor(
 
         when (mode) {
             MainAxisBehaviour.FILL -> {
-                BoxWithConstraints(
-                    modifier = Modifier.fillMaxWidth().fillMaxHeight().then(modifier)
-                        .then(ZeroIntrinsicsModifier),
+                IntrinsicSafeBoxWithConstraints(
+                    modifier = Modifier.fillMaxWidth().fillMaxHeight().then(modifier),
                 ) {
                     val heightBounded = constraints.maxHeight != Constraints.Infinity
                     Column(

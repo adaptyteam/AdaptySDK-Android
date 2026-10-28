@@ -268,6 +268,8 @@ public object AdaptyUI {
                 internal val values: List<Value>,
                 internal val points: Points,
                 customId: String? = null,
+                /** [Type.CONIC] only: start angle in degrees, clockwise from 3 o'clock. */
+                internal val sweepAngle: Float = 0f,
             ): Filling.Local(customId) {
 
                 internal enum class Type { LINEAR, RADIAL, CONIC }
@@ -379,9 +381,6 @@ public object AdaptyUI {
             ): Asset(customId)
         }
 
-        /**
-         * @suppress
-         */
         @InternalAdaptyApi
         public class TextItem internal constructor(
             internal val value: RichText,

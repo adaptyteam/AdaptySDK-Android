@@ -13,6 +13,8 @@ import com.adapty.internal.data.models.AnalyticsEvent.GoogleAPIResponseData
 import com.adapty.internal.data.models.PurchaseRecordModel
 import com.adapty.internal.data.models.PurchaseResult
 import com.adapty.internal.data.models.PurchaseResult.Success.State
+import com.adapty.internal.data.models.StoreMessagesOutcome
+import com.adapty.internal.data.models.StoreMessagesTrigger
 import com.adapty.internal.domain.models.ProductType.Consumable
 import com.adapty.internal.domain.models.ProductType.Subscription
 import com.adapty.internal.domain.models.PurchaseableProduct
@@ -20,6 +22,8 @@ import com.adapty.internal.utils.*
 import com.adapty.models.AdaptyPurchaseParameters
 import com.adapty.models.AdaptySubscriptionUpdateParameters
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
+import com.adapty.utils.AdaptyLogLevel.Companion.INFO
+import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.android.billingclient.api.*
 import com.android.billingclient.api.BillingClient.BillingResponseCode.*
@@ -31,6 +35,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
 import java.io.IOException
+import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resumeWithException
 
@@ -41,6 +46,8 @@ internal class StoreManager(
     private val replacementModeMapper: ReplacementModeMapper,
     private val analyticsTracker: AnalyticsTracker,
     private val enablePendingPrepaidPlans: Boolean,
+    private val hostActivityValidator: HostActivityValidator = HostActivityValidator.Default,
+    private val showInAppMessagesCall: ShowInAppMessagesCall = ShowInAppMessagesCall.Default,
 ) : PurchasesUpdatedListener {
 
     private val billingClient = BillingClient
@@ -60,7 +67,13 @@ internal class StoreManager(
 
     private val storeHelper = StoreHelper(billingClient, analyticsTracker)
 
-    private var makePurchaseCallback: MakePurchaseCallback? = null
+    private var makePurchaseCallback: MakePurchaseCallbackWrapper? = null
+
+    @Volatile
+    var pendingPurchaseApprovedHandler: ((Purchase) -> Unit)? = null
+
+    @Volatile
+    var unsolicitedPurchaseHandler: ((Purchase) -> Unit)? = null
 
     fun getPurchaseHistoryDataToRestore(maxAttemptCount: Long): Flow<List<PurchaseRecordModel>> =
         getPurchaseHistoryDataToRestoreForType(SUBS, maxAttemptCount)
@@ -70,10 +83,14 @@ internal class StoreManager(
             }
 
     fun queryActivePurchases(maxAttemptCount: Long): Flow<List<Purchase>> =
+        queryActivePurchasesIncludingPending(maxAttemptCount)
+            .map { purchases -> purchases.filter { it.purchaseState == Purchase.PurchaseState.PURCHASED } }
+
+    fun queryActivePurchasesIncludingPending(maxAttemptCount: Long): Flow<List<Purchase>> =
         queryActivePurchasesForType(SUBS, maxAttemptCount)
             .flatMapConcat { activeSubsList ->
                 queryActivePurchasesForType(INAPP, maxAttemptCount)
-                    .map { activeInAppList -> concatResults(activeSubsList, activeInAppList).filter { it.purchaseState == Purchase.PurchaseState.PURCHASED } }
+                    .map { activeInAppList -> concatResults(activeSubsList, activeInAppList) }
             }
 
     fun findPurchaseForTransactionId(transactionId: String, maxAttemptCount: Long): Flow<Purchase?> =
@@ -210,13 +227,34 @@ internal class StoreManager(
                     return
                 }
 
+                val callback = makePurchaseCallback
+                val updates = mutableListOf<Pair<PurchaseUpdateRoute, Long>>()
                 for (purchase in purchases) {
-                    if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                        makePurchaseCallback?.invoke(PurchaseResult.Success(purchase))
-                    } else {
-                        makePurchaseCallback?.invoke(PurchaseResult.Success(purchase, State.PENDING))
+                    val route = resolvePurchaseUpdateRoute(
+                        purchase.purchaseState,
+                        isStoredPending = cacheRepository.getPendingPurchase(purchase.purchaseToken) != null,
+                        productId = purchase.products.firstOrNull(),
+                        awaitedProductIds = callback?.awaitedProductIds.orEmpty(),
+                    )
+                    updates += route to purchase.purchaseTime
+                    when (route) {
+                        PurchaseUpdateRoute.PENDING_APPROVED -> pendingPurchaseApprovedHandler?.invoke(purchase)
+                        PurchaseUpdateRoute.MAKE_PURCHASE -> {
+                            if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                                callback?.invoke(PurchaseResult.Success(purchase))
+                            } else {
+                                callback?.invoke(PurchaseResult.Success(purchase, State.PENDING))
+                            }
+                        }
+                        PurchaseUpdateRoute.UNSOLICITED -> {
+                            Logger.log(INFO) { "Purchase of ${purchase.products} was not started by makePurchase" }
+                            unsolicitedPurchaseHandler?.invoke(purchase)
+                        }
+                        PurchaseUpdateRoute.UNSOLICITED_PENDING, PurchaseUpdateRoute.SKIP -> Unit
                     }
                 }
+                if (callback != null && needsAwaitedPurchaseLookup(updates, callback.awaitedProductIds.isNotEmpty(), callback.launchedAt))
+                    resolveAwaitedPurchase(callback)
             }
             USER_CANCELED -> {
                 makePurchaseCallback?.invoke(PurchaseResult.Canceled)
@@ -224,6 +262,26 @@ internal class StoreManager(
             else -> {
                 onError(billingResult, makePurchaseCallback)
             }
+        }
+    }
+
+    private fun resolveAwaitedPurchase(callback: MakePurchaseCallbackWrapper) {
+        val productId = callback.requestedProductId
+        execute {
+            queryActivePurchasesIncludingPending(DEFAULT_RETRY_COUNT)
+                .map { purchases -> purchases.firstOrNull { it.products.firstOrNull() == productId } }
+                .catch { emit(null) }
+                .onEach { purchase ->
+                    runOnMain {
+                        Logger.log(INFO) { "No result for $productId in the purchase flow, ${if (purchase == null) "treating it as canceled" else "found its purchase"}" }
+                        when {
+                            purchase == null -> callback.invoke(PurchaseResult.Canceled)
+                            purchase.purchaseState == Purchase.PurchaseState.PURCHASED -> callback.invoke(PurchaseResult.Success(purchase))
+                            else -> callback.invoke(PurchaseResult.Success(purchase, State.PENDING))
+                        }
+                    }
+                }
+                .collect()
         }
     }
 
@@ -301,6 +359,62 @@ internal class StoreManager(
                 }
                 .flowOnMain()
                 .collect()
+        }
+    }
+
+    fun showInAppMessages(
+        hostActivity: WeakReference<Activity>,
+        trigger: StoreMessagesTrigger,
+    ): Flow<StoreMessagesOutcome> {
+        val requestEvent = GoogleAPIRequestData.ShowInAppMessages.create(trigger)
+        analyticsTracker.trackSystemEvent(requestEvent)
+        return onConnected {
+            flow {
+                emit(showInAppMessagesToValidHost(hostActivity))
+            }
+                .flowOnMain()
+        }
+            .onEach { outcome ->
+                when (outcome) {
+                    is StoreMessagesOutcome.HostUnavailable -> {
+                        Logger.log(VERBOSE) { "Store messages (${trigger.analyticsName}): host Activity is not available for UI, skipping" }
+                        analyticsTracker.trackSystemEvent(GoogleAPIResponseData.ShowInAppMessages.create(requestEvent, outcome))
+                    }
+                    is StoreMessagesOutcome.Rejected -> {
+                        val message = "Play Market request failed on show in-app messages: responseCode=${outcome.billingResponseCode}"
+                        Logger.log(WARN) { message }
+                        analyticsTracker.trackSystemEvent(GoogleAPIResponseData.ShowInAppMessages.create(requestEvent, outcome, message))
+                    }
+                    is StoreMessagesOutcome.Completed -> {
+                        Logger.log(VERBOSE) { "Store messages (${trigger.analyticsName}): in-app message responseCode=${outcome.responseCode}" }
+                        analyticsTracker.trackSystemEvent(GoogleAPIResponseData.ShowInAppMessages.create(requestEvent, outcome))
+                    }
+                }
+            }
+            .catch { error ->
+                Logger.log(WARN) { "Store messages (${trigger.analyticsName}): ${error.message ?: "Play Market request failed"}" }
+                analyticsTracker.trackSystemEvent(GoogleAPIResponseData.create(requestEvent, error.asAdaptyError()))
+                throw error
+            }
+    }
+
+    private suspend fun showInAppMessagesToValidHost(hostActivity: WeakReference<Activity>): StoreMessagesOutcome {
+        val activity = hostActivity.get()
+            ?.takeIf(hostActivityValidator::isValidHost)
+            ?: return StoreMessagesOutcome.HostUnavailable
+        val params = InAppMessageParams.newBuilder()
+            .addAllInAppMessageCategoriesToShow()
+            .build()
+        return suspendCancellableCoroutine { continuation ->
+            val listener = InAppMessageResponseListener { result ->
+                if (continuation.isActive) {
+                    continuation.resume(StoreMessagesOutcome.Completed(result.responseCode)) {}
+                }
+            }
+            val billingResult = showInAppMessagesCall.show(billingClient, activity, params, listener)
+            if (billingResult.responseCode != OK && continuation.isActive) {
+                continuation.resume(StoreMessagesOutcome.Rejected(billingResult.responseCode)) {}
+            }
         }
     }
 
@@ -453,6 +567,22 @@ internal class StoreManager(
     }
 }
 
+internal fun interface ShowInAppMessagesCall {
+
+    fun show(
+        billingClient: BillingClient,
+        activity: Activity,
+        params: InAppMessageParams,
+        listener: InAppMessageResponseListener,
+    ): BillingResult
+
+    companion object {
+        val Default: ShowInAppMessagesCall = ShowInAppMessagesCall { billingClient, activity, params, listener ->
+            billingClient.showInAppMessages(activity, params, listener)
+        }
+    }
+}
+
 private class StoreHelper(
     private val billingClient: BillingClient,
     private val analyticsTracker: AnalyticsTracker,
@@ -591,21 +721,24 @@ private class MakePurchaseCallbackWrapper(
 
     private val wasInvoked = AtomicBoolean(false)
 
+    val requestedProductId: String get() = productId
+
+    val launchedAt: Long = System.currentTimeMillis()
+
+    val awaitedProductIds: List<String>
+        get() = if (wasInvoked.get()) emptyList() else listOfNotNull(productId, oldSubProductId)
+
     override operator fun invoke(purchaseResult: PurchaseResult) {
-        if (wasInvoked.compareAndSet(false, true)) {
-            when(purchaseResult) {
-                is PurchaseResult.Success -> {
-                    val purchaseProductId = purchaseResult.productId
-                    if (purchaseProductId != null && !listOfNotNull(productId, oldSubProductId).contains(purchaseProductId))
-                        return
-                    analyticsTracker.trackSystemEvent(GoogleAPIResponseData.MakePurchase.create(requestEvent, purchaseResult))
-                    callback.invoke(purchaseResult)
-                }
-                is PurchaseResult.Error, is PurchaseResult.Canceled -> {
-                    analyticsTracker.trackSystemEvent(GoogleAPIResponseData.MakePurchase.create(requestEvent, purchaseResult))
-                    callback.invoke(purchaseResult)
-                }
+        if (purchaseResult is PurchaseResult.Success) {
+            val purchaseProductId = purchaseResult.productId
+            if (purchaseProductId != null && !listOfNotNull(productId, oldSubProductId).contains(purchaseProductId)) {
+                Logger.log(WARN) { "Purchase of $purchaseProductId doesn't match the requested $productId, skipping it" }
+                return
             }
+        }
+        if (wasInvoked.compareAndSet(false, true)) {
+            analyticsTracker.trackSystemEvent(GoogleAPIResponseData.MakePurchase.create(requestEvent, purchaseResult))
+            callback.invoke(purchaseResult)
         }
     }
 }

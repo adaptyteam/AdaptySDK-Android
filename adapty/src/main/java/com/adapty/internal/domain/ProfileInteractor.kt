@@ -152,8 +152,9 @@ internal class ProfileInteractor(
     fun subscribeOnProfileChanges() =
         if (allowLocalPAL) {
             cacheRepository.subscribeOnProfileChanges()
-                .zip(offlineProfileManager.getLocalPAL()) { profile, localPALData ->
-                    profileMapper.map(profile, localPALData)
+                .flatMapLatest { profile ->
+                    offlineProfileManager.getLocalPAL()
+                        .map { localPALData -> profileMapper.map(profile, localPALData) }
                 }
         } else {
             cacheRepository.subscribeOnProfileChanges()

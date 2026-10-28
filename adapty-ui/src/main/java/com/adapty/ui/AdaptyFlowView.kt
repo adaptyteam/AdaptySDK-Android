@@ -151,7 +151,9 @@ public class AdaptyFlowView @JvmOverloads constructor(
             val previousConfig = vm.dataState.value?.viewConfig
             val configChangeHandoff = vm.configChangeHandoffPending
             vm.configChangeHandoffPending = false
-            if (previousConfig === flowConfiguration && vm.state != null) {
+            if (previousConfig === flowConfiguration && vm.state != null &&
+                stateHandler.stateOwner === flowConfiguration
+            ) {
                 pushData()
                 return@runOnceWhenAttached
             }

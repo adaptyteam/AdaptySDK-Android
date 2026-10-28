@@ -64,10 +64,9 @@ internal class TextResolver(
                         PaymentMode.PAY_UPFRONT -> "pay_up_front"
                         else -> "default"
                     }
-                    texts[listOfNotNull("PRODUCT", desiredProductId, paymentModeStr, stringId.suffix).joinToString(separator = "_")]
-                        ?: texts[listOfNotNull("PRODUCT", desiredProductId, "default", stringId.suffix).joinToString(separator = "_")]
-                        ?: texts[listOfNotNull("PRODUCT", paymentModeStr, stringId.suffix).joinToString(separator = "_")]
-                        ?: texts[listOfNotNull("PRODUCT", "default", stringId.suffix).joinToString(separator = "_")]
+                    val billingPlan = if (product?.subscriptionDetails != null) BILLING_PLAN_UP_FRONT else null
+                    productStringKeys(desiredProductId, billingPlan, paymentModeStr, stringId.suffix)
+                        .firstNotNullOfOrNull { key -> texts[key] }
                 } else {
                     texts[listOfNotNull("PRODUCT_not_selected", stringId.suffix).joinToString(separator = "_")]
                 }
@@ -220,4 +219,22 @@ internal class TextResolver(
             ?: tagResolver.tryResolveProductTag(item, productId, textElementAttrs, assets, products)
             ?: tagResolver.tryResolveMissingTag(item, textElementAttrs, assets, ignoreMissingCustomTag)
     }
+}
+
+internal const val BILLING_PLAN_UP_FRONT = "up_front"
+
+internal fun productStringKeys(
+    productId: String,
+    billingPlan: String?,
+    paymentMode: String,
+    suffix: String?,
+): List<String> {
+    val billingSegments = if (billingPlan != null) listOf("bil_$billingPlan", null) else listOf(null)
+    return listOf(productId, null).flatMap { id ->
+        billingSegments.flatMap { billing ->
+            listOf(paymentMode, "default").map { mode ->
+                listOfNotNull("PRODUCT", id, billing, mode, suffix).joinToString(separator = "_")
+            }
+        }
+    }.distinct()
 }

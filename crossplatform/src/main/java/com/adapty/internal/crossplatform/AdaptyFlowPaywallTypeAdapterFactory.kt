@@ -16,6 +16,9 @@ internal class AdaptyFlowPaywallTypeAdapterFactory :
         const val OFFER_ID = "offer_id"
         const val TYPE = "type"
         const val IS_CONSUMABLE = "is_consumable"
+        const val PAYWALL_PRODUCT_INDEX = "paywall_product_index"
+        const val PRODUCT_TYPE = "product_type"
+        const val PRODUCT_TYPE_CONSUMABLE = "consumable"
     }
 
     override fun read(
@@ -26,14 +29,15 @@ internal class AdaptyFlowPaywallTypeAdapterFactory :
         val jsonObject = elementAdapter.read(`in`).asJsonObject
 
         kotlin.runCatching {
-            jsonObject.getAsJsonArray(PRODUCTS)?.forEach { element ->
+            jsonObject.getAsJsonArray(PRODUCTS)?.forEachIndexed { index, element ->
                 element.takeIf(JsonElement::isJsonObject)?.asJsonObject?.let { product ->
+                    product.addProperty(PAYWALL_PRODUCT_INDEX, index)
                     val basePlanId = product.remove(BASE_PLAN_ID)?.takeIf(JsonElement::isJsonPrimitive)?.asString
                     val offerId = product.remove(OFFER_ID)?.takeIf(JsonElement::isJsonPrimitive)?.asString
-                    val isConsumable = product.remove(IS_CONSUMABLE)?.takeIf(JsonElement::isJsonPrimitive)?.asBoolean
+                    val isConsumable = product.get(PRODUCT_TYPE)?.takeIf(JsonElement::isJsonPrimitive)?.asString == PRODUCT_TYPE_CONSUMABLE
 
                     product.add(TYPE, JsonObject().apply {
-                        addProperty(IS_CONSUMABLE, isConsumable ?: false)
+                        addProperty(IS_CONSUMABLE, isConsumable)
                         if (basePlanId != null) {
                             addProperty(BASE_PLAN_ID, basePlanId)
                             offerId?.let { addProperty(OFFER_ID, it) }
@@ -57,9 +61,6 @@ internal class AdaptyFlowPaywallTypeAdapterFactory :
             element.takeIf(JsonElement::isJsonObject)?.asJsonObject?.let { product ->
                 product.remove(TYPE)?.takeIf(JsonElement::isJsonObject)?.asJsonObject
                     ?.let { productType ->
-                        productType.get(IS_CONSUMABLE)?.takeIf(JsonElement::isJsonPrimitive)?.asBoolean?.let { isConsumable ->
-                            product.addProperty(IS_CONSUMABLE, isConsumable)
-                        }
                         productType.get(BASE_PLAN_ID)?.takeIf(JsonElement::isJsonPrimitive)?.asString?.let { basePlanId ->
                             product.addProperty(BASE_PLAN_ID, basePlanId)
                         }

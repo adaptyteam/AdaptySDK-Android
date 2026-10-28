@@ -3,6 +3,10 @@
 package com.adapty.ui.internal.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -21,6 +25,9 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.LayoutModifier
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
@@ -56,6 +63,7 @@ import androidx.compose.ui.unit.isSpecified
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.ui.attributes.DimSpec
+import com.adapty.ui.internal.ui.attributes.DimUnit
 import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorHorizontal
 import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorVertical
 import com.adapty.ui.internal.ui.attributes.EdgeEntities
@@ -76,6 +84,8 @@ import com.adapty.ui.internal.ui.element.OffsetProvider
 import com.adapty.ui.internal.ui.element.ResolveAssets
 import com.adapty.ui.internal.ui.element.TextFieldElement
 import com.adapty.ui.internal.ui.element.UIElement
+import com.adapty.ui.internal.ui.element.drawsOnlyDecorator
+import androidx.compose.ui.input.pointer.pointerInput
 import com.adapty.ui.internal.utils.LocalSafeAreaInsets
 import com.adapty.ui.internal.utils.LocalScreenDimensions
 import com.adapty.ui.internal.ui.element.BoxProvider
@@ -109,20 +119,45 @@ import com.adapty.ui.internal.utils.VisualValue
 @InternalAdaptyApi
 @Composable
 public fun Modifier.fillWithBaseParams(element: UIElement): Modifier =
+    fillWithBaseParams(element, backgroundAlpha = null)
+
+@Composable
+internal fun Modifier.fillWithBaseParams(
+    element: UIElement,
+    backgroundAlpha: State<Float>?,
+): Modifier =
     fillWithBaseParams(
         element.baseProps,
+        backgroundAlpha = backgroundAlpha,
         isOverlayContainer = element is OverlayContainerElement,
         handlesOwnFocus = element is TextFieldElement,
-    )
+    ).blockTouchesBelowIfPainted(element)
+
+@Composable
+internal fun Modifier.blockTouchesBelowIfPainted(element: UIElement): Modifier =
+    if (LocalBlocksTouchesBelow.current && !LocalInsideButton.current && element.paintsOwnPixels()) {
+        this.pointerInput(Unit) {}
+    } else {
+        this
+    }
+
+@Composable
+private fun UIElement.paintsOwnPixels(): Boolean {
+    if (!drawsOnlyDecorator) return true
+    val decorator = baseProps.shape ?: return false
+    val fill = decorator.fill?.resolveAsset<Asset.Filling.Local>() ?: return false
+    return fill.main !is Asset.Color || fill.cast<Asset.Color>().toComposeFill().color.alpha > 0f
+}
 
 @Composable
 internal fun Modifier.fillWithBaseParams(
     baseProps: BaseProps,
     isOverlayContainer: Boolean = false,
     handlesOwnFocus: Boolean = false,
+    backgroundAlpha: State<Float>? = null,
 ): Modifier {
     if (!baseProps.hasVisualAnimations()) {
-        return fillWithBaseParamsStatic(baseProps, isOverlayContainer, handlesOwnFocus)
+        return fillWithBaseParamsStatic(baseProps, isOverlayContainer, handlesOwnFocus, backgroundAlpha)
     }
     val rotationProvider = rememberRotationProvider(baseProps)
     val scaleProvider = rememberScaleProvider(baseProps)
@@ -186,7 +221,7 @@ internal fun Modifier.fillWithBaseParams(
         }
         .let { if (alpha != 1f) it.graphicsLayer(alpha = alpha) else it }
         .clipToShapeOrSkip(backgroundShape)
-        .backgroundOrSkip(baseProps, innerShadowProvider)
+        .backgroundOrSkip(baseProps, innerShadowProvider, backgroundAlpha)
 
     if (focusRequester != null) {
         result = result.focusRequester(focusRequester).focusable()
@@ -203,6 +238,7 @@ private fun Modifier.fillWithBaseParamsStatic(
     baseProps: BaseProps,
     isOverlayContainer: Boolean,
     handlesOwnFocus: Boolean,
+    backgroundAlpha: State<Float>?,
 ): Modifier {
     val rotation = baseProps.rotation ?: Rotation.Default
     val scale = baseProps.scale ?: Scale.Default
@@ -280,7 +316,7 @@ private fun Modifier.fillWithBaseParamsStatic(
         }
         .let { if (alpha != 1f) it.graphicsLayer(alpha = alpha) else it }
         .clipToShapeOrSkip(backgroundShape)
-        .backgroundOrSkipStatic(baseProps)
+        .backgroundOrSkipStatic(baseProps, backgroundAlpha)
 
     if (focusRequester != null) {
         result = result.focusRequester(focusRequester).focusable()
@@ -290,14 +326,17 @@ private fun Modifier.fillWithBaseParamsStatic(
 }
 
 @Composable
-private fun Modifier.backgroundOrSkipStatic(baseProps: BaseProps): Modifier {
+private fun Modifier.backgroundOrSkipStatic(
+    baseProps: BaseProps,
+    backgroundAlpha: State<Float>?,
+): Modifier {
     val decorator = baseProps.shape ?: return this
     var modifier = this
     val backgroundShape = decorator.type.toComposeShape()
     if (decorator.fill != null) {
         val background = decorator.fill.resolveAsset<Asset.Filling.Local>()
         if (background != null)
-            modifier = modifier.background(background, backgroundShape)
+            modifier = modifier.background(background, backgroundShape, backgroundAlpha)
         val innerShadow = decorator.innerShadow
         if (innerShadow != null &&
             (background?.main is Asset.Color || background?.main is Asset.Gradient)) {
@@ -310,6 +349,7 @@ private fun Modifier.backgroundOrSkipStatic(baseProps: BaseProps): Modifier {
                     backgroundShape,
                     (innerShadow.blurRadius ?: 0f).dp,
                     (innerShadow.offset ?: Offset.Default).asDpOffset(),
+                    backgroundAlpha,
                 )
             }
         }
@@ -388,6 +428,7 @@ internal fun Modifier.backgroundOrSkip(
 internal fun Modifier.backgroundOrSkip(
     baseProps: BaseProps,
     innerShadowProvider: InnerShadowProvider? = null,
+    backgroundAlpha: State<Float>? = null,
 ): Modifier {
     val decorator = baseProps.shape ?: return this
     var modifier = this
@@ -395,10 +436,10 @@ internal fun Modifier.backgroundOrSkip(
     if (decorator.fill != null) {
         val background = decorator.fill.resolveAsset<Asset.Filling.Local>()
         if (background != null)
-            modifier = modifier.background(background, backgroundShape, baseProps)
+            modifier = modifier.background(background, backgroundShape, baseProps, backgroundAlpha)
         if (innerShadowProvider != null &&
             (background?.main is Asset.Color || background?.main is Asset.Gradient)) {
-            modifier = modifier.innerShadowOrSkip(innerShadowProvider, backgroundShape)
+            modifier = modifier.innerShadowOrSkip(innerShadowProvider, backgroundShape, backgroundAlpha)
         }
     }
 
@@ -472,6 +513,7 @@ private fun Modifier.background(
     background: Asset.Composite<Asset.Filling.Local>,
     shape: Shape,
     baseProps: BaseProps,
+    backgroundAlpha: State<Float>?,
 ): Modifier {
     val backgroundAnimations = if (!baseProps.hasVisualAnimations()) null
     else activeAnimationsFor(Animation.Role.Background)
@@ -501,24 +543,43 @@ private fun Modifier.background(
         if (brush is CrossFadeGradientBrush) {
             this.backgroundWithCrossFade(brush, shape)
         } else {
-            this.background(brush = brush, shape = shape)
+            this.gatedFill(brush = brush, shape = shape, alpha = backgroundAlpha)
         }
     } else {
         when (background.main) {
             is Asset.Color -> {
                 val colorProvider = rememberColorProvider(baseProps)
-                this.background(color = colorProvider.value, shape = shape)
+                this.gatedFill(color = colorProvider.value, shape = shape, alpha = backgroundAlpha)
             }
             is Asset.Gradient -> {
                 val gradientProvider = rememberGradientProvider(baseProps)
                 val brush = gradientProvider.brush.value
-                this.background(brush = brush, shape = shape)
+                this.gatedFill(brush = brush, shape = shape, alpha = backgroundAlpha)
             }
             is Asset.Image -> {
                 val context = LocalContext.current
-                this.then(ImageBackgroundElement(background, shape, context))
+                this.then(ImageBackgroundElement(background, shape, context, backgroundAlpha))
             }
         }
+    }
+}
+
+private fun Modifier.gatedFill(
+    color: androidx.compose.ui.graphics.Color? = null,
+    brush: Brush? = null,
+    shape: Shape,
+    alpha: State<Float>?,
+): Modifier {
+    if (alpha == null) {
+        return if (color != null) this.background(color = color, shape = shape)
+        else this.background(brush = brush!!, shape = shape)
+    }
+    return this.drawBehind {
+        val a = alpha.value
+        if (a <= 0f) return@drawBehind
+        val outline = shape.createOutline(size, layoutDirection, this)
+        if (color != null) drawOutline(outline, color = color, alpha = a)
+        else drawOutline(outline, brush = brush!!, alpha = a)
     }
 }
 
@@ -526,12 +587,14 @@ private data class ImageBackgroundElement(
     private val background: Asset.Composite<Asset.Filling.Local>,
     private val shape: Shape,
     private val context: android.content.Context,
+    private val alpha: State<Float>?,
 ) : ModifierNodeElement<ImageBackgroundNode>() {
-    override fun create() = ImageBackgroundNode(background, shape, context)
+    override fun create() = ImageBackgroundNode(background, shape, context, alpha)
     override fun update(node: ImageBackgroundNode) {
         node.background = background
         node.shape = shape
         node.context = context
+        node.alpha = alpha
     }
 }
 
@@ -539,9 +602,17 @@ private class ImageBackgroundNode(
     var background: Asset.Composite<Asset.Filling.Local>,
     var shape: Shape,
     var context: android.content.Context,
+    var alpha: State<Float>?,
 ) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
 
+    private val gatedPaint = android.graphics.Paint()
+
     override fun ContentDrawScope.draw() {
+        val gateAlpha = alpha?.value ?: 1f
+        if (gateAlpha <= 0f) {
+            drawContent()
+            return
+        }
         val fill = background.cast<Asset.Image>().toComposeFill(context, size)
         if (fill != null) {
             val density = currentValueOf(LocalDensity)
@@ -558,7 +629,12 @@ private class ImageBackgroundNode(
                     }
                     canvas.clipPath(path)
                 }
-                canvas.nativeCanvas.drawBitmap(fill.image, fill.matrix, fill.paint)
+                val paint = if (gateAlpha >= 1f) fill.paint
+                else gatedPaint.apply {
+                    set(fill.paint)
+                    alpha = (alpha * gateAlpha).toInt()
+                }
+                canvas.nativeCanvas.drawBitmap(fill.image, fill.matrix, paint)
                 canvas.restore()
             }
         }
@@ -570,18 +646,19 @@ private class ImageBackgroundNode(
 private fun Modifier.background(
     background: Asset.Composite<Asset.Filling.Local>,
     shape: Shape,
+    backgroundAlpha: State<Float>? = null,
 ): Modifier = when (background.main) {
     is Asset.Color -> {
         val fill = background.cast<Asset.Color>().toComposeFill()
-        this.background(color = fill.color, shape = shape)
+        this.gatedFill(color = fill.color, shape = shape, alpha = backgroundAlpha)
     }
     is Asset.Gradient -> {
         val fill = background.cast<Asset.Gradient>().toComposeFill()
-        this.background(brush = fill.shader, shape = shape)
+        this.gatedFill(brush = fill.shader, shape = shape, alpha = backgroundAlpha)
     }
     is Asset.Image -> {
         val context = LocalContext.current
-        this.then(ImageBackgroundElement(background, shape, context))
+        this.then(ImageBackgroundElement(background, shape, context, backgroundAlpha))
     }
 }
 
@@ -716,6 +793,41 @@ internal fun Modifier.allowHorizontalOverflow(): Modifier {
         .then(this)
 }
 
+@Suppress("DEPRECATION")
+internal object ProposeMinHeightWhenShorter : LayoutModifier {
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        val minHeight = constraints.minHeight
+        val proposeMin = !constraints.hasBoundedHeight && minHeight > 0 && try {
+            NaturalHeightQuery.run { measurable.maxIntrinsicHeight(constraints.maxWidth) } < minHeight
+        } catch (e: IllegalStateException) {
+            false
+        }
+        val placeable =
+            if (proposeMin)
+                measurable.measure(constraints.copy(maxHeight = minHeight))
+            else
+                measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) {
+            placeable.place(0, 0)
+        }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        measurable.minIntrinsicHeight(width)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        measurable.maxIntrinsicHeight(width)
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        measurable.minIntrinsicWidth(height)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        measurable.maxIntrinsicWidth(height)
+}
+
 internal fun Modifier.fillBoundedHeightOrIntrinsic(): Modifier = this.layout { measurable, constraints ->
     val targetHeight = if (constraints.hasBoundedHeight) {
         constraints.maxHeight
@@ -752,6 +864,56 @@ internal fun Modifier.intrinsicHeightOrHug(): Modifier = this.layout { measurabl
     }
 }
 
+@Suppress("DEPRECATION")
+internal data class FixedWidthHeightIntrinsics(private val width: Dp) : LayoutModifier {
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) {
+            placeable.place(0, 0)
+        }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        measurable.minIntrinsicHeight(minOf(width, this@FixedWidthHeightIntrinsics.width.roundToPx()))
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        measurable.maxIntrinsicHeight(minOf(width, this@FixedWidthHeightIntrinsics.width.roundToPx()))
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        measurable.minIntrinsicWidth(height)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        measurable.maxIntrinsicWidth(height)
+}
+
+@Suppress("DEPRECATION")
+internal data class FixedHeightWidthIntrinsics(private val height: Dp) : LayoutModifier {
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) {
+            placeable.place(0, 0)
+        }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        measurable.minIntrinsicWidth(minOf(height, this@FixedHeightWidthIntrinsics.height.roundToPx()))
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        measurable.maxIntrinsicWidth(minOf(height, this@FixedHeightWidthIntrinsics.height.roundToPx()))
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        measurable.minIntrinsicHeight(width)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        measurable.maxIntrinsicHeight(width)
+}
+
 @Composable
 internal fun Modifier.sideDimensionOrSkip(
     sideDimension: DimSpec?, 
@@ -773,24 +935,29 @@ internal fun Modifier.sideDimensionOrSkip(
             min = (sideDimension.value.toExactDp(axis) + margins.verticalSumOrDefault).coerceAtLeast(0.dp),
             max = sideDimension.maxValue?.let { maxValue -> maxValue.toExactDp(axis) + margins.verticalSumOrDefault }
                 ?.takeIf { it > 0.dp } ?: Dp.Unspecified,
+        ).then(
+            if (sideDimension.value is DimUnit.ScreenFraction) ProposeMinHeightWhenShorter
+            else Modifier
         )
     }
     is DimSpec.Specified -> when (val axis = sideDimension.axis) {
         DimSpec.Axis.X -> {
             val animatedWidth = boxProvider.width.value.takeIf { it.isSpecified }
-            if (animatedWidth != null) {
-                this.width((animatedWidth + margins.horizontalSumOrDefault).coerceAtLeast(0.dp))
+            val width = if (animatedWidth != null) {
+                (animatedWidth + margins.horizontalSumOrDefault).coerceAtLeast(0.dp)
             } else {
-                this.width((sideDimension.value.toExactDp(axis) + margins.horizontalSumOrDefault).coerceAtLeast(0.dp))
+                (sideDimension.value.toExactDp(axis) + margins.horizontalSumOrDefault).coerceAtLeast(0.dp)
             }
+            this.width(width).then(FixedWidthHeightIntrinsics(width))
         }
         DimSpec.Axis.Y -> {
             val animatedHeight = boxProvider.height.value.takeIf { it.isSpecified }
-            if (animatedHeight != null) {
-                this.height((animatedHeight + margins.verticalSumOrDefault).coerceAtLeast(0.dp))
+            val height = if (animatedHeight != null) {
+                (animatedHeight + margins.verticalSumOrDefault).coerceAtLeast(0.dp)
             } else {
-                this.height((sideDimension.value.toExactDp(axis) + margins.verticalSumOrDefault).coerceAtLeast(0.dp))
+                (sideDimension.value.toExactDp(axis) + margins.verticalSumOrDefault).coerceAtLeast(0.dp)
             }
+            this.height(height).then(FixedHeightWidthIntrinsics(height))
         }
     }
     is DimSpec.Shrink -> when (val axis = sideDimension.axis) {
@@ -801,7 +968,7 @@ internal fun Modifier.sideDimensionOrSkip(
                 max = sideDimension.maxValue?.let { maxValue -> maxValue.toExactDp(axis) + margins.horizontalSumOrDefault }
                     ?.takeIf { it > 0.dp } ?: Dp.Unspecified,
             )
-            .width(IntrinsicSize.Min)
+            .width(IntrinsicSize.Max)
         DimSpec.Axis.Y -> this
             .heightIn(
                 min = (sideDimension.min.toExactDp(axis) + margins.verticalSumOrDefault)
@@ -1097,12 +1264,13 @@ internal fun Modifier.shadow(
 internal fun Modifier.innerShadowOrSkip(
     innerShadow: InnerShadowProvider,
     shape: Shape,
+    gateAlpha: State<Float>? = null,
 ): Modifier {
     val color = innerShadow.color.value
     if (color.alpha == 0f) return this
     val blurRadius = innerShadow.blurRadius.value
     val offset = innerShadow.offset.value
-    return this.innerShadow(color, shape, blurRadius.dp, offset)
+    return this.innerShadow(color, shape, blurRadius.dp, offset, gateAlpha)
 }
 
 private data class InnerShadowElement(
@@ -1110,13 +1278,15 @@ private data class InnerShadowElement(
     private val shape: Shape,
     private val blurRadius: Dp,
     private val offset: DpOffset,
+    private val gateAlpha: State<Float>?,
 ) : ModifierNodeElement<InnerShadowNode>() {
-    override fun create() = InnerShadowNode(color, shape, blurRadius, offset)
+    override fun create() = InnerShadowNode(color, shape, blurRadius, offset, gateAlpha)
     override fun update(node: InnerShadowNode) {
         node.color = color
         node.shape = shape
         node.blurRadius = blurRadius
         node.offset = offset
+        node.gateAlpha = gateAlpha
     }
 }
 
@@ -1125,9 +1295,11 @@ private class InnerShadowNode(
     var shape: Shape,
     var blurRadius: Dp,
     var offset: DpOffset,
+    var gateAlpha: State<Float>?,
 ) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
 
     private val shadowPaint = android.graphics.Paint()
+    private val gateLayerPaint = android.graphics.Paint()
     private val cutoutPaint = android.graphics.Paint().apply {
         xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
     }
@@ -1145,6 +1317,8 @@ private class InnerShadowNode(
         val w = size.width.toInt()
         val h = size.height.toInt()
         if (w <= 0 || h <= 0) return
+        val gate = gateAlpha?.value ?: 1f
+        if (gate <= 0f) return
 
         val density = currentValueOf(LocalDensity)
 
@@ -1164,7 +1338,7 @@ private class InnerShadowNode(
 
         drawIntoCanvas { canvas ->
             val nc = canvas.nativeCanvas
-            nc.saveLayer(null, null)
+            nc.saveLayer(null, if (gate >= 1f) null else gateLayerPaint.apply { alpha = (255 * gate).toInt() })
 
             nc.drawPaint(shadowPaint)
 
@@ -1209,7 +1383,8 @@ internal fun Modifier.innerShadow(
     shape: Shape,
     blurRadius: Dp,
     offset: DpOffset,
-): Modifier = this.then(InnerShadowElement(color, shape, blurRadius, offset))
+    gateAlpha: State<Float>? = null,
+): Modifier = this.then(InnerShadowElement(color, shape, blurRadius, offset, gateAlpha))
 
 internal fun Modifier.blurOrSkip(
     blurProvider: BlurProvider,

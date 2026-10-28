@@ -58,6 +58,7 @@ internal class CrossplatformConfigTypeAdapterFactory(
                 baseConfigJsonObject.addNode(localAccessLevelAllowedNode.copy(first = "allow_local_p_a_l"), JsonPrimitive(false))
 
                 jsonObject.moveNode(baseConfigJsonObject, "server_cluster", JsonPrimitive("default"))
+                jsonObject.moveNode(baseConfigJsonObject, "store_messages_handling", JsonPrimitive("auto"))
 
                 if (hasAdaptyUi)
                     return gson.getDelegateAdapter(

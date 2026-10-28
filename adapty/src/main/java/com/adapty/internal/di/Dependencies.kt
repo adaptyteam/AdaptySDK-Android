@@ -470,7 +470,7 @@ public object Dependencies {
                 }),
 
                 UserAgentRetriever::class to singleVariantDiObject({
-                    UserAgentRetriever(appContext, injectInternal())
+                    UserAgentRetriever(appContext, injectInternal(), injectInternal(named = BASE))
                 }),
 
                 IPv4Retriever::class to singleVariantDiObject({
@@ -701,6 +701,7 @@ public object Dependencies {
                         injectInternal(),
                         injectInternal(),
                         config.allowLocalPAL,
+                        config.observerMode,
                     )
                 }),
 
@@ -756,6 +757,7 @@ public object Dependencies {
                         config.observerMode,
                         config.ipAddressCollectionDisabled,
                         config.adaptyAttributionEnabled,
+                        config.storeMessagesHandling,
                     )
                 }),
 

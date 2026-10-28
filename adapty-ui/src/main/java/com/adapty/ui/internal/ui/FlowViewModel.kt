@@ -74,12 +74,12 @@ internal class FlowViewModel(
 
     internal lateinit var effectHandlers: List<EffectHandler>
     
-    init {
-        stateHandler.onStateRefreshed = { dispatch(Message.FlushPendingNavigation) }
-    }
-    
+    private val flushPendingNavigationOnRefresh: () -> Unit = { dispatch(Message.FlushPendingNavigation) }
+
     override fun onCleared() {
         super.onCleared()
+        if (stateHandler.onStateRefreshed === flushPendingNavigationOnRefresh)
+            stateHandler.onStateRefreshed = null
     }
 
     val dataState = mutableStateOf<UserArgs?>(null)
@@ -139,7 +139,18 @@ internal class FlowViewModel(
                 )
             }
             _state.value = initial
+        } else {
+            val current = _state.value
+            val runtime = newData.viewConfig.runtimeState
+            val restoredNav = runtime.restorableNavigation
+            if (current != null && current.navigation.entries.isEmpty() && restoredNav != null) {
+                _state.value = current.copy(
+                    navigation = restoredNav,
+                    ui = current.ui.copy(timerCommands = runtime.timerCommands),
+                )
+            }
         }
+        stateHandler.onStateRefreshed = flushPendingNavigationOnRefresh
         dataState.value = newData
         dispatch(Message.DataUpdated(newData))
     }

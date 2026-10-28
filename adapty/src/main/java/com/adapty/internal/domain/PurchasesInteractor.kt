@@ -7,8 +7,11 @@ import com.adapty.errors.AdaptyErrorCode.*
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.cloud.StoreManager
+import com.adapty.internal.data.models.PendingPurchase
 import com.adapty.internal.data.models.PurchaseResult
 import com.adapty.internal.data.models.PurchaseResult.Success.State
+import com.adapty.internal.data.models.StoreMessagesOutcome
+import com.adapty.internal.data.models.StoreMessagesTrigger
 import com.adapty.internal.data.models.requests.ValidateReceiptRequest
 import com.adapty.internal.domain.models.PurchaseableProduct
 import com.adapty.internal.utils.*
@@ -23,10 +26,15 @@ import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.INFO
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.adapty.utils.TransactionInfo
+import com.android.billingclient.api.InAppMessageResult
 import com.android.billingclient.api.Purchase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
+import java.lang.ref.WeakReference
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class PurchasesInteractor(
@@ -39,6 +47,7 @@ internal class PurchasesInteractor(
     private val profileMapper: ProfileMapper,
     private val offlineProfileManager: OfflineProfileManager,
     private val allowLocalPAL: Boolean,
+    private val observerMode: Boolean,
 ) {
 
     init {
@@ -51,6 +60,16 @@ internal class PurchasesInteractor(
                 }
                 .catch { }
                 .collect()
+        }
+        storeManager.pendingPurchaseApprovedHandler = { purchase ->
+            execute {
+                validatePendingPurchase(purchase.purchaseToken, purchase)
+                    .catch { }
+                    .collect()
+            }
+        }
+        if (!observerMode) {
+            storeManager.unsolicitedPurchaseHandler = { requestUnsolicitedPurchasesSync() }
         }
     }
 
@@ -79,7 +98,12 @@ internal class PurchasesInteractor(
                         when(purchaseResult) {
                             is PurchaseResult.Success -> {
                                 when {
-                                    purchaseResult.state == State.PENDING -> flowOf(Pending)
+                                    purchaseResult.state == State.PENDING -> {
+                                        purchaseResult.purchase?.let { purchase ->
+                                            savePendingPurchase(purchase, purchaseableProduct)
+                                        }
+                                        flowOf(Pending)
+                                    }
                                     purchaseResult.purchase != null -> {
                                         validatePurchase(purchaseResult.purchase, purchaseableProduct)
                                     }
@@ -108,6 +132,37 @@ internal class PurchasesInteractor(
                         }
                     }
             }
+            .onStart { makePurchasesInProgress.incrementAndGet() }
+            .onCompletion {
+                if (makePurchasesInProgress.decrementAndGet() == 0)
+                    syncUnsolicitedPurchasesIfRequested()
+            }
+    }
+
+    private val makePurchasesInProgress = AtomicInteger(0)
+    private val unsolicitedPurchasesSyncRequested = AtomicBoolean(false)
+
+    private fun requestUnsolicitedPurchasesSync() {
+        unsolicitedPurchasesSyncRequested.set(true)
+        if (makePurchasesInProgress.get() == 0)
+            syncUnsolicitedPurchasesIfRequested()
+    }
+
+    fun syncPurchasesOnForeground() {
+        if (!observerMode)
+            requestUnsolicitedPurchasesSync()
+    }
+
+    private fun syncUnsolicitedPurchasesIfRequested() {
+        if (!unsolicitedPurchasesSyncRequested.compareAndSet(true, false))
+            return
+        execute {
+            syncPurchasesSemaphore.acquire()
+            syncPurchasesInternal(maxAttemptCount = DEFAULT_RETRY_COUNT)
+                .onEach { syncPurchasesSemaphore.releaseQuietly() }
+                .catch { syncPurchasesSemaphore.releaseQuietly() }
+                .collect()
+        }
     }
 
     private fun validatePurchase(
@@ -154,6 +209,82 @@ internal class PurchasesInteractor(
             }
     }
 
+    private fun savePendingPurchase(purchase: Purchase, product: PurchaseableProduct) {
+        val validateData = ValidateReceiptRequest.create(
+            cacheRepository.getProfileId(),
+            purchase,
+            product,
+            cacheRepository.getOnboardingVariationId(),
+        )
+        cacheRepository.savePendingPurchase(
+            purchase.purchaseToken,
+            PendingPurchase(validateData, System.currentTimeMillis()),
+        )
+    }
+
+    fun syncPendingPurchases(): Flow<AdaptyProfile?> {
+        val pendingPurchases = cacheRepository.getPendingPurchases()?.takeIf { it.isNotEmpty() }
+            ?: return flowOf(null)
+
+        return storeManager.queryActivePurchasesIncludingPending(DEFAULT_RETRY_COUNT)
+            .flatMapConcat { activePurchases ->
+                val purchasesByToken = activePurchases.associateBy { it.purchaseToken }
+                val now = System.currentTimeMillis()
+                pendingPurchases
+                    .mapNotNull { (token, pendingPurchase) ->
+                        val purchase = purchasesByToken[token]
+                        val action = resolvePendingPurchaseAction(purchase?.purchaseState, pendingPurchase.savedAt, now)
+                        when (action) {
+                            PendingPurchaseAction.VALIDATE -> purchase
+                            PendingPurchaseAction.KEEP -> null
+                            PendingPurchaseAction.DROP -> {
+                                Logger.log(INFO) { "Pending purchase of ${pendingPurchase.validateData.vendorProductId} is no longer returned by Google Play, dropping it" }
+                                cacheRepository.removePendingPurchase(token)
+                                null
+                            }
+                        }
+                    }
+                    .asFlow()
+            }
+            .flatMapConcat { purchase ->
+                validatePendingPurchase(purchase.purchaseToken, purchase)
+                    .catch { }
+            }
+    }
+
+    private val pendingPurchasesInProgress = ConcurrentHashMap.newKeySet<String>()
+
+    private fun validatePendingPurchase(
+        purchaseToken: String,
+        purchase: Purchase?,
+    ): Flow<AdaptyProfile?> {
+        val pendingPurchase = cacheRepository.getPendingPurchase(purchaseToken)
+            ?: return flowOf(null)
+        if (!pendingPurchasesInProgress.add(purchaseToken))
+            return flowOf(null)
+
+        Logger.log(INFO) { "Pending purchase of ${pendingPurchase.validateData.vendorProductId} has been approved, validating it" }
+
+        return authInteractor.runWhenAuthDataSynced {
+            cloudRepository.validatePurchase(pendingPurchase.validateData, purchase)
+        }
+            .map { (validationResult, request) ->
+                cacheRepository.removePendingPurchase(purchaseToken)
+                cacheRepository.updateOnProfileReceived(
+                    validationResult.profile,
+                    request.currentDataWhenSent?.profileId,
+                ).let(profileMapper::map)
+            }
+            .catch { e ->
+                if (e is AdaptyError && e.adaptyErrorCode == BAD_REQUEST) {
+                    Logger.log(WARN) { "Pending purchase of ${pendingPurchase.validateData.vendorProductId} was rejected on validation, dropping it" }
+                    cacheRepository.removePendingPurchase(purchaseToken)
+                }
+                throw e
+            }
+            .onCompletion { pendingPurchasesInProgress.remove(purchaseToken) }
+    }
+
     private suspend fun makePurchase(
         activity: Activity,
         purchaseableProduct: PurchaseableProduct,
@@ -180,8 +311,14 @@ internal class PurchasesInteractor(
         return authInteractor.runWhenAuthDataSynced {
             cloudRepository.validatePurchase(validateData, null)
         }
-            .onEach {
+            .onEach { (validationResult, request) ->
                 cacheRepository.removeUnsyncedValidateData(key)
+                if (validationResult.profile.profileId == cacheRepository.getProfileId()) {
+                    cacheRepository.updateOnProfileReceived(
+                        validationResult.profile,
+                        request.currentDataWhenSent?.profileId,
+                    )
+                }
                 syncValidateDataSemaphore.releaseQuietly()
             }
             .catch { error -> syncValidateDataSemaphore.releaseQuietly(); throw error }
@@ -226,16 +363,12 @@ internal class PurchasesInteractor(
                 historyData to syncedPurchases
             }
             .flatMapConcat { (historyData, syncedPurchases) ->
-                val dataToSync = when {
-                    byUser -> historyData
-                    else -> {
-                        historyData.filter { historyRecord ->
-                            syncedPurchases.firstOrNull { purchase ->
-                                purchase.purchaseToken == historyRecord.purchaseToken && purchase.purchaseTime == historyRecord.purchaseTime
-                            } == null
-                        }
-                    }
-                }
+                val dataToSync = selectPurchasesToSync(
+                    historyData,
+                    syncedPurchases,
+                    cacheRepository.getPendingPurchases()?.keys.orEmpty(),
+                    byUser,
+                )
                 if (dataToSync.isNotEmpty()) {
                     storeManager.queryProductDetails(
                         dataToSync.mapNotNull { it.products.firstOrNull() },
@@ -277,6 +410,30 @@ internal class PurchasesInteractor(
                 }
             }
     }
+
+    fun showStoreMessages(
+        hostActivity: WeakReference<Activity>,
+        trigger: StoreMessagesTrigger,
+    ): Flow<StoreMessagesOutcome> =
+        storeManager.showInAppMessages(hostActivity, trigger)
+            .flatMapConcat { outcome ->
+                if (outcome.isSubscriptionStatusUpdated) {
+                    syncPurchasesOnStart()
+                        .map { outcome }
+                        .catch { error ->
+                            if ((error as? AdaptyError)?.adaptyErrorCode != NO_PURCHASES_TO_RESTORE) {
+                                Logger.log(WARN) { "Purchase sync after store message failed: ${error.message}" }
+                            }
+                            emit(outcome)
+                        }
+                } else {
+                    flowOf(outcome)
+                }
+            }
+
+    private val StoreMessagesOutcome.isSubscriptionStatusUpdated: Boolean
+        get() = this is StoreMessagesOutcome.Completed
+                && responseCode == InAppMessageResult.InAppMessageResponseCode.SUBSCRIPTION_STATUS_UPDATED
 
     fun reportTransaction(transactionInfo: TransactionInfo, variationId: String?) =
         if (variationId != null) {

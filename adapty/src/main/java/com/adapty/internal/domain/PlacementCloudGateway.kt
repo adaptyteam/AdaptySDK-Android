@@ -71,7 +71,8 @@ internal class PlacementCloudGateway(
             val cachedProfile = cacheRepository.getProfile()
             if (cachedProfile != null && segmentId != cachedProfile.segmentId)
                 return withSegmentHashRetry(call)
-            profile = cloudRepository.getProfile().data
+            val response = cloudRepository.getProfile()
+            profile = cacheRepository.updateOnProfileReceived(response.data, response.request.currentDataWhenSent?.profileId)
             if (segmentId == profile.segmentId)
                 throw error
             return withSegmentHashRetry(call)

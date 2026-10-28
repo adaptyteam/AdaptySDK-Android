@@ -16,15 +16,31 @@ internal class ProfileStateChangeChecker(
 
     fun getProfileStateChange(
         newProfile: ProfileDto,
-    ): ProfileStateChange {
-        if (newProfile.timestamp.orDefault() < cacheRepository.getProfile()?.timestamp.orDefault())
-            return OUTDATED
-        val persistedProfileId = preferenceManager.getString(PROFILE_ID)
-            ?: return NEW
-        if (newProfile.profileId != persistedProfileId)
-            return IDENTIFIED_TO_ANOTHER
-        return IDENTIFIED_TO_SELF
-    }
+        requestedProfileId: String?,
+    ): ProfileStateChange =
+        resolveProfileStateChange(
+            newProfileId = newProfile.profileId,
+            newProfileTimestamp = newProfile.timestamp.orDefault(),
+            cachedProfileTimestamp = cacheRepository.getProfile()?.timestamp.orDefault(),
+            persistedProfileId = preferenceManager.getString(PROFILE_ID),
+            requestedProfileId = requestedProfileId,
+        )
+}
+
+internal fun resolveProfileStateChange(
+    newProfileId: String,
+    newProfileTimestamp: Long,
+    cachedProfileTimestamp: Long,
+    persistedProfileId: String?,
+    requestedProfileId: String?,
+): ProfileStateChange {
+    if (newProfileTimestamp < cachedProfileTimestamp)
+        return OUTDATED
+    if (persistedProfileId == null)
+        return if (newProfileId == requestedProfileId) NEW else IDENTIFIED_TO_ANOTHER
+    if (newProfileId != persistedProfileId)
+        return IDENTIFIED_TO_ANOTHER
+    return IDENTIFIED_TO_SELF
 }
 
 internal enum class ProfileStateChange {

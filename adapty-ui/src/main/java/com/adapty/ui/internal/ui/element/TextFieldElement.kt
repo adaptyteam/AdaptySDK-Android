@@ -15,7 +15,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -34,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -247,7 +247,7 @@ public class TextFieldElement internal constructor(
         val effectiveTextAttrs = ComposeTextAttrs.from(effectiveAttributes, assets)
         val fontSize = effectiveTextAttrs.fontSize ?: BaseTextElement.DEFAULT_FONT_SIZE
 
-        val textStyle = LocalTextStyle.current.merge(
+        val textStyle = TextStyle.Default.merge(
             platformStyle = PlatformTextStyle(includeFontPadding = false),
             color = effectiveTextAttrs.textColor ?: BaseTextElement.DEFAULT_TEXT_COLOR,
             fontFamily = effectiveTextAttrs.fontFamily,
@@ -262,7 +262,7 @@ public class TextFieldElement internal constructor(
         val placeholderTextStyle = placeholder?.let { ph ->
             val phAttrs = ComposeTextAttrs.from(ph.attributes, assets)
             val phFontSize = phAttrs.fontSize ?: fontSize
-            LocalTextStyle.current.merge(
+            TextStyle.Default.merge(
                 platformStyle = PlatformTextStyle(includeFontPadding = false),
                 color = phAttrs.textColor ?: BaseTextElement.DEFAULT_TEXT_COLOR,
                 fontFamily = phAttrs.fontFamily,

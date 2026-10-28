@@ -1,5 +1,6 @@
 package com.adapty.internal.utils
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.provider.Settings.Secure
@@ -30,7 +31,7 @@ internal class MetaInfoRetriever(
 
     fun isJustInstalled(): Boolean = preferenceManager.getString(INSTALLATION_META_ID) == null
 
-    val appBuildAndVersion: Pair<String, String> by lazy {
+    val appBuildAndVersion: Pair<String, String?> by lazy {
         appContext.packageManager.getPackageInfo(applicationId, 0)
             .let { packageInfo ->
                 val appBuild = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -42,6 +43,13 @@ internal class MetaInfoRetriever(
 
                 appBuild to appVersion
             }
+    }
+
+    val appMinimumAndroidApiLevel: String? by lazy {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+            "${appContext.applicationInfo.minSdkVersion}"
+        else
+            null
     }
 
     val displayMetrics: DisplayMetrics by lazy {
@@ -71,6 +79,16 @@ internal class MetaInfoRetriever(
         }
 
     val os = Build.VERSION.RELEASE
+
+    val apiLevel: String by lazy {
+        val sdkInt = Build.VERSION.SDK_INT
+        @SuppressLint("WrongConstant")
+        val minor = if (sdkInt >= Build.VERSION_CODES.BAKLAVA)
+            Build.getMinorSdkVersion(Build.VERSION.SDK_INT_FULL)
+        else
+            0
+        if (minor > 0) "$sdkInt.$minor" else "$sdkInt"
+    }
 
     val platform = "Android"
 

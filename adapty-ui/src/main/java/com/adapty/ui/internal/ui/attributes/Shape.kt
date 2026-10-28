@@ -95,7 +95,8 @@ internal fun Asset.Composite<Asset.Color>.toGradientAsset(
         type = target.type,
         values = target.values.map { Asset.Gradient.Value(it.p, color) },
         points = target.points,
-        customId = color.customId
+        customId = color.customId,
+        sweepAngle = target.sweepAngle,
     )
     
     return Asset.Composite(gradientAsset, this.fallback?.let { fallbackColor ->
@@ -104,7 +105,8 @@ internal fun Asset.Composite<Asset.Color>.toGradientAsset(
             type = fallbackTarget.type,
             values = fallbackTarget.values.map { Asset.Gradient.Value(it.p, fallbackColor) },
             points = fallbackTarget.points,
-            customId = fallbackColor.customId
+            customId = fallbackColor.customId,
+            sweepAngle = fallbackTarget.sweepAngle,
         )
     })
 }
@@ -167,11 +169,11 @@ internal fun Asset.Composite<Asset.Gradient>.toComposeFill(): ComposeFill.Gradie
         Asset.Gradient.Type.CONIC -> {
             object : ShaderBrush() {
                 override fun createShader(size: Size): Shader {
-                    val center = Offset(size.width * x0, size.height * y0)
-                    return SweepGradientShader(
-                        center = center,
-                        colorStops = colorStops.map { it.first },
+                    return sweepGradientShader(
+                        center = Offset(size.width * x0, size.height * y0),
                         colors = colorStops.map { it.second },
+                        colorStops = colorStops.map { it.first },
+                        angleDegrees = gradient.sweepAngle,
                     )
                 }
             }
@@ -179,6 +181,16 @@ internal fun Asset.Composite<Asset.Gradient>.toComposeFill(): ComposeFill.Gradie
     }
     return ComposeFill.Gradient(shader)
 }
+
+internal fun sweepGradientShader(
+    center: Offset,
+    colors: List<Color>,
+    colorStops: List<Float>,
+    angleDegrees: Float,
+): Shader =
+    SweepGradientShader(center = center, colors = colors, colorStops = colorStops).apply {
+        if (angleDegrees != 0f) setLocalMatrix(Matrix().apply { setRotate(angleDegrees, center.x, center.y) })
+    }
 
 internal fun adjustRadialColorStops(
     colorStops: Array<Pair<Float, Color>>,

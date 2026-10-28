@@ -204,9 +204,11 @@ public class VideoElement internal constructor(
             if (!firstFrameRendered) {
                 val preview = remember(assetIdValue) {
                     ImageElement(
-                        "${assetIdValue}${VIDEO_PREVIEW_ASSET_SUFFIX}",
+                        VisualValue.assetId("${assetIdValue}${VIDEO_PREVIEW_ASSET_SUFFIX}"),
                         aspectRatio,
+                        null,
                         baseProps,
+                        fillOverflowAlignment = Alignment.CenterVertically,
                     )
                 }
                 preview.toComposable(

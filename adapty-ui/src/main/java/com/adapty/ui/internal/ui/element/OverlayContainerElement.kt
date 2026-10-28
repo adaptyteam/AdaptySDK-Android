@@ -2,11 +2,9 @@
 
 package com.adapty.ui.internal.ui.element
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.IntrinsicMeasurable
@@ -22,11 +20,16 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.store.Message
-import com.adapty.ui.internal.ui.LocalInsideButton
+import com.adapty.ui.internal.ui.LocalBlocksTouchesBelow
 import com.adapty.ui.internal.ui.attributes.DimSpec
+import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorHorizontal
+import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorVertical
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
+import com.adapty.ui.internal.ui.attributes.toComposeHorizontalAlignment
+import com.adapty.ui.internal.ui.attributes.toComposeVerticalAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeShape
 import com.adapty.ui.internal.ui.backgroundOrSkip
+import com.adapty.ui.internal.ui.blockTouchesBelowIfPainted
 import com.adapty.ui.internal.ui.blurOrSkip
 import com.adapty.ui.internal.ui.captureExpand
 import com.adapty.ui.internal.ui.rememberBlurProvider
@@ -49,17 +52,17 @@ public class OverlayContainerElement internal constructor(
         dispatch: (Message) -> Unit,
         modifier: Modifier,
     ): @Composable () -> Unit = {
-        val insideButton = LocalInsideButton.current
+        val backgroundProps = backgrounds.map { it.content.layoutRelevantPropsResolved() }
+        val overlayProps = overlays.map { it.content.layoutRelevantPropsResolved() }
         Layout(
             modifier = modifier,
             content = {
-                backgrounds.forEach { bg ->
-                    Box(
-                        modifier = if (insideButton) Modifier else Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) {},
-                    ) { bg.content.render(dispatch) }
+                backgrounds.forEachIndexed { i, bg ->
+                    Box {
+                        CompositionLocalProvider(LocalBlocksTouchesBelow provides true) {
+                            provideOverflowAnchors(bg, backgroundProps[i]) { bg.content.render(dispatch) }
+                        }
+                    }
                 }
                 val mainShadowProvider = rememberShadowProvider(main.baseProps)
                 val mainRotation = rememberRotationProvider(main.baseProps).rotation.value
@@ -74,15 +77,15 @@ public class OverlayContainerElement internal constructor(
                         .sideDimensionOrSkip(main.baseProps.heightSpec, null, mainBoxProvider)
                         .blurOrSkip(mainBlurProvider, mainShadowProvider.captureExpand)
                         .shadowOrSkip(mainShadowProvider, mainShape, rotation = mainRotation, scale = mainScale)
-                        .backgroundOrSkip(main.baseProps),
+                        .backgroundOrSkip(main.baseProps)
+                        .blockTouchesBelowIfPainted(main),
                 ).invoke()
-                overlays.forEach { overlay ->
-                    Box(
-                        modifier = if (insideButton) Modifier else Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) {},
-                    ) { overlay.content.render(dispatch) }
+                overlays.forEachIndexed { i, overlay ->
+                    Box {
+                        CompositionLocalProvider(LocalBlocksTouchesBelow provides true) {
+                            provideOverflowAnchors(overlay, overlayProps[i]) { overlay.content.render(dispatch) }
+                        }
+                    }
                 }
             },
             measurePolicy = object : MeasurePolicy {
@@ -97,9 +100,9 @@ public class OverlayContainerElement internal constructor(
                     val width = mainPlaceable.width
                     val height = mainPlaceable.height
 
-                    fun OverlayItem.alignedConstraints(): Constraints {
-                        val widthSpec = content.layoutRelevantProps.widthSpec
-                        val heightSpec = content.layoutRelevantProps.heightSpec
+                    fun alignedConstraints(props: BaseProps): Constraints {
+                        val widthSpec = props.widthSpec
+                        val heightSpec = props.heightSpec
                         val widthIsFlexible = widthSpec is DimSpec.FillMax || widthSpec == null
                         return Constraints(
                             minWidth = if (widthSpec is DimSpec.FillMax) width else 0,
@@ -109,8 +112,11 @@ public class OverlayContainerElement internal constructor(
                         )
                     }
 
-                    fun OverlayItem.placeAndOffset(measurable: Measurable): Pair<Placeable, IntOffset> {
-                        val placeable = measurable.measure(alignedConstraints())
+                    fun OverlayItem.placeAndOffset(
+                        measurable: Measurable,
+                        props: BaseProps,
+                    ): Pair<Placeable, IntOffset> {
+                        val placeable = measurable.measure(alignedConstraints(props))
                         val offset = align.toComposeAlignment().align(
                             IntSize(placeable.width, placeable.height),
                             IntSize(width, height),
@@ -120,10 +126,10 @@ public class OverlayContainerElement internal constructor(
                     }
 
                     val backgroundPlacements = backgrounds.mapIndexed { i, bg ->
-                        bg.placeAndOffset(measurables[i])
+                        bg.placeAndOffset(measurables[i], backgroundProps[i])
                     }
                     val overlayPlacements = overlays.mapIndexed { i, overlay ->
-                        overlay.placeAndOffset(measurables[mainIndex + 1 + i])
+                        overlay.placeAndOffset(measurables[mainIndex + 1 + i], overlayProps[i])
                     }
 
                     return layout(width, height) {
@@ -154,5 +160,16 @@ public class OverlayContainerElement internal constructor(
                 ): Int = measurables[mainIndex].maxIntrinsicHeight(width)
             },
         )
+    }
+
+    @Composable
+    private fun provideOverflowAnchors(item: OverlayItem, props: BaseProps, body: @Composable () -> Unit) {
+        val provided = buildList {
+            if (props.widthSpec is DimSpec.FillMax || props.widthSpec == null)
+                add(LocalOverflowAnchorHorizontal provides item.align.toComposeHorizontalAlignment())
+            if (props.heightSpec is DimSpec.FillMax)
+                add(LocalOverflowAnchorVertical provides item.align.toComposeVerticalAlignment())
+        }
+        if (provided.isEmpty()) body() else CompositionLocalProvider(*provided.toTypedArray(), content = body)
     }
 }

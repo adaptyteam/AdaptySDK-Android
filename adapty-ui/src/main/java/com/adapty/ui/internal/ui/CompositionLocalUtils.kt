@@ -102,3 +102,7 @@ internal val LocalDispatch = compositionLocalOf<(Message) -> Unit> { {} }
 internal val LocalUiEnabled = compositionLocalOf { true }
 
 internal val LocalInsideButton = compositionLocalOf { false }
+
+internal val LocalIsLegacyFormat = staticCompositionLocalOf { false }
+
+internal val LocalBlocksTouchesBelow = compositionLocalOf { false }

@@ -4,7 +4,6 @@ package com.adapty.ui
 
 import android.graphics.Bitmap
 import androidx.annotation.ColorInt
-import androidx.compose.ui.geometry.Offset
 import androidx.core.net.toUri
 import com.adapty.ui.AdaptyUI.FlowConfiguration
 import com.adapty.ui.AdaptyCustomImageAsset.Local
@@ -13,8 +12,6 @@ import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Gradient.Points
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Gradient.Type
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Gradient.Value
 import com.adapty.utils.FileLocation
-import kotlin.math.cos
-import kotlin.math.sin
 
 public class AdaptyCustomAssets internal constructor(
     private val assets: Map<String, AdaptyCustomAsset>,
@@ -186,41 +183,20 @@ public class AdaptyCustomGradientAsset internal constructor(
             centerY: Float,
             startRadius: Float,
             endRadius: Float,
-        ): AdaptyCustomGradientAsset {
-            val direction = Offset(1f, 0f)
-
-            val x1 = centerX + direction.x * endRadius
-            val y1 = centerY + direction.y * endRadius
-
-            return of(
-                Type.RADIAL,
-                if (startRadius == 0f) colorStops else withFakeStartRadius(colorStops, startRadius / endRadius),
-                Points(centerX, centerY, x1, y1),
-            )
-        }
+        ): AdaptyCustomGradientAsset =
+            of(Type.RADIAL, colorStops, Points(centerX, centerY, startRadius, endRadius))
 
         @JvmStatic
+        @JvmOverloads
         public fun sweep(
             colorStops: List<ColorStop>,
             centerX: Float,
             centerY: Float,
             angle: Float = 0f,
-        ): AdaptyCustomGradientAsset {
-            val radians = Math.toRadians(angle.toDouble())
-            val dx = cos(radians).toFloat()
-            val dy = sin(radians).toFloat()
+        ): AdaptyCustomGradientAsset =
+            of(Type.CONIC, colorStops, Points(centerX, centerY, 0f, 0f), sweepAngle = angle)
 
-            val x1 = centerX + dx
-            val y1 = centerY + dy
-
-            return of(
-                Type.CONIC,
-                colorStops,
-                Points(centerX, centerY, x1, y1),
-            )
-        }
-
-        private fun of(type: Type, colorStops: List<ColorStop>, points: Points): AdaptyCustomGradientAsset {
+        private fun of(type: Type, colorStops: List<ColorStop>, points: Points, sweepAngle: Float = 0f): AdaptyCustomGradientAsset {
             val values = colorStops.map { colorStop ->
                 Value(
                     colorStop.position,
@@ -228,26 +204,8 @@ public class AdaptyCustomGradientAsset internal constructor(
                 )
             }
             return AdaptyCustomGradientAsset(
-                Gradient(type, values, points)
+                Gradient(type, values, points, sweepAngle = sweepAngle)
             )
-        }
-
-        private fun withFakeStartRadius(
-            colorStops: List<ColorStop>,
-            normalizedStart: Float
-        ): List<ColorStop> {
-            val firstColor = colorStops.firstOrNull()?.color ?: android.graphics.Color.BLACK
-            val padded = mutableListOf<ColorStop>()
-
-            padded += ColorStop(0f, firstColor)
-            padded += ColorStop(normalizedStart, firstColor)
-
-            colorStops.forEach { colorStop ->
-                val remapped = normalizedStart + (1f - normalizedStart) * colorStop.position
-                padded += ColorStop(remapped, colorStop.color)
-            }
-
-            return padded
         }
 
     }

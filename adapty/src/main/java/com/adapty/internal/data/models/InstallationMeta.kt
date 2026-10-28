@@ -12,7 +12,9 @@ internal class InstallationMeta(
     @SerializedName("app_build")
     private val appBuild: String,
     @SerializedName("app_version")
-    private val appVersion: String,
+    private val appVersion: String?,
+    @SerializedName("app_minimum_android_api_level")
+    private val appMinimumAndroidApiLevel: String?,
     @SerializedName("device")
     private val device: String,
     @SerializedName("locale")
@@ -24,7 +26,7 @@ internal class InstallationMeta(
     @SerializedName("timezone")
     private val timezone: String,
     @SerializedName("user_agent")
-    private val userAgent: String?,
+    val userAgent: String?,
     @SerializedName("advertising_id")
     private val advertisingId: String?,
     @SerializedName("android_app_set_id")
@@ -45,6 +47,7 @@ internal class InstallationMeta(
         if (adaptySdkVersion != other.adaptySdkVersion) return false
         if (appBuild != other.appBuild) return false
         if (appVersion != other.appVersion) return false
+        if (appMinimumAndroidApiLevel != other.appMinimumAndroidApiLevel) return false
         if (device != other.device) return false
         if (locale != other.locale) return false
         if (os != other.os) return false
@@ -62,7 +65,8 @@ internal class InstallationMeta(
         var result = deviceId.hashCode()
         result = 31 * result + adaptySdkVersion.hashCode()
         result = 31 * result + appBuild.hashCode()
-        result = 31 * result + appVersion.hashCode()
+        result = 31 * result + (appVersion?.hashCode() ?: 0)
+        result = 31 * result + (appMinimumAndroidApiLevel?.hashCode() ?: 0)
         result = 31 * result + device.hashCode()
         result = 31 * result + (locale?.hashCode() ?: 0)
         result = 31 * result + os.hashCode()

@@ -22,15 +22,20 @@ import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerSelectionMode
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -249,14 +254,14 @@ private fun WheelPicker(
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().wheelPickerNaturalWidth(),
     ) {
         if (showDate) {
             WheelColumn(
                 labels = monthLabels,
                 selectedIndex = monthIndex,
                 onSelectedIndexChange = { idx ->
-                    if (idx != monthIndex) onChange(buildMs(year, idx, day, hour, minute))
+                    if (idx != monthIndex) onChange(buildMs(currentMs, year, idx, day, hour, minute))
                 },
                 modifier = Modifier.weight(1.2f),
                 indicatorColor = indicatorColor,
@@ -268,7 +273,7 @@ private fun WheelPicker(
                 selectedIndex = dayIndex,
                 onSelectedIndexChange = { idx ->
                     val newDay = idx + 1
-                    if (newDay != day) onChange(buildMs(year, month, newDay, hour, minute))
+                    if (newDay != day) onChange(buildMs(currentMs, year, month, newDay, hour, minute))
                 },
                 modifier = Modifier.weight(0.8f),
                 indicatorColor = indicatorColor,
@@ -280,7 +285,7 @@ private fun WheelPicker(
                 selectedIndex = yearIndex,
                 onSelectedIndexChange = { idx ->
                     val newYear = years.getOrNull(idx) ?: return@WheelColumn
-                    if (newYear != year) onChange(buildMs(newYear, month, day, hour, minute))
+                    if (newYear != year) onChange(buildMs(currentMs, newYear, month, day, hour, minute))
                 },
                 modifier = Modifier.weight(1.1f),
                 indicatorColor = indicatorColor,
@@ -293,7 +298,7 @@ private fun WheelPicker(
                 labels = hourLabels,
                 selectedIndex = hourIndex,
                 onSelectedIndexChange = { idx ->
-                    if (idx != hourIndex) onChange(buildMs(year, month, day, idx, minute))
+                    if (idx != hourIndex) onChange(buildMs(currentMs, year, month, day, idx, minute))
                 },
                 modifier = Modifier.weight(0.8f),
                 indicatorColor = indicatorColor,
@@ -304,7 +309,7 @@ private fun WheelPicker(
                 labels = minuteLabels,
                 selectedIndex = minuteIndex,
                 onSelectedIndexChange = { idx ->
-                    if (idx != minuteIndex) onChange(buildMs(year, month, day, hour, idx))
+                    if (idx != minuteIndex) onChange(buildMs(currentMs, year, month, day, hour, idx))
                 },
                 modifier = Modifier.weight(0.8f),
                 indicatorColor = indicatorColor,
@@ -346,8 +351,9 @@ private fun CompactPicker(
     }
 
     if (dateDialogOpen) {
+        val initialDayMs = materialDateMs(currentMs)
         val state = rememberDatePickerState(
-            initialSelectedDateMillis = currentMs,
+            initialSelectedDateMillis = initialDayMs,
             selectableDates = remember(minMs, maxMs) { rangeSelectableDates(minMs, maxMs) },
         )
         MaterialTheme(
@@ -357,7 +363,9 @@ private fun CompactPicker(
                 onDismissRequest = { dateDialogOpen = false },
                 confirmButton = {
                     TextButton(onClick = {
-                        state.selectedDateMillis?.let { ms -> onChange(combineDateAndTime(ms, currentMs)) }
+                        state.selectedDateMillis
+                            ?.takeIf { it != initialDayMs }
+                            ?.let { ms -> onChange(combineDateAndTime(ms, currentMs)) }
                         dateDialogOpen = false
                     }) { Text("OK") }
                 },
@@ -421,16 +429,25 @@ private fun InlineDatePicker(
     maxMs: Long?,
     onChange: (Long) -> Unit,
 ) {
+    val dayMs = materialDateMs(currentMs)
     val state = rememberDatePickerState(
-        initialSelectedDateMillis = currentMs,
+        initialSelectedDateMillis = dayMs,
         initialDisplayMode = DisplayMode.Picker,
         selectableDates = remember(minMs, maxMs) { rangeSelectableDates(minMs, maxMs) },
     )
     DatePicker(state = state, title = null, headline = null, showModeToggle = false)
+    val latestDayMs by rememberUpdatedState(dayMs)
+    val latestOnChange by rememberUpdatedState(onChange)
+    LaunchedEffect(state, dayMs) {
+        if (state.selectedDateMillis != dayMs) {
+            state.selectedDateMillis = dayMs
+            state.displayedMonthMillis = dayMs
+        }
+    }
     LaunchedEffect(state) {
         snapshotFlow { state.selectedDateMillis }
             .distinctUntilChanged()
-            .collect { ms -> if (ms != null && ms != currentMs) onChange(ms) }
+            .collect { ms -> if (ms != null && ms != latestDayMs) latestOnChange(ms) }
     }
 }
 
@@ -447,12 +464,40 @@ private fun InlineTimePicker(
         initialMinute = initialMinute,
         is24Hour = false,
     )
-    TimePicker(state = state)
+    val pending = remember { ArrayDeque<Pair<Int, Int>>() }
+    var outsideWrites by remember { mutableIntStateOf(0) }
+    key(outsideWrites) {
+        TimePicker(state = state)
+    }
+    val latestHour by rememberUpdatedState(initialHour)
+    val latestMinute by rememberUpdatedState(initialMinute)
+    val latestOnChange by rememberUpdatedState(onChange)
+    LaunchedEffect(state, initialHour, initialMinute) {
+        val bound = initialHour to initialMinute
+        when {
+            bound in pending -> {
+                while (pending.isNotEmpty() && pending.removeFirst() != bound) Unit
+            }
+            state.hour == initialHour && state.minute == initialMinute -> Unit
+            else -> {
+                pending.clear()
+                Snapshot.withMutableSnapshot {
+                    state.hour = initialHour
+                    state.minute = initialMinute
+                    state.selection = TimePickerSelectionMode.Hour
+                }
+                outsideWrites++
+            }
+        }
+    }
     LaunchedEffect(state) {
         snapshotFlow { state.hour to state.minute }
             .distinctUntilChanged()
             .collect { (h, m) ->
-                if (h != initialHour || m != initialMinute) onChange(h, m)
+                if (pending.isNotEmpty() || h != latestHour || m != latestMinute) {
+                    pending.addLast(h to m)
+                    latestOnChange(h, m)
+                }
             }
     }
 }
@@ -478,8 +523,8 @@ private fun rangeSelectableDates(minMs: Long?, maxMs: Long?): SelectableDates {
     if (minMs == null && maxMs == null) return DatePickerDefaults.AllDates
     return object : SelectableDates {
         override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-            if (minMs != null && utcTimeMillis < startOfDayUtc(minMs)) return false
-            if (maxMs != null && utcTimeMillis > startOfDayUtc(maxMs)) return false
+            if (minMs != null && utcTimeMillis < localDayAsUtcMs(minMs)) return false
+            if (maxMs != null && utcTimeMillis > localDayAsUtcMs(maxMs)) return false
             return true
         }
         override fun isSelectableYear(year: Int): Boolean {
@@ -490,20 +535,33 @@ private fun rangeSelectableDates(minMs: Long?, maxMs: Long?): SelectableDates {
     }
 }
 
-private fun startOfDayUtc(ms: Long): Long {
-    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-    cal.timeInMillis = ms
-    cal.set(Calendar.HOUR_OF_DAY, 0)
-    cal.set(Calendar.MINUTE, 0)
-    cal.set(Calendar.SECOND, 0)
-    cal.set(Calendar.MILLISECOND, 0)
-    return cal.timeInMillis
+private fun localDayAsUtcMs(ms: Long): Long {
+    val local = Calendar.getInstance().apply { timeInMillis = ms }
+    return Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        clear()
+        set(Calendar.ERA, local.get(Calendar.ERA))
+        set(local.get(Calendar.YEAR), local.get(Calendar.MONTH), local.get(Calendar.DAY_OF_MONTH))
+    }.timeInMillis
 }
 
 private fun yearOf(ms: Long): Int =
     Calendar.getInstance().apply { timeInMillis = ms }.get(Calendar.YEAR)
 
-private fun combineDateAndTime(dateMs: Long, currentMs: Long): Long {
+private const val DAY_MS = 24 * 60 * 60 * 1000L
+private val MATERIAL_MIN_MS = utcYearStartMs(DatePickerDefaults.YearRange.first)
+private val MATERIAL_MAX_MS = utcYearStartMs(DatePickerDefaults.YearRange.last + 1) - DAY_MS
+
+internal fun materialDateMs(ms: Long): Long =
+    localDayAsUtcMs(ms.coerceIn(MATERIAL_MIN_MS - DAY_MS, MATERIAL_MAX_MS + DAY_MS))
+        .coerceIn(MATERIAL_MIN_MS, MATERIAL_MAX_MS)
+
+private fun utcYearStartMs(year: Int): Long =
+    Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        clear()
+        set(year, Calendar.JANUARY, 1)
+    }.timeInMillis
+
+internal fun combineDateAndTime(dateMs: Long, currentMs: Long): Long {
     val datePart = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = dateMs }
     val cal = Calendar.getInstance().apply { timeInMillis = currentMs }
     cal.set(Calendar.YEAR, datePart.get(Calendar.YEAR))
@@ -512,26 +570,22 @@ private fun combineDateAndTime(dateMs: Long, currentMs: Long): Long {
     return cal.timeInMillis
 }
 
-private fun replaceTime(currentMs: Long, hour: Int, minute: Int): Long {
+internal fun replaceTime(currentMs: Long, hour: Int, minute: Int): Long {
     val cal = Calendar.getInstance().apply { timeInMillis = currentMs }
     cal.set(Calendar.HOUR_OF_DAY, hour)
     cal.set(Calendar.MINUTE, minute)
-    cal.set(Calendar.SECOND, 0)
-    cal.set(Calendar.MILLISECOND, 0)
     return cal.timeInMillis
 }
 
-private fun buildMs(year: Int, month: Int, day: Int, hour: Int, minute: Int): Long {
+internal fun buildMs(currentMs: Long, year: Int, month: Int, day: Int, hour: Int, minute: Int): Long {
     val safeDay = day.coerceIn(1, daysInMonth(year, month))
     val cal = Calendar.getInstance().apply {
-        clear()
+        timeInMillis = currentMs
         set(Calendar.YEAR, year)
         set(Calendar.MONTH, month)
         set(Calendar.DAY_OF_MONTH, safeDay)
         set(Calendar.HOUR_OF_DAY, hour)
         set(Calendar.MINUTE, minute)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
     }
     return cal.timeInMillis
 }

@@ -372,6 +372,7 @@ internal class MainRequestFactory(
                 .also { endpointTemplate = it }
             body = gson.toJson(attributionData)
             headers += listOf(Request.Header("Content-type", "application/json"))
+            addResponseCacheKeys(responseCacheKeyProvider.forGetProfile())
             currentDataWhenSent = Request.CurrentDataWhenSent.create(profileId)
             systemLog = BackendAPIRequestData.SetExternalAttribution.create(attributionData)
         }
@@ -415,6 +416,7 @@ internal class MainRequestFactory(
             Request.Header("Accept-Encoding", "gzip"),
             Request.Header("adapty-sdk-profile-id", cacheRepository.getProfileId()),
             Request.Header("adapty-sdk-platform", "Android"),
+            Request.Header("adapty-sdk-android-api-level", metaInfoRetriever.apiLevel),
             Request.Header("adapty-sdk-version", VERSION_NAME),
             Request.Header("adapty-sdk-session", cacheRepository.getSessionId()),
             Request.Header("adapty-sdk-device-id", metaInfoRetriever.installationMetaId),

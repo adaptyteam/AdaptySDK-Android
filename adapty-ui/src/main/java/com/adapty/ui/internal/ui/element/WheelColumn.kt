@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,7 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -36,16 +34,28 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.node.LayoutModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adapty.internal.utils.InternalAdaptyApi
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.map
+import com.adapty.ui.internal.ui.IntrinsicSafeLazyColumn
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.cos
@@ -63,6 +73,8 @@ internal object WheelColumnDefaults {
 }
 
 private const val PickerMaxFlingVelocity = 30000f
+
+private const val WheelPickerNaturalWidthDp = 320
 
 @Composable
 internal fun WheelColumn(
@@ -109,17 +121,13 @@ internal fun WheelColumn(
     val safeIndexState = rememberUpdatedState(safeIndex)
     val labelsLastIndexState = rememberUpdatedState(labels.lastIndex)
 
-    LaunchedEffect(listState) {
-        snapshotFlow { centeredIndex to listState.isScrollInProgress }
-            .filter { (_, scrolling) -> !scrolling }
-            .map { (index, _) -> index.coerceIn(0, labelsLastIndexState.value) }
-            .distinctUntilChanged()
-            .collect { index ->
-                if (index != safeIndexState.value) {
-                    onSelectedIndexChangeState.value(index)
-                }
-            }
+    val pick = { picked: Int ->
+        val index = picked.coerceIn(0, labelsLastIndexState.value)
+        if (index != safeIndexState.value) {
+            onSelectedIndexChangeState.value(index)
+        }
     }
+    val pickCentered = { pick(centeredIndex) }
 
     LaunchedEffect(safeIndex) {
         if (!listState.isScrollInProgress && centeredIndex != safeIndex) {
@@ -127,7 +135,24 @@ internal fun WheelColumn(
         }
     }
 
-    Box(modifier = modifier.height(totalHeightDp.dp).clipToBounds()) {
+    Box(
+        modifier = modifier
+            .height(totalHeightDp.dp)
+            .clipToBounds()
+            .clearAndSetSemantics {
+                stateDescription = labels[safeIndex]
+                progressBarRangeInfo = ProgressBarRangeInfo(
+                    current = safeIndex.toFloat(),
+                    range = 0f..labels.lastIndex.toFloat(),
+                    steps = (labels.size - 2).coerceAtLeast(0),
+                )
+                if (enabled) {
+                    setProgress { value -> pick(value.roundToInt()); true }
+                } else {
+                    disabled()
+                }
+            },
+    ) {
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -136,9 +161,9 @@ internal fun WheelColumn(
                 .background(indicatorColor, indicatorShape),
         )
 
-        LazyColumn(
+        IntrinsicSafeLazyColumn(
             state = listState,
-            flingBehavior = rememberPickerFlingBehavior(listState),
+            flingBehavior = rememberPickerFlingBehavior(listState, pickCentered),
             userScrollEnabled = enabled,
             contentPadding = PaddingValues(vertical = (itemHeightDp * halfVisible).dp),
             modifier = Modifier
@@ -158,6 +183,7 @@ internal fun WheelColumn(
                                     val target = centeredIndex
                                         .coerceIn(0, labelsLastIndexState.value)
                                     listState.animateScrollToItem(target)
+                                    pickCentered()
                                 }
                             }
                         }
@@ -223,14 +249,41 @@ private fun lerpFloat(start: Float, stop: Float, fraction: Float): Float =
 @Composable
 private fun rememberPickerFlingBehavior(
     listState: LazyListState,
+    onSettled: () -> Unit,
 ): FlingBehavior {
     val snapFling = rememberSnapFlingBehavior(listState)
+    val onSettledState = rememberUpdatedState(onSettled)
     return remember(snapFling) {
         object : FlingBehavior {
             override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
                 val clamped = initialVelocity.coerceIn(-PickerMaxFlingVelocity, PickerMaxFlingVelocity)
-                return with(snapFling) { this@performFling.performFling(clamped) }
+                val remaining = with(snapFling) { this@performFling.performFling(clamped) }
+                onSettledState.value()
+                return remaining
             }
         }
     }
+}
+
+
+internal fun Modifier.wheelPickerNaturalWidth(): Modifier = this.then(WheelPickerNaturalWidthElement)
+
+private object WheelPickerNaturalWidthElement : ModifierNodeElement<WheelPickerNaturalWidthNode>() {
+    override fun create() = WheelPickerNaturalWidthNode()
+    override fun update(node: WheelPickerNaturalWidthNode) = Unit
+    override fun hashCode(): Int = javaClass.hashCode()
+    override fun equals(other: Any?): Boolean = other === this
+}
+
+private class WheelPickerNaturalWidthNode : Modifier.Node(), LayoutModifierNode {
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        WheelPickerNaturalWidthDp.dp.roundToPx()
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        WheelPickerNaturalWidthDp.dp.roundToPx()
 }

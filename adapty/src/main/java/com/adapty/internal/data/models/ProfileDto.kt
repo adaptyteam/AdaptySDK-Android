@@ -96,6 +96,10 @@ internal class ProfileDto(
         val unsubscribedAt: String?,
         @SerializedName("billing_issue_detected_at")
         val billingIssueDetectedAt: String?,
+        @SerializedName("billing_plan_id")
+        val billingPlan: String?,
+        @SerializedName("commitment")
+        val commitmentInfo: SubscriptionCommitmentInfoDto?,
     ) {
 
         override fun equals(other: Any?): Boolean {
@@ -122,6 +126,8 @@ internal class ProfileDto(
             if (isInGracePeriod != other.isInGracePeriod) return false
             if (unsubscribedAt != other.unsubscribedAt) return false
             if (billingIssueDetectedAt != other.billingIssueDetectedAt) return false
+            if (billingPlan != other.billingPlan) return false
+            if (commitmentInfo != other.commitmentInfo) return false
 
             return true
         }
@@ -145,6 +151,8 @@ internal class ProfileDto(
             result = 31 * result + (isInGracePeriod?.hashCode() ?: 0)
             result = 31 * result + (unsubscribedAt?.hashCode() ?: 0)
             result = 31 * result + (billingIssueDetectedAt?.hashCode() ?: 0)
+            result = 31 * result + (billingPlan?.hashCode() ?: 0)
+            result = 31 * result + (commitmentInfo?.hashCode() ?: 0)
             return result
         }
     }
@@ -192,6 +200,10 @@ internal class ProfileDto(
         val isRefund: Boolean?,
         @SerializedName("cancellation_reason")
         val cancellationReason: String?,
+        @SerializedName("billing_plan_id")
+        val billingPlan: String?,
+        @SerializedName("commitment")
+        val commitmentInfo: SubscriptionCommitmentInfoDto?,
     ) {
 
         override fun equals(other: Any?): Boolean {
@@ -221,6 +233,8 @@ internal class ProfileDto(
             if (isSandbox != other.isSandbox) return false
             if (isRefund != other.isRefund) return false
             if (cancellationReason != other.cancellationReason) return false
+            if (billingPlan != other.billingPlan) return false
+            if (commitmentInfo != other.commitmentInfo) return false
 
             return true
         }
@@ -247,6 +261,38 @@ internal class ProfileDto(
             result = 31 * result + (isSandbox?.hashCode() ?: 0)
             result = 31 * result + (isRefund?.hashCode() ?: 0)
             result = 31 * result + (cancellationReason?.hashCode() ?: 0)
+            result = 31 * result + (billingPlan?.hashCode() ?: 0)
+            result = 31 * result + (commitmentInfo?.hashCode() ?: 0)
+            return result
+        }
+    }
+
+    internal class SubscriptionCommitmentInfoDto(
+        @SerializedName("billing_period_number")
+        val billingPeriodNumber: Int?,
+        @SerializedName("total_billing_periods")
+        val totalBillingPeriods: Int?,
+        @SerializedName("expires_at")
+        val expiresAt: String?,
+    ) {
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as SubscriptionCommitmentInfoDto
+
+            if (billingPeriodNumber != other.billingPeriodNumber) return false
+            if (totalBillingPeriods != other.totalBillingPeriods) return false
+            if (expiresAt != other.expiresAt) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = billingPeriodNumber ?: 0
+            result = 31 * result + (totalBillingPeriods ?: 0)
+            result = 31 * result + (expiresAt?.hashCode() ?: 0)
             return result
         }
     }

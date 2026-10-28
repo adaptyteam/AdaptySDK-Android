@@ -10,6 +10,7 @@ import com.adapty.models.AdaptyFlow
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyProductDiscountPhase.PaymentMode
 import com.adapty.ui.internal.store.resolveProductKey
+import com.adapty.ui.internal.text.BILLING_PLAN_UP_FRONT
 import com.adapty.ui.internal.utils.CONFIGURATION_FORMAT_VERSION
 import com.adapty.ui.internal.utils.FlowMode
 import java.util.Locale
@@ -63,6 +64,7 @@ internal object SDKGlobals {
         pairs.add("userUses24HourClock" to uses24Hour)
         pairs.add("placementId" to placement?.id)
         pairs.add("placementVariationId" to flow?.variationId)
+        pairs.add("placementVariationName" to flow?.variationName)
         pairs.add("placementName" to flow?.name)
         pairs.add("placementABTestName" to placement?.abTestName)
 
@@ -110,6 +112,7 @@ internal object SDKGlobals {
         pairs.add("userUses24HourClock" to false)
         pairs.add("placementId" to "preview_placement")
         pairs.add("placementVariationId" to "preview_variation")
+        pairs.add("placementVariationName" to "preview_variation_name")
         pairs.add("placementName" to "preview")
         pairs.add("placementABTestName" to "preview_abtest")
 
@@ -184,7 +187,7 @@ internal object SDKGlobals {
         pricePairs.add("localizedString" to product.price.localizedString)
         pairs.add("price" to RawJson(buildJsonObject(pricePairs)))
 
-        product.subscriptionDetails?.let { sub ->
+        val subscriptionJson = product.subscriptionDetails?.let { sub ->
             val periodPairs = mutableListOf<Pair<String, Any?>>()
             periodPairs.add("unit" to sub.subscriptionPeriod.unit.name.lowercase())
             periodPairs.add("numberOfUnits" to sub.subscriptionPeriod.numberOfUnits)
@@ -194,7 +197,18 @@ internal object SDKGlobals {
             subPairs.add("period" to RawJson(buildJsonObject(periodPairs)))
             subPairs.add("localizedPeriod" to sub.localizedSubscriptionPeriod)
 
-            sub.offerId?.let { offerId ->
+            val commitmentPairs = mutableListOf<Pair<String, Any?>>()
+            commitmentPairs.add("price" to RawJson(buildJsonObject(pricePairs)))
+            commitmentPairs.add("period" to RawJson(buildJsonObject(periodPairs)))
+
+            val pricingTermsPairs = mutableListOf<Pair<String, Any?>>()
+            pricingTermsPairs.add("billingPlanId" to BILLING_PLAN_UP_FRONT)
+            pricingTermsPairs.add("billingPrice" to RawJson(buildJsonObject(pricePairs)))
+            pricingTermsPairs.add("billingPeriod" to RawJson(buildJsonObject(periodPairs)))
+            pricingTermsPairs.add("commitmentInfo" to RawJson(buildJsonObject(commitmentPairs)))
+            subPairs.add("pricingTerms" to RawJson(buildJsonObject(pricingTermsPairs)))
+
+            val offerJson = sub.offerId?.let { offerId ->
                 val firstPhase = sub.introductoryOfferPhases.firstOrNull()
                 val phasePairs = mutableListOf<Pair<String, Any?>>()
                 if (firstPhase != null) {
@@ -222,11 +236,13 @@ internal object SDKGlobals {
                 if (phasePairs.isNotEmpty()) {
                     offerPairs.add("phases" to RawJson("[${buildJsonObject(phasePairs)}]"))
                 }
-                subPairs.add("offer" to RawJson(buildJsonObject(offerPairs)))
+                RawJson(buildJsonObject(offerPairs))
             }
+            subPairs.add("offer" to offerJson)
 
-            pairs.add("subscription" to RawJson(buildJsonObject(subPairs)))
+            RawJson(buildJsonObject(subPairs))
         }
+        pairs.add("subscription" to subscriptionJson)
 
         return buildJsonObject(pairs)
     }

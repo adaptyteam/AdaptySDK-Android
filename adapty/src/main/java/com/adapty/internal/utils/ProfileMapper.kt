@@ -7,6 +7,7 @@ import com.adapty.internal.data.models.ProductPALMappings
 import com.adapty.internal.data.models.ProfileDto
 import com.adapty.models.AdaptyExternalAttributionProvider
 import com.adapty.models.AdaptyProfile
+import com.adapty.models.AdaptySubscriptionBillingPlan
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -131,7 +132,9 @@ internal class ProfileMapper(
             willRenew = value.willRenew ?: false,
             isInGracePeriod = value.isInGracePeriod ?: false,
             unsubscribedAt = value.unsubscribedAt,
-            billingIssueDetectedAt = value.billingIssueDetectedAt
+            billingIssueDetectedAt = value.billingIssueDetectedAt,
+            billingPlan = value.billingPlan?.let(::AdaptySubscriptionBillingPlan),
+            commitmentInfo = value.commitmentInfo?.let(::mapCommitmentInfo),
         )
 
     private fun mapPAL(id: String, localPALItem: ProductPALMappings.ItemExtended, expiresAt: String?) =
@@ -154,7 +157,9 @@ internal class ProfileMapper(
             willRenew = localPALItem.willRenew,
             isInGracePeriod = false,
             unsubscribedAt = null,
-            billingIssueDetectedAt = null
+            billingIssueDetectedAt = null,
+            billingPlan = null,
+            commitmentInfo = null,
         )
 
     private fun mapSub(sub: ProfileDto.SubscriptionDto) =
@@ -188,7 +193,10 @@ internal class ProfileMapper(
             billingIssueDetectedAt = sub.billingIssueDetectedAt,
             isSandbox = sub.isSandbox ?: false,
             isRefund = sub.isRefund ?: false,
-            cancellationReason = sub.cancellationReason
+            cancellationReason = sub.cancellationReason,
+            billingPlan = sub.billingPlan?.let(::AdaptySubscriptionBillingPlan)
+                ?: AdaptySubscriptionBillingPlan.UP_FRONT,
+            commitmentInfo = sub.commitmentInfo?.let(::mapCommitmentInfo),
         )
 
     private fun mapSub(localPAL: AdaptyProfile.AccessLevel, localPALItem: ProductPALMappings.ItemExtended) =
@@ -214,7 +222,16 @@ internal class ProfileMapper(
             isInGracePeriod = localPAL.isInGracePeriod,
             unsubscribedAt = localPAL.unsubscribedAt,
             billingIssueDetectedAt = localPAL.billingIssueDetectedAt,
+            commitmentInfo = null,
         )
+
+    private fun mapCommitmentInfo(dto: ProfileDto.SubscriptionCommitmentInfoDto): AdaptyProfile.SubscriptionCommitmentInfo? {
+        return AdaptyProfile.SubscriptionCommitmentInfo(
+            billingPeriodNumber = dto.billingPeriodNumber ?: return null,
+            totalBillingPeriods = dto.totalBillingPeriods ?: return null,
+            expiresAt = dto.expiresAt ?: return null,
+        )
+    }
 
     private fun mapNonSub(nonSub: ProfileDto.NonSubscriptionDto) =
         AdaptyProfile.NonSubscription(

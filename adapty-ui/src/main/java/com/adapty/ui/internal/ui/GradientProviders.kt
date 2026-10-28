@@ -16,7 +16,6 @@ import androidx.compose.ui.graphics.LinearGradientShader
 import androidx.compose.ui.graphics.RadialGradientShader
 import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.ShaderBrush
-import androidx.compose.ui.graphics.SweepGradientShader
 import android.content.res.Resources
 import androidx.compose.ui.graphics.lerp
 import com.adapty.internal.utils.InternalAdaptyApi
@@ -32,6 +31,7 @@ import com.adapty.ui.internal.ui.element.pendingAppearAnimationsFor
 import com.adapty.ui.internal.ui.element.gradientBehaviour
 import com.adapty.ui.internal.ui.element.borderGradientBehaviour
 import com.adapty.ui.internal.ui.attributes.adjustRadialColorStops
+import com.adapty.ui.internal.ui.attributes.sweepGradientShader
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.ui.attributes.toGradientAsset
 import com.adapty.ui.internal.ui.attributes.Border
@@ -224,7 +224,12 @@ private fun createInterpolatedGradientFromAssets(
                     startStop + (endStop - startStop) * progress
                 }
                 
-                val (x0, y0, x1, y1) = startData.points
+                val (sx0, sy0, sx1, sy1) = startData.points
+                val (ex0, ey0, ex1, ey1) = endData.points
+                val x0 = sx0 + (ex0 - sx0) * progress
+                val y0 = sy0 + (ey0 - sy0) * progress
+                val x1 = sx1 + (ex1 - sx1) * progress
+                val y1 = sy1 + (ey1 - sy1) * progress
                 return when (startData.type) {
                     Asset.Gradient.Type.LINEAR -> {
                         LinearGradientShader(
@@ -250,10 +255,11 @@ private fun createInterpolatedGradientFromAssets(
                         )
                     }
                     Asset.Gradient.Type.CONIC -> {
-                        SweepGradientShader(
+                        sweepGradientShader(
                             center = Offset(size.width * x0, size.height * y0),
                             colors = interpolatedColors,
-                            colorStops = interpolatedStops
+                            colorStops = interpolatedStops,
+                            angleDegrees = startData.sweepAngle + (endData.sweepAngle - startData.sweepAngle) * progress,
                         )
                     }
                 }

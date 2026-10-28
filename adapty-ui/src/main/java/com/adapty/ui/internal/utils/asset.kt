@@ -76,10 +76,7 @@ public fun StringSource.resolve(): String? {
 
 private fun Any.toBindingString(): String? = when (this) {
     is String -> this
-    is Number -> {
-        val d = toDouble()
-        if (d == d.toLong().toDouble()) d.toLong().toString() else d.toString()
-    }
+    is Number -> toDouble().toJsString()
     is Boolean -> toString()
     else -> null
 }

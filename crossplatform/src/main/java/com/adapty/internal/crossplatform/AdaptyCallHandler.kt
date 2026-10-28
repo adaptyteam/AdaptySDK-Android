@@ -11,6 +11,7 @@ import com.adapty.internal.crossplatform.ui.AdaptyUiBridgeError
 import com.adapty.internal.crossplatform.ui.CreateOnboardingViewArgs
 import com.adapty.internal.crossplatform.ui.CreateFlowViewArgs
 import com.adapty.internal.crossplatform.ui.CrossplatformUiHelper
+import com.adapty.internal.crossplatform.ui.DestroyViewArgs
 import com.adapty.internal.crossplatform.ui.DismissViewArgs
 import com.adapty.internal.crossplatform.ui.PresentViewArgs
 import com.adapty.internal.crossplatform.ui.ShowDialogArgs
@@ -63,6 +64,8 @@ internal class AdaptyCallHandler(
             LOG_SHOW_FLOW -> handleLogShowFlow(argument, onResult)
             GET_FLOW -> handleGetFlow(argument, onResult)
             GET_FLOW_FOR_DEFAULT_AUDIENCE -> handleGetFlowForDefaultAudience(argument, onResult)
+            PRELOAD_FLOWS -> handlePreloadFlows(argument, onResult)
+            PRELOAD_FLOWS_FOR_DEFAULT_AUDIENCE -> handlePreloadFlowsForDefaultAudience(argument, onResult)
             GET_PAYWALL_PRODUCTS -> handleGetPaywallProducts(argument, onResult)
             GET_ONBOARDING -> handleGetOnboarding(argument, onResult)
             GET_ONBOARDING_FOR_DEFAULT_AUDIENCE -> handleGetOnboardingForDefaultAudience(argument, onResult)
@@ -71,6 +74,7 @@ internal class AdaptyCallHandler(
             CREATE_WEB_PAYWALL_URL -> handleCreateWebPaywallUrl(argument, onResult)
             MAKE_PURCHASE -> handleMakePurchase(argument, onResult)
             RESTORE_PURCHASES -> handleRestorePurchases(onResult)
+            SHOW_STORE_MESSAGES -> handleShowStoreMessages(onResult)
             GET_PROFILE -> handleGetProfile(onResult)
             SET_INTEGRATION_ID -> handleSetIntegrationId(argument, onResult)
             UPDATE_EXTERNAL_ATTRIBUTION -> handleUpdateExternalAttribution(argument, onResult)
@@ -83,6 +87,7 @@ internal class AdaptyCallHandler(
             ADAPTY_UI_CREATE_FLOW_VIEW -> handleCreateFlowView(argument, onResult)
             ADAPTY_UI_PRESENT_FLOW_VIEW -> handlePresentFlowView(argument, onResult)
             ADAPTY_UI_DISMISS_FLOW_VIEW -> handleDismissFlowView(argument, onResult)
+            ADAPTY_UI_DESTROY_FLOW_VIEW -> handleDestroyFlowView(argument, onResult)
             ADAPTY_UI_CREATE_ONBOARDING_VIEW -> handleCreateOnboardingView(argument, onResult)
             ADAPTY_UI_PRESENT_ONBOARDING_VIEW -> handlePresentOnboardingView(argument, onResult)
             ADAPTY_UI_DISMISS_ONBOARDING_VIEW -> handleDismissOnboardingView(argument, onResult)
@@ -226,6 +231,31 @@ internal class AdaptyCallHandler(
         }
     }
 
+    private fun handlePreloadFlows(argument: Any?, onResult: ResultCallback<String>) {
+        val args = parseJsonArgument<PreloadPlacementsArgs>(argument)?.takeIf { !it.placementIds.isNullOrEmpty() } ?: kotlin.run {
+            onResult(callParameterError(PRELOAD_FLOWS))
+            return
+        }
+
+        Adapty.preloadFlows(
+            args.placementIds,
+            args.loadTimeout ?: DEFAULT_PLACEMENT_TIMEOUT,
+        ) { error ->
+            onResult(emptyResultOrError(error))
+        }
+    }
+
+    private fun handlePreloadFlowsForDefaultAudience(argument: Any?, onResult: ResultCallback<String>) {
+        val args = parseJsonArgument<PreloadPlacementsArgs>(argument)?.takeIf { !it.placementIds.isNullOrEmpty() } ?: kotlin.run {
+            onResult(callParameterError(PRELOAD_FLOWS_FOR_DEFAULT_AUDIENCE))
+            return
+        }
+
+        Adapty.preloadFlowsForDefaultAudience(args.placementIds) { error ->
+            onResult(emptyResultOrError(error))
+        }
+    }
+
     private fun handleGetPaywallProducts(argument: Any?, onResult: ResultCallback<String>) {
         val flow = parseJsonArgument<GetPaywallProductsArgs>(argument)?.flow ?: kotlin.run {
             onResult(callParameterError(GET_PAYWALL_PRODUCTS))
@@ -291,6 +321,13 @@ internal class AdaptyCallHandler(
         Adapty.restorePurchases { result ->
             onResult(adaptyResult(result))
         }
+    }
+
+    private fun handleShowStoreMessages(onResult: ResultCallback<String>) {
+        activity()?.let { activity ->
+            Adapty.showStoreMessages(activity)
+        }
+        onResult(success())
     }
 
     private fun handleGetProfile(onResult: ResultCallback<String>) {
@@ -456,14 +493,27 @@ internal class AdaptyCallHandler(
     }
 
     private fun handleDismissFlowView(argument: Any?, onResult: ResultCallback<String>) {
-        val args = parseJsonArgument<DismissViewArgs>(argument) ?: kotlin.run {
+        val args = parseJsonArgument<DismissViewArgs>(argument)?.takeIf { it.destroy != null } ?: kotlin.run {
             onResult(callParameterError(ADAPTY_UI_DISMISS_FLOW_VIEW))
             return
         }
 
         uiHelper.handleDismissView(
             args.id,
-            args.destroy,
+            args.destroy == true,
+            { onResult(success()) },
+            { error -> onResult(uiBridgeError(error)) },
+        )
+    }
+
+    private fun handleDestroyFlowView(argument: Any?, onResult: ResultCallback<String>) {
+        val args = parseJsonArgument<DestroyViewArgs>(argument) ?: kotlin.run {
+            onResult(callParameterError(ADAPTY_UI_DESTROY_FLOW_VIEW))
+            return
+        }
+
+        uiHelper.handleDestroyView(
+            args.id,
             { onResult(success()) },
             { error -> onResult(uiBridgeError(error)) },
         )
@@ -503,7 +553,7 @@ internal class AdaptyCallHandler(
 
         uiHelper.handleDismissOnboardingView(
             args.id,
-            args.destroy,
+            args.destroy ?: false,
             { onResult(success()) },
             { error -> onResult(uiBridgeError(error)) },
         )
@@ -689,11 +739,14 @@ internal class AdaptyCallHandler(
         const val IDENTIFY = "identify"
         const val GET_FLOW = "get_flow"
         const val GET_FLOW_FOR_DEFAULT_AUDIENCE = "get_flow_for_default_audience"
+        const val PRELOAD_FLOWS = "preload_flows"
+        const val PRELOAD_FLOWS_FOR_DEFAULT_AUDIENCE = "preload_flows_for_default_audience"
         const val GET_PAYWALL_PRODUCTS = "get_paywall_products"
         const val GET_ONBOARDING = "get_onboarding"
         const val GET_ONBOARDING_FOR_DEFAULT_AUDIENCE = "get_onboarding_for_default_audience"
         const val MAKE_PURCHASE = "make_purchase"
         const val RESTORE_PURCHASES = "restore_purchases"
+        const val SHOW_STORE_MESSAGES = "show_store_messages"
         const val SET_INTEGRATION_ID = "set_integration_identifiers"
         const val UPDATE_EXTERNAL_ATTRIBUTION = "update_external_attribution_data"
         const val LOG_SHOW_FLOW = "log_show_flow"
@@ -711,6 +764,7 @@ internal class AdaptyCallHandler(
         const val ADAPTY_UI_CREATE_FLOW_VIEW = "adapty_ui_create_flow_view"
         const val ADAPTY_UI_PRESENT_FLOW_VIEW = "adapty_ui_present_flow_view"
         const val ADAPTY_UI_DISMISS_FLOW_VIEW = "adapty_ui_dismiss_flow_view"
+        const val ADAPTY_UI_DESTROY_FLOW_VIEW = "adapty_ui_destroy_flow_view"
         const val ADAPTY_UI_CREATE_ONBOARDING_VIEW = "adapty_ui_create_onboarding_view"
         const val ADAPTY_UI_PRESENT_ONBOARDING_VIEW = "adapty_ui_present_onboarding_view"
         const val ADAPTY_UI_DISMISS_ONBOARDING_VIEW = "adapty_ui_dismiss_onboarding_view"

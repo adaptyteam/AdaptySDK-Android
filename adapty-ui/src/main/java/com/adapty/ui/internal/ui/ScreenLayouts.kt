@@ -22,16 +22,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
@@ -45,9 +49,7 @@ import com.adapty.ui.AdaptyUI.FlowConfiguration.ScreenBundle
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.store.ScrollCommand
 import com.adapty.ui.internal.ui.attributes.DimSpec
-import com.adapty.ui.internal.ui.attributes.DimUnit
 import com.adapty.ui.internal.ui.element.OverlayItem
-import com.adapty.ui.internal.ui.element.SingleContainer
 import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.ui.element.withActiveAnimations
 import com.adapty.ui.internal.utils.TwoWayBinding
@@ -78,6 +80,8 @@ internal fun ForceAdjustResize() {
 }
 
 private const val HERO_CONTENT_BOTTOM_RESERVE_FRACTION = 1f
+
+private const val HERO_COVER_PARALLAX_FACTOR = 0.5f
 
 @Composable
 internal fun renderScreen(
@@ -131,7 +135,6 @@ internal fun renderHeroLayoutScreen(
     screen: Screen.Hero,
     dispatch: (Message) -> Unit,
 ) {
-    val measuredContentHeightPxState = remember { mutableIntStateOf(0) }
     val measuredFooterHeightPxState = remember { mutableIntStateOf(0) }
 
     val coverHeight = (screen.cover.baseProps.heightSpec as? DimSpec.Specified)
@@ -159,9 +162,8 @@ internal fun renderHeroLayoutScreen(
         contentWrapper.offset?.consumed = true
         val density = LocalDensity.current
 
-        val contentFillsViewport = contentWrapper.content.declaresScreenMinHeight()
-
         val scrollState = rememberScrollState()
+        val coverParallaxFactor = if (LocalIsLegacyFormat.current) 0f else HERO_COVER_PARALLAX_FACTOR
 
         handleScrollCommand(scrollState, "content", dispatch)
         observeScrollValue(scrollState, screen.contentScrollValue, dispatch)
@@ -197,31 +199,10 @@ internal fun renderHeroLayoutScreen(
                                 Modifier.heightIn(min = availableViewportHeight)
                         ),
                 ) {
-                    if (contentFillsViewport) {
-                        val measuredContentHeightPx = measuredContentHeightPxState.intValue
-                        contentWrapper.content.render(
-                            dispatch,
-                            Modifier
-                                .onSizeChanged { size ->
-                                    if (size.height <= 0) return@onSizeChanged
-                                    if (measuredContentHeightPxState.intValue != size.height) {
-                                        measuredContentHeightPxState.intValue = size.height
-                                    }
-                                }
-                                .then(
-                                    if (measuredContentHeightPx > 0)
-                                        Modifier.height(with(density) { measuredContentHeightPx.toDp() })
-                                    else
-                                        Modifier.alpha(0f)
-                                )
-                                .fillWithBaseParams(contentWrapper.content),
-                        )
-                    } else {
-                        contentWrapper.content.render(
-                            dispatch,
-                            Modifier.fillWithBaseParams(contentWrapper.content),
-                        )
-                    }
+                    contentWrapper.content.render(
+                        dispatch,
+                        Modifier.fillWithBaseParams(contentWrapper.content),
+                    )
                 }
                 val measuredFooterHeightPx = measuredFooterHeightPxState.intValue
                 if (measuredFooterHeightPx > 0) {
@@ -246,7 +227,9 @@ internal fun renderHeroLayoutScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(coverHeight)
-                        .graphicsLayer { translationY = scrollState.value.toFloat() },
+                        .graphicsLayer {
+                            translationY = scrollState.value * (1f - coverParallaxFactor)
+                        },
                 ) {
                     screen.cover.content.render(dispatch)
                 }
@@ -268,6 +251,8 @@ internal fun renderHeroLayoutScreen(
             val measuredFooterHeightPx = measuredFooterHeightPxState.intValue
             val footerFillsViewport =
                 measuredFooterHeightPx > 0 && measuredFooterHeightPx >= constraints.maxHeight
+            val footerBackgroundAlpha =
+                if (LocalIsLegacyFormat.current) null else rememberFooterBackgroundAlpha(scrollState)
 
             if (footerFillsViewport) {
                 val footerScrollState = rememberScrollState()
@@ -285,7 +270,7 @@ internal fun renderHeroLayoutScreen(
                     ) {
                         footer.render(
                             dispatch,
-                            footerSizeProbe.fillWithBaseParams(footer),
+                            footerSizeProbe.fillWithBaseParams(footer, footerBackgroundAlpha),
                         )
                     }
                 }
@@ -295,7 +280,7 @@ internal fun renderHeroLayoutScreen(
                     Modifier
                         .align(Alignment.BottomCenter)
                         .then(footerSizeProbe)
-                        .fillWithBaseParams(footer),
+                        .fillWithBaseParams(footer, footerBackgroundAlpha),
                 )
             }
         }
@@ -309,7 +294,6 @@ internal fun renderFlatLayoutScreen(
     screen: Screen.Flat,
     dispatch: (Message) -> Unit,
 ) {
-    val measuredContentHeightPxState = remember { mutableIntStateOf(0) }
     val measuredFooterHeightPxState = remember { mutableIntStateOf(0) }
 
     BoxWithConstraints(
@@ -326,8 +310,6 @@ internal fun renderFlatLayoutScreen(
         val density = LocalDensity.current
         val contentWrapper = screen.contentWrapper
 
-        val contentFillsViewport = contentWrapper.content.declaresScreenMinHeight()
-
         val contentScrollState = rememberScrollState()
 
         handleScrollCommand(contentScrollState, "content", dispatch)
@@ -336,57 +318,22 @@ internal fun renderFlatLayoutScreen(
         CompositionLocalProvider(
             LocalOverscrollConfiguration provides null,
         ) {
-            if (contentFillsViewport) {
-                Column(
-                    horizontalAlignment = contentWrapper.contentAlign.toComposeHorizontalAlignment(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .imePadding()
-                        .verticalScroll(contentScrollState),
-                ) {
-                    val measuredContentHeightPx = measuredContentHeightPxState.intValue
-                    contentWrapper.content.withActiveAnimations(dispatch) {
-                        contentWrapper.content.render(
-                            dispatch,
-                            Modifier
-                                .onSizeChanged { size ->
-                                    if (size.height <= 0) return@onSizeChanged
-                                    if (measuredContentHeightPxState.intValue != size.height) {
-                                        measuredContentHeightPxState.intValue = size.height
-                                    }
-                                }
-                                .then(
-                                    if (measuredContentHeightPx > 0)
-                                        Modifier.height(with(density) { measuredContentHeightPx.toDp() })
-                                    else
-                                        Modifier.alpha(0f)
-                                )
-                                .fillWithBaseParams(contentWrapper.content),
-                        )
-                    }
-                    val measuredFooterHeightPx = measuredFooterHeightPxState.intValue
-                    if (measuredFooterHeightPx > 0) {
-                        Spacer(Modifier.height(with(density) { measuredFooterHeightPx.toDp() }))
-                    }
+            Column(
+                horizontalAlignment = contentWrapper.contentAlign.toComposeHorizontalAlignment(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .imePadding()
+                    .verticalScroll(contentScrollState),
+            ) {
+                contentWrapper.content.withActiveAnimations(dispatch) {
+                    contentWrapper.content.render(
+                        dispatch,
+                        Modifier.fillWithBaseParams(contentWrapper.content),
+                    )
                 }
-            } else {
-                Column(
-                    horizontalAlignment = contentWrapper.contentAlign.toComposeHorizontalAlignment(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .imePadding()
-                        .verticalScroll(contentScrollState),
-                ) {
-                    contentWrapper.content.withActiveAnimations(dispatch) {
-                        contentWrapper.content.render(
-                            dispatch,
-                            Modifier.fillWithBaseParams(contentWrapper.content),
-                        )
-                    }
-                    val measuredFooterHeightPx = measuredFooterHeightPxState.intValue
-                    if (measuredFooterHeightPx > 0) {
-                        Spacer(Modifier.height(with(density) { measuredFooterHeightPx.toDp() }))
-                    }
+                val measuredFooterHeightPx = measuredFooterHeightPxState.intValue
+                if (measuredFooterHeightPx > 0) {
+                    Spacer(Modifier.height(with(density) { measuredFooterHeightPx.toDp() }))
                 }
             }
         }
@@ -400,6 +347,8 @@ internal fun renderFlatLayoutScreen(
             val measuredFooterHeightPx = measuredFooterHeightPxState.intValue
             val footerFillsViewport =
                 measuredFooterHeightPx > 0 && measuredFooterHeightPx >= constraints.maxHeight
+            val footerBackgroundAlpha =
+                if (LocalIsLegacyFormat.current) null else rememberFooterBackgroundAlpha(contentScrollState)
 
             if (footerFillsViewport) {
                 val footerScrollState = rememberScrollState()
@@ -417,7 +366,7 @@ internal fun renderFlatLayoutScreen(
                     ) {
                         footer.render(
                             dispatch,
-                            footerSizeProbe.fillWithBaseParams(footer),
+                            footerSizeProbe.fillWithBaseParams(footer, footerBackgroundAlpha),
                         )
                     }
                 }
@@ -427,7 +376,7 @@ internal fun renderFlatLayoutScreen(
                     Modifier
                         .align(Alignment.BottomCenter)
                         .then(footerSizeProbe)
-                        .fillWithBaseParams(footer),
+                        .fillWithBaseParams(footer, footerBackgroundAlpha),
                 )
             }
         }
@@ -546,20 +495,10 @@ private fun renderAlignedElements(
             contentAlignment = item.align.toComposeAlignment(),
             modifier = modifier,
         ) {
-            item.content.render(dispatch)
+            CompositionLocalProvider(LocalBlocksTouchesBelow provides true) {
+                item.content.render(dispatch)
+            }
         }
-    }
-}
-
-private fun UIElement.declaresScreenMinHeight(): Boolean {
-    var node: UIElement = this
-    while (true) {
-        when (val spec = node.baseProps.heightSpec) {
-            is DimSpec.Min -> if (spec.value is DimUnit.ScreenFraction) return true
-            is DimSpec.Specified, is DimSpec.Shrink -> return false
-            else -> {}
-        }
-        node = (node as? SingleContainer)?.content ?: return false
     }
 }
 
@@ -571,3 +510,25 @@ private fun Modifier.cancelReserveHeight(reservePx: Int): Modifier =
             placeable.place(0, 0)
         }
     }
+
+private val FooterBackgroundSpring = spring<Float>(
+    dampingRatio = Spring.DampingRatioNoBouncy,
+    stiffness = 157.9f,
+)
+
+@Composable
+private fun rememberFooterBackgroundAlpha(contentScrollState: ScrollState): State<Float> {
+    val target = if (contentScrollState.canScrollForward) 1f else 0f
+    val measured = contentScrollState.viewportSize > 0
+    val alpha = remember { Animatable(target) }
+    val settled = remember { mutableStateOf(false) }
+    LaunchedEffect(target, measured) {
+        if (!settled.value) {
+            alpha.snapTo(target)
+            if (measured) settled.value = true
+        } else {
+            alpha.animateTo(target, FooterBackgroundSpring)
+        }
+    }
+    return alpha.asState()
+}

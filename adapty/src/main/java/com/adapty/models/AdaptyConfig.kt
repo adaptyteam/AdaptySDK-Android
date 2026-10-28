@@ -12,6 +12,7 @@ public class AdaptyConfig private constructor(
     @get:JvmSynthetic internal val serverCluster: ServerCluster,
     @get:JvmSynthetic internal val customProcessName: String?,
     @get:JvmSynthetic internal val allowLocalPAL: Boolean,
+    @get:JvmSynthetic internal val storeMessagesHandling: StoreMessagesHandling,
 ) {
 
     /**
@@ -39,6 +40,8 @@ public class AdaptyConfig private constructor(
         private var serverCluster = ServerCluster.DEFAULT
 
         private var customProcessName: String? = null
+
+        private var storeMessagesHandling = StoreMessagesHandling.AUTO
 
         /**
          * @param[customerUserId] User identifier in your system.
@@ -133,6 +136,17 @@ public class AdaptyConfig private constructor(
             return this
         }
 
+        /**
+         * @param[storeMessagesHandling] Controls whether Adapty requests Google Play in-app messages
+         * (for example, payment decline notices) automatically, see [StoreMessagesHandling].
+         *
+         * Default value is [StoreMessagesHandling.AUTO].
+         */
+        public fun withStoreMessagesHandling(storeMessagesHandling: StoreMessagesHandling): Builder {
+            this.storeMessagesHandling = storeMessagesHandling
+            return this
+        }
+
         public fun build(): AdaptyConfig {
             return AdaptyConfig(
                 apiKey,
@@ -146,6 +160,7 @@ public class AdaptyConfig private constructor(
                 serverCluster,
                 customProcessName,
                 allowLocalPAL,
+                storeMessagesHandling,
             )
         }
     }
@@ -174,6 +189,24 @@ public class AdaptyConfig private constructor(
             "https://configs-cdn-cn.adapty.io/api/v1",
             "https://api-ua-cn.adapty.io/api/v1",
         ),
+    }
+
+    /**
+     * Defines when Adapty asks Google Play to show its in-app messages, such as payment decline notices.
+     * Google Play decides whether an applicable message exists, so a request does not guarantee any UI.
+     */
+    public enum class StoreMessagesHandling {
+        /**
+         * Default. After the SDK is activated, Adapty requests Google Play in-app messages
+         * every time an `Activity` is started. [com.adapty.Adapty.showStoreMessages] stays available.
+         */
+        AUTO,
+
+        /**
+         * Adapty never requests Google Play in-app messages on its own.
+         * The app decides when to call [com.adapty.Adapty.showStoreMessages] with the `Activity` that should host the message.
+         */
+        MANUAL,
     }
 
     @get:JvmSynthetic

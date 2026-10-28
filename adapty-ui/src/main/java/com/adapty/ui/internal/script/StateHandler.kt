@@ -96,7 +96,40 @@ internal fun Any?.toJsFloat(): Float? = when (this) {
 internal fun Any?.toJsLong(): Long? = when (this) {
     is Number -> toLong()
     is Boolean -> if (this) 1L else 0L
+    is String, is List<*>, is Map<*, *> -> jsToNumber(this).takeIf { it.isFinite() }?.toLong()
     else -> null
+}
+
+private fun jsToNumber(value: Any?): Double = when (value) {
+    is String -> jsStringToNumber(value)
+    is List<*> -> when (value.size) {
+        0 -> 0.0
+        1 -> when (val item = value[0]) {
+            null -> 0.0
+            is Number -> item.toDouble()
+            else -> jsToNumber(item)
+        }
+        else -> Double.NaN
+    }
+    else -> Double.NaN
+}
+
+private val JS_DECIMAL_LITERAL = Regex("[+-]?(?:Infinity|(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)")
+private val JS_NON_DECIMAL_LITERAL = Regex("0([xX][0-9a-fA-F]+|[oO][0-7]+|[bB][01]+)")
+
+internal fun jsStringToNumber(str: String): Double {
+    val s = str.trim { it.isWhitespace() || it == '\uFEFF' }
+    if (s.isEmpty()) return 0.0
+    JS_NON_DECIMAL_LITERAL.matchEntire(s)?.let { m ->
+        val body = m.groupValues[1]
+        val radix = when (body[0].lowercaseChar()) { 'x' -> 16; 'o' -> 8; else -> 2 }
+        return body.substring(1).toBigInteger(radix).toDouble()
+    }
+    if (!JS_DECIMAL_LITERAL.matches(s)) return Double.NaN
+    return when {
+        s.endsWith("Infinity") -> if (s.startsWith('-')) Double.NEGATIVE_INFINITY else Double.POSITIVE_INFINITY
+        else -> s.toDouble()
+    }
 }
 
 private fun applyConverter(value: Any?, converter: String, params: Any?): Any? {

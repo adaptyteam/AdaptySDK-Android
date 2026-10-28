@@ -171,6 +171,9 @@ internal suspend fun StateHandler.initializeFlowState(
     }
     stateOwner = null
 
+    log(VERBOSE) { "$LOG_PREFIX initializeFlowState: dropping the previous action handler before re-init" }
+    setActionHandler(null)
+
     val snapshot = viewConfiguration.runtimeState.jsSnapshot
     val restoring = snapshot != null && viewConfiguration.runtimeState.restorableNavigation != null
     reset()

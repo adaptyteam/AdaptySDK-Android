@@ -33,6 +33,11 @@ internal class LifecycleAwareRequestRunner(
 
     private val CROSSPLACEMENT_INFO_REQUEST_MIN_INTERVAL = 60_000L
 
+    private val PURCHASES_SYNC_MIN_INTERVAL = 60_000L
+
+    @Volatile
+    private var lastPurchasesSyncTime: Long? = null
+
     private val WEB_PAYWALL_OPENED_MAX_DURATION = 20 * 60 * 1000L
     private val WEB_PAYWALL_FREQUENT_REFRESH_DURATION = 5 * 60 * 1000L
     private val WEB_PAYWALL_FREQUENT_REFRESH_INTERVAL = 3000L
@@ -55,6 +60,7 @@ internal class LifecycleAwareRequestRunner(
             handleRequestCrossPlacementInfo()
             handleRegisterInstall()
             handleSyncUnsyncedValidateData()
+            handleSyncPendingPurchases()
             scheduleGetProfileRequest(initialDelayMillis = PERIODIC_REQUEST_INTERVAL)
         }
     }
@@ -65,6 +71,8 @@ internal class LifecycleAwareRequestRunner(
             handleRequestCrossPlacementInfo()
             handleRegisterInstall()
             handleSyncUnsyncedValidateData()
+            handleSyncPendingPurchases()
+            handleSyncPurchases()
             updateWebPaywallProfileRefreshStartTimeIfNeeded()
 
             scheduleGetProfileRequest(initialDelayMillis = 0)
@@ -128,6 +136,24 @@ internal class LifecycleAwareRequestRunner(
                 .syncUnsyncedValidateData()
                 .catch { }
                 .collect()
+        }
+    }
+
+    private fun handleSyncPendingPurchases() {
+        execute {
+            purchasesInteractor
+                .syncPendingPurchases()
+                .catch { }
+                .collect()
+        }
+    }
+
+    private fun handleSyncPurchases() {
+        val now = SystemClock.elapsedRealtime()
+        val lastTime = lastPurchasesSyncTime
+        if (lastTime == null || now - lastTime !in 0L..PURCHASES_SYNC_MIN_INTERVAL) {
+            lastPurchasesSyncTime = now
+            purchasesInteractor.syncPurchasesOnForeground()
         }
     }
 
