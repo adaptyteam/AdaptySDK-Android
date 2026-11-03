@@ -13,6 +13,10 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
+import com.adapty.ui.internal.ui.HStackMinWidthQuery
+import com.adapty.ui.internal.ui.VStackMinHeightQuery
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -47,13 +51,19 @@ internal class TightWidthController {
         }
 
         override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
-            measurable.minIntrinsicWidth(height)
+            if (HStackMinWidthQuery.active) 0 else measurable.minIntrinsicWidth(height)
 
         override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
             measurable.maxIntrinsicWidth(height)
 
-        override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
-            measurable.minIntrinsicHeight(width)
+        override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int {
+            val wrapped = measurable.minIntrinsicHeight(width)
+            return if (VStackMinHeightQuery.active) {
+                measurable.minIntrinsicHeight(Constraints.Infinity).coerceAtMost(wrapped)
+            } else {
+                wrapped
+            }
+        }
 
         override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
             measurable.maxIntrinsicHeight(width)
@@ -89,14 +99,17 @@ internal class PushOutInput(
         layout(width, scope, lines).size.height
 
     private fun layout(width: Int, scope: IntrinsicMeasureScope, lines: Int = maxLines): TextLayoutResult =
+        layout(Constraints(maxWidth = width), lines, scope, scope.layoutDirection)
+
+    fun layout(constraints: Constraints, lines: Int, density: Density, layoutDirection: LayoutDirection): TextLayoutResult =
         measurer.measure(
             text = text,
             style = style,
             overflow = TextOverflow.Ellipsis,
             maxLines = lines,
-            constraints = Constraints(maxWidth = width),
-            layoutDirection = scope.layoutDirection,
-            density = scope,
+            constraints = constraints,
+            layoutDirection = layoutDirection,
+            density = density,
         )
 }
 

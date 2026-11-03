@@ -21,6 +21,21 @@ internal enum class HStackCellKind { DEFAULT, TEXT_LIKE, SIZE_DRIVEN_UNSIZED, SI
 
 internal val STACK_SPACER_MIN_LENGTH: Dp = 8.dp
 
+internal object HStackMinWidthQuery {
+    private var depth = 0
+
+    val active: Boolean get() = depth > 0
+
+    fun minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int {
+        depth++
+        try {
+            return measurable.minIntrinsicWidth(height)
+        } finally {
+            depth--
+        }
+    }
+}
+
 internal data class HStackCellSpec(
     val kind: HStackCellKind,
     val minWidth: Dp = 0.dp,
@@ -191,7 +206,7 @@ private class HStackMeasurePolicy(
                             flexibility[i] = Long.MAX_VALUE
                         }
                         HStackCellKind.DEFAULT -> {
-                            val min = measurable.minIntrinsicWidth(intrinsicHeight)
+                            val min = HStackMinWidthQuery.minIntrinsicWidth(measurable, intrinsicHeight)
                             val max = measurable.maxIntrinsicWidth(intrinsicHeight)
                             minWidths[i] = min
                             flexibility[i] = (max - min).coerceAtLeast(0).toLong()

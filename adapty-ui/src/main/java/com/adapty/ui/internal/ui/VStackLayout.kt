@@ -19,6 +19,21 @@ import androidx.compose.ui.unit.dp
 
 internal enum class VStackCellKind { DEFAULT, TEXT_LIKE, SIZE_DRIVEN_UNSIZED, SIZE_DRIVEN_SIZED, SPACER, FILL_HEIGHT, GREEDY_ROOT }
 
+internal object VStackMinHeightQuery {
+    private var depth = 0
+
+    val active: Boolean get() = depth > 0
+
+    fun minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int {
+        depth++
+        try {
+            return measurable.minIntrinsicHeight(width)
+        } finally {
+            depth--
+        }
+    }
+}
+
 internal data class VStackCellSpec(
     val kind: VStackCellKind,
     val minHeight: Dp = 0.dp,
@@ -200,7 +215,7 @@ private class VStackMeasurePolicy(
                             flexibility[i] = Long.MAX_VALUE
                         }
                         VStackCellKind.DEFAULT -> {
-                            val min = measurable.minIntrinsicHeight(intrinsicWidth)
+                            val min = VStackMinHeightQuery.minIntrinsicHeight(measurable, intrinsicWidth)
                             val max = measurable.maxIntrinsicHeight(intrinsicWidth)
                             minHeights[i] = min
                             flexibility[i] = (max - min).coerceAtLeast(0).toLong()

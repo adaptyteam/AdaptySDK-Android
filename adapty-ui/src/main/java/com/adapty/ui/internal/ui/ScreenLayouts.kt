@@ -26,18 +26,22 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -136,6 +140,8 @@ internal fun renderHeroLayoutScreen(
     dispatch: (Message) -> Unit,
 ) {
     val measuredFooterHeightPxState = remember { mutableIntStateOf(0) }
+    val footerFillerLaidOutState = remember { mutableStateOf(false) }
+    val footerGateGeometry = remember { FooterGateGeometry() }
 
     val coverHeight = (screen.cover.baseProps.heightSpec as? DimSpec.Specified)
         ?.value
@@ -175,6 +181,7 @@ internal fun renderHeroLayoutScreen(
                 horizontalAlignment = contentWrapper.contentAlign.toComposeHorizontalAlignment(),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .onPlaced { footerGateGeometry.contentColumnPx = it.size.height }
                     .padding(PaddingValues(top = contentTopPadding))
                     .offsetOrSkip(contentWrapper.offset),
             ) {
@@ -206,7 +213,12 @@ internal fun renderHeroLayoutScreen(
                 }
                 val measuredFooterHeightPx = measuredFooterHeightPxState.intValue
                 if (measuredFooterHeightPx > 0) {
-                    Spacer(Modifier.height(with(density) { measuredFooterHeightPx.toDp() }))
+                    Spacer(
+                        Modifier
+                            .height(with(density) { measuredFooterHeightPx.toDp() })
+                            .onPlaced { footerGateGeometry.fillerPx = it.size.height }
+                            .onSizeChanged { if (it.height > 0) footerFillerLaidOutState.value = true },
+                    )
                 }
             }
         }
@@ -220,6 +232,7 @@ internal fun renderHeroLayoutScreen(
                     .fillMaxWidth()
                     .imePadding()
                     .fillMaxHeight()
+                    .recordViewportHeight(footerGateGeometry)
                     .verticalScroll(scrollState),
             ) {
                 Box(
@@ -227,6 +240,7 @@ internal fun renderHeroLayoutScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(coverHeight)
+                        .onPlaced { footerGateGeometry.coverPx = it.size.height }
                         .graphicsLayer {
                             translationY = scrollState.value * (1f - coverParallaxFactor)
                         },
@@ -243,16 +257,19 @@ internal fun renderHeroLayoutScreen(
         }
 
         screen.footer?.let { footer ->
-            val footerSizeProbe = Modifier.onSizeChanged { size ->
-                if (size.height <= 0 || measuredFooterHeightPxState.intValue == size.height)
-                    return@onSizeChanged
-                measuredFooterHeightPxState.intValue = size.height
-            }
+            val footerSizeProbe = Modifier
+                .onPlaced { footerGateGeometry.footerPx = it.size.height }
+                .onSizeChanged { size ->
+                    if (size.height <= 0 || measuredFooterHeightPxState.intValue == size.height)
+                        return@onSizeChanged
+                    measuredFooterHeightPxState.intValue = size.height
+                }
             val measuredFooterHeightPx = measuredFooterHeightPxState.intValue
             val footerFillsViewport =
                 measuredFooterHeightPx > 0 && measuredFooterHeightPx >= constraints.maxHeight
             val footerBackgroundAlpha =
-                if (LocalIsLegacyFormat.current) null else rememberFooterBackgroundAlpha(scrollState)
+                if (LocalIsLegacyFormat.current) null
+                else rememberFooterBackgroundAlpha(scrollState, footerFillerLaidOutState.value, footerGateGeometry)
 
             if (footerFillsViewport) {
                 val footerScrollState = rememberScrollState()
@@ -295,6 +312,8 @@ internal fun renderFlatLayoutScreen(
     dispatch: (Message) -> Unit,
 ) {
     val measuredFooterHeightPxState = remember { mutableIntStateOf(0) }
+    val footerFillerLaidOutState = remember { mutableStateOf(false) }
+    val footerGateGeometry = remember { FooterGateGeometry() }
 
     BoxWithConstraints(
         contentAlignment = Alignment.TopCenter,
@@ -323,7 +342,9 @@ internal fun renderFlatLayoutScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .imePadding()
-                    .verticalScroll(contentScrollState),
+                    .recordViewportHeight(footerGateGeometry)
+                    .verticalScroll(contentScrollState)
+                    .onPlaced { footerGateGeometry.contentColumnPx = it.size.height },
             ) {
                 contentWrapper.content.withActiveAnimations(dispatch) {
                     contentWrapper.content.render(
@@ -333,22 +354,30 @@ internal fun renderFlatLayoutScreen(
                 }
                 val measuredFooterHeightPx = measuredFooterHeightPxState.intValue
                 if (measuredFooterHeightPx > 0) {
-                    Spacer(Modifier.height(with(density) { measuredFooterHeightPx.toDp() }))
+                    Spacer(
+                        Modifier
+                            .height(with(density) { measuredFooterHeightPx.toDp() })
+                            .onPlaced { footerGateGeometry.fillerPx = it.size.height }
+                            .onSizeChanged { if (it.height > 0) footerFillerLaidOutState.value = true },
+                    )
                 }
             }
         }
 
         screen.footer?.let { footer ->
-            val footerSizeProbe = Modifier.onSizeChanged { size ->
-                if (size.height <= 0 || measuredFooterHeightPxState.intValue == size.height)
-                    return@onSizeChanged
-                measuredFooterHeightPxState.intValue = size.height
-            }
+            val footerSizeProbe = Modifier
+                .onPlaced { footerGateGeometry.footerPx = it.size.height }
+                .onSizeChanged { size ->
+                    if (size.height <= 0 || measuredFooterHeightPxState.intValue == size.height)
+                        return@onSizeChanged
+                    measuredFooterHeightPxState.intValue = size.height
+                }
             val measuredFooterHeightPx = measuredFooterHeightPxState.intValue
             val footerFillsViewport =
                 measuredFooterHeightPx > 0 && measuredFooterHeightPx >= constraints.maxHeight
             val footerBackgroundAlpha =
-                if (LocalIsLegacyFormat.current) null else rememberFooterBackgroundAlpha(contentScrollState)
+                if (LocalIsLegacyFormat.current) null
+                else rememberFooterBackgroundAlpha(contentScrollState, footerFillerLaidOutState.value, footerGateGeometry)
 
             if (footerFillsViewport) {
                 val footerScrollState = rememberScrollState()
@@ -517,18 +546,64 @@ private val FooterBackgroundSpring = spring<Float>(
 )
 
 @Composable
-private fun rememberFooterBackgroundAlpha(contentScrollState: ScrollState): State<Float> {
+private fun rememberFooterBackgroundAlpha(
+    contentScrollState: ScrollState,
+    footerFillerLaidOut: Boolean,
+    geometry: FooterGateGeometry,
+): State<Float> {
     val target = if (contentScrollState.canScrollForward) 1f else 0f
-    val measured = contentScrollState.viewportSize > 0
+    val measured = contentScrollState.viewportSize > 0 && footerFillerLaidOut
     val alpha = remember { Animatable(target) }
     val settled = remember { mutableStateOf(false) }
     LaunchedEffect(target, measured) {
-        if (!settled.value) {
-            alpha.snapTo(target)
-            if (measured) settled.value = true
-        } else {
-            alpha.animateTo(target, FooterBackgroundSpring)
+        when (footerBackgroundStep(settled = settled.value, measured = measured)) {
+            FooterBackgroundStep.Hold -> Unit
+            FooterBackgroundStep.Snap -> {
+                alpha.snapTo(target)
+                settled.value = true
+            }
+            FooterBackgroundStep.Animate -> alpha.animateTo(target, FooterBackgroundSpring)
         }
     }
-    return alpha.asState()
+    return remember(geometry) {
+        object : State<Float> {
+            override val value: Float
+                get() = when {
+                    settled.value || geometry.viewportPx <= 0 -> alpha.value
+                    geometry.overflows() -> 1f
+                    else -> 0f
+                }
+        }
+    }
 }
+
+@Stable
+internal class FooterGateGeometry {
+    var viewportPx by mutableIntStateOf(0)
+    var contentColumnPx by mutableIntStateOf(0)
+    var fillerPx by mutableIntStateOf(0)
+    var footerPx by mutableIntStateOf(0)
+    var coverPx by mutableIntStateOf(0)
+
+    fun overflows(): Boolean =
+        footerOverflows(contentColumnPx - fillerPx, footerPx, viewportPx, coverPx)
+}
+
+internal fun footerOverflows(contentPx: Int, footerPx: Int, viewportPx: Int, coverPx: Int = 0): Boolean =
+    maxOf(coverPx, contentPx + footerPx) > viewportPx
+
+private fun Modifier.recordViewportHeight(geometry: FooterGateGeometry): Modifier =
+    layout { measurable, constraints ->
+        geometry.viewportPx = constraints.maxHeight
+        val placeable = measurable.measure(constraints)
+        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+
+internal enum class FooterBackgroundStep { Hold, Snap, Animate }
+
+internal fun footerBackgroundStep(settled: Boolean, measured: Boolean): FooterBackgroundStep =
+    when {
+        settled -> FooterBackgroundStep.Animate
+        measured -> FooterBackgroundStep.Snap
+        else -> FooterBackgroundStep.Hold
+    }

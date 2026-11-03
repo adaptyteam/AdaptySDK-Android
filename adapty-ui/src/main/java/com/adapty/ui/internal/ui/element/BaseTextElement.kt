@@ -9,7 +9,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.DrawModifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.layout.IntrinsicMeasurable
 import androidx.compose.ui.layout.IntrinsicMeasureScope
 import androidx.compose.ui.layout.LayoutModifier
@@ -21,6 +23,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -37,6 +40,7 @@ import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.text.ComposeTextAttrs
 import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.LocalScreenInstance
+import com.adapty.ui.internal.ui.VStackMinHeightQuery
 import com.adapty.ui.internal.ui.attributes.TextAlign
 import com.adapty.ui.internal.ui.attributes.toComposeTextAlign
 import com.adapty.ui.internal.ui.OverflowResult
@@ -124,7 +128,8 @@ public abstract class BaseTextElement(
                 } else {
                     null
                 }
-                val bgModifier = modifier.then(heightFit?.modifier(pushOut, lines) ?: Modifier).then(tightWidth.modifier(pushOut))
+                val bgModifier = modifier.then(tightWidth.modifier(pushOut)).then(heightFit?.modifier(pushOut, lines, tightWidth.onTextLayout) ?: Modifier)
+                    .then(heightFit?.pendingCapModifier(pushOut, lines) ?: Modifier)
                 if (text.actions.isNotEmpty() && dispatch != null) {
                     val actions = text.actions
                     val screen = LocalScreenInstance.current
@@ -216,7 +221,8 @@ public abstract class BaseTextElement(
                     onTextLayout = combineTextLayout(heightFit?.onTextLayout, tightWidth.onTextLayout),
                     style = textStyle,
                     autoSize = if (overflowAtMin != null) null else autoSize,
-                    modifier = modifier.then(heightFit?.modifier(pushOut, lines) ?: Modifier).then(tightWidth.modifier(pushOut)),
+                    modifier = modifier.then(tightWidth.modifier(pushOut)).then(heightFit?.modifier(pushOut, lines, tightWidth.onTextLayout) ?: Modifier)
+                        .then(heightFit?.pendingCapModifier(pushOut, lines) ?: Modifier),
                 )
             }
         }
@@ -232,11 +238,53 @@ public abstract class BaseTextElement(
             if (budget.maxLines != maxLines.value) maxLines.value = budget.maxLines
         }
 
-        fun modifier(uncapped: PushOutInput?, lines: Int): Modifier =
-            HeightFitModifier(uncapped?.takeIf { lines < cap })
+        private var substitute: TextLayoutResult? = null
+        private var textConstraints = Constraints()
+
+        fun modifier(text: PushOutInput?, lines: Int, onSubstitute: (TextLayoutResult) -> Unit): Modifier =
+            HeightFitModifier(text, lines, onSubstitute)
+
+        fun pendingCapModifier(text: PushOutInput?, lines: Int): Modifier =
+            if (text == null) Modifier else PendingCapModifier(lines)
 
         @Suppress("DEPRECATION")
-        private inner class HeightFitModifier(private val uncapped: PushOutInput?) : LayoutModifier {
+        private inner class PendingCapModifier(private val lines: Int) : LayoutModifier, DrawModifier {
+            override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+                textConstraints = constraints
+                val placeable = measurable.measure(constraints)
+                return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            }
+
+            override fun ContentDrawScope.draw() {
+                val s = substitute
+                if (s == null || maxLines.value == lines) {
+                    drawContent()
+                } else {
+                    drawText(s)
+                }
+            }
+
+            override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+                measurable.minIntrinsicWidth(height)
+
+            override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+                measurable.maxIntrinsicWidth(height)
+
+            override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+                measurable.minIntrinsicHeight(width)
+
+            override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+                measurable.maxIntrinsicHeight(width)
+        }
+
+        @Suppress("DEPRECATION")
+        private inner class HeightFitModifier(
+            private val text: PushOutInput?,
+            private val lines: Int,
+            private val onSubstitute: (TextLayoutResult) -> Unit,
+        ) : LayoutModifier {
+            private val uncapped = text?.takeIf { lines < cap }
+
             override fun MeasureScope.measure(
                 measurable: Measurable,
                 constraints: Constraints,
@@ -244,7 +292,13 @@ public abstract class BaseTextElement(
                 proposedWidth = constraints.maxWidth
                 val placeable = measurable.measure(constraints.copy(maxHeight = Constraints.Infinity))
                 budget.fit(constraints.maxHeight)
-                if (budget.maxLines != maxLines.value) maxLines.value = budget.maxLines
+                val current = budget.maxLines
+                if (current != maxLines.value) maxLines.value = current
+                substitute = if (text == null || current == lines) {
+                    null
+                } else {
+                    text.layout(textConstraints, current, this, layoutDirection).also(onSubstitute)
+                }
                 return layout(
                     placeable.width.coerceIn(constraints.minWidth, constraints.maxWidth),
                     placeable.height.coerceIn(constraints.minHeight, constraints.maxHeight),
@@ -258,7 +312,11 @@ public abstract class BaseTextElement(
                 measurable.maxIntrinsicWidth(height)
 
             override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
-                uncapped?.heightAt(width, cap, this) ?: measurable.minIntrinsicHeight(width)
+                if (VStackMinHeightQuery.active) {
+                    measurable.minIntrinsicHeight(width)
+                } else {
+                    uncapped?.heightAt(width, cap, this) ?: measurable.minIntrinsicHeight(width)
+                }
 
             override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
                 uncapped?.heightAt(width, cap, this) ?: measurable.maxIntrinsicHeight(width)

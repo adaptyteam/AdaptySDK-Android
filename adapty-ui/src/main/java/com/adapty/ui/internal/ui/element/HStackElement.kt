@@ -96,6 +96,9 @@ public class HStackElement internal constructor(
 private fun UIElement.isTextLikeForWidth(): Boolean = when (this) {
     is BaseTextElement -> true
     is SingleContainer -> layoutRelevantProps.widthSpec == null && content.isTextLikeForWidth()
+    is MultiContainer -> (this is VStackElement || this is HStackElement || this is ZStackElement) &&
+        layoutRelevantProps.widthSpec == null &&
+        content.singleOrNull()?.isTextLikeForWidth() == true
     else -> false
 }
 

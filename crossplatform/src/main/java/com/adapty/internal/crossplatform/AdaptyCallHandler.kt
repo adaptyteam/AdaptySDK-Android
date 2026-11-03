@@ -232,7 +232,7 @@ internal class AdaptyCallHandler(
     }
 
     private fun handlePreloadFlows(argument: Any?, onResult: ResultCallback<String>) {
-        val args = parseJsonArgument<PreloadPlacementsArgs>(argument)?.takeIf { !it.placementIds.isNullOrEmpty() } ?: kotlin.run {
+        val args = parseJsonArgument<PreloadPlacementsArgs>(argument)?.takeIf { it.placementIds != null } ?: kotlin.run {
             onResult(callParameterError(PRELOAD_FLOWS))
             return
         }
@@ -246,7 +246,7 @@ internal class AdaptyCallHandler(
     }
 
     private fun handlePreloadFlowsForDefaultAudience(argument: Any?, onResult: ResultCallback<String>) {
-        val args = parseJsonArgument<PreloadPlacementsArgs>(argument)?.takeIf { !it.placementIds.isNullOrEmpty() } ?: kotlin.run {
+        val args = parseJsonArgument<PreloadPlacementsArgs>(argument)?.takeIf { it.placementIds != null } ?: kotlin.run {
             onResult(callParameterError(PRELOAD_FLOWS_FOR_DEFAULT_AUDIENCE))
             return
         }
