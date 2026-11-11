@@ -8,6 +8,8 @@ import com.adapty.internal.data.models.BackendError.Companion.INCORRECT_SEGMENT_
 import com.adapty.internal.data.models.ProfileDto
 import com.adapty.internal.data.models.Variation
 import com.adapty.internal.data.models.Variations
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal class PlacementCloudGateway(
@@ -35,12 +37,14 @@ internal class PlacementCloudGateway(
                 .persistRawSingleVariation(variationId, locale, variationType)
         }
 
-    fun fetchFallbackVariations(
+    suspend fun fetchFallbackVariations(
         placementId: String,
         locale: String,
         variationType: VariationType,
+        onResponseReceived: () -> Unit = {},
     ): Variations {
-        val response = cloudRepository.getVariationsFallback(placementId, locale, variationType)
+        val response = cloudRepository.getVariationsFallback(placementId, locale, variationType, onResponseReceived)
+        currentCoroutineContext().ensureActive()
         val variations = response.data
         response.rawBody?.let { rawBody ->
             cacheRepository.saveRawVariations(placementId, variationType, rawBody, locale, null, variations.snapshotAt)
@@ -53,8 +57,9 @@ internal class PlacementCloudGateway(
         locale: String,
         variationId: String,
         variationType: VariationType,
+        onResponseReceived: () -> Unit = {},
     ): Variation {
-        return cloudRepository.getVariationByIdFallback(placementId, locale, variationId, variationType)
+        return cloudRepository.getVariationByIdFallback(placementId, locale, variationId, variationType, onResponseReceived)
             .persistRawSingleVariation(variationId, locale, variationType)
     }
 

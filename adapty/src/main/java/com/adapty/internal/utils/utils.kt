@@ -29,10 +29,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.retryWhen
-import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.sync.Semaphore
 import java.io.IOException
 import java.net.ConnectException
@@ -59,10 +57,18 @@ public fun getClassForNameOrNull(className: String): Class<*>? =
     }
 
 internal fun Throwable.asAdaptyError(): AdaptyError {
-    return (this as? AdaptyError) ?: AdaptyError(
-        originalError = this,
-        adaptyErrorCode = AdaptyErrorCode.UNKNOWN
-    )
+    return when (this) {
+        is AdaptyError -> this
+        is TimeoutException -> AdaptyError(
+            originalError = this,
+            message = "Request timed out",
+            adaptyErrorCode = AdaptyErrorCode.REQUEST_FAILED
+        )
+        else -> AdaptyError(
+            originalError = this,
+            adaptyErrorCode = AdaptyErrorCode.UNKNOWN
+        )
+    }
 }
 
 internal fun <T> List<T>.immutableWithInterop(): ImmutableList<T> {
@@ -141,7 +147,7 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 
 internal const val DEFAULT_PLACEMENT_LOCALE = "en"
 
-internal const val VERSION_NAME = "4.3.0"
+internal const val VERSION_NAME = "4.3.2"
 
 /**
  * @suppress
@@ -184,28 +190,13 @@ internal fun TimeInterval.toMillis() =
     else
         duration.inWholeMilliseconds.coerceAtMost(INF_PLACEMENT_TIMEOUT_MILLIS.toLong()).toInt()
 
-internal fun <T> timeout(flow: Flow<T>, timeout: Int) =
-    merge(
-        flow,
-        getTimeoutFlow<T>(timeout)
-    )
-        .take(1)
-
-internal class TimeoutException: Exception()
-
-private fun <T> getTimeoutFlow(timeout: Int) =
-    flow<T> {
-        delay(timeout.toLong())
-        throw TimeoutException()
-    }
-
 internal fun Throwable.isBackendUnavailable(): Boolean =
     this is TimeoutException || this is AdaptyError && (adaptyErrorCode == AdaptyErrorCode.SERVER_ERROR || originalError is IOException)
 
 internal val Throwable.isProfileWasChanged: Boolean
     get() = this is AdaptyError && adaptyErrorCode == AdaptyErrorCode.PROFILE_WAS_CHANGED
 
-internal fun <T> Flow<T>.recoverOnBackendUnavailable(nextValue: (error: Throwable) -> T) =
+internal fun <T> Flow<T>.recoverOnBackendUnavailable(nextValue: suspend (error: Throwable) -> T) =
     catch { error ->
         if (error.isBackendUnavailable()) {
             emit(nextValue(error))
@@ -214,7 +205,7 @@ internal fun <T> Flow<T>.recoverOnBackendUnavailable(nextValue: (error: Throwabl
         }
     }
 
-internal fun <T> Flow<T>.recoverUnlessProfileChanged(nextValue: (error: Throwable) -> T) =
+internal fun <T> Flow<T>.recoverUnlessProfileChanged(nextValue: suspend (error: Throwable) -> T) =
     catch { error ->
         if (error.isProfileWasChanged) {
             throw error

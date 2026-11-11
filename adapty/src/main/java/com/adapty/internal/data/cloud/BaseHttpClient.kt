@@ -20,7 +20,7 @@ internal class BaseHttpClient(
 ) : HttpClient {
 
     @WorkerThread
-    override fun <T> newCall(request: Request, typeOfT: Type): Response<T> {
+    override fun <T> newCall(request: Request, typeOfT: Type, onResponseReceived: () -> Unit): Response<T> {
         Logger.log(VERBOSE) {
             "${request.method.name} ${request.url}${
                 request.body?.takeIf(String::isNotEmpty)?.let { body -> " Body: $body" }.orEmpty()
@@ -45,7 +45,7 @@ internal class BaseHttpClient(
         try {
             connection = connectionCreator.createUrlConnection(request)
             connection.connect()
-            return responseManager.handleResponse(connection, request, typeOfT)
+            return responseManager.handleResponse(connection, request, typeOfT, onResponseReceived)
 
         } catch (e: Throwable) {
             if (e is Response.Error) throw e

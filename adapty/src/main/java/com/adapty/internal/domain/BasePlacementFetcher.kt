@@ -15,6 +15,7 @@ import com.adapty.internal.utils.INF_PLACEMENT_TIMEOUT_MILLIS
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.LifecycleManager
 import com.adapty.internal.utils.PLACEMENT_TIMEOUT_MILLIS_SHIFT
+import com.adapty.internal.utils.PlacementTimeoutBudget
 import com.adapty.internal.utils.generateUuid
 import com.adapty.internal.utils.isBackendUnavailable
 import com.adapty.internal.utils.isProfileWasChanged
@@ -22,9 +23,14 @@ import com.adapty.internal.utils.recoverOnBackendUnavailable
 import com.adapty.internal.utils.recoverUnlessProfileChanged
 import com.adapty.internal.utils.switchEndpointOnHostError
 import com.adapty.internal.utils.timeout
+import com.adapty.internal.utils.withTimeoutAbandoning
 import com.adapty.models.AdaptyPlacementFetchPolicy
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.flattenConcat
@@ -89,14 +95,22 @@ internal class BasePlacementFetcher(
         ).flattenConcat()
             .switchEndpointOnHostError()
 
-        return if (loadTimeout == INF_PLACEMENT_TIMEOUT_MILLIS) {
-            baseFlow
-        } else {
-            timeout(baseFlow, loadTimeout - PLACEMENT_TIMEOUT_MILLIS_SHIFT)
+        return flow {
+            val budget = PlacementTimeoutBudget(loadTimeout)
+            emitAll(
+                (if (loadTimeout == INF_PLACEMENT_TIMEOUT_MILLIS) {
+                    baseFlow
+                } else {
+                    timeout(baseFlow, loadTimeout - PLACEMENT_TIMEOUT_MILLIS_SHIFT)
+                })
+                    .recoverOnBackendUnavailable {
+                        withTimeoutAbandoning(budget.remaining()) { onResponseReceived ->
+                            cloudGateway.fetchFallbackVariations(placementId, locale, variationType, onResponseReceived)
+                        }
+                        Unit
+                    }
+            )
         }
-            .recoverOnBackendUnavailable {
-                cloudGateway.fetchFallbackVariations(placementId, locale, variationType)
-            }
     }
 
     private fun persistVariationsFromCloud(placementId: String, locale: String, variationType: VariationType) {
@@ -181,31 +195,36 @@ internal class BasePlacementFetcher(
         ).flattenConcat()
             .switchEndpointOnHostError()
 
-        return if (loadTimeout == INF_PLACEMENT_TIMEOUT_MILLIS) {
-            baseFlow
-        } else {
-            timeout(baseFlow, loadTimeout - PLACEMENT_TIMEOUT_MILLIS_SHIFT)
+        return flow {
+            val budget = PlacementTimeoutBudget(loadTimeout)
+            emitAll(
+                (if (loadTimeout == INF_PLACEMENT_TIMEOUT_MILLIS) {
+                    baseFlow
+                } else {
+                    timeout(baseFlow, loadTimeout - PLACEMENT_TIMEOUT_MILLIS_SHIFT)
+                })
+                    .recoverUnlessProfileChanged { error ->
+                        resolveOnBackendError(placementId, locale, variationType, placementSource, error, budget)
+                    }
+            )
         }
-            .recoverUnlessProfileChanged { error ->
-                resolveOnBackendError(placementId, locale, variationType, placementSource, error)
-            }
             .onCompletion { drawer.clearCheckpoint(placementRequestId) }
     }
 
-    private fun resolveOnBackendError(placementId: String, locale: String, variationType: VariationType, placementSource: PlacementSource.Regular, mainError: Throwable): Variation {
+    private suspend fun resolveOnBackendError(placementId: String, locale: String, variationType: VariationType, placementSource: PlacementSource.Regular, mainError: Throwable, budget: PlacementTimeoutBudget): Variation {
         val canUseFallbackServer = mainError.isBackendUnavailable()
         val assignedVariationId = drawer.markTimedOutAndGetAssigned(placementSource.placementRequestId)
         if (assignedVariationId != null) {
-            return resolveVariationByIdOnBackendError(placementId, locale, assignedVariationId, variationType, canUseFallbackServer, mainError)
+            return resolveVariationByIdOnBackendError(placementId, locale, assignedVariationId, variationType, canUseFallbackServer, mainError, budget)
         }
 
         localReader.readVariationFromCache(placementId, setOf(locale, DEFAULT_PLACEMENT_LOCALE), variationType)
             ?.let { return it }
 
         val fallbackServerResult = if (canUseFallbackServer) {
-            runCatching { getVariationFromFallbackServer(placementId, locale, variationType) }
+            runCatching { withTimeoutAbandoning(budget.remaining()) { onResponseReceived -> getVariationFromFallbackServer(placementId, locale, variationType, onResponseReceived) } }
                 .onSuccess { return it }
-                .also { result -> result.exceptionOrNull()?.takeIf { it.isProfileWasChanged }?.let { throw it } }
+                .also { result -> result.exceptionOrNull()?.takeIf { it.isProfileWasChanged || it is CancellationException }?.let { throw it } }
         } else null
 
         localReader.drawFromFallbackFileOrNull(placementId, locale, PlacementSource.Fallback.Local, variationType)
@@ -214,17 +233,17 @@ internal class BasePlacementFetcher(
         throw fallbackServerResult?.exceptionOrNull() ?: mainError
     }
 
-    private fun resolveVariationByIdOnBackendError(placementId: String, locale: String, variationId: String, variationType: VariationType, canUseFallbackServer: Boolean, mainError: Throwable): Variation {
+    private suspend fun resolveVariationByIdOnBackendError(placementId: String, locale: String, variationId: String, variationType: VariationType, canUseFallbackServer: Boolean, mainError: Throwable, budget: PlacementTimeoutBudget): Variation {
         localReader.readVariationByIdFromCache(placementId, setOf(locale, DEFAULT_PLACEMENT_LOCALE), variationId, variationType)
             ?.let { return it }
 
         val fallbackServerResult = if (canUseFallbackServer) {
-            runCatching { cloudGateway.fetchFallbackVariationById(placementId, locale, variationId, variationType) }
+            runCatching { withTimeoutAbandoning(budget.remaining()) { onResponseReceived -> cloudGateway.fetchFallbackVariationById(placementId, locale, variationId, variationType, onResponseReceived) } }
                 .onSuccess { variation ->
                     drawer.sendVariationAssignedEvent(variation, variationType)
                     return variation
                 }
-                .also { result -> result.exceptionOrNull()?.takeIf { it.isProfileWasChanged }?.let { throw it } }
+                .also { result -> result.exceptionOrNull()?.takeIf { it.isProfileWasChanged || it is CancellationException }?.let { throw it } }
         } else null
 
         localReader.getFallbackFileVariations(placementId)
@@ -241,7 +260,7 @@ internal class BasePlacementFetcher(
         flow { emit(getVariationFromFallbackServer(placementId, locale, variationType)) }
             .recoverUnlessProfileChanged { candidate }
 
-    private fun getVariationFromBackend(
+    private suspend fun getVariationFromBackend(
         placementId: String,
         locale: String,
         placementSource: PlacementSource.Regular,
@@ -253,11 +272,13 @@ internal class BasePlacementFetcher(
             drawer.recordAssignedVariation(placementSource.placementRequestId, crossPlacementVariationId)
             return cloudGateway.fetchVariationById(placementId, locale, crossPlacementVariationId, variationType)
                 .also { variation ->
+                    currentCoroutineContext().ensureActive()
                     drawer.sendVariationAssignedEvent(variation, variationType)
                 }
         }
 
         val (response, profile) = cloudGateway.fetchVariations(placementId, locale, variationType)
+        currentCoroutineContext().ensureActive()
 
         val (variations, request) = response
 
@@ -285,12 +306,13 @@ internal class BasePlacementFetcher(
         )
     }
 
-    private fun getVariationFromFallbackServer(
+    private suspend fun getVariationFromFallbackServer(
         placementId: String,
         locale: String,
         variationType: VariationType,
+        onResponseReceived: () -> Unit = {},
     ): Variation {
-        val variations = cloudGateway.fetchFallbackVariations(placementId, locale, variationType)
+        val variations = cloudGateway.fetchFallbackVariations(placementId, locale, variationType, onResponseReceived)
         val profileId = cacheRepository.getProfileId()
         return drawer.extractSingleVariation(variations.data, profileId, placementId, locale, PlacementSource.Fallback.Remote, variationType)
     }

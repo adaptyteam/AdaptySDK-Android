@@ -70,7 +70,7 @@ internal class CloudRepository(
             InstallRegistrationResponseData::class.java,
         )
 
-    fun getVariationsFallback(id: String, locale: String, variationType: VariationType): Response<Variations> =
+    fun getVariationsFallback(id: String, locale: String, variationType: VariationType, onResponseReceived: () -> Unit = {}): Response<Variations> =
         try {
             httpClient.newCall(
                 when (variationType) {
@@ -78,16 +78,17 @@ internal class CloudRepository(
                     VariationType.Flow -> auxRequestFactory.getFlowVariationsFallbackRequest(id)
                 },
                 Variations::class.java,
+                onResponseReceived,
             )
         } catch (error: Response.Error) {
             when {
                 error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
-                    getVariationsFallback(id, DEFAULT_PLACEMENT_LOCALE, variationType)
+                    getVariationsFallback(id, DEFAULT_PLACEMENT_LOCALE, variationType, onResponseReceived)
                 else -> throw error
             }
         }
 
-    fun getVariationByIdFallback(id: String, locale: String, variationId: String, variationType: VariationType): Response<Variation> =
+    fun getVariationByIdFallback(id: String, locale: String, variationId: String, variationType: VariationType, onResponseReceived: () -> Unit = {}): Response<Variation> =
         try {
             httpClient.newCall(
                 when (variationType) {
@@ -95,11 +96,12 @@ internal class CloudRepository(
                     VariationType.Flow -> auxRequestFactory.getFlowByVariationIdFallbackRequest(id, variationId)
                 },
                 Variation::class.java,
+                onResponseReceived,
             )
         } catch (error: Response.Error) {
             when {
                 error.adaptyErrorCode == AdaptyErrorCode.BAD_REQUEST && locale != DEFAULT_PLACEMENT_LOCALE ->
-                    getVariationByIdFallback(id, DEFAULT_PLACEMENT_LOCALE, variationId, variationType)
+                    getVariationByIdFallback(id, DEFAULT_PLACEMENT_LOCALE, variationId, variationType, onResponseReceived)
                 else -> throw error
             }
         }

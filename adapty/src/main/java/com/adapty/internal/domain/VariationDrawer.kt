@@ -12,7 +12,7 @@ import com.adapty.internal.data.models.Variation
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.Logger
 import com.adapty.internal.utils.VariationPicker
-import com.adapty.internal.utils.unlockQuietly
+import com.adapty.internal.utils.withLockSafe
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
@@ -73,33 +73,42 @@ internal class VariationDrawer(
             return resolvePinnedVariation(pinnedVariationId, variations, placementId, locale, placementSource, variationType)
         }
 
-        crossPlacementInfoLock.writeLock().lock()
-        val cachedCrossPlacementInfo = cacheRepository.getCrossPlacementInfo()
-        cachedCrossPlacementInfo?.placementWithVariationMap?.get(placementId)?.let { pinnedVariationId ->
-            crossPlacementInfoLock.writeLock().unlockQuietly()
-            return resolvePinnedVariation(pinnedVariationId, variations, placementId, locale, placementSource, variationType)
+        val lockedDraw = crossPlacementInfoLock.writeLock().withLockSafe {
+            val cachedCrossPlacementInfo = cacheRepository.getCrossPlacementInfo()
+            cachedCrossPlacementInfo?.placementWithVariationMap?.get(placementId)?.let { pinnedVariationId ->
+                return@withLockSafe LockedDraw.Pinned(pinnedVariationId)
+            }
+
+            val variation = if (variations.size == 1) variations.first() else pickVariation(variations, profileId)
+            if (variation == null) {
+                val message = "Variation couldn't be found"
+                Logger.log(ERROR) { message }
+                throw AdaptyError(
+                    message = message,
+                    adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
+                )
+            }
+            val crossPlacementInfoFromVariation = variation.crossPlacementInfo
+            crossPlacementInfoFromVariation?.placementWithVariationMap?.takeIf { it.isNotEmpty() }?.let {
+                if (cachedCrossPlacementInfo != null && cachedCrossPlacementInfo.placementWithVariationMap.isEmpty())
+                    cacheRepository.saveCrossPlacementInfoFromPaywall(crossPlacementInfoFromVariation.copy(version = cachedCrossPlacementInfo.version))
+            }
+            if (placementSource is PlacementSource.Regular)
+                checkpointHolder.getAndUpdate(placementSource.placementRequestId, CheckPoint.VariationAssigned(variation.variationId))
+            LockedDraw.Drawn(variation)
         }
 
-        val variation = if (variations.size == 1) variations.first() else pickVariation(variations, profileId)
-        if (variation == null) {
-            crossPlacementInfoLock.writeLock().unlockQuietly()
-            val message = "Variation couldn't be found"
-            Logger.log(ERROR) { message }
-            throw AdaptyError(
-                message = message,
-                adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
-            )
+        return when (lockedDraw) {
+            is LockedDraw.Pinned ->
+                resolvePinnedVariation(lockedDraw.variationId, variations, placementId, locale, placementSource, variationType)
+            is LockedDraw.Drawn ->
+                lockedDraw.variation.also { variation -> sendVariationAssignedEvent(variation, variationType) }
         }
-        val crossPlacementInfoFromVariation = variation.crossPlacementInfo
-        crossPlacementInfoFromVariation?.placementWithVariationMap?.takeIf { it.isNotEmpty() }?.let {
-            if (cachedCrossPlacementInfo != null && cachedCrossPlacementInfo.placementWithVariationMap.isEmpty())
-                cacheRepository.saveCrossPlacementInfoFromPaywall(crossPlacementInfoFromVariation.copy(version = cachedCrossPlacementInfo.version))
-        }
-        if (placementSource is PlacementSource.Regular)
-            checkpointHolder.getAndUpdate(placementSource.placementRequestId, CheckPoint.VariationAssigned(variation.variationId))
-        crossPlacementInfoLock.writeLock().unlockQuietly()
-        sendVariationAssignedEvent(variation, variationType)
-        return variation
+    }
+
+    private sealed class LockedDraw {
+        class Pinned(val variationId: String) : LockedDraw()
+        class Drawn(val variation: Variation) : LockedDraw()
     }
 
     private fun resolvePinnedVariation(

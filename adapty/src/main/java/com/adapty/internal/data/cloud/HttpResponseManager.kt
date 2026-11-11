@@ -22,6 +22,7 @@ internal interface HttpResponseManager {
         connection: HttpURLConnection,
         request: Request,
         typeOfT: Type,
+        onResponseReceived: () -> Unit = {},
     ): Response<T>
 }
 
@@ -37,6 +38,7 @@ internal class DefaultHttpResponseManager(
         connection: HttpURLConnection,
         request: Request,
         typeOfT: Type,
+        onResponseReceived: () -> Unit,
     ): Response<T> {
         val isInGzip =
             connection.getHeaderField("Content-Encoding")?.contains("gzip", true) ?: false
@@ -66,6 +68,7 @@ internal class DefaultHttpResponseManager(
                     )
                 }
             }
+            onResponseReceived()
             Logger.log(VERBOSE) { "Request is successful. ${connection.url} Response: $responseStr" }
             request.systemLog?.let { customData ->
                 analyticsTracker.trackSystemEvent(BackendAPIResponseData.create(requestId, connection.headerFields, customData))

@@ -6,5 +6,5 @@ import java.lang.reflect.Type
 @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 internal interface HttpClient {
 
-    fun <T> newCall(request: Request, typeOfT: Type): Response<T>
+    fun <T> newCall(request: Request, typeOfT: Type, onResponseReceived: () -> Unit = {}): Response<T>
 }
