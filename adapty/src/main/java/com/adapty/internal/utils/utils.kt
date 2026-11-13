@@ -147,7 +147,7 @@ internal const val DEFAULT_RETRY_COUNT = 3L
 
 internal const val DEFAULT_PLACEMENT_LOCALE = "en"
 
-internal const val VERSION_NAME = "4.3.2"
+internal const val VERSION_NAME = "4.3.3"
 
 /**
  * @suppress

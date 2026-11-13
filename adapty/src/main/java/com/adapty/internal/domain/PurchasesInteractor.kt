@@ -458,11 +458,8 @@ internal class PurchasesInteractor(
 
                     if (purchase == null) {
                         Logger.log(WARN) { "Purchase $transactionId was not found in active purchases" }
-                        return@findPurchase restorePurchases()
-                            .map { profile ->
-                                cloudRepository.setVariationId(transactionId, variationId)
-                                profile
-                            }
+                        return@findPurchase setVariationId(transactionId, variationId)
+                            .flatMapConcat { profileInteractor.getProfile() }
                     }
 
                     storeManager.findProductDetailsForPurchase(
@@ -472,14 +469,8 @@ internal class PurchasesInteractor(
                         .flatMapConcat findProduct@{ product ->
                             if (product == null) {
                                 Logger.log(WARN) { "Product was not found for purchase (${purchase.products})" }
-                                return@findProduct restorePurchases()
-                                    .map { profile ->
-                                        cloudRepository.setVariationId(
-                                            transactionId,
-                                            variationId
-                                        )
-                                        profile
-                                    }
+                                return@findProduct setVariationId(transactionId, variationId)
+                                    .flatMapConcat { restorePurchasesOrGetProfile() }
                             }
 
                             authInteractor.runWhenAuthDataSynced {
@@ -499,6 +490,21 @@ internal class PurchasesInteractor(
                         }
                 }
         } else {
-            restorePurchases()
+            restorePurchasesOrGetProfile()
         }
+
+    private fun setVariationId(transactionId: String, variationId: String): Flow<Unit> =
+        authInteractor.runWhenAuthDataSynced {
+            cloudRepository.setVariationId(transactionId, variationId)
+        }
+
+    private fun restorePurchasesOrGetProfile(): Flow<AdaptyProfile> =
+        restorePurchases()
+            .catch { error ->
+                if ((error as? AdaptyError)?.adaptyErrorCode == NO_PURCHASES_TO_RESTORE) {
+                    emitAll(profileInteractor.getProfile())
+                } else {
+                    throw error
+                }
+            }
 }

@@ -572,8 +572,10 @@ public object Adapty {
      * @param[transactionInfo] A [TransactionInfo] instance, containing either a string identifier (`purchase.getOrderId()`) of the purchase,
      * or an instance of the billing library [Purchase](https://developer.android.com/reference/com/android/billingclient/api/Purchase) class.
      *
-     * @param[variationId] A string identifier of variation. You can get it using
-     * [variationId][AdaptyFlow.variationId] property of [AdaptyFlow].
+     * @param[variationId] A string identifier of variation. Pass the
+     * [variationId][AdaptyPaywallProduct.variationId] of the purchased [AdaptyPaywallProduct]
+     * (the same value as [variationId][AdaptyFlowPaywall.variationId] of its parent
+     * [AdaptyFlowPaywall]).
      *
      * @param[callback] A result containing the optional [AdaptyError].
      *

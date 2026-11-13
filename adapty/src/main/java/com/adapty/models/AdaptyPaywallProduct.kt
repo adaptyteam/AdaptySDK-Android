@@ -18,7 +18,7 @@ import java.math.BigDecimal
  * @property[productDetails] Underlying system representation of the product.
  * @property[productType] The type of the product.
  * @property[subscriptionDetails] Consolidates all subscription-related properties if the product is a subscription, otherwise `null`.
- * @property[variationId] Same as [variationId][AdaptyFlow.variationId] property of the parent [AdaptyFlow].
+ * @property[variationId] Same as [variationId][AdaptyFlowPaywall.variationId] property of the parent [AdaptyFlowPaywall].
  * @property[vendorProductId] Unique identifier of a product from App Store Connect or Google Play Console.
  */
 public class AdaptyPaywallProduct internal constructor(
