@@ -8,7 +8,9 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.MetaInfoRetriever
 import com.adapty.models.AdaptyFlow
 import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.models.AdaptyProductDiscountPhase
 import com.adapty.models.AdaptyProductDiscountPhase.PaymentMode
+import com.adapty.models.AdaptyProductSubscriptionDetails
 import com.adapty.ui.internal.store.resolveProductKey
 import com.adapty.ui.internal.text.BILLING_PLAN_UP_FRONT
 import com.adapty.ui.internal.utils.CONFIGURATION_FORMAT_VERSION
@@ -208,43 +210,53 @@ internal object SDKGlobals {
             pricingTermsPairs.add("commitmentInfo" to RawJson(buildJsonObject(commitmentPairs)))
             subPairs.add("pricingTerms" to RawJson(buildJsonObject(pricingTermsPairs)))
 
-            val offerJson = sub.offerId?.let { offerId ->
-                val firstPhase = sub.introductoryOfferPhases.firstOrNull()
-                val phasePairs = mutableListOf<Pair<String, Any?>>()
-                if (firstPhase != null) {
-                    val offerPricePairs = mutableListOf<Pair<String, Any?>>()
-                    offerPricePairs.add("amount" to firstPhase.price.amount.toDouble())
-                    offerPricePairs.add("currencyCode" to firstPhase.price.currencyCode)
-                    offerPricePairs.add("currencySymbol" to firstPhase.price.currencySymbol)
-                    offerPricePairs.add("localizedString" to firstPhase.price.localizedString)
-
-                    val offerPeriodPairs = mutableListOf<Pair<String, Any?>>()
-                    offerPeriodPairs.add("unit" to firstPhase.subscriptionPeriod.unit.name.lowercase())
-                    offerPeriodPairs.add("numberOfUnits" to firstPhase.subscriptionPeriod.numberOfUnits)
-
-                    phasePairs.add("price" to RawJson(buildJsonObject(offerPricePairs)))
-                    phasePairs.add("paymentMode" to firstPhase.paymentMode.toJsonValue())
-                    phasePairs.add("period" to RawJson(buildJsonObject(offerPeriodPairs)))
-                    phasePairs.add("numberOfPeriods" to firstPhase.numberOfPeriods)
-                    phasePairs.add("localizedPeriod" to firstPhase.localizedSubscriptionPeriod)
-                    phasePairs.add("localizedNumberOfPeriods" to firstPhase.localizedNumberOfPeriods)
-                }
-
-                val offerPairs = mutableListOf<Pair<String, Any?>>()
-                offerPairs.add("id" to offerId)
-                offerPairs.add("type" to "introductory")
-                if (phasePairs.isNotEmpty()) {
-                    offerPairs.add("phases" to RawJson("[${buildJsonObject(phasePairs)}]"))
-                }
-                RawJson(buildJsonObject(offerPairs))
-            }
-            subPairs.add("offer" to offerJson)
+            subPairs.add("offer" to buildOfferJson(sub)?.let(::RawJson))
 
             RawJson(buildJsonObject(subPairs))
         }
         pairs.add("subscription" to subscriptionJson)
 
         return buildJsonObject(pairs)
+    }
+
+    /**
+     * `SDKProducts[*].subscription.offer`, or null when the product has no offer.
+     *
+     * `phases` lists every discount phase of the Google Play offer in Play order (for example a
+     * free trial, then an intro price); the base plan is not a phase. An offer without discount
+     * phases has no `phases` key.
+     */
+    internal fun buildOfferJson(sub: AdaptyProductSubscriptionDetails): String? {
+        val offerId = sub.offerId ?: return null
+        val offerPairs = mutableListOf<Pair<String, Any?>>()
+        offerPairs.add("id" to offerId)
+        offerPairs.add("type" to "introductory")
+        val phases = sub.introductoryOfferPhases.map { RawJson(buildOfferPhaseJson(it)) }
+        if (phases.isNotEmpty()) {
+            offerPairs.add("phases" to phases)
+        }
+        return buildJsonObject(offerPairs)
+    }
+
+    private fun buildOfferPhaseJson(phase: AdaptyProductDiscountPhase): String {
+        val pricePairs = mutableListOf<Pair<String, Any?>>()
+        pricePairs.add("amount" to phase.price.amount.toDouble())
+        pricePairs.add("currencyCode" to phase.price.currencyCode)
+        pricePairs.add("currencySymbol" to phase.price.currencySymbol)
+        pricePairs.add("localizedString" to phase.price.localizedString)
+
+        val periodPairs = mutableListOf<Pair<String, Any?>>()
+        periodPairs.add("unit" to phase.subscriptionPeriod.unit.name.lowercase())
+        periodPairs.add("numberOfUnits" to phase.subscriptionPeriod.numberOfUnits)
+
+        val phasePairs = mutableListOf<Pair<String, Any?>>()
+        phasePairs.add("price" to RawJson(buildJsonObject(pricePairs)))
+        phasePairs.add("paymentMode" to phase.paymentMode.toJsonValue())
+        phasePairs.add("period" to RawJson(buildJsonObject(periodPairs)))
+        phasePairs.add("numberOfPeriods" to phase.numberOfPeriods)
+        phasePairs.add("localizedPeriod" to phase.localizedSubscriptionPeriod)
+        phasePairs.add("localizedNumberOfPeriods" to phase.localizedNumberOfPeriods)
+        return buildJsonObject(phasePairs)
     }
 
     private class RawJson(val json: String)
