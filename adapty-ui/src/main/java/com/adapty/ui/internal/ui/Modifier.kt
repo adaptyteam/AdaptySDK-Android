@@ -4,12 +4,10 @@ package com.adapty.ui.internal.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -38,22 +36,15 @@ import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.offset
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
@@ -62,7 +53,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.ui.attributes.AnimationTarget
 import com.adapty.ui.internal.ui.attributes.DimSpec
+import com.adapty.ui.internal.ui.attributes.target
 import com.adapty.ui.internal.ui.attributes.DimUnit
 import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorHorizontal
 import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorVertical
@@ -74,17 +67,21 @@ import com.adapty.ui.internal.ui.attributes.asTransformOrigin
 import com.adapty.ui.internal.ui.attributes.degreesIn
 import com.adapty.ui.internal.ui.attributes.horizontalSumOrDefault
 import com.adapty.ui.internal.ui.attributes.toComposeFill
-import com.adapty.ui.internal.ui.attributes.toComposeShape
 import com.adapty.ui.internal.ui.attributes.toExactDp
 import com.adapty.ui.internal.ui.attributes.verticalSumOrDefault
 import com.adapty.ui.internal.ui.attributes.Animation
 import com.adapty.ui.internal.ui.attributes.Border
+import com.adapty.ui.internal.ui.attributes.BlendMode
+import com.adapty.ui.internal.ui.attributes.Decorator
 import com.adapty.ui.internal.ui.element.BaseProps
+import com.adapty.ui.internal.ui.element.CustomElement
 import com.adapty.ui.internal.ui.element.OffsetProvider
 import com.adapty.ui.internal.ui.element.ResolveAssets
 import com.adapty.ui.internal.ui.element.TextFieldElement
 import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.ui.element.drawsOnlyDecorator
+import androidx.compose.ui.input.pointer.PointerEventPass
+import com.adapty.ui.internal.ui.element.hasOpacityAnimation
 import androidx.compose.ui.input.pointer.pointerInput
 import com.adapty.ui.internal.utils.LocalSafeAreaInsets
 import com.adapty.ui.internal.utils.LocalScreenDimensions
@@ -98,21 +95,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.focusable
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.store.Message
-import androidx.compose.ui.graphics.toArgb
-import android.graphics.BlurMaskFilter
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
-import com.adapty.ui.internal.ui.attributes.DpOffset
 import com.adapty.ui.internal.ui.attributes.Rotation
 import com.adapty.ui.internal.ui.attributes.Scale
 import com.adapty.ui.internal.ui.element.BlurProvider
-import com.adapty.ui.internal.ui.element.InnerShadowProvider
 import com.adapty.ui.internal.ui.element.LocalActiveAnimations
 import com.adapty.ui.internal.ui.element.activeAnimationsFor
 import com.adapty.ui.internal.ui.element.hasVisualAnimations
 import com.adapty.ui.internal.ui.element.pendingAppearAnimationsFor
 import com.adapty.ui.internal.ui.element.OverlayContainerElement
-import com.adapty.ui.internal.ui.element.ShadowProvider
 import com.adapty.ui.internal.utils.resolveAsset
 import com.adapty.ui.internal.utils.VisualValue
 
@@ -130,7 +120,7 @@ internal fun Modifier.fillWithBaseParams(
         element.baseProps,
         backgroundAlpha = backgroundAlpha,
         isOverlayContainer = element is OverlayContainerElement,
-        handlesOwnFocus = element is TextFieldElement,
+        handlesOwnFocus = element is TextFieldElement || element is CustomElement,
     ).blockTouchesBelowIfPainted(element)
 
 @Composable
@@ -144,7 +134,7 @@ internal fun Modifier.blockTouchesBelowIfPainted(element: UIElement): Modifier =
 @Composable
 private fun UIElement.paintsOwnPixels(): Boolean {
     if (!drawsOnlyDecorator) return true
-    val decorator = baseProps.shape ?: return false
+    val decorator = baseProps.decorator ?: return false
     val fill = decorator.fill?.resolveAsset<Asset.Filling.Local>() ?: return false
     return fill.main !is Asset.Color || fill.cast<Asset.Color>().toComposeFill().color.alpha > 0f
 }
@@ -164,8 +154,6 @@ internal fun Modifier.fillWithBaseParams(
     val offsetProvider = rememberOffsetProvider(baseProps)
     val opacityProvider = LocalOpacityProvider.current ?: rememberOpacityProvider(baseProps)
     val boxProvider = rememberBoxProvider(baseProps)
-    val shadowProvider = rememberShadowProvider(baseProps)
-    val innerShadowProvider = rememberInnerShadowProvider(baseProps)
     val blurProvider = rememberBlurProvider(baseProps)
 
     val rotation = rotationProvider.rotation.value
@@ -189,7 +177,9 @@ internal fun Modifier.fillWithBaseParams(
         }
     }
 
-    val backgroundShape = baseProps.shape?.type?.toComposeShape()
+    val decorator = if (isOverlayContainer) null else baseProps.decoratorOrShadowHost()
+    val resolvedDecorator = decorator?.resolve(rememberDecoratorAnimations(baseProps, decorator))
+    val overflow = rememberOverflowExtent(resolvedDecorator)
 
     var result = this
         .sizeAndMarginsOrSkip(baseProps, boxProvider)
@@ -214,14 +204,31 @@ internal fun Modifier.fillWithBaseParams(
                     )
         }
         .offsetOrSkip(offsetProvider)
-        .let { if (isOverlayContainer) it else it.blurOrSkip(blurProvider, shadowProvider.captureExpand) }
         .let {
             if (isOverlayContainer) it
-            else it.shadowOrSkip(shadowProvider, backgroundShape ?: RectangleShape, alpha, rotation, scale)
+            else it.elementBlendOrSkip(baseProps.blend, resolvedDecorator, blurProvider.radius.value.dp, overflow)
         }
-        .let { if (alpha != 1f) it.graphicsLayer(alpha = alpha) else it }
-        .clipToShapeOrSkip(backgroundShape)
-        .backgroundOrSkip(baseProps, innerShadowProvider, backgroundAlpha)
+        .let {
+            if (isOverlayContainer) it
+            else it.blurOrSkip(blurProvider, resolvedDecorator?.shadowCaptureExpand ?: 0.dp)
+        }
+        .let { if (alpha != 1f && resolvedDecorator == null) it.graphicsLayer(alpha = alpha) else it }
+        .let {
+            val resolved = resolvedDecorator ?: return@let it
+            it.decorator(
+                resolved,
+                backgroundAlpha,
+                alpha = alpha,
+                rotation = rotation,
+                scale = scale,
+                overflow = overflow,
+            )
+        }
+        .overflowExtent(
+            overflow,
+            tracks = baseProps.tracksOverflow(resolvedDecorator, alpha),
+            reach = (resolvedDecorator?.shadowCaptureExpand ?: 0.dp) + blurProvider.radius.value.dp,
+        )
 
     if (focusRequester != null) {
         result = result.focusRequester(focusRequester).focusable()
@@ -260,20 +267,11 @@ private fun Modifier.fillWithBaseParamsStatic(
         }
     }
 
-    val backgroundShape = baseProps.shape?.type?.toComposeShape()
-
-    val shadow = baseProps.shape?.shadow
-    val shadowColor = shadow?.color?.resolveAsset<Asset.Filling.Local>()
-        ?.castOrNull<Asset.Color>()?.toComposeFill()?.color
-        ?: androidx.compose.ui.graphics.Color.Transparent
-    val shadowBlurRadius = shadow?.blurRadius ?: 0f
-    val shadowOffset = (shadow?.offset ?: Offset.Default).asDpOffset()
-    val staticCaptureExpand =
-        if (shadowColor.alpha == 0f) 0.dp
-        else (shadowBlurRadius + maxOf(kotlin.math.abs(shadowOffset.x), kotlin.math.abs(shadowOffset.y))).dp
+    val resolvedDecorator = baseProps.decorator?.resolve(animations = null)
+    val overflow = rememberOverflowExtent(resolvedDecorator)
 
     val staticOffset = baseProps.offset?.asDpOffset()
-    val blurRadius = baseProps.shape?.blurRadius ?: 0f
+    val blurRadius = baseProps.decorator?.blurRadius ?: 0f
 
     var result = this
         .sizeAndMarginsOrSkip(baseProps, StaticBoxProvider)
@@ -302,21 +300,30 @@ private fun Modifier.fillWithBaseParamsStatic(
             else it.then(StaticOffsetElement(staticOffset.x.dp, staticOffset.y.dp))
         }
         .let {
-            if (isOverlayContainer || blurRadius <= 0f) it
-            else it.blur(blurRadius.dp, staticCaptureExpand)
+            if (isOverlayContainer) it
+            else it.elementBlendOrSkip(baseProps.blend, resolvedDecorator, blurRadius.dp, overflow)
         }
         .let {
-            if (isOverlayContainer) it
-            else {
-                val color =
-                    if (alpha < 1f) shadowColor.copy(alpha = shadowColor.alpha * alpha) else shadowColor
-                if (color.alpha == 0f) it
-                else it.shadow(color, backgroundShape ?: RectangleShape, shadowBlurRadius.dp, shadowOffset, rotation, scale)
-            }
+            if (isOverlayContainer || blurRadius <= 0f) it
+            else it.blur(blurRadius.dp, resolvedDecorator?.shadowCaptureExpand ?: 0.dp)
         }
-        .let { if (alpha != 1f) it.graphicsLayer(alpha = alpha) else it }
-        .clipToShapeOrSkip(backgroundShape)
-        .backgroundOrSkipStatic(baseProps, backgroundAlpha)
+        .let { if (alpha != 1f && resolvedDecorator == null) it.graphicsLayer(alpha = alpha) else it }
+        .let {
+            val resolved = resolvedDecorator ?: return@let it
+            it.decorator(
+                resolved,
+                backgroundAlpha,
+                alpha = alpha,
+                rotation = rotation,
+                scale = scale,
+                overflow = overflow,
+            )
+        }
+        .overflowExtent(
+            overflow,
+            tracks = baseProps.tracksOverflow(resolvedDecorator, alpha),
+            reach = (resolvedDecorator?.shadowCaptureExpand ?: 0.dp) + blurRadius.dp,
+        )
 
     if (focusRequester != null) {
         result = result.focusRequester(focusRequester).focusable()
@@ -326,444 +333,186 @@ private fun Modifier.fillWithBaseParamsStatic(
 }
 
 @Composable
-private fun Modifier.backgroundOrSkipStatic(
-    baseProps: BaseProps,
-    backgroundAlpha: State<Float>?,
-): Modifier {
-    val decorator = baseProps.shape ?: return this
-    var modifier = this
-    val backgroundShape = decorator.type.toComposeShape()
-    if (decorator.fill != null) {
-        val background = decorator.fill.resolveAsset<Asset.Filling.Local>()
-        if (background != null)
-            modifier = modifier.background(background, backgroundShape, backgroundAlpha)
-        val innerShadow = decorator.innerShadow
-        if (innerShadow != null &&
-            (background?.main is Asset.Color || background?.main is Asset.Gradient)) {
-            val innerShadowColor = innerShadow.color?.resolveAsset<Asset.Filling.Local>()
-                ?.castOrNull<Asset.Color>()?.toComposeFill()?.color
-                ?: androidx.compose.ui.graphics.Color.Transparent
-            if (innerShadowColor.alpha != 0f) {
-                modifier = modifier.innerShadow(
-                    innerShadowColor,
-                    backgroundShape,
-                    (innerShadow.blurRadius ?: 0f).dp,
-                    (innerShadow.offset ?: Offset.Default).asDpOffset(),
-                    backgroundAlpha,
-                )
-            }
-        }
-    }
+internal fun BaseProps.tracksOverflow(decorator: ResolvedDecorator?, alpha: Float): Boolean =
+    (blend != BlendMode.NORMAL && blend != BlendMode.DESTINATION_IN) ||
+        decorator != null && (decorator.blends || alpha != 1f || hasOpacityAnimation() || LocalOpacityProvider.current != null)
 
-    if (decorator.border != null) {
-        val border = decorator.border.color.resolveAsset<Asset.Filling.Local>()
-        val borderShape = decorator.border.shapeType.toComposeShape()
-        val thickness = decorator.border.thickness.dp
-        when (border?.main) {
-            is Asset.Color -> {
-                modifier = modifier.border(
-                    thickness,
-                    border.cast<Asset.Color>().toComposeFill().color,
-                    borderShape,
-                )
-            }
-            is Asset.Gradient -> {
-                modifier = modifier.border(
-                    thickness,
-                    border.cast<Asset.Gradient>().toComposeFill().shader,
-                    borderShape,
-                )
-            }
-            is Asset.Image -> {
-                modifier = modifier.border(
-                    thickness,
-                    androidx.compose.ui.graphics.Color.Transparent,
-                    borderShape,
-                )
-            }
-            else -> Unit
-        }
-    }
-    return modifier
+@Composable
+internal fun rememberOverflowExtent(decorator: ResolvedDecorator?): OverflowExtent? {
+    val extent = remember { OverflowExtent() }
+    return extent.takeIf { decorator == null || decorator.decorator.clip == Decorator.Clip.NONE }
 }
 
 @Composable
-internal fun Modifier.backgroundOrSkip(
-    decorator: com.adapty.ui.internal.ui.attributes.Shape?,
-): Modifier {
-    val actualDecorator = decorator ?: return this
-    var modifier = this
-    val backgroundShape = actualDecorator.type.toComposeShape()
-    modifier = modifier.clipToShape(backgroundShape)
-    if (actualDecorator.fill != null) {
-        val background = actualDecorator.fill.resolveAsset<Asset.Filling.Local>()
-        if (background != null)
-            modifier = modifier.background(background, backgroundShape)
-    }
-
-    if (actualDecorator.border != null) {
-        val border = actualDecorator.border.color.resolveAsset<Asset.Filling.Local>()
-        when (border?.main) {
-            is Asset.Color -> {
-                modifier = modifier.border(
-                    actualDecorator.border.thickness.dp,
-                    border.cast<Asset.Color>().toComposeFill().color,
-                    actualDecorator.border.shapeType.toComposeShape(),
-                )
-            }
-            is Asset.Gradient -> {
-                modifier = modifier.border(
-                    actualDecorator.border.thickness.dp,
-                    border.cast<Asset.Gradient>().toComposeFill().shader,
-                    actualDecorator.border.shapeType.toComposeShape(),
-                )
-            }
-            else -> Unit
-        }
-    }
-    return modifier
+internal fun BaseProps.resolveMainDecorator(): ResolvedDecorator? {
+    val decorator = decoratorOrShadowHost() ?: return null
+    return decorator.resolve(rememberDecoratorAnimations(this, decorator))
 }
 
 @Composable
-internal fun Modifier.backgroundOrSkip(
-    baseProps: BaseProps,
-    innerShadowProvider: InnerShadowProvider? = null,
-    backgroundAlpha: State<Float>? = null,
+internal fun Modifier.overlayMainDecoratorOrSkip(
+    resolved: ResolvedDecorator?,
+    rotation: Rotation,
+    scale: Scale,
+    overflow: OverflowExtent? = null,
 ): Modifier {
-    val decorator = baseProps.shape ?: return this
-    var modifier = this
-    val backgroundShape = decorator.type.toComposeShape()
-    if (decorator.fill != null) {
-        val background = decorator.fill.resolveAsset<Asset.Filling.Local>()
-        if (background != null)
-            modifier = modifier.background(background, backgroundShape, baseProps, backgroundAlpha)
-        if (innerShadowProvider != null &&
-            (background?.main is Asset.Color || background?.main is Asset.Gradient)) {
-            modifier = modifier.innerShadowOrSkip(innerShadowProvider, backgroundShape, backgroundAlpha)
-        }
-    }
-
-    if (decorator.border != null) {
-        val border = decorator.border.color.resolveAsset<Asset.Filling.Local>()
-        if (border != null) {
-            modifier = modifier.border(border, decorator.border.shapeType.toComposeShape(), baseProps)
-        }
-    }
-    return modifier
+    resolved ?: return this
+    return this.decorator(resolved, rotation = rotation, scale = scale, overflow = overflow)
 }
 
-private data class ClipToShapeElement(
-    private val shape: Shape,
-) : ModifierNodeElement<ClipToShapeNode>() {
-    override fun create() = ClipToShapeNode(shape)
-    override fun update(node: ClipToShapeNode) {
-        node.shape = shape
-    }
-}
+private fun BaseProps.decoratorOrShadowHost(): Decorator? =
+    decorator ?: if (hasShadowAnimations()) Decorator.background(null) else null
 
-private class ClipToShapeNode(
-    var shape: Shape,
-) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
-    
-    private var useCustomClip: Boolean? = null
-    private var cachedShape: Shape? = null
-    
-    override fun ContentDrawScope.draw() {
-        val density = currentValueOf(LocalDensity)
-        val layoutDirection = currentValueOf(LocalLayoutDirection)
-        
-        if (cachedShape != shape) {
-            cachedShape = shape
-            useCustomClip = shape.createOutline(Size(100f, 100f), layoutDirection, density) is Outline.Generic
-        }
-        
-        if (useCustomClip == true) {
-            val outline = shape.createOutline(size, layoutDirection, density)
-            val path = (outline as Outline.Generic).path
-            
-            val canvas = drawContext.canvas
-            canvas.save()
-            canvas.clipPath(path)
-            drawContent()
-            canvas.restore()
-        } else {
-            drawContent()
-        }
-    }
-}
+private fun BaseProps.hasShadowAnimations(): Boolean =
+    eventHandlers?.any { handler -> handler.animations.any { it.target == LEGACY_SHADOW } } ?: false
 
-private fun Modifier.clipToShape(shape: Shape): Modifier {
-    val density = Density(1f)
-    val layoutDirection = LayoutDirection.Ltr
-    val useCustomClip = shape.createOutline(Size(100f, 100f), layoutDirection, density) is Outline.Generic
-    return if (useCustomClip) {
-        this.then(ClipToShapeElement(shape))
-    } else {
-        this.clip(shape)
-    }
-}
+private val LEGACY_SHADOW = AnimationTarget(Animation.Role.Shadow, Decorator.LEGACY_ID)
+private val LEGACY_INNER_SHADOW = AnimationTarget(Animation.Role.InnerShadow, Decorator.LEGACY_ID)
 
-private fun Modifier.clipToShapeOrSkip(shape: Shape?): Modifier {
-    shape ?: return this
-    return clipToShape(shape)
-}
+private val DECORATOR_ROLES = setOf(
+    Animation.Role.Background, Animation.Role.Border, Animation.Role.Shadow, Animation.Role.InnerShadow,
+)
+
+private fun BaseProps.decoratorTargets(): Set<AnimationTarget> =
+    eventHandlers.orEmpty()
+        .flatMap { handler -> handler.animations }
+        .filter { it.role in DECORATOR_ROLES }
+        .mapTo(mutableSetOf()) { it.target }
 
 @Composable
-private fun Modifier.background(
-    background: Asset.Composite<Asset.Filling.Local>,
-    shape: Shape,
-    baseProps: BaseProps,
-    backgroundAlpha: State<Float>?,
-): Modifier {
-    val backgroundAnimations = if (!baseProps.hasVisualAnimations()) null
-    else activeAnimationsFor(Animation.Role.Background)
-        ?: baseProps.pendingAppearAnimationsFor(Animation.Role.Background)
-
-    val hasMixedAssetTypeAnimations = backgroundAnimations?.let { animations ->
-        animations.any { anim ->
-            val startVisualValue = anim.start as? VisualValue
-            val endVisualValue = anim.end as? VisualValue
-            if (startVisualValue != null && endVisualValue != null) {
-                val startAsset = startVisualValue.resolveAsset<Asset.Filling.Local>()
-                val endAsset = endVisualValue.resolveAsset<Asset.Filling.Local>()
-                val startIsColor = startAsset?.castOrNull<Asset.Color>() != null
-                val startIsGradient = startAsset?.castOrNull<Asset.Gradient>() != null
-                val endIsColor = endAsset?.castOrNull<Asset.Color>() != null
-                val endIsGradient = endAsset?.castOrNull<Asset.Gradient>() != null
-                
-                (startIsColor && endIsGradient) || (startIsGradient && endIsColor)
-            } else false
-        }
-    } ?: false
-
-    return if (hasMixedAssetTypeAnimations) {
-        val gradientProvider = rememberGradientProvider(baseProps)
-        val brush = gradientProvider.brush.value
-        
-        if (brush is CrossFadeGradientBrush) {
-            this.backgroundWithCrossFade(brush, shape)
-        } else {
-            this.gatedFill(brush = brush, shape = shape, alpha = backgroundAlpha)
-        }
-    } else {
-        when (background.main) {
-            is Asset.Color -> {
-                val colorProvider = rememberColorProvider(baseProps)
-                this.gatedFill(color = colorProvider.value, shape = shape, alpha = backgroundAlpha)
-            }
-            is Asset.Gradient -> {
-                val gradientProvider = rememberGradientProvider(baseProps)
-                val brush = gradientProvider.brush.value
-                this.gatedFill(brush = brush, shape = shape, alpha = backgroundAlpha)
-            }
-            is Asset.Image -> {
-                val context = LocalContext.current
-                this.then(ImageBackgroundElement(background, shape, context, backgroundAlpha))
-            }
-        }
-    }
-}
-
-private fun Modifier.gatedFill(
-    color: androidx.compose.ui.graphics.Color? = null,
-    brush: Brush? = null,
-    shape: Shape,
-    alpha: State<Float>?,
-): Modifier {
-    if (alpha == null) {
-        return if (color != null) this.background(color = color, shape = shape)
-        else this.background(brush = brush!!, shape = shape)
-    }
-    return this.drawBehind {
-        val a = alpha.value
-        if (a <= 0f) return@drawBehind
-        val outline = shape.createOutline(size, layoutDirection, this)
-        if (color != null) drawOutline(outline, color = color, alpha = a)
-        else drawOutline(outline, brush = brush!!, alpha = a)
-    }
-}
-
-private data class ImageBackgroundElement(
-    private val background: Asset.Composite<Asset.Filling.Local>,
-    private val shape: Shape,
-    private val context: android.content.Context,
-    private val alpha: State<Float>?,
-) : ModifierNodeElement<ImageBackgroundNode>() {
-    override fun create() = ImageBackgroundNode(background, shape, context, alpha)
-    override fun update(node: ImageBackgroundNode) {
-        node.background = background
-        node.shape = shape
-        node.context = context
-        node.alpha = alpha
-    }
-}
-
-private class ImageBackgroundNode(
-    var background: Asset.Composite<Asset.Filling.Local>,
-    var shape: Shape,
-    var context: android.content.Context,
-    var alpha: State<Float>?,
-) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
-
-    private val gatedPaint = android.graphics.Paint()
-
-    override fun ContentDrawScope.draw() {
-        val gateAlpha = alpha?.value ?: 1f
-        if (gateAlpha <= 0f) {
-            drawContent()
-            return
-        }
-        val fill = background.cast<Asset.Image>().toComposeFill(context, size)
-        if (fill != null) {
-            val density = currentValueOf(LocalDensity)
-            drawIntoCanvas { canvas ->
-                canvas.save()
-                if (shape != RectangleShape) {
-                    val path = Path()
-                    shape.createOutline(size, layoutDirection, density).let { outline ->
-                        when (outline) {
-                            is Outline.Rectangle -> path.addRect(outline.rect)
-                            is Outline.Rounded -> path.addRoundRect(outline.roundRect)
-                            is Outline.Generic -> path.addPath(outline.path)
-                        }
-                    }
-                    canvas.clipPath(path)
+private fun rememberDecoratorAnimations(baseProps: BaseProps, decorator: Decorator): DecoratorAnimations? {
+    if (!baseProps.hasVisualAnimations()) return null
+    val targets = baseProps.decoratorTargets()
+    if (targets.isEmpty()) return null
+    val layers = mutableMapOf<Decorator.Layer, LayerOverride>()
+    val shadows = mutableMapOf<Decorator.Effect, ResolvedShadow?>()
+    val allLayers = decorator.underlays + decorator.overlays
+    allLayers.forEachIndexed { layerIndex, layer ->
+        key(layerIndex) {
+            val id = layer.id
+            if (id != null) animatedLayer(baseProps, layer, id, targets)?.let { layers[layer] = it }
+            layer.effects.forEachIndexed { effectIndex, effect ->
+                val target = effect.id?.let { AnimationTarget(effect.kind.animationRole, it) }
+                if (target != null && target in targets) key(effectIndex) {
+                    shadows[effect] = animatedShadow(baseProps, target, effect)
                 }
-                val paint = if (gateAlpha >= 1f) fill.paint
-                else gatedPaint.apply {
-                    set(fill.paint)
-                    alpha = (alpha * gateAlpha).toInt()
-                }
-                canvas.nativeCanvas.drawBitmap(fill.image, fill.matrix, paint)
-                canvas.restore()
             }
         }
-        drawContent()
     }
+    val legacyEffects = allLayers.flatMap { it.effects }.filter { it.id == Decorator.LEGACY_ID }
+    val leadingShadow = if (LEGACY_SHADOW in targets && legacyEffects.none { it.kind == Decorator.Effect.Kind.DROP })
+        animatedShadow(baseProps, LEGACY_SHADOW, null)
+    else null
+    val legacyBackground = decorator.underlays.firstOrNull {
+        it.id == Decorator.LEGACY_ID && (it.kind is Decorator.Layer.Kind.Fill || it.kind is Decorator.Layer.Kind.Image)
+    }
+    val addedInner = if (
+        legacyBackground != null && LEGACY_INNER_SHADOW in targets &&
+        legacyEffects.none { it.kind == Decorator.Effect.Kind.INNER }
+    ) animatedShadow(baseProps, LEGACY_INNER_SHADOW, null) else null
+    return DecoratorAnimations(layers, shadows, leadingShadow, legacyBackground, addedInner)
 }
 
-@Composable
-private fun Modifier.background(
-    background: Asset.Composite<Asset.Filling.Local>,
-    shape: Shape,
-    backgroundAlpha: State<Float>? = null,
-): Modifier = when (background.main) {
-    is Asset.Color -> {
-        val fill = background.cast<Asset.Color>().toComposeFill()
-        this.gatedFill(color = fill.color, shape = shape, alpha = backgroundAlpha)
+private val Decorator.Effect.Kind.animationRole: Animation.Role
+    get() = when (this) {
+        Decorator.Effect.Kind.DROP -> Animation.Role.Shadow
+        Decorator.Effect.Kind.INNER -> Animation.Role.InnerShadow
     }
-    is Asset.Gradient -> {
-        val fill = background.cast<Asset.Gradient>().toComposeFill()
-        this.gatedFill(brush = fill.shader, shape = shape, alpha = backgroundAlpha)
-    }
-    is Asset.Image -> {
-        val context = LocalContext.current
-        this.then(ImageBackgroundElement(background, shape, context, backgroundAlpha))
-    }
-}
 
 @Composable
-private fun Modifier.border(
-    border: Asset.Composite<Asset.Filling.Local>,
-    shape: Shape,
+private fun animatedLayer(
     baseProps: BaseProps,
-): Modifier {
-    val borderAnimations = if (!baseProps.hasVisualAnimations()) null
-    else activeAnimationsFor(Animation.Role.Border)
-        ?: baseProps.pendingAppearAnimationsFor(Animation.Role.Border)
+    layer: Decorator.Layer,
+    id: Int,
+    targets: Set<AnimationTarget>,
+): LayerOverride? = when (val kind = layer.kind) {
+    is Decorator.Layer.Kind.Fill -> animatedFill(baseProps, id, kind.asset, targets)
+    is Decorator.Layer.Kind.Image -> animatedFill(baseProps, id, kind.asset, targets)
+    is Decorator.Layer.Kind.Stroke -> {
+        val target = AnimationTarget(Animation.Role.Border, id)
+        if (target in targets) {
+            val stroke = kind.asset.resolveAsset<Asset.Filling.Local>()?.let { animatedStrokePaint(it, baseProps, id, kind.asset) }
+            LayerOverride(stroke, rememberBorderThicknessProvider(baseProps, id, kind.thickness).value.value)
+        } else null
+    }
+    Decorator.Layer.Kind.Effects -> null
+}
 
-    val hasMixedAssetTypeAnimations = borderAnimations?.let { animations ->
-        val assets = resolveAssets()
-        animations.any { anim ->
-            val startBorder = anim.start as? Border
-            val endBorder = anim.end as? Border
-            if (startBorder?.color != null && endBorder?.color != null) {
-                val startAsset = startBorder.color.resolveAsset<Asset.Filling.Local>()
-                val endAsset = endBorder.color.resolveAsset<Asset.Filling.Local>()
-                val startIsColor = startAsset?.castOrNull<Asset.Color>() != null
-                val startIsGradient = startAsset?.castOrNull<Asset.Gradient>() != null
-                val endIsColor = endAsset?.castOrNull<Asset.Color>() != null
-                val endIsGradient = endAsset?.castOrNull<Asset.Gradient>() != null
-                
-                (startIsColor && endIsGradient) || (startIsGradient && endIsColor)
-            } else false
-        }
-    } ?: false
+@Composable
+private fun animatedFill(
+    baseProps: BaseProps,
+    id: Int,
+    asset: VisualValue,
+    targets: Set<AnimationTarget>,
+): LayerOverride? {
+    if (AnimationTarget(Animation.Role.Background, id) !in targets) return null
+    val paint = asset.resolveAsset<Asset.Filling.Local>()?.let { animatedFillPaint(it, baseProps, id, asset) }
+    return paint?.let { LayerOverride(it, null) }
+}
 
-    return if (hasMixedAssetTypeAnimations) {
-        val gradientProvider = rememberBorderGradientProvider(baseProps)
-        val thicknessProvider = rememberBorderThicknessProvider(baseProps)
-        val brush = gradientProvider.brush.value
-        
-        if (brush is CrossFadeGradientBrush) {
-            this.borderWithCrossFade(brush, shape, thicknessProvider.value)
-        } else {
-            this.border(
-                width = thicknessProvider.value,
-                brush = brush,
-                shape = shape
-            )
-        }
+@Composable
+private fun animatedShadow(baseProps: BaseProps, target: AnimationTarget, base: Decorator.Effect?): ResolvedShadow? {
+    val shadow = if (target.role == Animation.Role.Shadow) {
+        rememberShadowProvider(baseProps, target.targetId, base)
+            .let { ResolvedShadow(it.color.value, it.blurRadius.value, it.offset.value) }
     } else {
-        when (border.main) {
-            is Asset.Color -> {
-                val colorProvider = rememberBorderColorProvider(baseProps)
-                val thicknessProvider = rememberBorderThicknessProvider(baseProps)
-                this.border(
-                    width = thicknessProvider.value,
-                    color = colorProvider.value,
-                    shape = shape
-                )
-            }
-            is Asset.Gradient -> {
-                val gradientProvider = rememberBorderGradientProvider(baseProps)
-                val thicknessProvider = rememberBorderThicknessProvider(baseProps)
-                val brush = gradientProvider.brush.value
-                this.border(
-                    width = thicknessProvider.value,
-                    brush = brush,
-                    shape = shape
-                )
-            }
-            is Asset.Image -> {
-                val colorProvider = rememberBorderColorProvider(baseProps)
-                val thicknessProvider = rememberBorderThicknessProvider(baseProps)
-                this.border(
-                    width = thicknessProvider.value,
-                    color = colorProvider.value,
-                    shape = shape
-                )
-            }
-        }
+        rememberInnerShadowProvider(baseProps, target.targetId, base)
+            .let { ResolvedShadow(it.color.value, it.blurRadius.value, it.offset.value) }
+    }
+    return shadow.takeIf { it.color.alpha > 0f }
+}
+
+@Composable
+private fun animatedFillPaint(
+    fill: Asset.Composite<Asset.Filling.Local>,
+    baseProps: BaseProps,
+    id: Int,
+    base: VisualValue,
+): LayerPaint? {
+    val target = AnimationTarget(Animation.Role.Background, id)
+    return if (hasMixedAssetTypeAnimations(baseProps, target)) {
+        rememberGradientProvider(baseProps, target, base).brush.value.toLayerPaint()
+    } else when (fill.main) {
+        is Asset.Color -> LayerPaint.Solid(rememberColorProvider(baseProps, id, base).value)
+        is Asset.Gradient -> rememberGradientProvider(baseProps, target, base).brush.value.toLayerPaint()
+        is Asset.Image -> null
     }
 }
 
-private fun Modifier.borderWithCrossFade(
-    brush: CrossFadeGradientBrush,
-    shape: Shape,
-    thickness: Dp
-): Modifier {
-    val startBorder = border(
-        width = thickness,
-        brush = brush.startBrush,
-        shape = shape
-    )
-    
-    val endBorder = border(
-        width = thickness,
-        brush = brush.endBrush,
-        shape = shape
-    )
-    
-    return this
-        .then(startBorder)
-        .graphicsLayer {
-            alpha = 1f - brush.crossFadeProgress
+@Composable
+private fun animatedStrokePaint(
+    stroke: Asset.Composite<Asset.Filling.Local>,
+    baseProps: BaseProps,
+    id: Int,
+    base: VisualValue,
+): LayerPaint? {
+    val target = AnimationTarget(Animation.Role.Border, id)
+    return if (hasMixedAssetTypeAnimations(baseProps, target)) {
+        rememberBorderGradientProvider(baseProps, id, base).brush.value.toLayerPaint()
+    } else when (stroke.main) {
+        is Asset.Color -> LayerPaint.Solid(rememberBorderColorProvider(baseProps, id, base).value)
+        is Asset.Gradient -> rememberBorderGradientProvider(baseProps, id, base).brush.value.toLayerPaint()
+        is Asset.Image -> null
+    }
+}
+
+private fun Brush.toLayerPaint(): LayerPaint =
+    if (this is CrossFadeGradientBrush) LayerPaint.CrossFade(startBrush, endBrush, crossFadeProgress)
+    else LayerPaint.Shader(this)
+
+@Composable
+private fun hasMixedAssetTypeAnimations(baseProps: BaseProps, target: AnimationTarget): Boolean {
+    val animations = activeAnimationsFor(target) ?: baseProps.pendingAppearAnimationsFor(target) ?: return false
+    return animations.any { anim ->
+        val (start, end) = when (target.role) {
+            Animation.Role.Border -> (anim.start as? Border)?.color to (anim.end as? Border)?.color
+            else -> anim.start as? VisualValue to anim.end as? VisualValue
         }
-        .then(endBorder)
-        .graphicsLayer {
-            alpha = brush.crossFadeProgress
-        }
+        if (start == null || end == null) return@any false
+        val startMain = start.resolveAsset<Asset.Filling.Local>()?.main
+        val endMain = end.resolveAsset<Asset.Filling.Local>()?.main
+        (startMain is Asset.Color && endMain is Asset.Gradient) || (startMain is Asset.Gradient && endMain is Asset.Color)
+    }
 }
 
 @Composable
@@ -914,6 +663,31 @@ internal data class FixedHeightWidthIntrinsics(private val height: Dp) : LayoutM
         measurable.maxIntrinsicHeight(width)
 }
 
+@Suppress("DEPRECATION")
+internal object ShrinkHeightIntrinsics : LayoutModifier {
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) {
+            placeable.place(0, 0)
+        }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        measurable.minIntrinsicWidth(height)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        measurable.maxIntrinsicWidth(height)
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        VStackMinHeightQuery.idealMinIntrinsicHeight(measurable, width)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        measurable.maxIntrinsicHeight(width)
+}
+
 @Composable
 internal fun Modifier.sideDimensionOrSkip(
     sideDimension: DimSpec?, 
@@ -970,6 +744,7 @@ internal fun Modifier.sideDimensionOrSkip(
             )
             .width(IntrinsicSize.Max)
         DimSpec.Axis.Y -> this
+            .then(ShrinkHeightIntrinsics)
             .heightIn(
                 min = (sideDimension.min.toExactDp(axis) + margins.verticalSumOrDefault)
                     .takeIf { it > 0.dp } ?: Dp.Unspecified,
@@ -1086,306 +861,6 @@ private class StaticOffsetNode(
     }
 }
 
-private data class BackgroundWithCrossFadeElement(
-    private val crossFadeBrush: CrossFadeGradientBrush,
-    private val shape: Shape,
-    private val isDarkTheme: Boolean,
-) : ModifierNodeElement<BackgroundWithCrossFadeNode>() {
-    override fun create() = BackgroundWithCrossFadeNode(crossFadeBrush, shape, isDarkTheme)
-    override fun update(node: BackgroundWithCrossFadeNode) {
-        node.crossFadeBrush = crossFadeBrush
-        node.shape = shape
-        node.isDarkTheme = isDarkTheme
-    }
-}
-
-private class BackgroundWithCrossFadeNode(
-    var crossFadeBrush: CrossFadeGradientBrush,
-    var shape: Shape,
-    var isDarkTheme: Boolean,
-) : Modifier.Node(), DrawModifierNode {
-
-    override fun ContentDrawScope.draw() {
-        val backgroundColor = if (isDarkTheme) {
-            androidx.compose.ui.graphics.Color(0xFF121212)
-        } else {
-            androidx.compose.ui.graphics.Color(0xFFF5F5F5)
-        }
-        
-        val startAlpha = 1f - crossFadeBrush.crossFadeProgress
-        val endAlpha = crossFadeBrush.crossFadeProgress
-        drawRect(
-            color = backgroundColor,
-            alpha = 1f
-        )
-        drawRect(
-            brush = crossFadeBrush.startBrush,
-            alpha = startAlpha
-        )
-        drawRect(
-            brush = crossFadeBrush.endBrush,
-            alpha = endAlpha
-        )
-        
-        drawContent()
-    }
-}
-
-@Composable
-private fun Modifier.backgroundWithCrossFade(
-    crossFadeBrush: CrossFadeGradientBrush,
-    shape: Shape
-): Modifier {
-    val isDarkTheme = isSystemInDarkTheme()
-    return this.then(BackgroundWithCrossFadeElement(crossFadeBrush, shape, isDarkTheme))
-}
-
-internal fun Modifier.shadowOrSkip(
-    shadow: ShadowProvider,
-    shape: Shape,
-    contentAlpha: Float = 1f,
-    rotation: Rotation = Rotation.Default,
-    scale: Scale = Scale.Default,
-): Modifier {
-    val color = shadow.color.value.let {
-        if (contentAlpha < 1f) it.copy(alpha = it.alpha * contentAlpha) else it
-    }
-    if (color.alpha == 0f) return this
-    return this.shadow(
-        color,
-        shape,
-        shadow.blurRadius.value.dp,
-        shadow.offset.value,
-        rotation,
-        scale,
-    )
-}
-
-private data class ShadowElement(
-    private val color: androidx.compose.ui.graphics.Color,
-    private val shape: Shape,
-    private val blurRadius: Dp,
-    private val offset: DpOffset,
-    private val rotation: Rotation,
-    private val scale: Scale,
-) : ModifierNodeElement<ShadowNode>() {
-    override fun create() = ShadowNode(color, shape, blurRadius, offset, rotation, scale)
-    override fun update(node: ShadowNode) {
-        node.color = color
-        node.shape = shape
-        node.blurRadius = blurRadius
-        node.offset = offset
-        node.rotation = rotation
-        node.scale = scale
-    }
-}
-
-private class ShadowNode(
-    var color: androidx.compose.ui.graphics.Color,
-    var shape: Shape,
-    var blurRadius: Dp,
-    var offset: DpOffset,
-    var rotation: Rotation,
-    var scale: Scale,
-) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
-
-    private val paint = Paint()
-    private var cachedBlurPx: Float = Float.NaN
-    private var cachedMaskFilter: BlurMaskFilter? = null
-
-    override fun ContentDrawScope.draw() {
-        val density = currentValueOf(LocalDensity)
-
-        val blurPx = with(density) { blurRadius.toPx() }
-        val offsetXPx = with(density) { offset.x.dp.toPx() }
-        val offsetYPx = with(density) { offset.y.dp.toPx() }
-
-        val sx = if (scale.x != 0f) scale.x else Float.MIN_VALUE
-        val sy = if (scale.y != 0f) scale.y else Float.MIN_VALUE
-        val angle = Math.toRadians(-rotation.degrees.toDouble())
-        val cosA = kotlin.math.cos(angle)
-        val sinA = kotlin.math.sin(angle)
-        val ux = offsetXPx / sx
-        val uy = offsetYPx / sy
-        val compOffsetX = (ux * cosA - uy * sinA).toFloat()
-        val compOffsetY = (ux * sinA + uy * cosA).toFloat()
-        val meanScale = kotlin.math.sqrt((sx * sy).coerceAtLeast(Float.MIN_VALUE))
-        val effectiveBlurPx = blurPx / meanScale
-
-        if (cachedBlurPx != effectiveBlurPx) {
-            cachedBlurPx = effectiveBlurPx
-            cachedMaskFilter = if (effectiveBlurPx > 0f) BlurMaskFilter(effectiveBlurPx, BlurMaskFilter.Blur.NORMAL) else null
-        }
-
-        val outline = shape.createOutline(size, layoutDirection, density)
-
-        paint.asFrameworkPaint().apply {
-            this.color = this@ShadowNode.color.toArgb()
-            this.maskFilter = cachedMaskFilter
-        }
-
-        drawIntoCanvas { canvas ->
-            canvas.save()
-            canvas.translate(compOffsetX, compOffsetY)
-
-            when (outline) {
-                is Outline.Rectangle -> canvas.drawRect(outline.rect, paint)
-                is Outline.Rounded -> {
-                    val roundRect = outline.roundRect
-                    canvas.nativeCanvas.drawRoundRect(
-                        roundRect.left,
-                        roundRect.top,
-                        roundRect.right,
-                        roundRect.bottom,
-                        roundRect.topLeftCornerRadius.x,
-                        roundRect.topLeftCornerRadius.y,
-                        paint.asFrameworkPaint()
-                    )
-                }
-                is Outline.Generic -> canvas.drawPath(outline.path, paint)
-            }
-
-            canvas.restore()
-        }
-
-        drawContent()
-    }
-}
-
-internal fun Modifier.shadow(
-    color: androidx.compose.ui.graphics.Color,
-    shape: Shape,
-    blurRadius: Dp,
-    offset: DpOffset,
-    rotation: Rotation = Rotation.Default,
-    scale: Scale = Scale.Default,
-): Modifier = this.then(ShadowElement(color, shape, blurRadius, offset, rotation, scale))
-
-internal fun Modifier.innerShadowOrSkip(
-    innerShadow: InnerShadowProvider,
-    shape: Shape,
-    gateAlpha: State<Float>? = null,
-): Modifier {
-    val color = innerShadow.color.value
-    if (color.alpha == 0f) return this
-    val blurRadius = innerShadow.blurRadius.value
-    val offset = innerShadow.offset.value
-    return this.innerShadow(color, shape, blurRadius.dp, offset, gateAlpha)
-}
-
-private data class InnerShadowElement(
-    private val color: androidx.compose.ui.graphics.Color,
-    private val shape: Shape,
-    private val blurRadius: Dp,
-    private val offset: DpOffset,
-    private val gateAlpha: State<Float>?,
-) : ModifierNodeElement<InnerShadowNode>() {
-    override fun create() = InnerShadowNode(color, shape, blurRadius, offset, gateAlpha)
-    override fun update(node: InnerShadowNode) {
-        node.color = color
-        node.shape = shape
-        node.blurRadius = blurRadius
-        node.offset = offset
-        node.gateAlpha = gateAlpha
-    }
-}
-
-private class InnerShadowNode(
-    var color: androidx.compose.ui.graphics.Color,
-    var shape: Shape,
-    var blurRadius: Dp,
-    var offset: DpOffset,
-    var gateAlpha: State<Float>?,
-) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
-
-    private val shadowPaint = android.graphics.Paint()
-    private val gateLayerPaint = android.graphics.Paint()
-    private val cutoutPaint = android.graphics.Paint().apply {
-        xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
-    }
-    private val clipPaint = android.graphics.Paint().apply {
-        xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-    }
-    private val outlinePath = android.graphics.Path()
-
-    private var cachedBlurPx: Float = Float.NaN
-    private var cachedMaskFilter: BlurMaskFilter? = null
-
-    override fun ContentDrawScope.draw() {
-        drawContent()
-
-        val w = size.width.toInt()
-        val h = size.height.toInt()
-        if (w <= 0 || h <= 0) return
-        val gate = gateAlpha?.value ?: 1f
-        if (gate <= 0f) return
-
-        val density = currentValueOf(LocalDensity)
-
-        val blurPx = with(density) { blurRadius.toPx() }
-        val offsetXPx = with(density) { offset.x.dp.toPx() }
-        val offsetYPx = with(density) { offset.y.dp.toPx() }
-
-        if (cachedBlurPx != blurPx) {
-            cachedBlurPx = blurPx
-            cachedMaskFilter = if (blurPx > 0f) BlurMaskFilter(blurPx, BlurMaskFilter.Blur.NORMAL) else null
-        }
-
-        shadowPaint.color = this@InnerShadowNode.color.toArgb()
-        cutoutPaint.maskFilter = cachedMaskFilter
-
-        val outline = shape.createOutline(size, layoutDirection, density)
-
-        drawIntoCanvas { canvas ->
-            val nc = canvas.nativeCanvas
-            nc.saveLayer(null, if (gate >= 1f) null else gateLayerPaint.apply { alpha = (255 * gate).toInt() })
-
-            nc.drawPaint(shadowPaint)
-
-            nc.save()
-            nc.translate(offsetXPx, offsetYPx)
-            nc.drawPath(outline.toNativePath(outlinePath), cutoutPaint)
-            nc.restore()
-
-            nc.drawPath(outline.toNativePath(outlinePath), clipPaint)
-
-            nc.restore()
-        }
-    }
-
-    private fun Outline.toNativePath(dst: android.graphics.Path): android.graphics.Path {
-        dst.rewind()
-        when (this) {
-            is Outline.Rectangle -> {
-                dst.addRect(rect.left, rect.top, rect.right, rect.bottom, android.graphics.Path.Direction.CW)
-            }
-            is Outline.Rounded -> {
-                val rr = roundRect
-                dst.addRoundRect(
-                    rr.left, rr.top, rr.right, rr.bottom,
-                    floatArrayOf(
-                        rr.topLeftCornerRadius.x, rr.topLeftCornerRadius.y,
-                        rr.topRightCornerRadius.x, rr.topRightCornerRadius.y,
-                        rr.bottomRightCornerRadius.x, rr.bottomRightCornerRadius.y,
-                        rr.bottomLeftCornerRadius.x, rr.bottomLeftCornerRadius.y,
-                    ),
-                    android.graphics.Path.Direction.CW,
-                )
-            }
-            is Outline.Generic -> dst.set(path.asAndroidPath())
-        }
-        return dst
-    }
-}
-
-internal fun Modifier.innerShadow(
-    color: androidx.compose.ui.graphics.Color,
-    shape: Shape,
-    blurRadius: Dp,
-    offset: DpOffset,
-    gateAlpha: State<Float>? = null,
-): Modifier = this.then(InnerShadowElement(color, shape, blurRadius, offset, gateAlpha))
-
 internal fun Modifier.blurOrSkip(
     blurProvider: BlurProvider,
     captureExpand: Dp = 0.dp,
@@ -1394,13 +869,6 @@ internal fun Modifier.blurOrSkip(
     if (radius <= 0f) return this
     return this.blur(radius.dp, captureExpand)
 }
-
-internal val ShadowProvider.captureExpand: Dp
-    get() {
-        if (color.value.alpha == 0f) return 0.dp
-        val o = offset.value
-        return (blurRadius.value + maxOf(kotlin.math.abs(o.x), kotlin.math.abs(o.y))).dp
-    }
 
 internal fun Modifier.blur(blurRadius: Dp, captureExpand: Dp = 0.dp): Modifier =
     this.then(BlurElement(blurRadius, captureExpand))
@@ -1541,5 +1009,13 @@ private class BlurNode(
         cachedComposeCanvas = null
         blurWorker = null
         renderNode = null
+    }
+}
+
+internal fun Modifier.consumePointerInput(): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) {
+            awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+        }
     }
 }

@@ -8,8 +8,10 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.extractProducts
 import com.adapty.models.AdaptyFlow
 import com.adapty.models.AdaptyPaywallProduct
+import com.adapty.ui.AdaptyCustomAsset
 import com.adapty.ui.AdaptyCustomAssets
 import com.adapty.ui.AdaptyCustomColorAsset
+import com.adapty.ui.AdaptyCustomDataAsset
 import com.adapty.ui.AdaptyCustomFontAsset
 import com.adapty.ui.AdaptyCustomGradientAsset
 import com.adapty.ui.AdaptyCustomImageAsset
@@ -46,8 +48,10 @@ internal fun buildInitialState(
         tagResolver = userArgs.tagResolver,
         timerResolver = userArgs.timerResolver,
         productLoadingFailureCallback = userArgs.productLoadingFailureCallback,
+        customElementsResolver = userArgs.customElementsResolver,
     )
 
+    warnOnMismatchedCustomAssets(viewConfig, userArgs.customAssets)
     val assetsMap = buildLocalAssetsMap(viewConfig, userArgs.customAssets)
 
     val productsMap = associateProducts(userArgs.products, mode)
@@ -143,8 +147,44 @@ internal fun buildLocalAssetsMap(
                 else -> Unit
             }
         }
+        if (asset is Asset.Data) {
+            when (val customAsset = asset.customId?.let(customAssets::getData)) {
+                is AdaptyCustomDataAsset -> assetsMap[customAssetId()] = customAsset.value
+                else -> Unit
+            }
+        }
     }
     return assetsMap
+}
+
+internal fun mismatchedCustomAssetIds(
+    viewConfig: AdaptyUI.FlowConfiguration,
+    customAssets: AdaptyCustomAssets,
+): Set<String> =
+    viewConfig.assets.values.mapNotNullTo(linkedSetOf()) { asset ->
+        val customId = asset.customId ?: return@mapNotNullTo null
+        val substitute = customAssets[customId] ?: return@mapNotNullTo null
+        customId.takeUnless { asset.acceptsSubstitute(substitute) }
+    }
+
+internal fun warnOnMismatchedCustomAssets(
+    viewConfig: AdaptyUI.FlowConfiguration,
+    customAssets: AdaptyCustomAssets,
+) {
+    mismatchedCustomAssetIds(viewConfig, customAssets).forEach { customId ->
+        log(WARN) {
+            "$LOG_PREFIX asset $customId from resolver is not of the kind declared by configuration, using configuration asset"
+        }
+    }
+}
+
+private fun Asset.acceptsSubstitute(substitute: AdaptyCustomAsset): Boolean = when (this) {
+    is Image, is Asset.RemoteImage -> substitute is AdaptyCustomImageAsset<*>
+    is Asset.Color, is Asset.Gradient -> substitute is AdaptyCustomColorAsset || substitute is AdaptyCustomGradientAsset
+    is Asset.Video -> substitute is AdaptyCustomVideoAsset
+    is Asset.Font -> substitute is AdaptyCustomFontAsset
+    is Asset.Data -> substitute is AdaptyCustomDataAsset
+    is Asset.Unknown -> true
 }
 
 internal fun resolveProductKey(product: AdaptyPaywallProduct): String =

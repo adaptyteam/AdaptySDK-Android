@@ -38,6 +38,8 @@ internal class FlowUiManager(
     private val serializationHelper: SerializationHelper,
 ) {
     private val cachedFlowUiData = ConcurrentHashMap<String, FlowUiData>()
+
+    private val platformViewConfigs = ConcurrentHashMap<String, WeakReference<AdaptyUI.FlowConfiguration>>()
     private val pendingDismissCallbacks = ConcurrentHashMap<String, MutableList<Callback<Unit>>>()
     private val permissionCallbacks = ConcurrentHashMap<String, PermissionCallback>()
     private val observerPurchaseCallbacks =
@@ -124,6 +126,14 @@ internal class FlowUiManager(
     }
 
     fun hasData(key: String) = cachedFlowUiData[key] != null
+
+    private fun registerPlatformView(id: String, config: AdaptyUI.FlowConfiguration) {
+        platformViewConfigs.values.removeAll { it.get() == null }
+        platformViewConfigs[id] = WeakReference(config)
+    }
+
+    fun getFlowConfiguration(id: String): AdaptyUI.FlowConfiguration? =
+        cachedFlowUiData[id]?.config ?: platformViewConfigs[id]?.get()
 
     var isShown = false
 
@@ -247,6 +257,8 @@ internal class FlowUiManager(
             uiData,
             platformViewOnEvent?.let { id to it },
         )
+
+        registerPlatformView(id, viewConfig)
 
         flowView.show(
             viewConfig = viewConfig,

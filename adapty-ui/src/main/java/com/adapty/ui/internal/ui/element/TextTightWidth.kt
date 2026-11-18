@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import com.adapty.ui.internal.ui.HStackMinWidthQuery
 import com.adapty.ui.internal.ui.VStackMinHeightQuery
+import java.text.BreakIterator
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -27,11 +29,15 @@ internal class TightWidthController {
 
     val onTextLayout: (TextLayoutResult) -> Unit = { last = it }
 
+    var proposedWidth: Int = -1
+        private set
+
     fun modifier(pushOut: PushOutInput?): Modifier = TightWidthModifier(pushOut)
 
     @Suppress("DEPRECATION")
     private inner class TightWidthModifier(private val pushOut: PushOutInput?) : LayoutModifier {
         override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+            proposedWidth = constraints.maxWidth
             val cap = if (pushOut != null && constraints.hasBoundedWidth) {
                 pushOut.capFor(constraints.maxWidth, measurable, this)
             } else {
@@ -79,20 +85,62 @@ internal class PushOutInput(
     fun capFor(proposal: Int, measurable: Measurable, scope: MeasureScope): Int? {
         val unwrapped = measurable.maxIntrinsicWidth(Constraints.Infinity)
         if (unwrapped <= proposal || unwrapped > 2 * proposal) return null
-        var r = layout(proposal, scope)
-        val lines = r.lineCount
-        var cap: Int? = null
-        for (round in 0 until MAX_ROUNDS) {
-            val next = pushOutCap(r) ?: return cap
-            if (cap != null && next >= cap) return cap
-            val capped = layout(next, scope)
-            if (capped.lineCount > lines || capped.hasVisualOverflow || capped.isLineEllipsized(capped.lineCount - 1)) {
-                return cap
+        val greedy = layout(proposal, scope)
+        if (greedy.truncated()) return null
+        val paragraphs = greedy.paragraphLines()
+        val candidates = paragraphs.indices.mapNotNull { p -> pushOutCap(greedy, paragraphs[p])?.let { p to it } }
+        if (candidates.isEmpty()) return null
+        val space by lazy(LazyThreadSafetyMode.NONE) { spaceAdvance(greedy) }
+        for ((p, start) in candidates.sortedBy { it.second }) {
+            var cap = start
+            var capped = layout(cap, scope)
+            for (round in 1 until MAX_CAP_ROUNDS) {
+                val lines = capped.paragraphLines().getOrNull(p)
+                if (lines == null || lines.count() != 2 ||
+                    capped.getLineStart(lines.last) < greedy.getLineStart(paragraphs[p].last)
+                ) {
+                    break
+                }
+                val next = ceil(capped.getLineRight(lines.first) - capped.getLineLeft(lines.first)).toInt() - 1
+                cap = next.takeIf { it in 1 until cap } ?: break
+                capped = layout(cap, scope)
             }
-            cap = next
-            r = capped
+            if (pushedOut(greedy, paragraphs, capped, space)) return cap
         }
-        return cap
+        return null
+    }
+
+    private fun pushedOut(
+        greedy: TextLayoutResult,
+        paragraphs: List<IntRange>,
+        capped: TextLayoutResult,
+        space: Float,
+    ): Boolean {
+        if (capped.truncated() || capped.brokenWords() > greedy.brokenWords()) return false
+        val cappedParagraphs = capped.paragraphLines()
+        if (cappedParagraphs.size != paragraphs.size) return false
+        var moved = 0
+        for (p in paragraphs.indices) {
+            val old = paragraphs[p]
+            val new = cappedParagraphs[p]
+            if (old.count() != new.count()) return false
+            if (old.zip(new).all { (o, n) -> greedy.getLineStart(o) == capped.getLineStart(n) }) continue
+            if (old.count() != 2 || pushOutCap(greedy, old) == null) return false
+            val oldBreak = greedy.getLineStart(old.last)
+            val newBreak = capped.getLineStart(new.last)
+            if (newBreak >= oldBreak || greedy.layoutInput.text.text.substring(newBreak, oldBreak).trimEnd().any { it.isWhitespace() }) {
+                return false
+            }
+            val balanced = pushOutBalanced(
+                firstLineWidth = greedy.lineWidth(old.first, space),
+                orphanWidth = greedy.lineWidth(old.last, space),
+                pushedFirstLineWidth = capped.lineWidth(new.first, space),
+                pushedLastLineWidth = capped.lineWidth(new.last, space),
+            )
+            if (!balanced) return false
+            moved++
+        }
+        return moved > 0
     }
 
     fun heightAt(width: Int, lines: Int, scope: IntrinsicMeasureScope): Int =
@@ -113,19 +161,115 @@ internal class PushOutInput(
         )
 }
 
-private fun pushOutCap(r: TextLayoutResult): Int? {
-    if (r.lineCount != 2 || r.hasVisualOverflow || r.isLineEllipsized(1)) return null
-    val lastLine = r.layoutInput.text.text.substring(r.getLineStart(1), r.getLineEnd(1, visibleEnd = true))
-    return pushOutCap(lastLine, r.getLineRight(0) - r.getLineLeft(0))
+private fun pushOutCap(r: TextLayoutResult, lines: IntRange): Int? {
+    if (lines.count() != 2) return null
+    val lastLine = r.layoutInput.text.text.substring(r.getLineStart(lines.last), r.getLineEnd(lines.last, visibleEnd = true))
+    return pushOutCap(lastLine, r.getLineRight(lines.first) - r.getLineLeft(lines.first))
+}
+
+private fun TextLayoutResult.paragraphLines(): List<IntRange> {
+    val text = layoutInput.text.text
+    val paragraphs = mutableListOf<IntRange>()
+    var first = 0
+    for (line in 1 until lineCount) {
+        val start = getLineStart(line)
+        if (start > 0 && text[start - 1] == '\n') {
+            paragraphs += first until line
+            first = line
+        }
+    }
+    if (lineCount > 0) paragraphs += first until lineCount
+    return paragraphs
+}
+
+private fun TextLayoutResult.truncated(): Boolean =
+    hasVisualOverflow || (0 until lineCount).any { isLineEllipsized(it) }
+
+private fun TextLayoutResult.brokenWords(): Int {
+    val text = layoutInput.text.text
+    return (1 until lineCount).count { line ->
+        val start = getLineStart(line)
+        start in 1 until text.length && text[start - 1].isLetterOrDigit() && text[start].isLetterOrDigit()
+    }
+}
+
+private fun TextLayoutResult.lineWidth(line: Int, spaceWidth: Float): Float {
+    val swallowed = swallowedWhitespace(layoutInput.text.text, getLineEnd(line, visibleEnd = true), getLineEnd(line))
+    return getLineRight(line) - getLineLeft(line) + spaceWidth * swallowed
+}
+
+internal fun pushOutBalanced(
+    firstLineWidth: Float,
+    orphanWidth: Float,
+    pushedFirstLineWidth: Float,
+    pushedLastLineWidth: Float,
+): Boolean {
+    if (orphanWidth <= 0f || pushedLastLineWidth <= 0f) return false
+    val before = firstLineWidth / orphanWidth
+    val after = pushedFirstLineWidth / pushedLastLineWidth
+    return after >= PUSH_OUT_MIN_RAGGEDNESS && abs(1f - after) <= abs(1f - before)
 }
 
 internal fun pushOutCap(lastLine: CharSequence, firstLineWidth: Float): Int? {
-    val word = lastLine.trim()
-    if (word.isEmpty() || word.any { it.isWhitespace() }) return null
+    if (!isPushOutOrphan(lastLine)) return null
     return (ceil(firstLineWidth).toInt() - 1).takeIf { it > 0 }
 }
 
-private const val MAX_ROUNDS = 3
+internal fun isPushOutOrphan(lastLine: CharSequence): Boolean {
+    val orphan = lastLine.trimEnd().toString()
+    if (orphan.isEmpty() || orphan.length > PUSH_OUT_MAX_ORPHAN_LENGTH) return false
+    if (!Character.isLetterOrDigit(orphan.codePointAt(0))) return false
+    var end = 0
+    var needsDictionary = false
+    while (end < orphan.length) {
+        val c = orphan.codePointAt(end)
+        if (Character.isLetterOrDigit(c)) {
+            needsDictionary = needsDictionary || writtenWithoutSpaces(c)
+            end += Character.charCount(c)
+        } else if (c in WORD_JOINERS && end + 1 < orphan.length && Character.isLetterOrDigit(orphan.codePointAt(end + 1))) {
+            end++
+        } else {
+            break
+        }
+    }
+    if (hasLetterOrDigit(orphan, end, orphan.length)) return false
+    return !needsDictionary || dictionaryWords(orphan.substring(0, end)) == 1
+}
+
+private fun dictionaryWords(word: String): Int {
+    val words = BreakIterator.getWordInstance()
+    words.setText(word)
+    var count = 0
+    var start = words.first()
+    var end = words.next()
+    while (end != BreakIterator.DONE) {
+        if (hasLetterOrDigit(word, start, end)) count++
+        start = end
+        end = words.next()
+    }
+    return count
+}
+
+private fun hasLetterOrDigit(text: String, start: Int, end: Int): Boolean {
+    var i = start
+    while (i < end) {
+        val c = text.codePointAt(i)
+        if (Character.isLetterOrDigit(c)) return true
+        i += Character.charCount(c)
+    }
+    return false
+}
+
+private fun writtenWithoutSpaces(codePoint: Int): Boolean =
+    codePoint in 0x0E00..0x0EFF || codePoint in 0x1000..0x109F || codePoint in 0x1780..0x17FF ||
+        codePoint in 0x2E80..0x9FFF || codePoint in 0xF900..0xFAFF || codePoint in 0xFF66..0xFF9F ||
+        codePoint >= 0x20000
+
+private val WORD_JOINERS = intArrayOf('.'.code, ','.code, '\''.code, '\u2019'.code)
+
+private const val MAX_CAP_ROUNDS = 3
+private const val PUSH_OUT_MAX_ORPHAN_LENGTH = 10
+private const val PUSH_OUT_MIN_RAGGEDNESS = 0.6f
 
 internal class LineExtents(val width: Float, val alignFraction: Float)
 

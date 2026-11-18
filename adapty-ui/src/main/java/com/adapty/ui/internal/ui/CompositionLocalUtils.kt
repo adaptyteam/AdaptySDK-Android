@@ -106,3 +106,14 @@ internal val LocalInsideButton = compositionLocalOf { false }
 internal val LocalIsLegacyFormat = staticCompositionLocalOf { false }
 
 internal val LocalBlocksTouchesBelow = compositionLocalOf { false }
+
+internal class CustomElementsHost(
+    val resolver: com.adapty.ui.AdaptyCustomElementsResolver?,
+    val sendAppMessage: (id: String, payload: Map<String, Any?>, source: com.adapty.ui.internal.store.Effect.SendSDKEvent.AppMessage.Source) -> Unit,
+)
+
+internal val LocalCustomElementsHost = compositionLocalOf<CustomElementsHost?> { null }
+
+internal val LocalShowsDebugPlaceholders = staticCompositionLocalOf { false }
+
+internal val LocalKeepPagesComposed = staticCompositionLocalOf<(() -> Unit)?> { null }

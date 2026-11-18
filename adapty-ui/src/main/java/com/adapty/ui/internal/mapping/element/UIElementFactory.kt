@@ -10,6 +10,7 @@ import com.adapty.ui.AdaptyUI
 import com.adapty.ui.internal.mapping.viewconfig.JsonObject
 import com.adapty.ui.internal.mapping.viewconfig.Templates
 import com.adapty.ui.internal.ui.element.OverlayContainerElement
+import com.adapty.ui.internal.ui.element.SkippedElement
 import com.adapty.ui.internal.ui.element.UIElement
 import com.adapty.ui.internal.ui.element.UnknownElement
 import com.adapty.ui.internal.utils.NO_SHRINK
@@ -89,6 +90,8 @@ internal class UIElementFactory(private val mappers: Map<String, ElementMapper>)
             null -> UnknownElement
         }
 
+        if (element === UnknownElement || element === SkippedElement) return element
+
         val overlayConfigs = config["overlay"] as? List<*>
         val overlays = overlayConfigs?.mapNotNull { item ->
             (item as? Map<*, *>)?.toOverlayItem { childConfig, nextShrink ->
@@ -108,7 +111,7 @@ internal class UIElementFactory(private val mappers: Map<String, ElementMapper>)
                 main = element,
                 overlays = overlays ?: emptyList(),
                 backgrounds = backgrounds ?: emptyList(),
-                baseProps = element.baseProps.copy(shape = null),
+                baseProps = element.baseProps.copy(decorator = null),
             )
         } else {
             element

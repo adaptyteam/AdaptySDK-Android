@@ -85,7 +85,7 @@ internal object JSPathUtils {
 
     private fun prologueStatements(firstComponent: PathComponent): String {
         val escaped = escapeJsString(firstComponent.value)
-        val sb = StringBuilder("var g=typeof globalThis!==\"undefined\"?globalThis:this;")
+        val sb = StringBuilder("var g=$JS_GLOBAL_OBJECT;")
         sb.append("var r=g[\"$escaped\"];")
         if (isValidJsIdentifier(firstComponent.value)) {
             sb.append("if(r===undefined)try{r=${firstComponent.value}}catch(x){}")
@@ -129,7 +129,7 @@ internal object JSPathUtils {
 
         if (path.size == 1) {
             val key = "\"${escapeJsString(path[0].value)}\""
-            return "(function(){var g=typeof globalThis!==\"undefined\"?globalThis:this;" +
+            return "(function(){var g=$JS_GLOBAL_OBJECT;" +
                 "g[$key]=$valueJson;})()"
         }
 

@@ -17,7 +17,8 @@ import com.adapty.ui.internal.mapping.attributes.toVisualValue
 import com.adapty.ui.internal.mapping.attributes.toHorizontalAlign
 import com.adapty.ui.internal.mapping.attributes.toEdgeEntities
 import com.adapty.ui.internal.mapping.attributes.toOffset
-import com.adapty.ui.internal.mapping.attributes.toShape
+import com.adapty.ui.internal.mapping.attributes.toBlendMode
+import com.adapty.ui.internal.mapping.attributes.toDecorator
 import com.adapty.ui.internal.mapping.attributes.toStaticRotation
 import com.adapty.ui.internal.mapping.attributes.toStaticScale
 import com.adapty.ui.internal.mapping.attributes.toVerticalAlign
@@ -51,6 +52,7 @@ private const val DECORATOR = "decorator"
 private const val PADDING = "padding"
 private const val OFFSET = "offset"
 private const val OPACITY = "opacity"
+private const val BLEND = "blend"
 private const val ROTATION = "rotation"
 private const val SCALE = "scale"
 private const val EVENT_HANDLERS = "event_handlers"
@@ -163,9 +165,10 @@ private fun putContentIntoWrapper(
     val vAlign = rawContent.remove(V_ALIGN) ?: DEFAULT_CONTENT_V_ALIGN
     val wrapperProps = if (hoistDecorator) {
         BaseProps(
-            shape = rawContent.remove(DECORATOR)?.toShape(),
+            decorator = rawContent.remove(DECORATOR)?.toDecorator(),
             padding = rawContent.remove(PADDING)?.toEdgeEntities(),
             opacity = (rawContent[OPACITY] as? Number)?.toFloat() ?: 1f,
+            blend = rawContent.remove(BLEND).toBlendMode(),
             rotation = rawContent.remove(ROTATION)?.toStaticRotation(),
             scale = rawContent.remove(SCALE)?.toStaticScale(),
             eventHandlers = rawContent.extractEventHandlers(),

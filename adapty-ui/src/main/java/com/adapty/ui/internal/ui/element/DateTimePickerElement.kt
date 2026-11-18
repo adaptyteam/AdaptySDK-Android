@@ -39,8 +39,6 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.adapty.internal.utils.InternalAdaptyApi
@@ -49,6 +47,7 @@ import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.script.toJsLong
 import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.LocalUiEnabled
+import com.adapty.ui.internal.ui.consumePointerInput
 import com.adapty.ui.internal.ui.attributes.DateTime
 import com.adapty.ui.internal.ui.resolveState
 import com.adapty.ui.internal.store.Message
@@ -499,14 +498,6 @@ private fun InlineTimePicker(
                     latestOnChange(h, m)
                 }
             }
-    }
-}
-
-private fun Modifier.consumePointerInput(): Modifier = pointerInput(Unit) {
-    awaitPointerEventScope {
-        while (true) {
-            awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
-        }
     }
 }
 

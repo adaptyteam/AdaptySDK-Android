@@ -20,6 +20,7 @@ internal class AdaptyUIActionTypeAdapterFactory : TypeAdapterFactory {
         const val TYPE_CUSTOM = "custom"
         const val VALUE = "value"
         const val OPEN_IN = "open_in"
+        const val ARGUMENTS = "arguments"
     }
 
     override fun <T : Any?> create(gson: Gson, type: TypeToken<T>): TypeAdapter<T>? {
@@ -45,6 +46,7 @@ internal class AdaptyUIActionTypeAdapterFactory : TypeAdapterFactory {
                         is AdaptyUI.Action.Custom -> {
                             addProperty(TYPE, TYPE_CUSTOM)
                             addProperty(VALUE, value.customId)
+                            value.arguments?.let { add(ARGUMENTS, gson.toJsonTree(it)) }
                         }
                     }
                 }

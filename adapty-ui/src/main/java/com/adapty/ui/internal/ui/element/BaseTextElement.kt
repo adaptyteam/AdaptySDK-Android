@@ -46,6 +46,7 @@ import com.adapty.ui.internal.ui.attributes.toComposeTextAlign
 import com.adapty.ui.internal.ui.OverflowResult
 import com.adapty.ui.internal.ui.ScaleDownToFit
 import com.adapty.ui.internal.ui.ScaleDownToFitTextAutoSize
+import com.adapty.ui.internal.ui.unpinOnLooserBudget
 import com.adapty.ui.internal.ui.resolveAssets
 import com.adapty.ui.internal.utils.VisualValue
 
@@ -128,7 +129,7 @@ public abstract class BaseTextElement(
                 } else {
                     null
                 }
-                val bgModifier = modifier.then(tightWidth.modifier(pushOut)).then(heightFit?.modifier(pushOut, lines, tightWidth.onTextLayout) ?: Modifier)
+                val bgModifier = modifier.then(tightWidth.modifier(pushOut)).then(heightFit?.modifier(pushOut, lines, tightWidth) ?: Modifier)
                     .then(heightFit?.pendingCapModifier(pushOut, lines) ?: Modifier)
                 if (text.actions.isNotEmpty() && dispatch != null) {
                     val actions = text.actions
@@ -152,7 +153,9 @@ public abstract class BaseTextElement(
                         onTextLayout = onLayout,
                         style = textStyle,
                         autoSize = if (overflowAtMin != null) null else autoSize,
-                        modifier = bgModifier,
+                        modifier = bgModifier.unpinOnLooserBudget(autoSize, overflowAtMin != null) {
+                            overflowAtMinState.value = null
+                        },
                     )
                 } else {
                     BasicText(
@@ -162,7 +165,9 @@ public abstract class BaseTextElement(
                         onTextLayout = onLayout,
                         style = textStyle,
                         autoSize = if (overflowAtMin != null) null else autoSize,
-                        modifier = bgModifier,
+                        modifier = bgModifier.unpinOnLooserBudget(autoSize, overflowAtMin != null) {
+                            overflowAtMinState.value = null
+                        },
                     )
                 }
             }
@@ -221,8 +226,9 @@ public abstract class BaseTextElement(
                     onTextLayout = combineTextLayout(heightFit?.onTextLayout, tightWidth.onTextLayout),
                     style = textStyle,
                     autoSize = if (overflowAtMin != null) null else autoSize,
-                    modifier = modifier.then(tightWidth.modifier(pushOut)).then(heightFit?.modifier(pushOut, lines, tightWidth.onTextLayout) ?: Modifier)
-                        .then(heightFit?.pendingCapModifier(pushOut, lines) ?: Modifier),
+                    modifier = modifier.then(tightWidth.modifier(pushOut)).then(heightFit?.modifier(pushOut, lines, tightWidth) ?: Modifier)
+                        .then(heightFit?.pendingCapModifier(pushOut, lines) ?: Modifier)
+                        .unpinOnLooserBudget(autoSize, overflowAtMin != null) { overflowAtMinState.value = null },
                 )
             }
         }
@@ -241,8 +247,8 @@ public abstract class BaseTextElement(
         private var substitute: TextLayoutResult? = null
         private var textConstraints = Constraints()
 
-        fun modifier(text: PushOutInput?, lines: Int, onSubstitute: (TextLayoutResult) -> Unit): Modifier =
-            HeightFitModifier(text, lines, onSubstitute)
+        fun modifier(text: PushOutInput?, lines: Int, tightWidth: TightWidthController): Modifier =
+            HeightFitModifier(text, lines, tightWidth)
 
         fun pendingCapModifier(text: PushOutInput?, lines: Int): Modifier =
             if (text == null) Modifier else PendingCapModifier(lines)
@@ -281,7 +287,7 @@ public abstract class BaseTextElement(
         private inner class HeightFitModifier(
             private val text: PushOutInput?,
             private val lines: Int,
-            private val onSubstitute: (TextLayoutResult) -> Unit,
+            private val tightWidth: TightWidthController,
         ) : LayoutModifier {
             private val uncapped = text?.takeIf { lines < cap }
 
@@ -289,7 +295,7 @@ public abstract class BaseTextElement(
                 measurable: Measurable,
                 constraints: Constraints,
             ): MeasureResult {
-                proposedWidth = constraints.maxWidth
+                proposedWidth = tightWidth.proposedWidth
                 val placeable = measurable.measure(constraints.copy(maxHeight = Constraints.Infinity))
                 budget.fit(constraints.maxHeight)
                 val current = budget.maxLines
@@ -297,7 +303,7 @@ public abstract class BaseTextElement(
                 substitute = if (text == null || current == lines) {
                     null
                 } else {
-                    text.layout(textConstraints, current, this, layoutDirection).also(onSubstitute)
+                    text.layout(textConstraints, current, this, layoutDirection).also(tightWidth.onTextLayout)
                 }
                 return layout(
                     placeable.width.coerceIn(constraints.minWidth, constraints.maxWidth),
@@ -353,7 +359,7 @@ public abstract class BaseTextElement(
     private fun createAutoSize(
         fontSize: Float,
         onOverflowMode: OnOverflowMode?,
-        onOverflowAtMin: ((OverflowResult) -> Unit)? = null,
+        onOverflowAtMin: ((OverflowResult?) -> Unit)? = null,
     ): ScaleDownToFitTextAutoSize? =
         if (onOverflowMode == OnOverflowMode.SCALE)
             TextAutoSize.ScaleDownToFit(

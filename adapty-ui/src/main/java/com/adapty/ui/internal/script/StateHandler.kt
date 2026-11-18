@@ -55,6 +55,10 @@ internal interface StateHandler {
     suspend fun updateSDKProducts(sdkProductsJson: String)
 
     fun setActionHandler(handler: ActionHandler?)
+
+    fun releaseActionHandler(handler: ActionHandler)
+
+    fun close()
 }
 
 @InternalAdaptyApi
@@ -65,13 +69,16 @@ public interface StateAccessor {
 
 @Composable
 internal operator fun StateAccessor.get(binding: Binding) : Any? {
+    val contextPath = if (binding.scope == Scope.Screen) LocalScreenInstance.current.contextPath else null
+    return get(binding, contextPath)
+}
+
+internal fun StateAccessor.get(binding: Binding, contextPath: String?) : Any? {
     val key = when (binding.scope) {
         Scope.Global -> binding.variable
-        Scope.Screen -> {
-            val cp = LocalScreenInstance.current.contextPath
-            if (cp.isNullOrEmpty()) binding.variable
-            else "$cp.${binding.variable}"
-        }
+        Scope.Screen ->
+            if (contextPath.isNullOrEmpty()) binding.variable
+            else "$contextPath.${binding.variable}"
     }
     val rawValue = get(key)
     val converter = binding.converter

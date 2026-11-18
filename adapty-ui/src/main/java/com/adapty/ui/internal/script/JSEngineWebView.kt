@@ -5,6 +5,7 @@ package com.adapty.ui.internal.script
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
+import android.os.Looper
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
 import android.webkit.WebSettings
@@ -170,7 +171,7 @@ internal class JSEngineWebView(
         val wrapped = """
             (function() {
               function safeStringify(v) {
-                try { return JSON.stringify(v) ?? "null"; }
+                try { return JSON.stringify(v) || "null"; }
                 catch(e) { return JSON.stringify({ "$JS_ERROR_KEY": e.toString() }); }
               }
               try {
@@ -273,7 +274,7 @@ internal class JSEngineWebView(
     fun close() {
         pollJob?.cancel()
         bgScope.cancel()
-        runBlocking(Dispatchers.Main) {
+        val destroy = {
             try {
                 webView?.stopLoading()
                 webView?.removeAllViews()
@@ -283,6 +284,8 @@ internal class JSEngineWebView(
             }
             webView = null
         }
+        if (Looper.myLooper() == Looper.getMainLooper()) destroy()
+        else runBlocking(Dispatchers.Main) { destroy() }
     }
 
     private suspend fun evaluateJavascriptSuspend(script: String): String =

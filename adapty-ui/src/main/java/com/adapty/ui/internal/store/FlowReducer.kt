@@ -13,6 +13,7 @@ import com.adapty.ui.AdaptyCustomImageAsset
 import com.adapty.ui.AdaptyCustomVideoAsset
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
+import com.adapty.ui.internal.text.toPlainText
 import com.adapty.ui.internal.ui.element.Action
 import com.adapty.ui.internal.utils.CUSTOM_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.normalizeJsonNumbers
@@ -21,10 +22,16 @@ import com.adapty.ui.internal.utils.VIDEO_PREVIEW_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.isLive
 import com.adapty.ui.internal.utils.log
+import com.adapty.ui.listeners.AdaptyUiTagResolver
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
+import java.util.UUID
 
-internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Effect>> {
+internal fun reduce(
+    state: FlowState,
+    message: Message,
+    newId: () -> String = { UUID.randomUUID().toString() },
+): Pair<FlowState, List<Effect>> {
     return when (message) {
 
     is Message.ActionsRequested -> state to listOf(Effect.ExecuteJSActions(message.actions, message.screen))
@@ -41,21 +48,22 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
     is Message.JSCallback.PurchaseProduct -> {
         if (state.purchase !is PurchaseFlowState.Idle) return state to emptyList()
         val product = state.products.items[message.productId] ?: return state to emptyList()
+        val id = newId()
         if (!state.config.viewConfig.mode.isLive()) {
             return state.copy(ui = state.ui.copy(isLoading = state.config.viewConfig.showPurchaseLoader)) to listOf(
-                Effect.SendSDKEvent.WillPurchase(message.productId),
-                Effect.PreviewPurchase(message.productId, message.callbackId),
+                Effect.SendSDKEvent.WillPurchase(id, message.productId),
+                Effect.PreviewPurchase(message.productId, message.callbackId, id),
             )
         }
         val showLoader = state.config.viewConfig.showPurchaseLoader
         val cbId = message.callbackId
-        val willPurchaseEvent = Effect.SendSDKEvent.WillPurchase(message.productId)
+        val willPurchaseEvent = Effect.SendSDKEvent.WillPurchase(id, message.productId)
         when {
             state.config.isObserverMode && state.config.observerModeHandler != null ->
-                state.copy(purchase = PurchaseFlowState.ObserverModeInitiated(product, cbId)) to
+                state.copy(purchase = PurchaseFlowState.ObserverModeInitiated(product, cbId, id)) to
                     listOf(willPurchaseEvent, Effect.InitiateObserverModePurchase(product, state.config.observerModeHandler))
             state.config.isObserverMode && state.config.observerModeHandler == null ->
-                state.copy(purchase = PurchaseFlowState.AwaitingParams(product, cbId), ui = state.ui.copy(isLoading = showLoader)) to
+                state.copy(purchase = PurchaseFlowState.AwaitingParams(product, cbId, id), ui = state.ui.copy(isLoading = showLoader)) to
                     listOf(willPurchaseEvent, Effect.ObserverModeWarning.MissingHandler,
                            Effect.AwaitPurchaseParams(product))
             else -> {
@@ -63,13 +71,13 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
                 if (state.config.observerModeHandler != null)
                     effects.add(Effect.ObserverModeWarning.HandlerInFullMode)
                 effects.add(Effect.AwaitPurchaseParams(product))
-                state.copy(purchase = PurchaseFlowState.AwaitingParams(product, cbId), ui = state.ui.copy(isLoading = showLoader)) to effects
+                state.copy(purchase = PurchaseFlowState.AwaitingParams(product, cbId, id), ui = state.ui.copy(isLoading = showLoader)) to effects
             }
         }
     }
     is Message.PurchaseParamsReceived -> {
-        val cbId = (state.purchase as? PurchaseFlowState.AwaitingParams)?.callbackId
-        state.copy(purchase = PurchaseFlowState.InProgress(message.product, cbId)) to
+        val awaiting = state.purchase as? PurchaseFlowState.AwaitingParams
+        state.copy(purchase = PurchaseFlowState.InProgress(message.product, awaiting?.callbackId, awaiting?.id ?: newId())) to
             listOf(Effect.NotifyListener.PurchaseStarted(message.product), Effect.StartPurchaseFlow(message.product, message.params))
     }
     is Message.PurchaseSucceeded -> {
@@ -79,9 +87,10 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
             is AdaptyPurchaseResult.UserCanceled -> "userCanceled"
             is AdaptyPurchaseResult.Pending -> "pending"
         }
-        val cbId = (state.purchase as? PurchaseFlowState.InProgress)?.callbackId
+        val inProgress = state.purchase as? PurchaseFlowState.InProgress
+        val cbId = inProgress?.callbackId
         val effects = mutableListOf<Effect>(
-            Effect.SendSDKEvent.DidPurchase(productId, resultStr),
+            Effect.SendSDKEvent.DidPurchase(inProgress?.id ?: newId(), productId, resultStr),
             Effect.NotifyListener.PurchaseFinished(message.result, message.product),
         )
         if (cbId != null) effects.add(Effect.InvokeJSPurchaseCallback(cbId, productId, resultStr))
@@ -89,9 +98,10 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
     }
     is Message.PurchaseFailed -> {
         val productId = resolveProductKey(message.product)
-        val cbId = (state.purchase as? PurchaseFlowState.InProgress)?.callbackId
+        val inProgress = state.purchase as? PurchaseFlowState.InProgress
+        val cbId = inProgress?.callbackId
         val effects = mutableListOf<Effect>(
-            Effect.SendSDKEvent.DidPurchase(productId, "fail"),
+            Effect.SendSDKEvent.DidPurchase(inProgress?.id ?: newId(), productId, "fail"),
             Effect.NotifyListener.PurchaseFailed(message.error, message.product),
         )
         if (cbId != null) effects.add(Effect.InvokeJSPurchaseCallback(cbId, productId, "fail"))
@@ -100,9 +110,10 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
 
     is Message.JSCallback.WebPurchaseProduct -> {
         if (!state.config.viewConfig.mode.isLive()) {
+            val id = newId()
             return state.copy(ui = state.ui.copy(isLoading = state.config.viewConfig.showPurchaseLoader)) to listOf(
-                Effect.SendSDKEvent.WillPurchase(message.productId),
-                Effect.PreviewPurchase(message.productId, message.callbackId),
+                Effect.SendSDKEvent.WillPurchase(id, message.productId),
+                Effect.PreviewPurchase(message.productId, message.callbackId, id),
             )
         }
         val product = state.products.items[message.productId] ?: return state to emptyList()
@@ -111,28 +122,29 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
 
     is Message.JSCallback.RestorePurchases -> {
         if (state.restore !is RestoreFlowState.Idle) return state to emptyList()
+        val id = newId()
         if (!state.config.viewConfig.mode.isLive()) {
             return state.copy(ui = state.ui.copy(isLoading = state.config.viewConfig.showRestoreLoader)) to listOf(
-                Effect.SendSDKEvent.WillRestorePurchases,
-                Effect.PreviewRestore(message.callbackId),
+                Effect.SendSDKEvent.WillRestorePurchases(id),
+                Effect.PreviewRestore(message.callbackId, id),
             )
         }
         val showLoader = state.config.viewConfig.showRestoreLoader
         val cbId = message.callbackId
-        val willRestoreEvent = Effect.SendSDKEvent.WillRestorePurchases
+        val willRestoreEvent = Effect.SendSDKEvent.WillRestorePurchases(id)
         when {
             state.config.isObserverMode && state.config.observerModeHandler != null -> {
                 val restoreHandler = state.config.observerModeHandler.getRestoreHandler()
                 if (restoreHandler != null)
-                    state.copy(restore = RestoreFlowState.ObserverModeInitiated(cbId)) to
+                    state.copy(restore = RestoreFlowState.ObserverModeInitiated(cbId, id)) to
                         listOf(willRestoreEvent, Effect.InitiateObserverModeRestore(restoreHandler))
                 else
-                    state.copy(restore = RestoreFlowState.InProgress(cbId), ui = state.ui.copy(isLoading = showLoader)) to
+                    state.copy(restore = RestoreFlowState.InProgress(cbId, id), ui = state.ui.copy(isLoading = showLoader)) to
                         listOf(willRestoreEvent, Effect.ObserverModeWarning.MissingRestoreHandler,
                                Effect.NotifyListener.RestoreStarted, Effect.StartRestoreFlow)
             }
             state.config.isObserverMode && state.config.observerModeHandler == null ->
-                state.copy(restore = RestoreFlowState.InProgress(cbId), ui = state.ui.copy(isLoading = showLoader)) to
+                state.copy(restore = RestoreFlowState.InProgress(cbId, id), ui = state.ui.copy(isLoading = showLoader)) to
                     listOf(willRestoreEvent, Effect.ObserverModeWarning.MissingRestoreHandler,
                            Effect.NotifyListener.RestoreStarted, Effect.StartRestoreFlow)
             else -> {
@@ -141,23 +153,25 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
                     effects.add(Effect.ObserverModeWarning.HandlerInFullMode)
                 effects.add(Effect.NotifyListener.RestoreStarted)
                 effects.add(Effect.StartRestoreFlow)
-                state.copy(restore = RestoreFlowState.InProgress(cbId), ui = state.ui.copy(isLoading = showLoader)) to effects
+                state.copy(restore = RestoreFlowState.InProgress(cbId, id), ui = state.ui.copy(isLoading = showLoader)) to effects
             }
         }
     }
     is Message.RestoreSucceeded -> {
-        val cbId = (state.restore as? RestoreFlowState.InProgress)?.callbackId
+        val inProgress = state.restore as? RestoreFlowState.InProgress
+        val cbId = inProgress?.callbackId
         val effects = mutableListOf<Effect>(
-            Effect.SendSDKEvent.DidRestorePurchases("success"),
+            Effect.SendSDKEvent.DidRestorePurchases(inProgress?.id ?: newId(), "success"),
             Effect.NotifyListener.RestoreSucceeded(message.profile),
         )
         if (cbId != null) effects.add(Effect.InvokeJSRestoreCallback(cbId, "success"))
         state.copy(restore = RestoreFlowState.Idle, ui = state.ui.copy(isLoading = false)) to effects
     }
     is Message.RestoreFailed -> {
-        val cbId = (state.restore as? RestoreFlowState.InProgress)?.callbackId
+        val inProgress = state.restore as? RestoreFlowState.InProgress
+        val cbId = inProgress?.callbackId
         val effects = mutableListOf<Effect>(
-            Effect.SendSDKEvent.DidRestorePurchases("fail"),
+            Effect.SendSDKEvent.DidRestorePurchases(inProgress?.id ?: newId(), "fail"),
             Effect.NotifyListener.RestoreFailed(message.error),
         )
         if (cbId != null) effects.add(Effect.InvokeJSRestoreCallback(cbId, "fail"))
@@ -184,14 +198,14 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
 
     is Message.PreviewPurchaseCompleted -> {
         val effects = mutableListOf<Effect>(
-            Effect.SendSDKEvent.DidPurchase(message.productId, "success"),
+            Effect.SendSDKEvent.DidPurchase(message.id, message.productId, "success"),
         )
         if (message.callbackId != null) effects.add(Effect.InvokeJSPurchaseCallback(message.callbackId, message.productId, "success"))
         state.copy(ui = state.ui.copy(isLoading = false)) to effects
     }
     is Message.PreviewRestoreCompleted -> {
         val effects = mutableListOf<Effect>(
-            Effect.SendSDKEvent.DidRestorePurchases("success"),
+            Effect.SendSDKEvent.DidRestorePurchases(message.id, "success"),
         )
         if (message.callbackId != null) effects.add(Effect.InvokeJSRestoreCallback(message.callbackId, "success"))
         state.copy(ui = state.ui.copy(isLoading = false)) to effects
@@ -200,7 +214,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
     is Message.JSCallback.OpenUrl -> {
         val resolvedUrl = when (val source = message.source) {
             is Message.JSCallback.OpenUrl.Source.Url -> source.url
-            is Message.JSCallback.OpenUrl.Source.StringId -> resolveTextParam(source.stringId, state.texts.items)
+            is Message.JSCallback.OpenUrl.Source.StringId -> resolveTextParam(source.stringId, state.texts.items, state.config.tagResolver)
                 ?: return state to listOf(Effect.NotifyListener.OnError(adaptyError(
                     message = "open-url action string id '${source.stringId}' did not resolve to a URL",
                     adaptyErrorCode = AdaptyErrorCode.INVALID_ACTION_URL,
@@ -212,8 +226,10 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
         }
         state to listOf(Effect.NotifyListener.ActionPerformed(AdaptyUI.Action.OpenUrl(resolvedUrl, presentation)))
     }
-    is Message.JSCallback.CustomAction ->
-        state to listOf(Effect.NotifyListener.ActionPerformed(AdaptyUI.Action.Custom(message.id)))
+    is Message.JSCallback.CustomAction -> {
+        val arguments = message.arguments?.normalizeJsonNumbers()
+        state to listOf(Effect.NotifyListener.ActionPerformed(AdaptyUI.Action.Custom(message.id, arguments)))
+    }
     is Message.JSCallback.CloseAll ->
         state to listOf(Effect.NotifyListener.ActionPerformed(AdaptyUI.Action.Close))
     is Message.JSCallback.SelectProduct -> {
@@ -250,21 +266,14 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
                 if (navigatorId == requestedId) message.entry
                 else message.entry.copy(navigatorId = navigatorId)
             state.copy(
-                navigation = state.navigation.copy(
-                    pending = state.navigation.pending + (navigatorId to entry)
-                )
+                navigation = state.navigation.stagePending(navigatorId, entry)
             ) to listOf(Effect.RefreshStateCache)
         }
     }
     is Message.FlushPendingNavigation -> {
-        val pending = state.navigation.pending
-        if (pending.isEmpty()) {
-            state to emptyList()
-        } else {
-            state.copy(
-                navigation = NavigationState(entries = state.navigation.entries + pending)
-            ) to emptyList()
-        }
+        val committed = state.navigation.commitPending()
+        if (committed === state.navigation) state to emptyList()
+        else state.copy(navigation = committed) to emptyList()
     }
     is Message.JSCallback.MoveScroll ->
         state.copy(ui = state.ui.copy(scrollCommand = ScrollCommand(message.instanceId, message.kind, message.value))) to emptyList()
@@ -279,7 +288,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
                 )
             ) to listOf(Effect.ScheduleTimerCallback(message.timerId, delayMs))
         } else if (message.durationSeconds != null) {
-            val behavior = message.behavior ?: "restart"
+            val behavior = message.behavior ?: "continue"
             if (behavior == "continue") {
                 val now = System.currentTimeMillis() / 1000L
                 val existing = state.ui.timerCommands[message.timerId]
@@ -368,7 +377,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
                 )
             )
         if (isCustomer)
-            effects.add(Effect.NotifyListener.AnalyticEvent(message.name, params))
+            effects.add(Effect.NotifyListener.AnalyticEvent(message.name, params - analyticsRoutingFlags))
         state to effects
     }
 
@@ -390,8 +399,17 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
             log(WARN) { "$LOG_PREFIX showAlertDialog ignored: alert already presenting" }
             state to emptyList()
         } else {
+            val texts = state.texts.items
+            val tagResolver = state.config.tagResolver
             state.copy(ui = state.ui.copy(
-                alertDialog = AlertDialogState(message.title, message.message, message.actions, message.callbackId)
+                alertDialog = AlertDialogState(
+                    title = resolveAlertText(message.titleStringId, message.title, texts, tagResolver),
+                    message = resolveAlertText(message.messageStringId, message.message, texts, tagResolver),
+                    actions = message.actions.map { action ->
+                        action.copy(title = resolveAlertText(action.titleStringId, action.title, texts, tagResolver))
+                    },
+                    callbackId = message.callbackId,
+                )
             )) to emptyList()
         }
     }
@@ -426,11 +444,15 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
             tagResolver = newData.tagResolver,
             timerResolver = newData.timerResolver,
             productLoadingFailureCallback = newData.productLoadingFailureCallback,
+            customElementsResolver = newData.customElementsResolver,
         )
 
         val newProductsFromArgs = associateProducts(newData.products, mode)
         val mergedProducts = state.products.items + newProductsFromArgs
 
+        if (viewConfig !== state.config.viewConfig || newData.customAssets !== state.config.customAssets) {
+            warnOnMismatchedCustomAssets(viewConfig, newData.customAssets)
+        }
         val localAssets = buildLocalAssetsMap(viewConfig, newData.customAssets)
         val remoteImageIds = viewConfig.assets.filterValues { it is Asset.RemoteImage }.keys
         val mergedAssets = (state.assets.items + localAssets).toMutableMap()
@@ -464,7 +486,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
         }
         if (pushProductsToScript) {
             effects.add(Effect.UpdateJSProducts(mergedProducts))
-            effects.add(Effect.SendSDKEvent.ProductsLoaded)
+            effects.add(Effect.SendSDKEvent.ProductsLoaded(newId()))
         }
 
         viewConfig.assets.forEach { (id, asset) ->
@@ -515,7 +537,7 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
             .copy(items = mergedProducts, loadingStatus = LoadingStatus.Loaded, syncedToScript = true)
             .resolvePendingSelections(state.ui.flowShown)
         state.copy(products = productsState, ui = state.ui.copy(isLoading = false)) to
-            (listOf(Effect.UpdateJSProducts(mergedProducts), Effect.SendSDKEvent.ProductsLoaded) + selectionEffects)
+            (listOf(Effect.UpdateJSProducts(mergedProducts), Effect.SendSDKEvent.ProductsLoaded(newId())) + selectionEffects)
     }
     is Message.ProductsLoadFailed -> {
         state.copy(products = state.products.copy(loadingStatus = LoadingStatus.Error(message.error)),
@@ -575,8 +597,13 @@ internal fun reduce(state: FlowState, message: Message): Pair<FlowState, List<Ef
         state to listOf(Effect.NotifyListener.OnError(
             adaptyError(message = message.message, adaptyErrorCode = message.code)
         ))
+
+    is AppMessageRequested ->
+        state to listOf(Effect.SendSDKEvent.AppMessage(message.id, message.payload, message.source))
 }
 }
+
+private val analyticsRoutingFlags = setOf("isBackendEvent", "isCustomerEvent")
 
 private fun focusChangeEffects(state: FlowState, newFocusId: String?): List<Effect> {
     val focusParams = mapOf<String, Any?>("focusId" to newFocusId, "oldFocusId" to state.ui.currentFocusId)
@@ -591,16 +618,22 @@ private fun focusChangeEffects(state: FlowState, newFocusId: String?): List<Effe
     return effects
 }
 
-private fun resolveTextParam(value: String, texts: Map<String, AdaptyUI.FlowConfiguration.TextItem>): String? {
-    val textItem = texts[value] ?: return null
-    return extractPlainText(textItem.value) ?: textItem.fallback?.let(::extractPlainText)
-}
+private fun resolveTextParam(
+    value: String,
+    texts: Map<String, AdaptyUI.FlowConfiguration.TextItem>,
+    customTagResolver: AdaptyUiTagResolver,
+): String? = texts[value]?.toPlainText(customTagResolver)
 
-private fun extractPlainText(richText: AdaptyUI.FlowConfiguration.RichText): String? {
-    return richText.items
-        .filterIsInstance<AdaptyUI.FlowConfiguration.RichText.Item.Text>()
-        .joinToString("") { it.text }
-        .takeIf { it.isNotEmpty() }
+private fun resolveAlertText(
+    stringId: String?,
+    text: String?,
+    texts: Map<String, AdaptyUI.FlowConfiguration.TextItem>,
+    customTagResolver: AdaptyUiTagResolver,
+): String? {
+    if (stringId == null) return text
+    resolveTextParam(stringId, texts, customTagResolver)?.let { return it }
+    log(ERROR) { "$LOG_PREFIX showAlertDialog: string id '$stringId' is not localized or does not resolve" }
+    return text
 }
 
 private fun ProductsState.resolvePendingSelections(flowShown: Boolean): Pair<ProductsState, List<Effect>> {

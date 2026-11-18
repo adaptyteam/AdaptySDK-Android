@@ -65,6 +65,12 @@ internal class NaturalHeightRecord {
     fun write(value: Int) {
         if (height.intValue != value) height.intValue = value
     }
+
+    fun recordedOrZero(): Int {
+        if (!NaturalHeightQuery.isActive) return 0
+        queried = true
+        return height.intValue
+    }
 }
 
 internal fun Modifier.zeroIntrinsicsOrRecordedHeight(record: NaturalHeightRecord): Modifier =
@@ -94,20 +100,65 @@ private class RecordedHeightIntrinsicsNode(
     }
 
     override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
-        recordedOrZero()
+        record.recordedOrZero()
 
     override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
-        recordedOrZero()
+        record.recordedOrZero()
 
     override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int = 0
 
     override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int = 0
+}
 
-    private fun recordedOrZero(): Int {
-        if (!NaturalHeightQuery.isActive) return 0
-        record.queried = true
-        return record.height.intValue
+internal fun Modifier.contentIntrinsicsOrRecordedHeight(
+    record: NaturalHeightRecord,
+    onSizeUnknown: () -> Unit,
+): Modifier = this.then(ContentIntrinsicsElement(record, onSizeUnknown))
+
+private data class ContentIntrinsicsElement(
+    val record: NaturalHeightRecord,
+    val onSizeUnknown: () -> Unit,
+) : ModifierNodeElement<ContentIntrinsicsNode>() {
+    override fun create() = ContentIntrinsicsNode(record, onSizeUnknown)
+    override fun update(node: ContentIntrinsicsNode) {
+        node.record = record
+        node.onSizeUnknown = onSizeUnknown
     }
+}
+
+private class ContentIntrinsicsNode(
+    var record: NaturalHeightRecord,
+    var onSizeUnknown: () -> Unit,
+) : Modifier.Node(), LayoutModifierNode {
+    private var reported = false
+
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        contentOr({ measurable.minIntrinsicHeight(width) }) { record.recordedOrZero() }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        contentOr({ measurable.maxIntrinsicHeight(width) }) { record.recordedOrZero() }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        contentOr({ measurable.minIntrinsicWidth(height) }) { 0 }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        contentOr({ measurable.maxIntrinsicWidth(height) }) { 0 }
+
+    private inline fun contentOr(query: () -> Int, fallback: () -> Int): Int =
+        try {
+            query()
+        } catch (e: IllegalStateException) {
+            if (!reported) {
+                reported = true
+                onSizeUnknown()
+            }
+            fallback()
+        }
 }
 
 private data class RecordNaturalHeightElement(
@@ -138,4 +189,16 @@ private class RecordNaturalHeightNode(
         val placeable = measurable.measure(constraints)
         return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
     }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        measurable.minIntrinsicHeight(width)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        measurable.maxIntrinsicHeight(width)
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        measurable.minIntrinsicWidth(height)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
+        measurable.maxIntrinsicWidth(height)
 }

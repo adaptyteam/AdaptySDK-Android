@@ -28,11 +28,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.ui.attributes.Animation
+import com.adapty.ui.internal.ui.attributes.AnimationTarget
+import com.adapty.ui.internal.ui.attributes.Decorator
 import com.adapty.ui.internal.ui.attributes.DpOffset
 import com.adapty.ui.internal.ui.attributes.Point
 import com.adapty.ui.internal.ui.attributes.Rotation
 import com.adapty.ui.internal.ui.attributes.Scale
 import com.adapty.ui.internal.ui.attributes.easing
+import com.adapty.ui.internal.ui.attributes.target
 import com.adapty.ui.internal.ui.element.AnimationBehavior
 import com.adapty.ui.internal.ui.element.BaseProps
 import com.adapty.ui.internal.ui.element.BoxProvider
@@ -56,13 +59,14 @@ import com.adapty.ui.internal.ui.element.heightBehaviour
 import com.adapty.ui.internal.ui.element.blurBehaviour
 import com.adapty.ui.internal.ui.element.BlurProvider
 import com.adapty.ui.internal.ui.element.InnerShadowProvider
-import com.adapty.ui.internal.ui.element.LocalRoleSequences
+import com.adapty.ui.internal.ui.element.LocalTargetSequences
 import com.adapty.ui.internal.ui.element.innerShadowBlurRadiusBehaviour
 import com.adapty.ui.internal.ui.element.innerShadowColorBehaviour
 import com.adapty.ui.internal.ui.element.innerShadowOffsetBehaviour
 import com.adapty.ui.internal.ui.element.shadowBlurRadiusBehaviour
 import com.adapty.ui.internal.ui.element.shadowColorBehaviour
 import com.adapty.ui.internal.ui.element.shadowOffsetBehaviour
+import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.areAnimationsDisabled
 
 @Composable
@@ -109,8 +113,8 @@ internal fun <T> rememberAnimatedValueWithRunner(
     initialValue: T,
     converter: TwoWayConverter<T, out AnimationVector>,
 ): State<T> {
-    val seq = animations.firstOrNull()?.role
-        ?.let { role -> LocalRoleSequences.current[role] } ?: -1L
+    val seq = animations.firstOrNull()?.target
+        ?.let { target -> LocalTargetSequences.current[target] } ?: -1L
     val runner = remember(animations, seq) {
         if (animations.isEmpty()) null else AnimationRunner(animations)
     }
@@ -352,20 +356,20 @@ internal fun rememberOpacityProvider(baseProps: BaseProps): OpacityProvider {
 }
 
 @Composable
-internal fun rememberColorProvider(baseProps: BaseProps): State<Color> =
-    rememberBindableAnimatedValue(baseProps.colorBehaviour(), Color.VectorConverter(ColorSpaces.Srgb))
+internal fun rememberColorProvider(baseProps: BaseProps, targetId: Int, base: VisualValue?): State<Color> =
+    rememberBindableAnimatedValue(baseProps.colorBehaviour(targetId, base), Color.VectorConverter(ColorSpaces.Srgb))
 
 @Composable
-internal fun rememberBorderColorProvider(baseProps: BaseProps): State<Color> =
-    rememberBindableAnimatedValue(baseProps.borderColorBehaviour(), Color.VectorConverter(ColorSpaces.Srgb))
+internal fun rememberBorderColorProvider(baseProps: BaseProps, targetId: Int, base: VisualValue?): State<Color> =
+    rememberBindableAnimatedValue(baseProps.borderColorBehaviour(targetId, base), Color.VectorConverter(ColorSpaces.Srgb))
 
 @Composable
-internal fun rememberBorderThicknessProvider(baseProps: BaseProps): State<Dp> =
-    rememberBindableAnimatedValue(baseProps.borderThicknessBehaviour(), DpVectorConverter)
+internal fun rememberBorderThicknessProvider(baseProps: BaseProps, targetId: Int, base: Float?): State<Dp> =
+    rememberBindableAnimatedValue(baseProps.borderThicknessBehaviour(targetId, base), DpVectorConverter)
 
 @Composable
-internal fun rememberBorderGradientProvider(baseProps: BaseProps): BrushProvider =
-    rememberGradientProvider(baseProps, Animation.Role.Border)
+internal fun rememberBorderGradientProvider(baseProps: BaseProps, targetId: Int, base: VisualValue?): BrushProvider =
+    rememberGradientProvider(baseProps, AnimationTarget(Animation.Role.Border, targetId), base)
 
 @Composable
 internal fun rememberBlurProvider(baseProps: BaseProps): BlurProvider {
@@ -374,18 +378,18 @@ internal fun rememberBlurProvider(baseProps: BaseProps): BlurProvider {
 }
 
 @Composable
-internal fun rememberShadowProvider(baseProps: BaseProps): ShadowProvider {
-    val color = rememberBindableAnimatedValue(baseProps.shadowColorBehaviour(), Color.VectorConverter(ColorSpaces.Srgb))
-    val blurRadius = rememberBindableAnimatedValue(baseProps.shadowBlurRadiusBehaviour(), Float.VectorConverter)
-    val offset = rememberBindableAnimatedValue(baseProps.shadowOffsetBehaviour(), OffsetVectorConverter)
+internal fun rememberShadowProvider(baseProps: BaseProps, targetId: Int, base: Decorator.Effect?): ShadowProvider {
+    val color = rememberBindableAnimatedValue(baseProps.shadowColorBehaviour(targetId, base), Color.VectorConverter(ColorSpaces.Srgb))
+    val blurRadius = rememberBindableAnimatedValue(baseProps.shadowBlurRadiusBehaviour(targetId, base), Float.VectorConverter)
+    val offset = rememberBindableAnimatedValue(baseProps.shadowOffsetBehaviour(targetId, base), OffsetVectorConverter)
     return ShadowProvider(color, blurRadius, offset)
 }
 
 @Composable
-internal fun rememberInnerShadowProvider(baseProps: BaseProps): InnerShadowProvider {
-    val color = rememberBindableAnimatedValue(baseProps.innerShadowColorBehaviour(), Color.VectorConverter(ColorSpaces.Srgb))
-    val blurRadius = rememberBindableAnimatedValue(baseProps.innerShadowBlurRadiusBehaviour(), Float.VectorConverter)
-    val offset = rememberBindableAnimatedValue(baseProps.innerShadowOffsetBehaviour(), OffsetVectorConverter)
+internal fun rememberInnerShadowProvider(baseProps: BaseProps, targetId: Int, base: Decorator.Effect?): InnerShadowProvider {
+    val color = rememberBindableAnimatedValue(baseProps.innerShadowColorBehaviour(targetId, base), Color.VectorConverter(ColorSpaces.Srgb))
+    val blurRadius = rememberBindableAnimatedValue(baseProps.innerShadowBlurRadiusBehaviour(targetId, base), Float.VectorConverter)
+    val offset = rememberBindableAnimatedValue(baseProps.innerShadowOffsetBehaviour(targetId, base), OffsetVectorConverter)
     return InnerShadowProvider(color, blurRadius, offset)
 }
 

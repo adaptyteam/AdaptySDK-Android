@@ -2,6 +2,8 @@ package com.adapty.ui.internal.ui
 
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.text.modifiers.TextAutoSizeLayoutScope
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -23,7 +25,7 @@ internal fun TextAutoSize.Companion.ScaleDownToFit(
     minFontSize: TextUnit,
     maxFontSize: TextUnit,
     stepSize: TextUnit = 0.5.sp,
-    onOverflowAtMin: ((OverflowResult) -> Unit)? = null,
+    onOverflowAtMin: ((OverflowResult?) -> Unit)? = null,
 ): ScaleDownToFitTextAutoSize =
     ScaleDownToFitTextAutoSize(minFontSize, maxFontSize, stepSize, onOverflowAtMin)
 
@@ -31,10 +33,13 @@ internal class ScaleDownToFitTextAutoSize(
     val minFontSize: TextUnit,
     val maxFontSize: TextUnit,
     private val stepSize: TextUnit,
-    private val onOverflowAtMin: ((OverflowResult) -> Unit)?,
+    private val onOverflowAtMin: ((OverflowResult?) -> Unit)?,
 ) : TextAutoSize {
 
     private var lastChosenK: Int? = null
+    private var lastMaxWidth: Int = Constraints.Infinity
+    private var lastMaxHeight: Int = Constraints.Infinity
+    private var reportedOverflowAtMin = false
 
     override fun TextAutoSizeLayoutScope.getFontSize(
         constraints: Constraints,
@@ -55,6 +60,12 @@ internal class ScaleDownToFitTextAutoSize(
 
         val kMax = floor((maxPx - minPx) / stepPx).toInt().coerceAtLeast(0)
         fun pxForK(k: Int): Float = minPx + k * stepPx
+
+        if (constraints.maxWidth > lastMaxWidth || constraints.maxHeight > lastMaxHeight) {
+            lastChosenK = null
+        }
+        lastMaxWidth = constraints.maxWidth
+        lastMaxHeight = constraints.maxHeight
 
         val unboundedHeightConstraints = constraints.copy(maxHeight = Constraints.Infinity)
 
@@ -90,8 +101,13 @@ internal class ScaleDownToFitTextAutoSize(
         val minOverflow = checkOverflowAt(pxForK(0))
         if (minOverflow.didOverflow) {
             lastChosenK = 0
+            reportedOverflowAtMin = true
             onOverflowAtMin?.invoke(minOverflow)
             return minFontSize
+        }
+        if (reportedOverflowAtMin) {
+            reportedOverflowAtMin = false
+            onOverflowAtMin?.invoke(null)
         }
 
         val topPx = pxForK(kUpper)
@@ -118,6 +134,9 @@ internal class ScaleDownToFitTextAutoSize(
         return pxForK(best).toSp()
     }
 
+    fun budgetGrew(constraints: Constraints): Boolean =
+        constraints.maxWidth > lastMaxWidth || constraints.maxHeight > lastMaxHeight
+
     override fun equals(other: Any?): Boolean {
         if (other === this) return true
         if (other !is ScaleDownToFitTextAutoSize) return false
@@ -133,3 +152,15 @@ internal class ScaleDownToFitTextAutoSize(
         return result
     }
 }
+
+internal fun Modifier.unpinOnLooserBudget(
+    autoSize: ScaleDownToFitTextAutoSize?,
+    pinned: Boolean,
+    unpin: () -> Unit,
+): Modifier =
+    if (autoSize == null || !pinned) this
+    else layout { measurable, constraints ->
+        if (autoSize.budgetGrew(constraints)) unpin()
+        val placeable = measurable.measure(constraints)
+        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }

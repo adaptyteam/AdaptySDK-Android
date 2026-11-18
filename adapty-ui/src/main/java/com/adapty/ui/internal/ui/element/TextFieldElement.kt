@@ -60,6 +60,7 @@ import com.adapty.ui.internal.ui.resolveText
 import com.adapty.ui.internal.ui.OverflowResult
 import com.adapty.ui.internal.ui.ScaleDownToFit
 import com.adapty.ui.internal.ui.ScaleDownToFitTextAutoSize
+import com.adapty.ui.internal.ui.unpinOnLooserBudget
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import com.adapty.ui.internal.store.Message
@@ -383,6 +384,9 @@ public class TextFieldElement internal constructor(
                             maxLines = resolvedMaxLines,
                             overflow = TextOverflow.Ellipsis,
                             autoSize = if (phOverflowAtMin != null) null else phAutoSize,
+                            modifier = Modifier.unpinOnLooserBudget(phAutoSize, phOverflowAtMin != null) {
+                                phOverflowAtMinState.value = null
+                            },
                         )
                     }
                 }

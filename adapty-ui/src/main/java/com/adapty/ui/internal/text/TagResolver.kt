@@ -13,6 +13,7 @@ import com.adapty.models.AdaptyPeriodUnit.WEEK
 import com.adapty.models.AdaptyPeriodUnit.YEAR
 import com.adapty.models.AdaptyProductDiscountPhase
 import com.adapty.models.AdaptyProductDiscountPhase.PaymentMode
+import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.RichText
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.mapping.element.Products
@@ -257,6 +258,29 @@ internal class TagResolver(
         }
         return StringWrapper.EMPTY
     }
+}
+
+internal fun AdaptyUI.FlowConfiguration.TextItem.toPlainText(customTagResolver: AdaptyUiTagResolver): String? =
+    value.toPlainText(customTagResolver, ignoreMissingCustomTag = fallback == null)
+        ?: fallback?.toPlainText(customTagResolver, ignoreMissingCustomTag = true)
+
+private fun RichText.toPlainText(customTagResolver: AdaptyUiTagResolver, ignoreMissingCustomTag: Boolean): String? {
+    val result = StringBuilder()
+    for (item in items) {
+        when (item) {
+            is RichText.Item.Text -> result.append(item.text)
+            is RichText.Item.Image -> Unit
+            is RichText.Item.Tag -> {
+                val replacement = customTagResolver.replacement(item.tag)
+                when {
+                    replacement != null -> result.append(replacement)
+                    item.tag in ProductTags.all -> return null
+                    !ignoreMissingCustomTag -> return null
+                }
+            }
+        }
+    }
+    return result.toString().takeIf { it.isNotEmpty() }
 }
 
 private fun Any.toTagString(): String? = when (this) {

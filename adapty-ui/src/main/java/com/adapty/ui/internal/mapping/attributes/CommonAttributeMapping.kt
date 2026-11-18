@@ -17,6 +17,8 @@ import com.adapty.ui.internal.ui.attributes.Offset
 import com.adapty.ui.internal.ui.attributes.Point
 import com.adapty.ui.internal.ui.attributes.Rotation
 import com.adapty.ui.internal.ui.attributes.Scale
+import com.adapty.ui.internal.ui.attributes.BlendMode
+import com.adapty.ui.internal.ui.attributes.Decorator
 import com.adapty.ui.internal.ui.attributes.Shape
 import com.adapty.ui.internal.ui.attributes.Transition
 import com.adapty.ui.internal.ui.attributes.VerticalAlign
@@ -205,6 +207,7 @@ internal fun Map<*, *>.toAnimation(): Animation<*>? {
                     repeatMode,
                     repeatMaxCount,
                     Animation.Role.Background,
+                    targetId = this["target_id"].toAnimationTargetId(),
                 )
             } ?: throw adaptyError(
                 message = "Couldn't find 'color' spec for 'background' animation",
@@ -233,6 +236,7 @@ internal fun Map<*, *>.toAnimation(): Animation<*>? {
                 repeatMode,
                 repeatMaxCount,
                 Animation.Role.Border,
+                targetId = this["target_id"].toAnimationTargetId(),
             )
         }
         "box" -> {
@@ -334,6 +338,7 @@ internal fun Map<*, *>.toAnimation(): Animation<*>? {
                 repeatMode,
                 repeatMaxCount,
                 Animation.Role.Shadow,
+                targetId = this["target_id"].toAnimationTargetId(),
             )
         }
         "inner_shadow" -> {
@@ -391,6 +396,7 @@ internal fun Map<*, *>.toAnimation(): Animation<*>? {
                 repeatMode,
                 repeatMaxCount,
                 Animation.Role.InnerShadow,
+                targetId = this["target_id"].toAnimationTargetId(),
             )
         }
         else -> null
@@ -478,6 +484,7 @@ internal fun Any.toEdgeEntities(): EdgeEntities? {
     when (this) {
         is Number -> return EdgeEntities(DimUnit.Exact(this.toFloat()))
         is Map<*, *> -> {
+            if (this.isEmpty()) return EdgeEntities(DimUnit.Exact(0f))
             val hasEdgeKeys = this.containsKey("leading") || this.containsKey("top") ||
                     this.containsKey("trailing") || this.containsKey("bottom")
             if (!hasEdgeKeys) {
@@ -552,7 +559,7 @@ internal fun Any.toOffset(): Offset? {
     }
 }
 
-private fun Any.toPoint(): Point? {
+internal fun Any.toPoint(): Point? {
     when (this) {
         is Number -> return Point(this.toFloat())
         is Map<*, *> -> {
@@ -634,15 +641,15 @@ internal fun Any.toStaticScale(): Scale? {
     }
 }
 
-internal fun Any.toShape(): Shape? {
+internal fun Any.toDecorator(): Decorator? {
     return when(this) {
-        is Map<*, *> -> (this as Map<*, *>).toShape()
-        is String -> mapOf("background" to this, "type" to "rect").toShape()
+        is Map<*, *> -> (this as Map<*, *>).toDecorator()
+        is String -> mapOf("background" to this, "type" to "rect").toDecorator()
         else -> null
     }
 }
 
-private fun Map<*, *>.toShape(): Shape {
+private fun Map<*, *>.toDecorator(): Decorator {
     val shapeType = (this["type"] as? String).let { type ->
         when (type) {
             "circle" -> Shape.Type.Circle
@@ -654,33 +661,154 @@ private fun Map<*, *>.toShape(): Shape {
             }
         }
     }
-    val filling = this["background"]?.toVisualValue()
-    val border = this["border"]?.let { borderVisual ->
+    val underlays = mutableListOf<Decorator.Layer>()
+    val overlays = mutableListOf<Decorator.Layer>()
+    val shadow = (this["shadow"] as? Map<*, *>)?.toLegacyEffect(Decorator.Effect.Kind.DROP)
+    val background = this["background"]?.toVisualValue()
+    if (background != null) {
+        val innerShadow = (this["inner_shadow"] as? Map<*, *>)?.toLegacyEffect(Decorator.Effect.Kind.INNER)
+        underlays += Decorator.Layer(
+            id = Decorator.LEGACY_ID,
+            kind = Decorator.Layer.Kind.Image(background, AspectRatio.FILL),
+            effects = listOfNotNull(shadow, innerShadow),
+        )
+    } else if (shadow != null) {
+        underlays += Decorator.Layer(
+            id = Decorator.LEGACY_ID,
+            kind = Decorator.Layer.Kind.Effects,
+            effects = listOf(shadow),
+        )
+    }
+    this["border"]?.let { borderVisual ->
         val thickness = (this["thickness"] as? Number)?.toFloat() ?: 1f
-        if (thickness == 0f) return@let null
-        val visualValue = borderVisual.toVisualValue() ?: return@let null
-        Shape.Border(
-            visualValue,
-            shapeType,
-            thickness,
+        val visualValue = borderVisual.toVisualValue() ?: return@let
+        overlays += Decorator.Layer(
+            id = Decorator.LEGACY_ID,
+            kind = Decorator.Layer.Kind.Stroke(visualValue, thickness),
         )
     }
-    val shadow = (this["shadow"] as? Map<*, *>)?.let { shadow ->
-        Shadow(
-            shadow["color"]?.toVisualValue() ?: return@let null,
-            (shadow["blur_radius"] as? Number)?.toFloat() ?: 0f,
-            shadow["offset"]?.toOffset() ?: Offset.Default,
-        )
-    }
-    val innerShadow = (this["inner_shadow"] as? Map<*, *>)?.let { shadow ->
-        Shadow(
-            shadow["color"]?.toVisualValue() ?: return@let null,
-            (shadow["blur_radius"] as? Number)?.toFloat() ?: 0f,
-            shadow["offset"]?.toOffset() ?: Offset.Default,
-        )
-    }
+    underlays += this["underlays"].toDecoratorLayers("underlays")
+    overlays += this["overlays"].toDecoratorLayers("overlays")
     val blurRadius = (this["blur_radius"] as? Number)?.toFloat()?.takeIf { it > 0f }
-    return Shape(filling, shapeType, border, shadow, innerShadow, blurRadius)
+    return Decorator(
+        shapeType,
+        underlays,
+        overlays,
+        blurRadius,
+        this["clip"].toDecoratorClip(),
+        this["blend"].toBlendMode(),
+    )
+}
+
+private fun Any?.toDecoratorClip(): Decorator.Clip = when (this) {
+    null, "content" -> Decorator.Clip.CONTENT
+    "none" -> Decorator.Clip.NONE
+    else -> throw decoratorError("Unknown decorator clip ($this)")
+}
+
+private fun Any?.toAnimationTargetId(): Int {
+    if (this == null) return 0
+    val number = this as? Number
+        ?: throw decoratorError("Animation 'target_id' must be a number (${this.javaClass})")
+    val value = number.toDouble()
+    if (value % 1.0 != 0.0 || value < Int.MIN_VALUE || value > Int.MAX_VALUE)
+        throw decoratorError("Animation 'target_id' must be an integer ($number)")
+    return value.toInt()
+}
+
+private fun decoratorError(message: String): Throwable =
+    adaptyError(message = message, adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED)
+
+internal fun Any?.toBlendMode(): BlendMode = (this as? String)?.let(BlendMode::fromId) ?: BlendMode.NORMAL
+
+private fun Any?.toDecoratorLayers(key: String): List<Decorator.Layer> {
+    val items = when (this) {
+        null -> return emptyList()
+        is List<*> -> this
+        else -> throw decoratorError("Decorator '$key' must be an array (${this.javaClass})")
+    }
+    return items.mapNotNull { item ->
+        val layer = item as? Map<*, *>
+            ?: throw decoratorError("Decorator layer must be an object (${item?.javaClass})")
+        layer.toDecoratorLayer()
+    }
+}
+
+private fun Map<*, *>.toDecoratorLayer(): Decorator.Layer? {
+    val kind = when (val type = this["type"]) {
+        null, "effects" -> Decorator.Layer.Kind.Effects
+        "fill" -> Decorator.Layer.Kind.Fill(requireLayerAsset("fill"))
+        "stroke" -> Decorator.Layer.Kind.Stroke(
+            requireLayerAsset("stroke"),
+            (this["thickness"] as? Number)?.toFloat() ?: 1f,
+        )
+        "image" -> Decorator.Layer.Kind.Image(
+            requireLayerAsset("image"),
+            this["aspect"]?.toAspectRatio() ?: AspectRatio.FILL,
+        )
+        is String -> return null
+        else -> throw decoratorError("Decorator layer type must be a string (${type.javaClass})")
+    }
+    return Decorator.Layer(
+        id = this["id"].toDecoratorComponentId(),
+        kind = kind,
+        blend = this["blend"].toBlendMode(),
+        effects = this["effects"].toDecoratorEffects(),
+    )
+}
+
+private fun Map<*, *>.requireLayerAsset(type: String): VisualValue =
+    this["asset_id"]?.toVisualValue()
+        ?: throw decoratorError("Decorator '$type' layer requires 'asset_id'")
+
+private fun Any?.toDecoratorEffects(): List<Decorator.Effect> {
+    val items = when (this) {
+        null -> return emptyList()
+        is List<*> -> this
+        else -> throw decoratorError("Decorator layer 'effects' must be an array (${this.javaClass})")
+    }
+    return items.mapNotNull { item ->
+        val effect = item as? Map<*, *>
+            ?: throw decoratorError("Decorator effect must be an object (${item?.javaClass})")
+        effect.toDecoratorEffect()
+    }
+}
+
+private fun Map<*, *>.toDecoratorEffect(): Decorator.Effect? {
+    val kind = when (val type = this["type"]) {
+        null, "drop_shadow" -> Decorator.Effect.Kind.DROP
+        "inner_shadow" -> Decorator.Effect.Kind.INNER
+        is String -> return null
+        else -> throw decoratorError("Decorator effect type must be a string (${type.javaClass})")
+    }
+    return Decorator.Effect(
+        id = this["id"].toDecoratorComponentId(),
+        kind = kind,
+        color = this["color"]?.toVisualValue()
+            ?: throw decoratorError("Decorator effect requires 'color'"),
+        blurRadius = (this["blur_radius"] as? Number)?.toFloat() ?: 0f,
+        offset = this["offset"]?.toOffset() ?: Offset.Default,
+    )
+}
+
+private fun Any?.toDecoratorComponentId(): Int? {
+    if (this == null) return null
+    val number = this as? Number
+        ?: throw decoratorError("Decorator component id must be a number (${this.javaClass})")
+    val value = number.toDouble()
+    if (value % 1.0 != 0.0 || value < 1.0 || value > Int.MAX_VALUE)
+        throw decoratorError("Decorator component id must be a positive integer ($number)")
+    return value.toInt()
+}
+
+private fun Map<*, *>.toLegacyEffect(kind: Decorator.Effect.Kind): Decorator.Effect? {
+    return Decorator.Effect(
+        id = Decorator.LEGACY_ID,
+        kind = kind,
+        color = this["color"]?.toVisualValue() ?: return null,
+        blurRadius = (this["blur_radius"] as? Number)?.toFloat() ?: 0f,
+        offset = this["offset"]?.toOffset() ?: Offset.Default,
+    )
 }
 
 internal fun Any.toVisualValue(): VisualValue? {

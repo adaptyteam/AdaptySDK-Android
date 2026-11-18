@@ -4,7 +4,7 @@ package com.adapty.ui.internal.utils
 
 import android.view.View
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeContent
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -102,7 +102,7 @@ internal val LocalCustomInsets = staticCompositionLocalOf<InsetWrapper.Custom> {
 
 @Composable
 internal fun getInsets() = LocalCustomInsets.current.takeIf { it.insets != AdaptyFlowInsets.Unspecified }
-    ?: WindowInsets.safeContent.wrap()
+    ?: WindowInsets.safeDrawing.wrap()
 
 internal fun View.rootBarOrCutoutInsets(): Insets? =
     ViewCompat.getRootWindowInsets(this)?.getInsets(
@@ -111,7 +111,7 @@ internal fun View.rootBarOrCutoutInsets(): Insets? =
 
 @Composable
 internal fun systemInsetsDelivered(): Boolean {
-    val insets = WindowInsets.safeContent
+    val insets = WindowInsets.safeDrawing
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     return insets.getTop(density) > 0 ||

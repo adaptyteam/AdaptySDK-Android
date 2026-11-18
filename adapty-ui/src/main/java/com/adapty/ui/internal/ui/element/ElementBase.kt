@@ -26,6 +26,7 @@ import com.adapty.ui.internal.script.StateAccessor
 import com.adapty.ui.internal.text.StringId
 import com.adapty.ui.internal.text.StringWrapper
 import com.adapty.ui.internal.ui.attributes.Animation
+import com.adapty.ui.internal.ui.attributes.BlendMode
 import com.adapty.ui.internal.ui.attributes.Border
 import com.adapty.ui.internal.ui.attributes.Box
 import com.adapty.ui.internal.ui.attributes.toGradientAsset
@@ -37,7 +38,9 @@ import com.adapty.ui.internal.ui.attributes.Offset
 import com.adapty.ui.internal.ui.attributes.Rotation
 import com.adapty.ui.internal.ui.attributes.Scale
 import com.adapty.ui.internal.ui.attributes.Shadow
-import com.adapty.ui.internal.ui.attributes.Shape
+import com.adapty.ui.internal.ui.attributes.AnimationTarget
+import com.adapty.ui.internal.ui.attributes.Decorator
+import com.adapty.ui.internal.ui.attributes.target
 import com.adapty.ui.internal.ui.attributes.asDpOffset
 import com.adapty.ui.internal.ui.attributes.toComposeFill
 import com.adapty.ui.internal.ui.attributes.toExactDp
@@ -48,6 +51,9 @@ import com.adapty.ui.internal.ui.event.LocalEventDispatcher
 import com.adapty.ui.internal.ui.event.rememberActiveAnimations
 import com.adapty.ui.internal.ui.event.appearAnimations
 import com.adapty.ui.internal.ui.fillWithBaseParams
+import com.adapty.ui.internal.ui.DeclaringLength
+import com.adapty.ui.internal.ui.LocalUnspecifiedAxes
+import com.adapty.ui.internal.ui.UnspecifiedAxes
 import com.adapty.ui.internal.ui.rememberOpacityProvider
 import com.adapty.ui.internal.ui.resolveAssets
 import com.adapty.ui.internal.ui.LocalSectionPresenceSlot
@@ -65,16 +71,16 @@ internal val LocalActiveAnimations = staticCompositionLocalOf<State<AnimationPla
     mutableStateOf(null)
 }
 
-internal val LocalRoleSequences = compositionLocalOf<Map<Animation.Role, Long>> { emptyMap() }
+internal val LocalTargetSequences = compositionLocalOf<Map<AnimationTarget, Long>> { emptyMap() }
 
 @Composable
-internal fun activeAnimationsFor(role: Animation.Role): List<Animation<*>>? =
+internal fun activeAnimationsFor(target: AnimationTarget): List<Animation<*>>? =
     LocalActiveAnimations.current.value?.animations
-        ?.filter { anim -> anim.role == role }
+        ?.filter { anim -> anim.target == target }
         ?.takeIf { it.isNotEmpty() }
 
 @Composable
-internal fun BaseProps.pendingAppearAnimationsFor(role: Animation.Role): List<Animation<*>>? {
+internal fun BaseProps.pendingAppearAnimationsFor(target: AnimationTarget): List<Animation<*>>? {
     if (LocalActiveAnimations.current.value != null) return null
     val handlers = eventHandlers ?: return null
     val dispatcher = LocalEventDispatcher.current
@@ -84,7 +90,7 @@ internal fun BaseProps.pendingAppearAnimationsFor(role: Animation.Role): List<An
         predictedFireCount = { eventId -> dispatcher.fireCount(instanceId, eventId) + 1 },
         currentTransitionId = entry.transitionId,
     )
-        .filter { anim -> anim.role == role }
+        .filter { anim -> anim.target == target }
         .takeIf { it.isNotEmpty() }
 }
 
@@ -112,10 +118,11 @@ public data class BaseProps internal constructor(
      internal val widthSpec: DimSpec? = null,
      internal val heightSpec: DimSpec? = null,
      internal val weight: Float? = null,
-     internal val shape: Shape? = null,
+     internal val decorator: Decorator? = null,
      internal val padding: EdgeEntities? = null,
      internal val offset: Offset? = null,
      internal val opacity: Float = 1f,
+     internal val blend: BlendMode = BlendMode.NORMAL,
      internal val focusId: String? = null,
      internal val rotation: Rotation? = null,
      internal val scale: Scale? = null,
@@ -137,7 +144,7 @@ internal interface MultiContainer: Container<List<UIElement>>
 internal val UIElement.drawsOnlyDecorator: Boolean
     get() = this is Container<*> || this is OverlayContainerElement || this is FlexElement ||
         this is FlexStackElement || this is SpaceElement || this is ScreenHolderElement ||
-        this is BoxWithoutContentElement
+        this is BoxWithoutContentElement || this is DeckElement
 
 @InternalAdaptyApi
 public sealed class Condition {
@@ -264,11 +271,35 @@ internal fun withActiveAnimations(
     val activeAnimations = rememberActiveAnimations(baseProps, dispatch)
     CompositionLocalProvider(
         LocalActiveAnimations provides activeAnimations,
-        LocalRoleSequences provides (activeAnimations.value?.sequenceByRole ?: emptyMap()),
+        LocalTargetSequences provides (activeAnimations.value?.sequenceByTarget ?: emptyMap()),
     ) {
-        uiEnabledGatedContent(baseProps, content)
+        declaringOwnLength(baseProps) {
+            uiEnabledGatedContent(baseProps, content)
+        }
     }
 }
+
+@Composable
+private fun declaringOwnLength(
+    baseProps: BaseProps,
+    content: @Composable () -> Unit,
+) {
+    val declared = LocalUnspecifiedAxes.current
+    val horizontal = declared.horizontal && baseProps.widthSpec.endsUnspecifiedAxis()
+    val vertical = declared.vertical && baseProps.heightSpec.endsUnspecifiedAxis()
+    if (horizontal || vertical) {
+        DeclaringLength(
+            unspecifiedHorizontal = if (horizontal) false else null,
+            unspecifiedVertical = if (vertical) false else null,
+            content = content,
+        )
+    } else {
+        content()
+    }
+}
+
+private fun DimSpec?.endsUnspecifiedAxis(): Boolean =
+    this is DimSpec.Specified || this is DimSpec.Shrink
 
 @Composable
 private fun uiEnabledGatedContent(
@@ -360,7 +391,7 @@ internal val BaseProps.opacityBehaviour: AnimationBehavior<Float>
     @Composable get() = findAnimationBehaviour(Animation.Role.Opacity, opacity)
 
 internal val BaseProps.blurBehaviour: AnimationBehavior<Float>
-    @Composable get() = findAnimationBehaviour(Animation.Role.Blur, shape?.blurRadius ?: 0f)
+    @Composable get() = findAnimationBehaviour(Animation.Role.Blur, decorator?.blurRadius ?: 0f)
 
 internal val BaseProps.rotationBehaviour: AnimationBehavior<Rotation>
     @Composable get() = findAnimationBehaviour(Animation.Role.Rotation, rotation ?: Rotation.Default)
@@ -393,6 +424,7 @@ internal val BaseProps.offsetBehaviour: AnimationBehavior<DpOffset>
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
                 (offset ?: Offset.Default).asDpOffset(),
@@ -404,12 +436,12 @@ internal val BaseProps.scaleBehaviour: AnimationBehavior<Scale>
     @Composable get() = findAnimationBehaviour(Animation.Role.Scale, scale ?: Scale.Default)
 
 @Composable
-internal fun BaseProps.colorBehaviour(): AnimationBehavior<Color> =
+internal fun BaseProps.colorBehaviour(targetId: Int, base: VisualValue?): AnimationBehavior<Color> =
     findAnimationBehaviour(
-        Animation.Role.Background,
+        AnimationTarget(Animation.Role.Background, targetId),
         {
             val color =
-                shape?.fill?.resolveAsset<Asset.Filling.Local>()
+                base?.resolveAsset<Asset.Filling.Local>()
                     ?.castOrNull<Asset.Color>()
                     ?.toComposeFill()?.color
             AnimationBehavior.Static(color ?: Color.Transparent)
@@ -436,9 +468,10 @@ internal fun BaseProps.colorBehaviour(): AnimationBehavior<Color> =
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
-                shape?.fill?.resolveAsset<Asset.Filling.Local>()
+                base?.resolveAsset<Asset.Filling.Local>()
                     ?.castOrNull<Asset.Color>()
                     ?.toComposeFill()?.color
                     ?: Color.Transparent,
@@ -447,12 +480,12 @@ internal fun BaseProps.colorBehaviour(): AnimationBehavior<Color> =
     )
 
 @Composable
-internal fun BaseProps.gradientBehaviour(): AnimationBehavior<Brush> =
+internal fun BaseProps.gradientBehaviour(targetId: Int, base: VisualValue?): AnimationBehavior<Brush> =
     findAnimationBehaviour(
-        Animation.Role.Background,
+        AnimationTarget(Animation.Role.Background, targetId),
         {
             val brush =
-                shape?.fill?.let { value ->
+                base?.let { value ->
                     val asset = value.resolveAsset<Asset.Filling.Local>()
                     (asset?.castOrNull<Asset.Gradient>()?.toComposeFill()
                         ?: asset?.castOrNull<Asset.Color>()?.toGradientAsset()?.toComposeFill())?.shader
@@ -503,9 +536,10 @@ internal fun BaseProps.gradientBehaviour(): AnimationBehavior<Brush> =
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
-                shape?.fill?.let { value ->
+                base?.let { value ->
                     val asset = value.resolveAsset<Asset.Filling.Local>()
                     (asset?.castOrNull<Asset.Gradient>()?.toComposeFill()
                         ?: asset?.castOrNull<Asset.Color>()?.toGradientAsset()?.toComposeFill())?.shader
@@ -515,12 +549,12 @@ internal fun BaseProps.gradientBehaviour(): AnimationBehavior<Brush> =
     )
 
 @Composable
-internal fun BaseProps.borderColorBehaviour(): AnimationBehavior<Color> =
+internal fun BaseProps.borderColorBehaviour(targetId: Int, base: VisualValue?): AnimationBehavior<Color> =
     findAnimationBehaviour(
-        Animation.Role.Border,
+        AnimationTarget(Animation.Role.Border, targetId),
         {
             val color =
-                shape?.border?.color?.resolveAsset<Asset.Filling.Local>()
+                base?.resolveAsset<Asset.Filling.Local>()
                     ?.castOrNull<Asset.Color>()
                     ?.toComposeFill()?.color
             AnimationBehavior.Static(color ?: Color.Transparent)
@@ -547,9 +581,10 @@ internal fun BaseProps.borderColorBehaviour(): AnimationBehavior<Color> =
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
-                shape?.border?.color?.resolveAsset<Asset.Filling.Local>()
+                base?.resolveAsset<Asset.Filling.Local>()
                     ?.castOrNull<Asset.Color>()
                     ?.toComposeFill()?.color
                     ?: Color.Transparent,
@@ -558,12 +593,12 @@ internal fun BaseProps.borderColorBehaviour(): AnimationBehavior<Color> =
     )
 
 @Composable
-internal fun BaseProps.borderGradientBehaviour(): AnimationBehavior<Brush> =
+internal fun BaseProps.borderGradientBehaviour(targetId: Int, base: VisualValue?): AnimationBehavior<Brush> =
     findAnimationBehaviour(
-        Animation.Role.Border,
+        AnimationTarget(Animation.Role.Border, targetId),
         {
             val brush =
-                shape?.border?.color?.let { value ->
+                base?.let { value ->
                     val asset = value.resolveAsset<Asset.Filling.Local>()
                     (asset?.castOrNull<Asset.Gradient>()?.toComposeFill()
                         ?: asset?.castOrNull<Asset.Color>()?.toGradientAsset()?.toComposeFill())?.shader
@@ -614,9 +649,10 @@ internal fun BaseProps.borderGradientBehaviour(): AnimationBehavior<Brush> =
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
-                shape?.border?.color?.let { value ->
+                base?.let { value ->
                     val asset = value.resolveAsset<Asset.Filling.Local>()
                     (asset?.castOrNull<Asset.Gradient>()?.toComposeFill()
                         ?: asset?.castOrNull<Asset.Color>()?.toGradientAsset()?.toComposeFill())?.shader
@@ -626,11 +662,11 @@ internal fun BaseProps.borderGradientBehaviour(): AnimationBehavior<Brush> =
     )
 
 @Composable
-internal fun BaseProps.borderThicknessBehaviour(): AnimationBehavior<Dp> =
+internal fun BaseProps.borderThicknessBehaviour(targetId: Int, base: Float?): AnimationBehavior<Dp> =
     findAnimationBehaviour(
-        Animation.Role.Border,
+        AnimationTarget(Animation.Role.Border, targetId),
         {
-            val thickness = shape?.border?.thickness?.dp ?: 0.dp
+            val thickness = base?.dp ?: 0.dp
             AnimationBehavior.Static(thickness)
         },
         { anims ->
@@ -649,9 +685,10 @@ internal fun BaseProps.borderThicknessBehaviour(): AnimationBehavior<Dp> =
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
-                shape?.border?.thickness?.dp ?: 0.dp,
+                base?.dp ?: 0.dp,
             )
         },
     )
@@ -685,6 +722,7 @@ internal fun BaseProps.widthBehaviour(): AnimationBehavior<Dp> =
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
                 widthSpec?.let { spec ->
@@ -726,6 +764,7 @@ internal fun BaseProps.heightBehaviour(): AnimationBehavior<Dp> =
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
                 heightSpec?.let { spec ->
@@ -739,12 +778,12 @@ internal fun BaseProps.heightBehaviour(): AnimationBehavior<Dp> =
     )
 
 @Composable
-internal fun BaseProps.shadowColorBehaviour(): AnimationBehavior<Color> =
+internal fun BaseProps.shadowColorBehaviour(targetId: Int, base: Decorator.Effect?): AnimationBehavior<Color> =
     findAnimationBehaviour(
-        Animation.Role.Shadow,
+        AnimationTarget(Animation.Role.Shadow, targetId),
         {
             val color =
-                shape?.shadow?.color?.resolveAsset<Asset.Filling.Local>()
+                base?.color?.resolveAsset<Asset.Filling.Local>()
                     ?.castOrNull<Asset.Color>()
                     ?.toComposeFill()?.color
             AnimationBehavior.Static(color ?: Color.Transparent)
@@ -771,9 +810,10 @@ internal fun BaseProps.shadowColorBehaviour(): AnimationBehavior<Color> =
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
-                shape?.shadow?.color?.resolveAsset<Asset.Filling.Local>()
+                base?.color?.resolveAsset<Asset.Filling.Local>()
                     ?.castOrNull<Asset.Color>()
                     ?.toComposeFill()?.color
                     ?: Color.Transparent,
@@ -782,11 +822,11 @@ internal fun BaseProps.shadowColorBehaviour(): AnimationBehavior<Color> =
     )
 
 @Composable
-internal fun BaseProps.shadowBlurRadiusBehaviour(): AnimationBehavior<Float> =
+internal fun BaseProps.shadowBlurRadiusBehaviour(targetId: Int, base: Decorator.Effect?): AnimationBehavior<Float> =
     findAnimationBehaviour(
-        Animation.Role.Shadow,
+        AnimationTarget(Animation.Role.Shadow, targetId),
         {
-            val blurRadius = shape?.shadow?.blurRadius ?: 0f
+            val blurRadius = base?.blurRadius ?: 0f
             AnimationBehavior.Static(blurRadius)
         },
         { anims ->
@@ -805,19 +845,20 @@ internal fun BaseProps.shadowBlurRadiusBehaviour(): AnimationBehavior<Float> =
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
-                shape?.shadow?.blurRadius ?: 0f,
+                base?.blurRadius ?: 0f,
             )
         },
     )
 
 @Composable
-internal fun BaseProps.shadowOffsetBehaviour(): AnimationBehavior<DpOffset> =
+internal fun BaseProps.shadowOffsetBehaviour(targetId: Int, base: Decorator.Effect?): AnimationBehavior<DpOffset> =
     findAnimationBehaviour(
-        Animation.Role.Shadow,
+        AnimationTarget(Animation.Role.Shadow, targetId),
         {
-            val offset = (shape?.shadow?.offset ?: Offset.Default).asDpOffset()
+            val offset = (base?.offset ?: Offset.Default).asDpOffset()
             AnimationBehavior.Static(offset)
         },
         { anims ->
@@ -842,20 +883,21 @@ internal fun BaseProps.shadowOffsetBehaviour(): AnimationBehavior<DpOffset> =
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
-                (shape?.shadow?.offset ?: Offset.Default).asDpOffset(),
+                (base?.offset ?: Offset.Default).asDpOffset(),
             )
         },
     )
 
 @Composable
-internal fun BaseProps.innerShadowColorBehaviour(): AnimationBehavior<Color> =
+internal fun BaseProps.innerShadowColorBehaviour(targetId: Int, base: Decorator.Effect?): AnimationBehavior<Color> =
     findAnimationBehaviour(
-        Animation.Role.InnerShadow,
+        AnimationTarget(Animation.Role.InnerShadow, targetId),
         {
             val color =
-                shape?.innerShadow?.color?.resolveAsset<Asset.Filling.Local>()
+                base?.color?.resolveAsset<Asset.Filling.Local>()
                     ?.castOrNull<Asset.Color>()
                     ?.toComposeFill()?.color
             AnimationBehavior.Static(color ?: Color.Transparent)
@@ -882,9 +924,10 @@ internal fun BaseProps.innerShadowColorBehaviour(): AnimationBehavior<Color> =
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
-                shape?.innerShadow?.color?.resolveAsset<Asset.Filling.Local>()
+                base?.color?.resolveAsset<Asset.Filling.Local>()
                     ?.castOrNull<Asset.Color>()
                     ?.toComposeFill()?.color
                     ?: Color.Transparent,
@@ -893,11 +936,11 @@ internal fun BaseProps.innerShadowColorBehaviour(): AnimationBehavior<Color> =
     )
 
 @Composable
-internal fun BaseProps.innerShadowBlurRadiusBehaviour(): AnimationBehavior<Float> =
+internal fun BaseProps.innerShadowBlurRadiusBehaviour(targetId: Int, base: Decorator.Effect?): AnimationBehavior<Float> =
     findAnimationBehaviour(
-        Animation.Role.InnerShadow,
+        AnimationTarget(Animation.Role.InnerShadow, targetId),
         {
-            val blurRadius = shape?.innerShadow?.blurRadius ?: 0f
+            val blurRadius = base?.blurRadius ?: 0f
             AnimationBehavior.Static(blurRadius)
         },
         { anims ->
@@ -916,19 +959,20 @@ internal fun BaseProps.innerShadowBlurRadiusBehaviour(): AnimationBehavior<Float
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
-                shape?.innerShadow?.blurRadius ?: 0f,
+                base?.blurRadius ?: 0f,
             )
         },
     )
 
 @Composable
-internal fun BaseProps.innerShadowOffsetBehaviour(): AnimationBehavior<DpOffset> =
+internal fun BaseProps.innerShadowOffsetBehaviour(targetId: Int, base: Decorator.Effect?): AnimationBehavior<DpOffset> =
     findAnimationBehaviour(
-        Animation.Role.InnerShadow,
+        AnimationTarget(Animation.Role.InnerShadow, targetId),
         {
-            val offset = (shape?.innerShadow?.offset ?: Offset.Default).asDpOffset()
+            val offset = (base?.offset ?: Offset.Default).asDpOffset()
             AnimationBehavior.Static(offset)
         },
         { anims ->
@@ -953,9 +997,10 @@ internal fun BaseProps.innerShadowOffsetBehaviour(): AnimationBehavior<DpOffset>
                         anim.repeatMode,
                         anim.repeatMaxCount,
                         anim.role,
+                        anim.targetId,
                     )
                 },
-                (shape?.innerShadow?.offset ?: Offset.Default).asDpOffset(),
+                (base?.offset ?: Offset.Default).asDpOffset(),
             )
         },
     )
@@ -976,12 +1021,19 @@ private inline fun <reified T> BaseProps.findAnimationBehaviour(
     role: Animation.Role,
     createDefaultValue: () -> AnimationBehavior<T>,
     createAnimatedValue: (anims: Iterable<Animation<*>>) -> AnimationBehavior<T>,
+): AnimationBehavior<T> = findAnimationBehaviour(AnimationTarget(role), createDefaultValue, createAnimatedValue)
+
+@Composable
+private inline fun <reified T> BaseProps.findAnimationBehaviour(
+    target: AnimationTarget,
+    createDefaultValue: () -> AnimationBehavior<T>,
+    createAnimatedValue: (anims: Iterable<Animation<*>>) -> AnimationBehavior<T>,
 ): AnimationBehavior<T> {
     if (!hasVisualAnimations()) return createDefaultValue()
-    activeAnimationsFor(role)
+    activeAnimationsFor(target)
         ?.sortedBy { it.startDelayMillis }
         ?.let { anims -> return createAnimatedValue(anims) }
-    pendingAppearAnimationsFor(role)?.let { anims ->
+    pendingAppearAnimationsFor(target)?.let { anims ->
         val pending = createAnimatedValue(anims)
         if (pending is AnimationBehavior.Animated && pending.singleValueAnimsOrdered.isNotEmpty())
             return AnimationBehavior.Static(pending.singleValueAnimsOrdered.first().start)

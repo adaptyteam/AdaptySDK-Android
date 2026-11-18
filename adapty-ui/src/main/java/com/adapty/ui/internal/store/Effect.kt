@@ -77,8 +77,8 @@ internal sealed interface Effect {
     data class InvokeTimerCallback(val timerId: String) : Effect
     data class ScheduleTimerCallback(val timerId: String, val delayMs: Long) : Effect
     data class VerifyFocusLost(val focusId: String, val generation: Int) : Effect
-    data class PreviewPurchase(val productId: String, val callbackId: String?) : Effect
-    data class PreviewRestore(val callbackId: String?) : Effect
+    data class PreviewPurchase(val productId: String, val callbackId: String?, val id: String) : Effect
+    data class PreviewRestore(val callbackId: String?, val id: String) : Effect
     data class InvokeJSPurchaseCallback(val callbackId: String, val productId: String, val result: String) : Effect
     data class InvokeJSRestoreCallback(val callbackId: String, val result: String) : Effect
     data class InvokeJSAlertCallback(val callbackId: String, val actionId: String?) : Effect
@@ -102,11 +102,27 @@ internal sealed interface Effect {
     data class UpdateJSProducts(val products: Map<String, AdaptyPaywallProduct>) : Effect
 
     sealed class SendSDKEvent : Effect {
-        object ProductsLoaded : SendSDKEvent()
-        data class WillPurchase(val productId: String) : SendSDKEvent()
-        data class DidPurchase(val productId: String, val result: String) : SendSDKEvent()
-        object WillRestorePurchases : SendSDKEvent()
-        data class DidRestorePurchases(val result: String) : SendSDKEvent()
+        abstract val id: String
+
+        data class ProductsLoaded(override val id: String) : SendSDKEvent()
+        data class WillPurchase(override val id: String, val productId: String) : SendSDKEvent()
+        data class DidPurchase(override val id: String, val productId: String, val result: String) : SendSDKEvent()
+        data class WillRestorePurchases(override val id: String) : SendSDKEvent()
+        data class DidRestorePurchases(override val id: String, val result: String) : SendSDKEvent()
+        data class AppMessage(
+            override val id: String,
+            val payload: Map<String, Any?>,
+            val source: Source,
+        ) : SendSDKEvent() {
+            sealed interface Source {
+                object Application : Source
+                data class CustomElement(
+                    val screen: NavigationEntry,
+                    val customId: String,
+                    val customType: String,
+                ) : Source
+            }
+        }
     }
 
     object ClearActionHandler : Effect

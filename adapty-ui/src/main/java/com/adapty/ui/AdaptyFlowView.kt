@@ -16,7 +16,7 @@ import com.adapty.internal.di.Dependencies
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.internal.script.SDKGlobals
-import com.adapty.ui.internal.script.StateHandler
+import com.adapty.ui.internal.script.FlowStateHandlers
 import com.adapty.ui.internal.ui.AdaptyFlowInternal
 import com.adapty.ui.internal.ui.FlowViewModel
 import com.adapty.ui.internal.ui.FlowViewModelArgs
@@ -25,11 +25,12 @@ import com.adapty.ui.internal.ui.UserArgs
 import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.FlowMode
 import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
-import com.adapty.ui.internal.utils.adoptFlowStateForConfigChange
 import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.getCurrentLocale
 import com.adapty.ui.internal.utils.log
+import com.adapty.ui.internal.utils.completePresentationRequest
 import com.adapty.ui.internal.utils.initializeFlowStateAsync
+import com.adapty.ui.internal.utils.requestPresentation
 import com.adapty.ui.internal.utils.withAdaptyUIActivated
 import com.adapty.ui.listeners.AdaptyFlowDefaultEventListener
 import com.adapty.ui.listeners.AdaptyFlowEventListener
@@ -113,7 +114,11 @@ public class AdaptyFlowView @JvmOverloads constructor(
      *
      * @param[observerModeHandler] If you use Adapty in [Observer mode](https://adapty.io/docs/observer-vs-full-mode),
      * pass the [AdaptyUiObserverModeHandler] implementation to handle purchases on your own.
+     *
+     * @param[customElementsResolver] Supplies the content of the flow's `custom` elements. When set,
+     * it replaces the resolver set with [AdaptyUI.setCustomElementsResolver] for this view.
      */
+    @JvmOverloads
     @UiThread
     public fun showFlow(
         flowConfiguration: AdaptyUI.FlowConfiguration,
@@ -124,9 +129,12 @@ public class AdaptyFlowView @JvmOverloads constructor(
         tagResolver: AdaptyUiTagResolver = AdaptyUiTagResolver.Default,
         timerResolver: AdaptyUiTimerResolver = AdaptyUiTimerResolver.Default,
         observerModeHandler: AdaptyUiObserverModeHandler? = null,
+        customElementsResolver: AdaptyCustomElementsResolver? = null,
     ) {
         val args = viewModelArgs ?: return
 
+        val presentationRequest =
+            if (isAttachedToWindow) null else stateHandlers.requestPresentation(flowConfiguration)
         runOnceWhenAttached {
             val vm = viewModel ?: return@runOnceWhenAttached
 
@@ -143,6 +151,7 @@ public class AdaptyFlowView @JvmOverloads constructor(
                             observerModeHandler,
                             products,
                             ProductLoadingFailureCallback { error -> eventListener.onLoadingProductsFailure(error, context) },
+                            customElementsResolver,
                         )
                     )
                 }
@@ -152,7 +161,7 @@ public class AdaptyFlowView @JvmOverloads constructor(
             val configChangeHandoff = vm.configChangeHandoffPending
             vm.configChangeHandoffPending = false
             if (previousConfig === flowConfiguration && vm.state != null &&
-                stateHandler.stateOwner === flowConfiguration
+                stateHandlers.handlerFor(flowConfiguration).stateOwner === flowConfiguration
             ) {
                 pushData()
                 return@runOnceWhenAttached
@@ -161,8 +170,9 @@ public class AdaptyFlowView @JvmOverloads constructor(
             if (configChangeHandoff && previousConfig != null &&
                 previousConfig.id == flowConfiguration.id && vm.state != null
             ) {
-                stateHandler.adoptFlowStateForConfigChange(previousConfig, flowConfiguration)
+                stateHandlers.adopt(previousConfig, flowConfiguration)
             }
+            val stateHandler = stateHandlers.handlerFor(flowConfiguration)
 
             if (stateHandler.stateOwner !== flowConfiguration) {
                 vm.dataState.value = null
@@ -173,9 +183,12 @@ public class AdaptyFlowView @JvmOverloads constructor(
                 SDKGlobals.buildStaticSDKProductsJson(mode.flow)
             else
                 SDKGlobals.buildSDKProductsJson(emptyMap())
-            stateHandler.initializeFlowStateAsync(flowConfiguration, sdkEnvJson, sdkProductsJson) {
+            stateHandlers.initializeFlowStateAsync(flowConfiguration, sdkEnvJson, sdkProductsJson) {
                 pushData()
             }
+        }
+        presentationRequest?.let { request ->
+            runOnceWhenAttached { flowConfiguration.completePresentationRequest(request) }
         }
     }
 
@@ -234,9 +247,9 @@ public class AdaptyFlowView @JvmOverloads constructor(
         }
     }
 
-    private val stateHandler: StateHandler by lazy {
+    private val stateHandlers: FlowStateHandlers by lazy {
         withAdaptyUIActivated {
-            Dependencies.injectInternal<StateHandler>()
+            Dependencies.injectInternal<FlowStateHandlers>()
         }
     }
 

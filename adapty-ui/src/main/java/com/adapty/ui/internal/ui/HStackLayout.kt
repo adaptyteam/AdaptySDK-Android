@@ -1,5 +1,6 @@
 package com.adapty.ui.internal.ui
 
+import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -57,7 +58,8 @@ internal fun HStackLayout(
     Layout(content = content, modifier = modifier, measurePolicy = measurePolicy)
 }
 
-private class HStackMeasurePolicy(
+@VisibleForTesting
+internal class HStackMeasurePolicy(
     private val spacing: Dp,
     private val verticalAlignment: Alignment.Vertical,
     private val cells: List<HStackCellSpec>,
@@ -68,6 +70,9 @@ private class HStackMeasurePolicy(
         if (cells.size == count) cells[index] else DEFAULT_CELL
 
     private fun weightOf(index: Int, count: Int): Float = kindOf(index, count).weight.coerceAtLeast(0.01f)
+
+    private fun isAbsentSection(index: Int, count: Int): Boolean =
+        slots?.takeIf { it.size == count }?.get(index)?.presence?.value == 0f
 
     private fun Density.spacerMinOf(index: Int, count: Int): Int =
         kindOf(index, count).let { if (it.kind == HStackCellKind.SPACER) it.minWidth.roundToPx() else 0 }
@@ -153,6 +158,7 @@ private class HStackMeasurePolicy(
             bound = width,
             intrinsicHeight = Constraints.Infinity,
         ) { index, proposal ->
+            if (isAbsentSection(index, count)) return@distribute 0
             val measurable = measurables[index]
             val maxWidth = measurable.maxIntrinsicWidth(Constraints.Infinity)
             val placedWidth = when {
@@ -172,7 +178,8 @@ private class HStackMeasurePolicy(
     private fun availableWidth(maxWidth: Int, bounded: Boolean, totalSpacing: Int): Int =
         if (bounded) (maxWidth - totalSpacing).coerceAtLeast(0) else Constraints.Infinity
 
-    private inline fun Density.distribute(
+    @VisibleForTesting
+    internal inline fun Density.distribute(
         measurables: List<IntrinsicMeasurable>,
         available: Int,
         bound: Int,

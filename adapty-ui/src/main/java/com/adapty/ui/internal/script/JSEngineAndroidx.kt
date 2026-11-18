@@ -3,6 +3,7 @@
 package com.adapty.ui.internal.script
 
 import android.content.Context
+import androidx.javascriptengine.IsolateTerminatedException
 import androidx.javascriptengine.JavaScriptIsolate
 import androidx.javascriptengine.JavaScriptSandbox
 import androidx.javascriptengine.SandboxDeadException
@@ -72,8 +73,9 @@ internal class JSEngineAndroidx(
 
     private val reinitMutex = Mutex()
     private var sandboxGeneration = 0L
+    @Volatile private var closed = false
 
-    var onSandboxDied: (suspend () -> Unit)? = null
+    var onStateLost: (suspend () -> Unit)? = null
 
     private suspend fun <T> withSandboxRecovery(
         operationName: String,
@@ -87,20 +89,37 @@ internal class JSEngineAndroidx(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            if (isSandboxDead(e)) {
-                log(WARN) { "$LOG_PREFIX Sandbox died during $operationName, re-initializing…: ${e.localizedMessage}" }
-                reinitializeSandbox(gen)
-            } else {
+            if (!recoverIfLost(e, operationName, gen, isolate)) {
                 log(ERROR) { "$LOG_PREFIX_ERROR Error during $operationName: ${e.localizedMessage}" }
             }
             default
         }
     }
 
+    private suspend fun recoverIfLost(
+        e: Exception,
+        operationName: String,
+        gen: Long,
+        isolate: JavaScriptIsolate,
+    ): Boolean {
+        when {
+            isSandboxDead(e) -> {
+                log(WARN) { "$LOG_PREFIX Sandbox died during $operationName, re-initializing…: ${e.localizedMessage}" }
+                reinitializeSandbox(gen)
+            }
+            isIsolateTerminated(e) -> {
+                log(WARN) { "$LOG_PREFIX JS isolate terminated during $operationName, re-creating it…: ${e.localizedMessage}" }
+                recreateIsolate(isolate)
+            }
+            else -> return false
+        }
+        return true
+    }
+
     private suspend fun reinitializeSandbox(failedGeneration: Long) = withContext(NonCancellable) {
         var recovered = false
         reinitMutex.withLock {
-            if (sandboxGeneration != failedGeneration) return@withLock
+            if (closed || sandboxGeneration != failedGeneration) return@withLock
             sandboxGeneration++
             log(WARN) { "$LOG_PREFIX Sandbox died, re-creating…" }
             tearDownIsolate()
@@ -117,7 +136,29 @@ internal class JSEngineAndroidx(
                 log(ERROR) { "$LOG_PREFIX_ERROR Failed to re-create sandbox: ${e.localizedMessage}" }
             }
         }
-        if (recovered) onSandboxDied?.invoke()
+        if (recovered) onStateLost?.invoke()
+    }
+
+    private suspend fun recreateIsolate(failed: JavaScriptIsolate) = withContext(NonCancellable) {
+        var recovered = false
+        var sandboxDied: Long? = null
+        reinitMutex.withLock {
+            if (closed || jsIsolate !== failed) return@withLock
+            val sandbox = jsSandbox ?: return@withLock
+            val gen = sandboxGeneration
+            tearDownIsolate()
+            try {
+                attachIsolate(sandbox, gen)
+                startPollLoop()
+                recovered = true
+                log(INFO) { "$LOG_PREFIX JS isolate re-created" }
+            } catch (e: Exception) {
+                if (isSandboxDead(e)) sandboxDied = gen
+                else log(ERROR) { "$LOG_PREFIX_ERROR Failed to re-create the JS isolate: ${e.localizedMessage}" }
+            }
+        }
+        if (recovered) onStateLost?.invoke()
+        sandboxDied?.let { reinitializeSandbox(it) }
     }
 
     private fun tearDownIsolate() {
@@ -134,12 +175,26 @@ internal class JSEngineAndroidx(
 
     override suspend fun initialize() {
         val (sandbox, gen) = acquireSandbox(context)
+        if (!sandbox.isFeatureSupported(JavaScriptSandbox.JS_FEATURE_EVALUATE_WITHOUT_TRANSACTION_LIMIT)) {
+            throw UnsupportedOperationException("JavaScriptSandbox lacks JS_FEATURE_EVALUATE_WITHOUT_TRANSACTION_LIMIT")
+        }
+        try {
+            attachIsolate(sandbox, gen)
+        } catch (e: Exception) {
+            if (!isSandboxDead(e)) throw e
+            log(WARN) { "$LOG_PREFIX Shared sandbox found dead on isolate creation, reconnecting…" }
+            tearDownIsolate()
+            val (fresh, freshGen) = reconnectSandbox(context, gen)
+            attachIsolate(fresh, freshGen)
+        }
+        startPollLoop()
+    }
+
+    private suspend fun attachIsolate(sandbox: JavaScriptSandbox, gen: Long) {
         jsSandbox = sandbox
         sandboxGeneration = gen
         jsIsolate = sandbox.createIsolate()
-
         setupGlobalBridge()
-        startPollLoop()
     }
 
     private fun startPollLoop() {
@@ -147,8 +202,9 @@ internal class JSEngineAndroidx(
         pollJob = CoroutineScope(Dispatchers.Default).launch {
             while (isActive) {
                 val gen = sandboxGeneration
+                val isolate = jsIsolate ?: return@launch
                 try {
-                    val msg = jsIsolate?.evaluateJavaScriptAsync("__nextRpc()")?.await()
+                    val msg = isolate.evaluateJavaScriptAsync("__nextRpc()").await()
                     if (!msg.isNullOrEmpty() && msg != "null") {
                         withContext(Dispatchers.Main) {
                             jsActionBridge.handleRpc(msg) { promiseId, result, error ->
@@ -161,11 +217,7 @@ internal class JSEngineAndroidx(
                         }
                     }
                 } catch (e: Exception) {
-                    if (isSandboxDead(e)) {
-                        log(WARN) { "$LOG_PREFIX Sandbox died during polling, re-initializing…: ${e.localizedMessage}" }
-                        reinitializeSandbox(gen)
-                        return@launch
-                    }
+                    if (recoverIfLost(e, "polling", gen, isolate)) return@launch
                     log(ERROR) { "$LOG_PREFIX_ERROR Error during RPC poll: ${e.localizedMessage}" }
                     delay(50)
                 }
@@ -248,26 +300,14 @@ internal class JSEngineAndroidx(
         try {
             isolate.evaluateJavaScriptAsync(script).await()
         } catch (e: Exception) {
-            if (isSandboxDead(e)) {
-                log(WARN) { "$LOG_PREFIX Sandbox died during loadScript, re-initializing…: ${e.localizedMessage}" }
-                reinitializeSandbox(gen)
-            } else {
-                throw e
-            }
+            if (!recoverIfLost(e, "loadScript", gen, isolate)) throw e
         }
     }
 
     override suspend fun reset() {
         tearDownIsolate()
         addedInterfaces.clear()
-        val sandbox = jsSandbox
-        if (sandbox != null) {
-            jsIsolate = sandbox.createIsolate()
-            setupGlobalBridge()
-            startPollLoop()
-        } else {
-            initialize()
-        }
+        initialize()
     }
 
     override suspend fun put(name: String, value: Any) {
@@ -304,9 +344,13 @@ internal class JSEngineAndroidx(
     }
 
     fun close() {
+        closed = true
         tearDown()
     }
 }
 
 internal fun isSandboxDead(e: Throwable): Boolean =
     e is SandboxDeadException || e.cause is SandboxDeadException
+
+internal fun isIsolateTerminated(e: Throwable): Boolean =
+    e is IsolateTerminatedException || e.cause is IsolateTerminatedException

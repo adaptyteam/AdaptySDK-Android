@@ -11,7 +11,7 @@ import com.adapty.internal.di.Dependencies
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.internal.script.SDKGlobals
-import com.adapty.ui.internal.script.StateHandler
+import com.adapty.ui.internal.script.FlowStateHandlers
 import com.adapty.ui.internal.ui.AdaptyFlowInternal
 import com.adapty.ui.internal.ui.FlowViewModel
 import com.adapty.ui.internal.ui.FlowViewModelArgs
@@ -19,7 +19,6 @@ import com.adapty.ui.internal.ui.FlowViewModelFactory
 import com.adapty.ui.internal.ui.UserArgs
 import com.adapty.ui.internal.utils.FlowMode
 import com.adapty.ui.internal.utils.ProductLoadingFailureCallback
-import com.adapty.ui.internal.utils.adoptFlowStateForConfigChange
 import com.adapty.ui.internal.utils.getActivityOrNull
 import com.adapty.ui.internal.utils.getCurrentLocale
 import com.adapty.ui.internal.utils.initializeFlowStateAsync
@@ -55,6 +54,9 @@ import java.util.UUID
  *
  * @param[observerModeHandler] If you use Adapty in [Observer mode](https://adapty.io/docs/observer-vs-full-mode),
  * pass the [AdaptyUiObserverModeHandler] implementation to handle purchases on your own.
+ *
+ * @param[customElementsResolver] Supplies the content of the flow's `custom` elements. When set,
+ * it replaces the resolver set with [AdaptyUI.setCustomElementsResolver] for this view.
  */
 @Composable
 public fun AdaptyFlowScreen(
@@ -66,6 +68,7 @@ public fun AdaptyFlowScreen(
     tagResolver: AdaptyUiTagResolver = AdaptyUiTagResolver.Default,
     timerResolver: AdaptyUiTimerResolver = AdaptyUiTimerResolver.Default,
     observerModeHandler: AdaptyUiObserverModeHandler? = null,
+    customElementsResolver: AdaptyCustomElementsResolver? = null,
 ) {
     val context = LocalContext.current
     val vmArgs = remember {
@@ -82,8 +85,8 @@ public fun AdaptyFlowScreen(
     val vmId = System.identityHashCode(viewModel)
 
     DisposableEffect(flowConfiguration) {
-        val stateHandler = withAdaptyUIActivated {
-            Dependencies.injectInternal<StateHandler>()
+        val stateHandlers = withAdaptyUIActivated {
+            Dependencies.injectInternal<FlowStateHandlers>()
         }
         fun pushData() {
             viewModel.setNewData(
@@ -97,6 +100,7 @@ public fun AdaptyFlowScreen(
                     observerModeHandler,
                     products,
                     ProductLoadingFailureCallback { error -> eventListener.onLoadingProductsFailure(error, context) },
+                    customElementsResolver,
                 )
             )
         }
@@ -105,15 +109,16 @@ public fun AdaptyFlowScreen(
         val configChangeHandoff = viewModel.configChangeHandoffPending
         viewModel.configChangeHandoffPending = false
         if (previousConfig === flowConfiguration && viewModel.state != null &&
-            stateHandler.stateOwner === flowConfiguration
+            stateHandlers.handlerFor(flowConfiguration).stateOwner === flowConfiguration
         ) {
             pushData()
         } else {
             if (configChangeHandoff && previousConfig != null &&
                 previousConfig.id == flowConfiguration.id && viewModel.state != null
             ) {
-                stateHandler.adoptFlowStateForConfigChange(previousConfig, flowConfiguration)
+                stateHandlers.adopt(previousConfig, flowConfiguration)
             }
+            val stateHandler = stateHandlers.handlerFor(flowConfiguration)
             if (stateHandler.stateOwner !== flowConfiguration) {
                 viewModel.dataState.value = null
             }
@@ -123,7 +128,7 @@ public fun AdaptyFlowScreen(
                 SDKGlobals.buildStaticSDKProductsJson(mode.flow)
             else
                 SDKGlobals.buildSDKProductsJson(emptyMap())
-            stateHandler.initializeFlowStateAsync(flowConfiguration, sdkEnvJson, sdkProductsJson) {
+            stateHandlers.initializeFlowStateAsync(flowConfiguration, sdkEnvJson, sdkProductsJson) {
                 pushData()
             }
         }

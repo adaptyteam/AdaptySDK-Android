@@ -6,6 +6,7 @@ import com.adapty.errors.AdaptyError
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.AdaptyCustomAssets
+import com.adapty.ui.AdaptyCustomElementsResolver
 import com.adapty.ui.AdaptyFlowInsets
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
@@ -39,6 +40,7 @@ internal data class ConfigState(
     val tagResolver: AdaptyUiTagResolver,
     val timerResolver: AdaptyUiTimerResolver,
     val productLoadingFailureCallback: ProductLoadingFailureCallback,
+    val customElementsResolver: AdaptyCustomElementsResolver? = null,
 )
 
 internal data class ProductsState(
@@ -60,15 +62,15 @@ internal data class TextsState(val items: Map<String, TextItem>)
 
 internal sealed interface PurchaseFlowState {
     object Idle : PurchaseFlowState
-    data class AwaitingParams(val product: AdaptyPaywallProduct, val callbackId: String? = null) : PurchaseFlowState
-    data class InProgress(val product: AdaptyPaywallProduct, val callbackId: String? = null) : PurchaseFlowState
-    data class ObserverModeInitiated(val product: AdaptyPaywallProduct, val callbackId: String? = null) : PurchaseFlowState
+    data class AwaitingParams(val product: AdaptyPaywallProduct, val callbackId: String?, val id: String) : PurchaseFlowState
+    data class InProgress(val product: AdaptyPaywallProduct, val callbackId: String?, val id: String) : PurchaseFlowState
+    data class ObserverModeInitiated(val product: AdaptyPaywallProduct, val callbackId: String?, val id: String) : PurchaseFlowState
 }
 
 internal sealed interface RestoreFlowState {
     object Idle : RestoreFlowState
-    data class InProgress(val callbackId: String? = null) : RestoreFlowState
-    data class ObserverModeInitiated(val callbackId: String? = null) : RestoreFlowState
+    data class InProgress(val callbackId: String?, val id: String) : RestoreFlowState
+    data class ObserverModeInitiated(val callbackId: String?, val id: String) : RestoreFlowState
 }
 
 internal data class ClosingNavigator(
@@ -81,6 +83,12 @@ internal data class NavigationState(
     val closingEntries: Map<String, ClosingNavigator> = emptyMap(),
     val pending: Map<String, NavigationEntry> = emptyMap(),
 )
+
+internal fun NavigationState.stagePending(navigatorId: String, entry: NavigationEntry): NavigationState =
+    copy(pending = pending + (navigatorId to entry))
+
+internal fun NavigationState.commitPending(): NavigationState =
+    if (pending.isEmpty()) this else NavigationState(entries = entries + pending)
 internal data class UiState(
     val isLoading: Boolean,
     val flowShown: Boolean,

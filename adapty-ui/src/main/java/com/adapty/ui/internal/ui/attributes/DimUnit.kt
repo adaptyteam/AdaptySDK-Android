@@ -5,10 +5,12 @@ package com.adapty.ui.internal.ui.attributes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.utils.InsetWrapper
 import com.adapty.ui.internal.utils.LocalScreenDimensions
 import com.adapty.ui.internal.utils.SafeAreaInsets
 import com.adapty.ui.internal.utils.ScreenDimensions
@@ -21,19 +23,8 @@ internal fun DimUnit.toExactDp(axis: DimSpec.Axis): Dp {
         is DimUnit.SafeArea -> {
             val density = LocalDensity.current
             val layoutDirection = LocalLayoutDirection.current
-            val safeContent = getInsets()
-            return with(density) {
-                when (this@toExactDp.side) {
-                    DimUnit.SafeArea.Side.START -> when (axis) {
-                        DimSpec.Axis.X -> safeContent.getLeft(density, layoutDirection)
-                        DimSpec.Axis.Y -> safeContent.getTop(density)
-                    }
-                    DimUnit.SafeArea.Side.END -> when (axis) {
-                        DimSpec.Axis.X -> safeContent.getRight(density, layoutDirection)
-                        DimSpec.Axis.Y -> safeContent.getBottom(density)
-                    }
-                }.toDp()
-            }
+            val insetPx = getInsets().safeAreaEdgePx(this.side, axis, density, layoutDirection)
+            return with(density) { insetPx.toDp() }
         }
         is DimUnit.ScreenFraction -> {
             val screenDimensions = LocalScreenDimensions.current
@@ -41,6 +32,25 @@ internal fun DimUnit.toExactDp(axis: DimSpec.Axis): Dp {
                 if (axis == DimSpec.Axis.Y) screenDimensions.heightDp else screenDimensions.widthDp
 
             return (this.fraction * screenSize).dp
+        }
+    }
+}
+
+internal fun InsetWrapper.safeAreaEdgePx(
+    side: DimUnit.SafeArea.Side,
+    axis: DimSpec.Axis,
+    density: Density,
+    layoutDirection: LayoutDirection,
+): Int {
+    val isRtl = layoutDirection == LayoutDirection.Rtl
+    return when (side) {
+        DimUnit.SafeArea.Side.START -> when (axis) {
+            DimSpec.Axis.X -> if (isRtl) getRight(density, layoutDirection) else getLeft(density, layoutDirection)
+            DimSpec.Axis.Y -> getTop(density)
+        }
+        DimUnit.SafeArea.Side.END -> when (axis) {
+            DimSpec.Axis.X -> if (isRtl) getLeft(density, layoutDirection) else getRight(density, layoutDirection)
+            DimSpec.Axis.Y -> getBottom(density)
         }
     }
 }

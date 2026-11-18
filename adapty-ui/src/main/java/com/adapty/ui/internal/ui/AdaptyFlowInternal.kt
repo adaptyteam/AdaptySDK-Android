@@ -33,7 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.adapty.ui.internal.ui.attributes.Shape
+import com.adapty.ui.internal.ui.attributes.Decorator
 import androidx.compose.ui.platform.LocalFocusManager
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -186,6 +186,10 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
                 val derivedTimerCommands = remember { derivedStateOf { viewModel.state?.ui?.timerCommands ?: emptyMap() } }
                 val derivedFocusCommand = remember { derivedStateOf { viewModel.state?.ui?.focusCommand } }
                 val derivedCurrentFocusId = remember { derivedStateOf { viewModel.state?.ui?.currentFocusId } }
+                val derivedCustomElementsResolver = remember { derivedStateOf { viewModel.state?.config?.customElementsResolver } }
+                val customElementsHost = remember(viewModel, derivedCustomElementsResolver.value) {
+                    CustomElementsHost(derivedCustomElementsResolver.value, viewModel::sendAppMessage)
+                }
 
                 val dispatch: (Message) -> Unit = remember(viewModel) { { msg -> viewModel.dispatch(msg) } }
 
@@ -224,6 +228,7 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
                     },
                     LocalResolveState provides @Composable { viewModel.resolveState() },
                     LocalEventDispatcher provides viewModel.eventDispatcher,
+                    LocalCustomElementsHost provides customElementsHost,
                 ) {
                     val context = LocalContext.current
                     val scope = rememberCoroutineScope()
@@ -237,7 +242,7 @@ internal fun AdaptyFlowInternal(viewModel: FlowViewModel) {
                     viewModel.setContextAwareListener(contextAwareListener)
 
                     DisposableEffect(viewModel) {
-                        viewModel.activityProvider = { context.getActivityOrNull()!! }
+                        viewModel.activityProvider = { context.getActivityOrNull() }
                         onDispose {
                             viewModel.activityProvider = null
                             viewModel.setContextAwareListener(null)
@@ -449,8 +454,8 @@ private fun createActionHandler(
             override fun onOpenUrl(source: Message.JSCallback.OpenUrl.Source, openIn: String?) =
                 dispatch(Message.JSCallback.OpenUrl(source, openIn))
 
-            override fun onUserCustomAction(userCustomId: String) =
-                dispatch(Message.JSCallback.CustomAction(userCustomId))
+            override fun onUserCustomAction(userCustomId: String, arguments: Map<String, Any?>?) =
+                dispatch(Message.JSCallback.CustomAction(userCustomId, arguments))
 
             override fun onPurchaseProduct(productId: String, paywallId: String?, callbackId: String?) =
                 dispatch(Message.JSCallback.PurchaseProduct(productId, paywallId, callbackId))
@@ -496,7 +501,9 @@ private fun createActionHandler(
                 message: String?,
                 actions: List<Message.JSCallback.ShowAlertDialog.AlertAction>,
                 callbackId: String?,
-            ) = dispatch(Message.JSCallback.ShowAlertDialog(title, message, actions, callbackId))
+                titleStringId: String?,
+                messageStringId: String?,
+            ) = dispatch(Message.JSCallback.ShowAlertDialog(title, message, actions, callbackId, titleStringId, messageStringId))
 
             override fun onShowRequestPermission(
                 permission: String?,
@@ -583,17 +590,9 @@ private fun NavigatorLayer(
     val staticBgColor = bgComposite?.castOrNull<Asset.Color>()?.toComposeFill()?.color
         ?: if (bgComposite == null) androidx.compose.ui.graphics.Color.Black
            else androidx.compose.ui.graphics.Color.Transparent
-    val bgShape = remember(config.background) {
-        Shape(
-            fill = config.background,
-            type = Shape.Type.Rectangle(null),
-            border = null,
-            shadow = null,
-            innerShadow = null,
-        )
-    }
+    val bgShape = remember(config.background) { Decorator.background(config.background) }
     val mediaBackgroundModifier: Modifier = when (bgComposite?.main) {
-        is Asset.Gradient, is Asset.Image -> Modifier.backgroundOrSkip(bgShape)
+        is Asset.Gradient, is Asset.Image -> Modifier.decorator(bgShape)
         else -> Modifier
     }
 

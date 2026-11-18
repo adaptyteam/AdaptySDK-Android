@@ -6,10 +6,11 @@ import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.internal.utils.adaptyError
 import com.adapty.ui.internal.mapping.attributes.toAssetVisualValue
+import com.adapty.ui.internal.mapping.attributes.toBlendMode
 import com.adapty.ui.internal.mapping.attributes.toDimSpec
 import com.adapty.ui.internal.mapping.attributes.toEdgeEntities
 import com.adapty.ui.internal.mapping.attributes.toOffset
-import com.adapty.ui.internal.mapping.attributes.toShape
+import com.adapty.ui.internal.mapping.attributes.toDecorator
 import com.adapty.ui.internal.mapping.attributes.toOneWayBinding
 import com.adapty.ui.internal.mapping.attributes.toStaticRotation
 import com.adapty.ui.internal.mapping.attributes.toStaticScale
@@ -45,10 +46,11 @@ public fun Map<*, *>.extractBaseProps(): BaseProps {
         widthSpec,
         heightSpec,
         this["weight"]?.toWeightOrNull(),
-        this["decorator"]?.toShape(),
+        this["decorator"]?.toDecorator(),
         this["padding"]?.toEdgeEntities(),
         this["offset"]?.toOffset(),
         (this["opacity"] as? Number)?.toFloat() ?: 1f,
+        this["blend"].toBlendMode(),
         this["focus_id"] as? String,
         this["rotation"]?.toStaticRotation(),
         this["scale"]?.toStaticScale(),

@@ -2,6 +2,7 @@
 
 package com.adapty.ui.internal.ui.element
 
+import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -93,7 +94,8 @@ public class HStackElement internal constructor(
 }
 
 @OptIn(InternalAdaptyApi::class)
-private fun UIElement.isTextLikeForWidth(): Boolean = when (this) {
+@VisibleForTesting
+internal fun UIElement.isTextLikeForWidth(): Boolean = when (this) {
     is BaseTextElement -> true
     is SingleContainer -> layoutRelevantProps.widthSpec == null && content.isTextLikeForWidth()
     is MultiContainer -> (this is VStackElement || this is HStackElement || this is ZStackElement) &&

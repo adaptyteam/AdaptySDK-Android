@@ -48,6 +48,8 @@ internal class CacheRepository(
 
     private val cache = ConcurrentHashMap<String, Any>(32)
 
+    private val flowViewConfigGson = responseGson.withSerializedNulls()
+
     suspend fun updateDataOnCreateProfile(
         profile: ProfileDto,
         installationMeta: InstallationMeta,
@@ -459,7 +461,7 @@ internal class CacheRepository(
     fun saveFlowViewConfig(flowId: String, versionId: String, layoutId: String?, config: Map<String, Any>) {
         fileCache.write(
             getFlowViewConfigFileKey(flowId, layoutId),
-            responseGson.toJson(FlowViewConfig(versionId, layoutId, config)),
+            flowViewConfigGson.toJson(FlowViewConfig(versionId, layoutId, config)),
             null,
             null,
             0L,
@@ -774,3 +776,5 @@ internal class CacheRepository(
             cache[key] as? Long
     }
 }
+
+internal fun Gson.withSerializedNulls(): Gson = newBuilder().serializeNulls().create()

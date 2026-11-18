@@ -14,6 +14,7 @@ import com.adapty.internal.crossplatform.ui.CrossplatformUiHelper
 import com.adapty.internal.crossplatform.ui.DestroyViewArgs
 import com.adapty.internal.crossplatform.ui.DismissViewArgs
 import com.adapty.internal.crossplatform.ui.PresentViewArgs
+import com.adapty.internal.crossplatform.ui.SendAppMessageArgs
 import com.adapty.internal.crossplatform.ui.ShowDialogArgs
 import com.adapty.internal.utils.DEFAULT_PLACEMENT_TIMEOUT
 import com.adapty.internal.utils.InternalAdaptyApi
@@ -92,6 +93,7 @@ internal class AdaptyCallHandler(
             ADAPTY_UI_PRESENT_ONBOARDING_VIEW -> handlePresentOnboardingView(argument, onResult)
             ADAPTY_UI_DISMISS_ONBOARDING_VIEW -> handleDismissOnboardingView(argument, onResult)
             ADAPTY_UI_SHOW_DIALOG -> handleShowDialog(argument, onResult)
+            ADAPTY_UI_SEND_APP_MESSAGE -> handleSendAppMessage(argument, onResult)
             ADAPTY_UI_OPEN_URL -> handleAdaptyUiOpenUrl(argument, onResult)
             ADAPTY_UI_REQUEST_APP_REVIEW -> handleAdaptyUiRequestAppReview(onResult)
             FLOW_VIEW_DID_ANSWER_PERMISSION -> handleFlowViewDidAnswerPermission(argument, onResult)
@@ -625,6 +627,24 @@ internal class AdaptyCallHandler(
         onResult(success())
     }
 
+    private fun handleSendAppMessage(argument: Any?, onResult: ResultCallback<String>) {
+        val args = parseJsonArgument<SendAppMessageArgs>(argument)
+        val messageId = args?.messageId
+        val payload = args?.payload
+        if (messageId == null || payload == null) {
+            onResult(callParameterError(ADAPTY_UI_SEND_APP_MESSAGE))
+            return
+        }
+
+        uiHelper.handleSendAppMessage(
+            args.id,
+            messageId,
+            payload,
+            { onResult(success()) },
+            { error -> onResult(uiBridgeError(error)) },
+        )
+    }
+
     private fun handleShowDialog(argument: Any?, onResult: ResultCallback<String>) {
         val args = parseJsonArgument<ShowDialogArgs>(argument) ?: kotlin.run {
             onResult(callParameterError(ADAPTY_UI_SHOW_DIALOG))
@@ -769,6 +789,7 @@ internal class AdaptyCallHandler(
         const val ADAPTY_UI_PRESENT_ONBOARDING_VIEW = "adapty_ui_present_onboarding_view"
         const val ADAPTY_UI_DISMISS_ONBOARDING_VIEW = "adapty_ui_dismiss_onboarding_view"
         const val ADAPTY_UI_SHOW_DIALOG = "adapty_ui_show_dialog"
+        const val ADAPTY_UI_SEND_APP_MESSAGE = "adapty_ui_send_app_message"
         const val ADAPTY_UI_OPEN_URL = "adapty_ui_open_url"
         const val ADAPTY_UI_REQUEST_APP_REVIEW = "adapty_ui_request_app_review"
         const val FLOW_VIEW_DID_ANSWER_PERMISSION = "flow_view_did_answer_permission"

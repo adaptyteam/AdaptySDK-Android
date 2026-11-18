@@ -28,6 +28,7 @@ public interface AdaptyFlowEventListener {
      * instead of the *close* icon on the screen.
      *
      * If a button has a custom action, action [Custom][AdaptyUI.Action.Custom] will be invoked.
+     * The arguments the flow script passed with the action are in [arguments][AdaptyUI.Action.Custom.arguments].
      *
      * @param[action] An [Action][AdaptyUI.Action] object representing the action.
      *
@@ -42,10 +43,9 @@ public interface AdaptyFlowEventListener {
      * and is handled internally without invoking this callback.
      *
      * The [default][AdaptyFlowDefaultEventListener.onBackPressed] implementation is a no-op that
-     * consumes the press (returns `true`), so by default the system back button does nothing —
-     * matching iOS, where a flow cannot be dismissed by a system gesture. Provide an explicit
-     * dismissal path (a *close* button or an `on_device_back` action), or return `false` here, if
-     * the user should be able to leave the flow with back.
+     * consumes the press (returns `true`), so by default the system back button does nothing.
+     * Provide an explicit dismissal path (a *close* button or an `on_device_back` action), or
+     * return `false` here, if the user should be able to leave the flow with back.
      *
      * @param[context] A UI [Context] within which the event occurred.
      *

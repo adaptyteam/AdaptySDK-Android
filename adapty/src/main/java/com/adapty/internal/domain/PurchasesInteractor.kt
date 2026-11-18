@@ -312,13 +312,17 @@ internal class PurchasesInteractor(
             cloudRepository.validatePurchase(validateData, null)
         }
             .onEach { (validationResult, request) ->
-                cacheRepository.removeUnsyncedValidateData(key)
-                if (validationResult.profile.profileId == cacheRepository.getProfileId()) {
-                    cacheRepository.updateOnProfileReceived(
-                        validationResult.profile,
-                        request.currentDataWhenSent?.profileId,
-                    )
-                }
+                completeUnsyncedValidate(
+                    responseProfileId = validationResult.profile.profileId,
+                    currentProfileId = cacheRepository.getProfileId(),
+                    removeUnsyncedData = { cacheRepository.removeUnsyncedValidateData(key) },
+                    saveProfile = {
+                        cacheRepository.updateOnProfileReceived(
+                            validationResult.profile,
+                            request.currentDataWhenSent?.profileId,
+                        )
+                    },
+                )
                 syncValidateDataSemaphore.releaseQuietly()
             }
             .catch { error -> syncValidateDataSemaphore.releaseQuietly(); throw error }

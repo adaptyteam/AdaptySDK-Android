@@ -11,6 +11,7 @@ import com.adapty.internal.utils.getAs
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.utils.DARK_THEME_ASSET_SUFFIX
 import com.adapty.ui.internal.utils.VIDEO_PREVIEW_ASSET_SUFFIX
+import com.adapty.ui.internal.utils.decodeBase64Strict
 import com.adapty.ui.internal.utils.parseColorInt
 
 private const val ASSETS = "assets"
@@ -35,8 +36,14 @@ private const val SIZE = "size"
 private const val COLOR = "color"
 private const val LETTER_SPACING = "letter_spacing"
 private const val LINE_HEIGHT = "line_height"
+private const val DATA = "data"
 
 internal fun mapAssets(config: JsonObject, localesOrderedDesc: Set<String>): Map<String, Asset> {
+    (listOf(config) + (config.getAs<JsonArray>(LOCALIZATIONS) ?: emptyList()))
+        .flatMap { container -> container.getAs<JsonArray>(ASSETS) ?: emptyList() }
+        .filter { rawAsset -> rawAsset.getAs<String>(TYPE) == DATA }
+        .forEach { rawAsset -> mapDataAsset(rawAsset) }
+
     val rawAssets = config.getAs<JsonArray>(ASSETS)
         ?.mapNotNull { rawAsset ->
             rawAsset.getAs<String>(ID)?.let { id -> id to rawAsset }
@@ -74,6 +81,7 @@ internal fun mapAssets(config: JsonObject, localesOrderedDesc: Set<String>): Map
             "color" -> assets[id] = mapColorAsset(rawAsset)
             "linear-gradient", "radial-gradient", "conic-gradient" -> assets[id] = mapGradientAsset(rawAsset, type)
             "font" -> assets[id] = mapFontAsset(rawAsset)
+            DATA -> assets[id] = mapDataAsset(rawAsset)
             else -> assets[id] = Asset.Unknown(
                 rawAsset.getAs<String>(FALLBACK_ASSET_ID),
                 rawAsset.getAs<String>(CUSTOM_ID),
@@ -172,4 +180,29 @@ private fun mapFontAsset(asset: JsonObject): Asset.Font =
         asset.getAs<Number>(LETTER_SPACING)?.toFloat(),
         asset.getAs<Number>(LINE_HEIGHT)?.toFloat(),
         asset.getAs<String>(CUSTOM_ID),
+    )
+
+private fun mapDataAsset(asset: JsonObject): Asset.Data {
+    val format = (asset[FORMAT] as? String)?.takeIf { it.isNotEmpty() }
+        ?: throw dataAssetError("format should be a non-empty string")
+    val value = if (VALUE in asset) {
+        (asset[VALUE] as? String)?.decodeBase64Strict()
+            ?: throw dataAssetError("value should be a Base64 string")
+    } else null
+    val url = if (URL in asset) {
+        (asset[URL] as? String)?.takeIf { it.isNotEmpty() }
+            ?: throw dataAssetError("url should be a non-empty string")
+    } else null
+    if (value == null && url == null)
+        throw dataAssetError("value or url should be present")
+    val customId = asset[CUSTOM_ID]
+    if (customId != null && customId !is String)
+        throw dataAssetError("custom_id should be a string")
+    return Asset.Data(format, value, url, customId as String?)
+}
+
+private fun dataAssetError(message: String) =
+    adaptyError(
+        message = "data asset: $message",
+        adaptyErrorCode = AdaptyErrorCode.DECODING_FAILED
     )

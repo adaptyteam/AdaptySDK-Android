@@ -38,6 +38,7 @@ private const val PRODUCT_TYPE = "product"
 private const val TOGGLE_TYPE = "toggle"
 private const val ROW_TYPE = "row"
 private const val COLUMN_TYPE = "column"
+private const val CUSTOM_TYPE = "custom"
 private const val LEGACY_BUTTON_TYPE = "legacy_button"
 private const val LEGACY_ROW_TYPE = "legacy_row"
 private const val LEGACY_COLUMN_TYPE = "legacy_column"
@@ -677,7 +678,7 @@ private fun rewriteLegacyTimerTagsInPlace(node: Any?) {
                     if (format != null) map["format"] = format
                 }
             }
-            map.values.forEach { rewriteLegacyTimerTagsInPlace(it) }
+            map.childrenToNormalize().forEach { rewriteLegacyTimerTagsInPlace(it) }
         }
         is List<*> -> node.forEach { rewriteLegacyTimerTagsInPlace(it) }
         is Iterable<*> -> node.forEach { rewriteLegacyTimerTagsInPlace(it) }
@@ -721,7 +722,7 @@ private fun rewriteLegacyAppearanceInPlace(node: Any?) {
                 }
             }
 
-            map.values.forEach { rewriteLegacyAppearanceInPlace(it) }
+            map.childrenToNormalize().forEach { rewriteLegacyAppearanceInPlace(it) }
         }
         is List<*> -> node.forEach { rewriteLegacyAppearanceInPlace(it) }
         is Iterable<*> -> node.forEach { rewriteLegacyAppearanceInPlace(it) }
@@ -737,10 +738,20 @@ private fun rewriteFlexAutoSizeDefaultsInPlace(node: Any?) {
                 ROW_TYPE -> if (!map.containsKey("width")) map["width"] = "fill"
                 COLUMN_TYPE -> if (!map.containsKey("height")) map["height"] = "fill"
             }
-            map.values.forEach { rewriteFlexAutoSizeDefaultsInPlace(it) }
+            map.childrenToNormalize().forEach { rewriteFlexAutoSizeDefaultsInPlace(it) }
         }
         is List<*> -> node.forEach { rewriteFlexAutoSizeDefaultsInPlace(it) }
         is Iterable<*> -> node.forEach { rewriteFlexAutoSizeDefaultsInPlace(it) }
+    }
+}
+
+private val CUSTOM_ELEMENT_KEYED_MAPS = setOf("assets", "strings", "bindings")
+
+private fun Map<String, Any?>.childrenToNormalize(): Sequence<Any?> {
+    if (this[TYPE] != CUSTOM_TYPE) return values.asSequence()
+    return entries.asSequence().flatMap { (key, value) ->
+        if (key in CUSTOM_ELEMENT_KEYED_MAPS && value is Map<*, *>) value.values.asSequence()
+        else sequenceOf(value)
     }
 }
 

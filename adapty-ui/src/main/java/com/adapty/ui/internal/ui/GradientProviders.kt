@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.lerp
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.ui.attributes.Animation
+import com.adapty.ui.internal.ui.attributes.AnimationTarget
+import com.adapty.ui.internal.ui.attributes.target
 import com.adapty.ui.internal.ui.element.AnimationBehavior
 import com.adapty.ui.internal.ui.element.BaseProps
 import com.adapty.ui.internal.ui.element.BrushProvider
@@ -44,31 +46,25 @@ import com.adapty.ui.internal.utils.resolveAsset
 @Composable
 internal fun rememberGradientProvider(
     baseProps: BaseProps,
-): BrushProvider {
-    return rememberGradientProvider(baseProps, Animation.Role.Background)
-}
-
-@Composable
-internal fun rememberGradientProvider(
-    baseProps: BaseProps,
-    role: Animation.Role
+    target: AnimationTarget,
+    base: VisualValue?,
 ): BrushProvider {
     val animations = if (!baseProps.hasVisualAnimations()) null
     else LocalActiveAnimations.current.value?.animations
-        ?.filter { anim -> anim.role == role }
+        ?.filter { anim -> anim.target == target }
         ?.takeIf { it.isNotEmpty() }
         ?.sortedBy { it.startDelayMillis }
 
     return if (!animations.isNullOrEmpty()) {
-        val brush = rememberAssetBasedGradientAnimation(animations, baseProps, role)
+        val brush = rememberAssetBasedGradientAnimation(animations, target.role, base)
         BrushProvider(brush)
     } else {
-        pendingAppearStartBrush(baseProps, role)?.let { startBrush ->
+        pendingAppearStartBrush(baseProps, target)?.let { startBrush ->
             return BrushProvider(rememberUpdatedState(startBrush))
         }
-        val staticBehavior = when (role) {
-            Animation.Role.Background -> baseProps.gradientBehaviour()
-            Animation.Role.Border -> baseProps.borderGradientBehaviour()
+        val staticBehavior = when (target.role) {
+            Animation.Role.Background -> baseProps.gradientBehaviour(target.targetId, base)
+            Animation.Role.Border -> baseProps.borderGradientBehaviour(target.targetId, base)
             else -> AnimationBehavior.Static(Brush.color(Color.Transparent))
         }
         when (staticBehavior) {
@@ -85,9 +81,9 @@ internal fun rememberGradientProvider(
 }
 
 @Composable
-private fun pendingAppearStartBrush(baseProps: BaseProps, role: Animation.Role): Brush? {
-    val firstPending = baseProps.pendingAppearAnimationsFor(role)?.firstOrNull() ?: return null
-    val startValue = when (role) {
+private fun pendingAppearStartBrush(baseProps: BaseProps, target: AnimationTarget): Brush? {
+    val firstPending = baseProps.pendingAppearAnimationsFor(target)?.firstOrNull() ?: return null
+    val startValue = when (target.role) {
         Animation.Role.Background -> firstPending.start as? VisualValue
         Animation.Role.Border -> (firstPending.start as? Border)?.color
         else -> null
@@ -105,8 +101,8 @@ private fun pendingAppearStartBrush(baseProps: BaseProps, role: Animation.Role):
 @Composable
 private fun rememberAssetBasedGradientAnimation(
     animations: List<Animation<*>>,
-    baseProps: BaseProps,
-    role: Animation.Role
+    role: Animation.Role,
+    base: VisualValue?,
 ): State<Brush> {
     val assets = resolveAssets()
     
@@ -122,7 +118,8 @@ private fun rememberAssetBasedGradientAnimation(
                     anim.interpolator,
                     anim.repeatMode,
                     anim.repeatMaxCount,
-                    anim.role
+                    anim.role,
+                    anim.targetId,
                 )
             }.filterIsInstance<Animation<Float>>(),
             0f
@@ -171,11 +168,7 @@ private fun rememberAssetBasedGradientAnimation(
         else -> null
     }
     
-    val fallbackGradient = when (role) {
-        Animation.Role.Background -> baseProps.shape?.fill?.resolveAsset<Asset.Filling.Local>()?.castOrNull<Asset.Gradient>()
-        Animation.Role.Border -> baseProps.shape?.border?.color?.resolveAsset<Asset.Filling.Local>()?.castOrNull<Asset.Gradient>()
-        else -> null
-    }
+    val fallbackGradient = base?.resolveAsset<Asset.Filling.Local>()?.castOrNull<Asset.Gradient>()
 
     return remember {
         derivedStateOf {

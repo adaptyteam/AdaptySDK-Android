@@ -40,7 +40,7 @@ public sealed interface Message {
                 public data class StringId internal constructor(val stringId: String) : Source()
             }
         }
-        public data class CustomAction internal constructor(val id: String) : JSCallback
+        public data class CustomAction internal constructor(val id: String, val arguments: Map<String, Any?>? = null) : JSCallback
         public data class PurchaseProduct internal constructor(val productId: String, val paywallId: String? = null, val callbackId: String? = null) : JSCallback
         public data class WebPurchaseProduct internal constructor(val productId: String, val paywallId: String? = null, val openIn: String?, val callbackId: String? = null) : JSCallback
         public data class RestorePurchases internal constructor(val callbackId: String? = null) : JSCallback
@@ -70,11 +70,14 @@ public sealed interface Message {
             val message: String?,
             val actions: List<AlertAction>,
             val callbackId: String?,
+            val titleStringId: String? = null,
+            val messageStringId: String? = null,
         ) : JSCallback {
             public data class AlertAction internal constructor(
                 val title: String?,
                 val style: Style,
                 val actionId: String?,
+                val titleStringId: String? = null,
             ) {
                 public enum class Style { DEFAULT, DESTRUCTIVE, CANCEL }
             }
@@ -112,8 +115,8 @@ public sealed interface Message {
     public object FlowEntered : Message
     public object FlowExited : Message
 
-    public data class PreviewPurchaseCompleted internal constructor(val productId: String, val callbackId: String?) : Message
-    public data class PreviewRestoreCompleted internal constructor(val callbackId: String?) : Message
+    public data class PreviewPurchaseCompleted internal constructor(val productId: String, val callbackId: String?, val id: String) : Message
+    public data class PreviewRestoreCompleted internal constructor(val callbackId: String?, val id: String) : Message
 
     public data class AlertDialogResolved internal constructor(
         val callbackId: String?,
@@ -137,3 +140,9 @@ public sealed interface Message {
 
     public data class UIError internal constructor(val message: String, val code: AdaptyErrorCode) : Message
 }
+
+internal data class AppMessageRequested(
+    val id: String,
+    val payload: Map<String, Any?>,
+    val source: Effect.SendSDKEvent.AppMessage.Source,
+) : Message

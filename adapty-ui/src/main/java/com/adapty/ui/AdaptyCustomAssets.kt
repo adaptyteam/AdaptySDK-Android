@@ -29,11 +29,13 @@ public class AdaptyCustomAssets internal constructor(
             AdaptyCustomAssets(assets)
     }
 
+    internal operator fun get(id: String): AdaptyCustomAsset? = assets[id]
     internal fun getColor(id: String) = assets.firstOrNull<AdaptyCustomColorAsset>(id)
     internal fun getGradient(id: String) = assets.firstOrNull<AdaptyCustomGradientAsset>(id)
     internal fun getImage(id: String) = assets.firstOrNull<AdaptyCustomImageAsset<*>>(id)
     internal fun getVideo(id: String) = assets.firstOrNull<AdaptyCustomVideoAsset>(id)
     internal fun getFont(id: String) = assets.firstOrNull<AdaptyCustomFontAsset>(id)
+    internal fun getData(id: String) = assets.firstOrNull<AdaptyCustomDataAsset>(id)
 
     private inline fun <reified T: AdaptyCustomAsset> Map<String, AdaptyCustomAsset>.firstOrNull(id: String) =
         firstNotNullOfOrNull { (k, v) -> if (v is T && k == id) v else null }
@@ -46,6 +48,7 @@ public class AdaptyCustomAssets internal constructor(
                 AssetType.IMAGE -> getImage(id)
                 AssetType.VIDEO -> getVideo(id)
                 AssetType.FONT -> getFont(id)
+                AssetType.DATA -> getData(id)
             }
             if (result != null) return result
         }
@@ -53,10 +56,15 @@ public class AdaptyCustomAssets internal constructor(
     }
 
     internal enum class AssetType {
-        COLOR, GRADIENT, IMAGE, VIDEO, FONT
+        COLOR, GRADIENT, IMAGE, VIDEO, FONT, DATA
     }
 }
 
+/**
+ * An asset that the app passes in [AdaptyCustomAssets] to replace the configuration asset with
+ * the same `custom_id`. Write-only: the content of a `custom` element reads assets as
+ * [AdaptyUiAsset].
+ */
 public sealed class AdaptyCustomAsset
 
 public sealed class AdaptyCustomImageAsset<T>(
@@ -220,5 +228,35 @@ public class AdaptyCustomFontAsset internal constructor(
     public companion object {
         public fun of(font: FlowConfiguration.Asset.Font): AdaptyCustomFontAsset =
             AdaptyCustomFontAsset(font)
+    }
+}
+
+/**
+ * Replaces a data asset of the configuration with the same `custom_id`.
+ *
+ * The SDK never draws data assets, so the substitute only changes what `custom` elements read
+ * as [AdaptyUiAsset.Data]. It replaces data assets only: an asset of another kind with the same
+ * `custom_id` is kept.
+ */
+public class AdaptyCustomDataAsset private constructor(
+    internal val value: FlowConfiguration.Asset.Data,
+): AdaptyCustomAsset() {
+
+    public companion object {
+        /**
+         * @param[format] The format of the payload, for the app to interpret, for example `lottie`.
+         * @param[value] The payload.
+         */
+        @JvmStatic
+        public fun of(format: String, value: ByteArray): AdaptyCustomDataAsset =
+            AdaptyCustomDataAsset(FlowConfiguration.Asset.Data(format, value, url = null))
+
+        /**
+         * @param[format] The format of the payload, for the app to interpret, for example `lottie`.
+         * @param[url] The location of the payload, local or remote. The SDK does not load it.
+         */
+        @JvmStatic
+        public fun of(format: String, url: String): AdaptyCustomDataAsset =
+            AdaptyCustomDataAsset(FlowConfiguration.Asset.Data(format, value = null, url))
     }
 }

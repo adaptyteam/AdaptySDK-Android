@@ -212,6 +212,21 @@ class CrossplatformUiHelper internal constructor(
         flowUiManager.resolveObserverRestoreFinish(eventId)
     }
 
+    fun handleSendAppMessage(
+        id: String,
+        messageId: String,
+        payload: Map<String, Any?>,
+        onSuccess: Callback<Unit>,
+        onError: Callback<AdaptyUiBridgeError>,
+    ) {
+        val config = flowUiManager.getFlowConfiguration(id) ?: kotlin.run {
+            onError(AdaptyUiBridgeError.ViewNotFound(id))
+            return
+        }
+        config.sendAppMessage(messageId, payload)
+        onSuccess(Unit)
+    }
+
     fun handleShowDialog(
         id: String,
         config: AdaptyUiDialogConfig,

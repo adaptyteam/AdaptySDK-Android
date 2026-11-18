@@ -16,10 +16,18 @@ import com.adapty.ui.internal.utils.log
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import com.google.gson.Gson
+import com.google.gson.JsonNull
 import kotlinx.coroutines.CancellationException
 import java.lang.ref.WeakReference
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+
+internal fun NavigationEntry.toJsScreenInstance(): Map<String, String> = mapOf(
+    "instanceId" to screenInstanceId,
+    "navigatorId" to navigatorId,
+    "type" to screenType,
+    "contextPath" to (contextPath ?: ""),
+)
 
 internal class JSStateHandler(
     private val stateMachine: JSStateMachine,
@@ -30,7 +38,7 @@ internal class JSStateHandler(
         private val COLLECT_STATE_SCRIPT = """
             (function() {
                 var result = {};
-                var g = (typeof globalThis !== 'undefined') ? globalThis : this;
+                var g = $JS_GLOBAL_OBJECT;
                 var skip = (typeof __adapty_baseline_keys__ !== 'undefined')
                     ? __adapty_baseline_keys__
                     : {'SDK':1,'console':1,'undefined':1,'NaN':1,'Infinity':1,
@@ -123,7 +131,7 @@ internal class JSStateHandler(
         val snapshotJson = gson.toJson(snapshot)
         val applyScript = """
             (function(saved) {
-                var g = (typeof globalThis !== 'undefined') ? globalThis : this;
+                var g = $JS_GLOBAL_OBJECT;
                 function mergeInto(target, source) {
                     for (var p in source) {
                         if (Object.prototype.hasOwnProperty.call(source, p)) target[p] = source[p];
@@ -155,7 +163,7 @@ internal class JSStateHandler(
     }
 
     override suspend fun setActionsSuppressed(suppressed: Boolean) {
-        stateMachine.executeScript("globalThis.__adapty_suppress_actions__ = $suppressed")
+        stateMachine.executeScript("$JS_GLOBAL_OBJECT.__adapty_suppress_actions__ = $suppressed")
     }
 
     override suspend fun loadScript(script: String) {
@@ -166,13 +174,7 @@ internal class JSStateHandler(
     override suspend fun refreshState() = refreshStateCache()
 
     override suspend fun executeAction(func: String, params: Map<String, Any?>, scope: Scope, screen: NavigationEntry) {
-        val screenParams = mapOf(
-            "instanceId" to screen.screenInstanceId,
-            "type" to screen.screenType,
-            "contextPath" to screen.contextPath,
-            "navigatorId" to screen.navigatorId,
-        )
-        val paramsWithScreen = params + ("_screen" to screenParams)
+        val paramsWithScreen = params + ("_screen" to screen.toJsScreenInstance())
         val basePath: String? = when (scope) {
             Scope.Global -> null
             Scope.Screen -> screen.contextPath?.takeIf { it.isNotEmpty() }
@@ -194,17 +196,10 @@ internal class JSStateHandler(
             Scope.Screen -> screen.contextPath?.takeIf { it.isNotEmpty() }
         }
 
-        val screenParams = mapOf(
-            "instanceId" to screen.screenInstanceId,
-            "type" to screen.screenType,
-            "contextPath" to screen.contextPath,
-            "navigatorId" to screen.navigatorId,
-        )
-
         val setterParams = mapOf(
             "name" to binding.variable,
             "value" to resolvedValue,
-            "_screen" to screenParams,
+            "_screen" to screen.toJsScreenInstance(),
         )
 
         val explicitSetter = binding.setter
@@ -242,7 +237,9 @@ internal class JSStateHandler(
     }
 
     private suspend fun callSetter(setterPath: List<PathComponent>, params: Map<String, Any?>) {
-        val paramsJson = gson.toJson(params)
+        val paramsJson = gson.toJsonTree(params).asJsonObject
+            .apply { if (!has("value")) add("value", JsonNull.INSTANCE) }
+            .toString()
         val script = JSPathUtils.generateCallScript(setterPath, paramsJson)
         stateMachine.executeScript(script)
         refreshStateCache()
@@ -316,6 +313,17 @@ internal class JSStateHandler(
 
     override fun setActionHandler(handler: ActionHandler?) {
         stateMachine.setActionHandler(handler)
+    }
+
+    override fun releaseActionHandler(handler: ActionHandler) {
+        stateMachine.releaseActionHandler(handler)
+    }
+
+    override fun close() {
+        onStateRefreshed = null
+        stateOwnerRef = null
+        stateMachine.setActionHandler(null)
+        stateMachine.close()
     }
 
     private suspend fun refreshStateCache() {

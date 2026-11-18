@@ -2,6 +2,8 @@ package com.adapty.ui.internal.script
 
 internal const val JS_ERROR_KEY = "__adapty_js_error__"
 
+internal const val JS_GLOBAL_OBJECT = "(typeof globalThis !== 'undefined' ? globalThis : this)"
+
 internal interface JSEngine {
 
     suspend fun initialize()

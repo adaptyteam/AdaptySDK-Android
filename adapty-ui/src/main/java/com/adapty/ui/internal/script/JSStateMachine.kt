@@ -27,15 +27,20 @@ internal class JSStateMachine(
     private val jsActionBridge: JSActionBridge,
     private val gson: Gson,
 ) {
-    private var jsEngine: JSEngine? = null
+    @Volatile private var jsEngine: JSEngine? = null
     private val scope = CoroutineScope(Dispatchers.Default)
     private val initialized = CompletableDeferred<Unit>()
     @Volatile private var freshlyInitialized = false
+    @Volatile private var closed = false
 
     var onEngineStateLost: (() -> Unit)? = null
 
     fun setActionHandler(handler: ActionHandler?) {
         jsActionBridge.actionHandler = handler
+    }
+
+    fun releaseActionHandler(handler: ActionHandler) {
+        if (jsActionBridge.actionHandler === handler) jsActionBridge.actionHandler = null
     }
 
     init {
@@ -50,8 +55,8 @@ internal class JSStateMachine(
             jsEngine = try {
                 androidx.initialize()
                 androidx.also { js ->
-                    js.onSandboxDied = {
-                        log(WARN) { "$LOG_PREFIX Sandbox died — re-setting up bridge functions" }
+                    js.onStateLost = {
+                        log(WARN) { "$LOG_PREFIX JS isolate lost its state — re-setting up bridge functions" }
                         onEngineStateLost?.invoke()
                         setupBridgeFunctions()
                     }
@@ -72,6 +77,7 @@ internal class JSStateMachine(
 
             setupBridgeFunctions()
             freshlyInitialized = true
+            if (closed) close()
         } catch (e: Throwable) {
             log(ERROR) { "$LOG_PREFIX_ERROR JS engine initialization failed; scripting disabled: ${e.localizedMessage}" }
         } finally {
@@ -343,7 +349,7 @@ internal class JSStateMachine(
             // can distinguish user-defined variables from browser/engine built-ins.
             var __adapty_baseline_keys__ = {};
             (function() {
-                var g = (typeof globalThis !== 'undefined') ? globalThis : this;
+                var g = $JS_GLOBAL_OBJECT;
                 var names = Object.getOwnPropertyNames(g);
                 for (var i = 0; i < names.length; i++) __adapty_baseline_keys__[names[i]] = 1;
                 __adapty_baseline_keys__['__adapty_baseline_keys__'] = 1;
@@ -421,9 +427,9 @@ internal class JSStateMachine(
         try {
             val script = """
                 var __sdkEnv__ = $sdkEnvJson; Object.freeze(__sdkEnv__);
-                Object.defineProperty(globalThis, 'SDKEnv', { value: __sdkEnv__, writable: false, configurable: false, enumerable: false });
+                Object.defineProperty($JS_GLOBAL_OBJECT, 'SDKEnv', { value: __sdkEnv__, writable: false, configurable: false, enumerable: false });
                 var __sdkProducts__ = $sdkProductsJson; Object.freeze(__sdkProducts__);
-                Object.defineProperty(globalThis, 'SDKProducts', { value: __sdkProducts__, writable: false, configurable: true, enumerable: false });
+                Object.defineProperty($JS_GLOBAL_OBJECT, 'SDKProducts', { value: __sdkProducts__, writable: false, configurable: true, enumerable: false });
             """.trimIndent()
             jsEngine.loadScript(script)
         } catch (e: Exception) {
@@ -437,7 +443,7 @@ internal class JSStateMachine(
         try {
             val script = """
                 var __sdkProducts__ = $sdkProductsJson; Object.freeze(__sdkProducts__);
-                Object.defineProperty(globalThis, 'SDKProducts', { value: __sdkProducts__, writable: false, configurable: true, enumerable: false });
+                Object.defineProperty($JS_GLOBAL_OBJECT, 'SDKProducts', { value: __sdkProducts__, writable: false, configurable: true, enumerable: false });
             """.trimIndent()
             jsEngine.loadScript(script)
         } catch (e: Exception) {
@@ -453,10 +459,7 @@ internal class JSStateMachine(
                 if (typeof handleSDKEvent === 'function') { handleSDKEvent($eventJson); true; } else { false; }
             """.trimIndent()
             val result = jsEngine.execute(script)
-            val errorMessage = jsErrorMessage(result)
-            if (errorMessage != null) {
-                log(ERROR) { "$LOG_PREFIX_ERROR JS error during sendSDKEvent: $errorMessage" }
-            } else if (result != true && result != "true") {
+            if (!reportJsErrorIfPresent(result, "sendSDKEvent") && result != true && result != "true") {
                 log(VERBOSE) { "$LOG_PREFIX handleSDKEvent not defined, ignoring event: $eventJson" }
             }
         } catch (e: Exception) {
@@ -529,10 +532,12 @@ internal class JSStateMachine(
     }
 
     fun close() {
+        closed = true
         when (val js = jsEngine) {
             is JSEngineAndroidx -> js.close()
             is JSEngineWebView -> js.close()
         }
+        jsEngine = null
     }
 
     private fun reportWebViewFallback(cause: Throwable) {

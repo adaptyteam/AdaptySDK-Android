@@ -67,6 +67,15 @@ public sealed class StringWrapper {
     }
 }
 
+internal fun StringWrapper.toAnnotatedString(): AnnotatedString = buildAnnotatedString {
+    when (this@toAnnotatedString) {
+        is StringWrapper.Single -> append(this@toAnnotatedString)
+        is StringWrapper.ComplexStr -> parts.forEach { part ->
+            if (part is StringWrapper.ComplexStr.ComplexStrPart.Text) append(part.str)
+        }
+    }
+}
+
 internal fun StringWrapper.toPlainString() =
     when (this) {
         is StringWrapper.Single -> value

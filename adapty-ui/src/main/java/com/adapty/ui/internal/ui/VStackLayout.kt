@@ -1,5 +1,6 @@
 package com.adapty.ui.internal.ui
 
+import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -32,6 +33,16 @@ internal object VStackMinHeightQuery {
             depth--
         }
     }
+
+    fun idealMinIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int {
+        val saved = depth
+        depth = 0
+        try {
+            return measurable.minIntrinsicHeight(width)
+        } finally {
+            depth = saved
+        }
+    }
 }
 
 internal data class VStackCellSpec(
@@ -57,7 +68,8 @@ internal fun VStackLayout(
     Layout(content = content, modifier = modifier, measurePolicy = measurePolicy)
 }
 
-private class VStackMeasurePolicy(
+@VisibleForTesting
+internal class VStackMeasurePolicy(
     private val spacing: Dp,
     private val horizontalAlignment: Alignment.Horizontal,
     private val overflowAnchor: Alignment.Vertical,
@@ -215,8 +227,8 @@ private class VStackMeasurePolicy(
                             flexibility[i] = Long.MAX_VALUE
                         }
                         VStackCellKind.DEFAULT -> {
-                            val min = VStackMinHeightQuery.minIntrinsicHeight(measurable, intrinsicWidth)
-                            val max = measurable.maxIntrinsicHeight(intrinsicWidth)
+                            val min = NaturalHeightQuery.run { VStackMinHeightQuery.minIntrinsicHeight(measurable, intrinsicWidth) }
+                            val max = NaturalHeightQuery.run { measurable.maxIntrinsicHeight(intrinsicWidth) }
                             minHeights[i] = min
                             flexibility[i] = (max - min).coerceAtLeast(0).toLong()
                         }

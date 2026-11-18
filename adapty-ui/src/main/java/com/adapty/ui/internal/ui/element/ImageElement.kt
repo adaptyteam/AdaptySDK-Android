@@ -92,7 +92,7 @@ public class ImageElement internal constructor(
             )
             return@composable
         }
-        var naturalSize by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+        var naturalSize by remember(image?.main?.source?.key) { mutableStateOf<Pair<Int, Int>?>(null) }
         val headerSize = remember(image?.main?.source?.key) {
             image?.let { getImageNaturalSize(context, it) }
         }

@@ -22,6 +22,8 @@ import com.adapty.ui.AdaptyUI
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.R
 import com.adapty.ui.internal.mapping.element.Assets
+import com.adapty.ui.internal.script.FlowStateHandlers
+import com.adapty.ui.internal.script.JsLiteralWriter
 import com.adapty.ui.internal.script.StateAccessor
 import com.adapty.ui.internal.script.StateHandler
 import com.adapty.utils.AdaptyLogLevel
@@ -29,7 +31,10 @@ import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.VERBOSE
 import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import java.util.Locale
+import java.util.UUID
 import java.util.concurrent.Executors
+import kotlinx.coroutines.CompletableJob
+import kotlinx.coroutines.Job
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.startCoroutine
@@ -143,15 +148,38 @@ private fun Assets.resolveFallbackChain(asset: Asset?): Asset? {
     return current
 }
 
-internal fun StateHandler.initializeFlowStateAsync(
+internal fun FlowStateHandlers.requestPresentation(
+    viewConfiguration: AdaptyUI.FlowConfiguration,
+): CompletableJob {
+    val request = Job()
+    viewConfiguration.runtimeState.stateHandlers = this
+    viewConfiguration.runtimeState.presentationRequest.set(request)
+    return request
+}
+
+internal fun AdaptyUI.FlowConfiguration.completePresentationRequest(request: CompletableJob) {
+    runtimeState.presentationRequest.compareAndSet(request, null)
+    request.complete()
+}
+
+internal fun FlowStateHandlers.initializeFlowStateAsync(
     viewConfiguration: AdaptyUI.FlowConfiguration,
     sdkEnvJson: String,
     sdkProductsJson: String,
     callback: () -> Unit,
 ) {
+    val initialization = Job()
+    viewConfiguration.runtimeState.stateHandlers = this
+    val slot = viewConfiguration.runtimeState.initialization
+    slot.set(initialization)
+    viewConfiguration.runtimeState.presentationRequest.getAndSet(null)?.complete()
     suspend {
-        initializeFlowState(viewConfiguration, sdkEnvJson, sdkProductsJson)
-    }.startCoroutine(Continuation(EmptyCoroutineContext) { callback() })
+        initialize(viewConfiguration, sdkEnvJson, sdkProductsJson)
+    }.startCoroutine(Continuation(EmptyCoroutineContext) {
+        slot.compareAndSet(initialization, null)
+        initialization.complete()
+        callback()
+    })
 }
 
 internal suspend fun StateHandler.initializeFlowState(
@@ -180,15 +208,17 @@ internal suspend fun StateHandler.initializeFlowState(
     injectSDKGlobals(sdkEnvJson, sdkProductsJson)
     if (restoring) setActionsSuppressed(true)
     loadScript(viewConfiguration.initialScript)
-    if (sdkProductsJson != "{}") {
-        sendSDKEvent("""{"name":"productsLoaded"}""")
-    }
+    if (sdkProductsJson != "{}") sendProductsLoaded()
     if (snapshot != null) {
         log(VERBOSE) { "$LOG_PREFIX initializeFlowState: restoring saved flow state (${snapshot.size} keys)" }
         applyStateSnapshot(snapshot)
     }
     if (restoring) setActionsSuppressed(false)
     stateOwner = viewConfiguration
+}
+
+internal suspend fun StateHandler.sendProductsLoaded() {
+    sendSDKEvent(JsLiteralWriter.writeEvent(mapOf("id" to UUID.randomUUID().toString(), "name" to "productsLoaded")))
 }
 
 internal fun StateHandler.adoptFlowStateForConfigChange(

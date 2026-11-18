@@ -3,18 +3,28 @@
 package com.adapty.ui.internal.store
 
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.AdaptyUI
+import com.adapty.ui.internal.script.ActionHandler
+import com.adapty.ui.internal.script.JsLiteralWriter
 import com.adapty.ui.internal.script.SDKGlobals
 import com.adapty.ui.internal.script.StateHandler
+import com.adapty.ui.internal.script.toJsScreenInstance
 import com.adapty.ui.internal.ui.NavigationEntry
+import com.adapty.ui.internal.utils.LOG_PREFIX
 import com.adapty.ui.internal.utils.Scope
+import com.adapty.ui.internal.utils.log
+import com.adapty.utils.AdaptyLogLevel.Companion.WARN
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 internal class JsEffectHandler(
     private val scope: CoroutineScope,
-    private val stateHandler: StateHandler,
+    private val currentStateHandler: () -> StateHandler?,
+    private val currentActionHandler: () -> ActionHandler?,
+    private val flowConfiguration: () -> AdaptyUI.FlowConfiguration?,
 ) : EffectHandler {
     override fun handle(effect: Effect, dispatch: (Message) -> Unit) {
+        val stateHandler = currentStateHandler() ?: return
         when (effect) {
             is Effect.ExecuteJSActions -> {
                 val jsActions = mutableListOf<com.adapty.ui.internal.ui.element.Action>()
@@ -70,25 +80,19 @@ internal class JsEffectHandler(
             }
             is Effect.UpdateJSProducts -> scope.launch {
                 val json = SDKGlobals.buildSDKProductsJson(effect.products)
+                if (json == "{}") return@launch
                 stateHandler.updateSDKProducts(json)
             }
             is Effect.SendSDKEvent -> scope.launch {
-                val eventJson = when (effect) {
-                    is Effect.SendSDKEvent.ProductsLoaded ->
-                        """{"name":"productsLoaded"}"""
-                    is Effect.SendSDKEvent.WillPurchase ->
-                        """{"name":"willPurchase","productId":${jsonString(effect.productId)}}"""
-                    is Effect.SendSDKEvent.DidPurchase ->
-                        """{"name":"didPurchase","productId":${jsonString(effect.productId)},"result":${jsonString(effect.result)}}"""
-                    is Effect.SendSDKEvent.WillRestorePurchases ->
-                        """{"name":"willRestorePurchases"}"""
-                    is Effect.SendSDKEvent.DidRestorePurchases ->
-                        """{"name":"didRestorePurchases","result":${jsonString(effect.result)}}"""
+                val event = effect.jsEventFields()
+                if (effect is Effect.SendSDKEvent.AppMessage && !ownsJsState(stateHandler)) {
+                    log(WARN) { "$LOG_PREFIX ${event["name"]} ${effect.id} dropped: the flow no longer owns the JS state" }
+                    return@launch
                 }
-                stateHandler.sendSDKEvent(eventJson)
+                stateHandler.sendSDKEvent(JsLiteralWriter.writeEvent(event))
             }
             is Effect.ClearActionHandler -> {
-                stateHandler.setActionHandler(null)
+                currentActionHandler()?.let(stateHandler::releaseActionHandler)
             }
             else -> return
         }
@@ -105,7 +109,8 @@ internal class JsEffectHandler(
             }
             "SDK.userCustomAction" -> {
                 val userCustomId = params["userCustomId"] as? String ?: return null
-                Message.JSCallback.CustomAction(userCustomId)
+                @Suppress("UNCHECKED_CAST")
+                Message.JSCallback.CustomAction(userCustomId, params["arguments"] as? Map<String, Any?>)
             }
             "SDK.purchaseProduct" -> {
                 val productId = params["productId"] as? String ?: return null
@@ -128,7 +133,7 @@ internal class JsEffectHandler(
             "SDK.openScreen" -> {
                 val screenInstanceId = params["instanceId"] as? String ?: return null
                 val screenType = params["type"] as? String ?: return null
-                val contextPath = params["contextPath"] as? String
+                val contextPath = (params["contextPath"] as? String)?.takeIf { it.isNotEmpty() }
                 val navigatorId = params["navigatorId"] as? String ?: "default"
                 val transitionId = params["transitionId"] as? String ?: return null
                 Message.JSCallback.OpenScreen(
@@ -161,17 +166,41 @@ internal class JsEffectHandler(
                 Message.JSCallback.SendAnalyticsEvent(name, params)
             }
             "SDK.sendEvents" -> {
-                val events = (params["events"] as? List<*>)?.mapNotNull { it as? String } ?: return null
-                if (events.isEmpty()) return null
-                Message.JSCallback.SendEvents(params["instanceId"] as? String, events)
+                val events = params["events"] as? List<*> ?: return null
+                if (events.isEmpty() || events.any { it !is String }) return null
+                Message.JSCallback.SendEvents(params["instanceId"] as? String, events.filterIsInstance<String>())
             }
             "SDK.showAppRate" -> Message.JSCallback.ShowAppRate
             else -> null
         }
     }
 
-    private fun jsonString(value: String): String {
-        val escaped = value.replace("\\", "\\\\").replace("\"", "\\\"")
-        return "\"$escaped\""
+    private fun ownsJsState(stateHandler: StateHandler): Boolean {
+        val owner = flowConfiguration() ?: return false
+        return stateHandler.stateOwner === owner
+    }
+}
+
+internal fun Effect.SendSDKEvent.jsEventFields(): Map<String, Any?> = when (val effect = this) {
+    is Effect.SendSDKEvent.ProductsLoaded ->
+        mapOf("id" to effect.id, "name" to "productsLoaded")
+    is Effect.SendSDKEvent.WillPurchase ->
+        mapOf("id" to effect.id, "name" to "willPurchase", "productId" to effect.productId)
+    is Effect.SendSDKEvent.DidPurchase ->
+        mapOf("id" to effect.id, "name" to "didPurchase", "productId" to effect.productId, "result" to effect.result)
+    is Effect.SendSDKEvent.WillRestorePurchases ->
+        mapOf("id" to effect.id, "name" to "willRestorePurchases")
+    is Effect.SendSDKEvent.DidRestorePurchases ->
+        mapOf("id" to effect.id, "name" to "didRestorePurchases", "result" to effect.result)
+    is Effect.SendSDKEvent.AppMessage -> when (val source = effect.source) {
+        is Effect.SendSDKEvent.AppMessage.Source.Application ->
+            mapOf("id" to effect.id, "name" to "applicationMsg", "payload" to effect.payload)
+        is Effect.SendSDKEvent.AppMessage.Source.CustomElement -> mapOf(
+            "id" to effect.id,
+            "name" to "customElementMsg",
+            "screen" to source.screen.toJsScreenInstance(),
+            "element" to mapOf("id" to source.customId, "type" to source.customType),
+            "payload" to effect.payload,
+        )
     }
 }

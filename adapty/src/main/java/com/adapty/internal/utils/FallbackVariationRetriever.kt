@@ -197,6 +197,6 @@ internal class FallbackVariationRetriever(
         }
 
     private companion object {
-        private const val CURRENT_FALLBACK_FILE_VERSION = 11
+        private const val CURRENT_FALLBACK_FILE_VERSION = 12
     }
 }

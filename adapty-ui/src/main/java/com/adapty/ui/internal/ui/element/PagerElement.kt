@@ -23,9 +23,11 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +39,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isFinite
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.ui.DeclaringLength
 import com.adapty.ui.internal.ui.IntrinsicSafeHorizontalPager
 import com.adapty.ui.internal.ui.IntrinsicSafeBoxWithConstraints
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
@@ -68,6 +71,7 @@ import com.adapty.ui.internal.ui.resolveAssets
 import com.adapty.ui.internal.script.get
 import com.adapty.ui.internal.script.toJsInt
 import com.adapty.ui.internal.store.Message
+import com.adapty.ui.internal.ui.LocalKeepPagesComposed
 import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.negativePaddingInset
 import com.adapty.ui.internal.ui.resolveState
@@ -277,6 +281,15 @@ public class PagerElement internal constructor(
     ) {
         val spacing = spacing?.dp ?: 0.dp
 
+        var keepPagesComposed by remember { mutableStateOf(false) }
+        val outerKeepPagesComposed = LocalKeepPagesComposed.current
+        val keepPagesComposedRequest: () -> Unit = remember(outerKeepPagesComposed) {
+            {
+                keepPagesComposed = true
+                outerKeepPagesComposed?.invoke()
+            }
+        }
+
         val horizontalPagePadding = pagePadding.horizontalSumOrDefault
         val verticalPagePadding = pagePadding.verticalSumOrDefault
         val pageWidth = (when (val pw = pageWidth) {
@@ -349,7 +362,7 @@ public class PagerElement internal constructor(
             pageSpacing = spacing,
             contentPadding = pagerContentPadding,
             snapPosition = snapPosition,
-            beyondViewportPageCount = if (!maxAvailableHeight.isFinite) pages.size else 0,
+            beyondViewportPageCount = if (!maxAvailableHeight.isFinite || keepPagesComposed) pages.size else 0,
             verticalAlignment = if (pageHeight != null) Alignment.Top else Alignment.CenterVertically,
             state = pagerState,
             userScrollEnabled = interactionBehavior != NONE,
@@ -357,10 +370,14 @@ public class PagerElement internal constructor(
         ) { i ->
             Box(
                 if (pageHeight != null) Modifier.width(pageWidth).height(pageHeight)
-                else Modifier.width(pageWidth),
+                else Modifier.width(pageWidth).fillMaxHeight(),
                 contentAlignment = Alignment.Center,
             ) {
-                pages[i].render(dispatch)
+                CompositionLocalProvider(LocalKeepPagesComposed provides keepPagesComposedRequest) {
+                    DeclaringLength(unspecifiedHorizontal = false, unspecifiedVertical = false) {
+                        pages[i].render(dispatch)
+                    }
+                }
             }
         }
     }

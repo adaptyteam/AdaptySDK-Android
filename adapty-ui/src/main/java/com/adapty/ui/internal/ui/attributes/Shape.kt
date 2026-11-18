@@ -26,21 +26,13 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.ui.CircleShape
 import com.adapty.ui.internal.ui.RectWithArcShape
-import com.adapty.ui.internal.utils.StringSource
 import com.adapty.ui.internal.utils.VisualValue
 import com.adapty.ui.internal.utils.color
 import com.adapty.ui.internal.utils.getBitmap
 import kotlin.math.roundToInt
 
 @InternalAdaptyApi
-public class Shape internal constructor(
-    internal val fill: VisualValue?,
-    internal val type: Type,
-    internal val border: Border?,
-    internal val shadow: Shadow?,
-    internal val innerShadow: Shadow?,
-    internal val blurRadius: Float? = null,
-) {
+public object Shape {
     public sealed class Type {
         public class Rectangle internal constructor(internal val cornerRadius: CornerRadius?): Type()
         public object Circle: Type()
@@ -58,20 +50,6 @@ public class Shape internal constructor(
         val bottomLeft: Float,
     ) {
         constructor(value: Float): this(value, value, value, value)
-    }
-
-    internal class Border(
-        val color: VisualValue,
-        val shapeType: Type,
-        val thickness: Float,
-    )
-
-    internal companion object {
-        fun plain(assetId: String) =
-            Shape(fill = VisualValue.assetId(assetId), type = Type.Rectangle(null), border = null, shadow = null, innerShadow = null)
-
-        fun plainAny(value: String) =
-            Shape(fill = VisualValue.any(StringSource.Value(value)), type = Type.Rectangle(null), border = null, shadow = null, innerShadow = null)
     }
 }
 

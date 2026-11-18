@@ -12,6 +12,8 @@ import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.LocalScreenInstance
 import com.adapty.ui.internal.ui.attributes.Animation
+import com.adapty.ui.internal.ui.attributes.AnimationTarget
+import com.adapty.ui.internal.ui.attributes.target
 import com.adapty.ui.internal.ui.element.BaseProps
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -19,8 +21,20 @@ import kotlinx.coroutines.launch
 internal data class AnimationPlayback(
     val animations: List<Animation<*>>,
     val eventSequence: Long,
-    val sequenceByRole: Map<Animation.Role, Long>,
+    val sequenceByTarget: Map<AnimationTarget, Long>,
 )
+
+internal fun AnimationPlayback?.mergedWith(matched: List<Animation<*>>, sequence: Long): AnimationPlayback {
+    val matchedTargets = matched.mapTo(mutableSetOf()) { it.target }
+    val kept = this?.animations?.filter { it.target !in matchedTargets }.orEmpty()
+    val sequenceByTarget = buildMap {
+        this@mergedWith?.sequenceByTarget?.forEach { (target, seq) ->
+            if (target !in matchedTargets) put(target, seq)
+        }
+        matchedTargets.forEach { target -> put(target, sequence) }
+    }
+    return AnimationPlayback(kept + matched, sequence, sequenceByTarget)
+}
 
 @Composable
 internal fun rememberActiveAnimations(
@@ -64,16 +78,7 @@ internal fun rememberActiveAnimations(
                 }
             }
             if (matched.isNotEmpty()) {
-                val prev = active.value
-                val matchedRoles = matched.mapTo(mutableSetOf()) { it.role }
-                val kept = prev?.animations?.filter { it.role !in matchedRoles }.orEmpty()
-                val sequenceByRole = buildMap {
-                    prev?.sequenceByRole?.forEach { (role, seq) ->
-                        if (role !in matchedRoles) put(role, seq)
-                    }
-                    matchedRoles.forEach { role -> put(role, event.sequence) }
-                }
-                active.value = AnimationPlayback(kept + matched, event.sequence, sequenceByRole)
+                active.value = active.value.mergedWith(matched, event.sequence)
                 processedSequences.add(event.sequence)
             }
         }

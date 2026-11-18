@@ -62,7 +62,15 @@ private fun getImageNaturalSize(context: Context, image: Asset.Image): Pair<Int,
                 }
             }.getOrNull()
         }
-        is Asset.Image.Source.Uri -> null
+        is Asset.Image.Source.Uri -> {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver?.openInputStream(source.uri)?.use { input ->
+                BitmapFactory.decodeStream(input, null, options)
+            }
+            if (options.outWidth > 0 && options.outHeight > 0)
+                options.outWidth to options.outHeight
+            else null
+        }
     }
 }
 

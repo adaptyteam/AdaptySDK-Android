@@ -133,6 +133,7 @@ internal object SDKGlobals {
         val sb = StringBuilder("{")
         var first = true
         for ((key, product) in products) {
+            if (product.payloadData.flowProductId == null) continue
             if (!first) sb.append(',')
             first = false
             sb.append(escapeJsonString(key))
@@ -148,7 +149,7 @@ internal object SDKGlobals {
         var first = true
         for (paywall in flow.paywalls) {
             for (product in paywall.products) {
-                val key = resolveProductKey(product)
+                val key = product.flowProductId ?: continue
                 if (!first) sb.append(',')
                 first = false
                 sb.append(escapeJsonString(key))
@@ -179,6 +180,7 @@ internal object SDKGlobals {
         pairs.add("paywallName" to product.paywallName)
         pairs.add("localizedTitle" to product.localizedTitle)
         pairs.add("localizedDescription" to product.localizedDescription)
+        pairs.add("isFamilyShareable" to false)
 
         val pricePairs = mutableListOf<Pair<String, Any?>>()
         pricePairs.add("amount" to product.price.amount.toDouble())
@@ -233,9 +235,8 @@ internal object SDKGlobals {
                 val offerPairs = mutableListOf<Pair<String, Any?>>()
                 offerPairs.add("id" to offerId)
                 offerPairs.add("type" to "introductory")
-                if (phasePairs.isNotEmpty()) {
-                    offerPairs.add("phases" to RawJson("[${buildJsonObject(phasePairs)}]"))
-                }
+                val phases = if (phasePairs.isNotEmpty()) "[${buildJsonObject(phasePairs)}]" else "[]"
+                offerPairs.add("phases" to RawJson(phases))
                 RawJson(buildJsonObject(offerPairs))
             }
             subPairs.add("offer" to offerJson)
@@ -253,6 +254,7 @@ internal object SDKGlobals {
         val sb = StringBuilder("{")
         var first = true
         for ((k, v) in pairs) {
+            if (v == null) continue
             if (!first) sb.append(',')
             first = false
             sb.append(escapeJsonString(k))
@@ -301,6 +303,8 @@ internal object SDKGlobals {
                 '\t' -> sb.append("\\t")
                 '\b' -> sb.append("\\b")
                 '' -> sb.append("\\f")
+                '\u2028' -> sb.append("\\u2028")
+                '\u2029' -> sb.append("\\u2029")
                 else -> {
                     if (c.code < 0x20) {
                         sb.append("\\u")

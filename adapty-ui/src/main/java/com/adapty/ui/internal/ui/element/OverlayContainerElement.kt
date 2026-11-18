@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.IntrinsicMeasurable
 import androidx.compose.ui.layout.IntrinsicMeasureScope
 import androidx.compose.ui.layout.Layout
@@ -18,6 +17,7 @@ import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.LocalBlocksTouchesBelow
@@ -27,17 +27,18 @@ import com.adapty.ui.internal.ui.attributes.LocalOverflowAnchorVertical
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeHorizontalAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeVerticalAlignment
-import com.adapty.ui.internal.ui.attributes.toComposeShape
-import com.adapty.ui.internal.ui.backgroundOrSkip
+import com.adapty.ui.internal.ui.overlayMainDecoratorOrSkip
+import com.adapty.ui.internal.ui.overflowExtent
+import com.adapty.ui.internal.ui.rememberOverflowExtent
+import com.adapty.ui.internal.ui.tracksOverflow
 import com.adapty.ui.internal.ui.blockTouchesBelowIfPainted
 import com.adapty.ui.internal.ui.blurOrSkip
-import com.adapty.ui.internal.ui.captureExpand
+import com.adapty.ui.internal.ui.elementBlendOrSkip
+import com.adapty.ui.internal.ui.resolveMainDecorator
 import com.adapty.ui.internal.ui.rememberBlurProvider
 import com.adapty.ui.internal.ui.rememberBoxProvider
 import com.adapty.ui.internal.ui.rememberRotationProvider
 import com.adapty.ui.internal.ui.rememberScaleProvider
-import com.adapty.ui.internal.ui.rememberShadowProvider
-import com.adapty.ui.internal.ui.shadowOrSkip
 import com.adapty.ui.internal.ui.sideDimensionOrSkip
 
 @InternalAdaptyApi
@@ -64,20 +65,25 @@ public class OverlayContainerElement internal constructor(
                         }
                     }
                 }
-                val mainShadowProvider = rememberShadowProvider(main.baseProps)
+                val mainDecorator = main.baseProps.resolveMainDecorator()
                 val mainRotation = rememberRotationProvider(main.baseProps).rotation.value
                 val mainScale = rememberScaleProvider(main.baseProps).scale.value
-                val mainShape = main.baseProps.shape?.type?.toComposeShape() ?: RectangleShape
                 val mainBoxProvider = rememberBoxProvider(main.baseProps)
                 val mainBlurProvider = rememberBlurProvider(main.baseProps)
+                val mainOverflow = rememberOverflowExtent(mainDecorator)
                 main.toComposable(
                     dispatch,
                     Modifier
                         .sideDimensionOrSkip(main.baseProps.widthSpec, null, mainBoxProvider)
                         .sideDimensionOrSkip(main.baseProps.heightSpec, null, mainBoxProvider)
-                        .blurOrSkip(mainBlurProvider, mainShadowProvider.captureExpand)
-                        .shadowOrSkip(mainShadowProvider, mainShape, rotation = mainRotation, scale = mainScale)
-                        .backgroundOrSkip(main.baseProps)
+                        .elementBlendOrSkip(main.baseProps.blend, mainDecorator, mainBlurProvider.radius.value.dp, mainOverflow)
+                        .blurOrSkip(mainBlurProvider, mainDecorator?.shadowCaptureExpand ?: 0.dp)
+                        .overlayMainDecoratorOrSkip(mainDecorator, mainRotation, mainScale, mainOverflow)
+                        .overflowExtent(
+                            mainOverflow,
+                            tracks = main.baseProps.tracksOverflow(mainDecorator, alpha = 1f),
+                            reach = (mainDecorator?.shadowCaptureExpand ?: 0.dp) + mainBlurProvider.radius.value.dp,
+                        )
                         .blockTouchesBelowIfPainted(main),
                 ).invoke()
                 overlays.forEachIndexed { i, overlay ->
@@ -91,11 +97,15 @@ public class OverlayContainerElement internal constructor(
             measurePolicy = object : MeasurePolicy {
                 private val mainIndex get() = backgrounds.size
 
+                private fun hasMain(count: Int) = count > backgrounds.size + overlays.size
+
                 override fun MeasureScope.measure(
                     measurables: List<Measurable>,
                     constraints: Constraints,
                 ): MeasureResult {
+                    if (!hasMain(measurables.size)) return layout(0, 0) {}
                     val direction = layoutDirection
+                    val overlayStart = measurables.size - overlays.size
                     val mainPlaceable = measurables[mainIndex].measure(constraints)
                     val width = mainPlaceable.width
                     val height = mainPlaceable.height
@@ -129,7 +139,7 @@ public class OverlayContainerElement internal constructor(
                         bg.placeAndOffset(measurables[i], backgroundProps[i])
                     }
                     val overlayPlacements = overlays.mapIndexed { i, overlay ->
-                        overlay.placeAndOffset(measurables[mainIndex + 1 + i], overlayProps[i])
+                        overlay.placeAndOffset(measurables[overlayStart + i], overlayProps[i])
                     }
 
                     return layout(width, height) {
@@ -139,25 +149,28 @@ public class OverlayContainerElement internal constructor(
                     }
                 }
 
+                private fun List<IntrinsicMeasurable>.mainOrNull() =
+                    if (hasMain(size)) this[mainIndex] else null
+
                 override fun IntrinsicMeasureScope.minIntrinsicWidth(
                     measurables: List<IntrinsicMeasurable>,
                     height: Int,
-                ): Int = measurables[mainIndex].minIntrinsicWidth(height)
+                ): Int = measurables.mainOrNull()?.minIntrinsicWidth(height) ?: 0
 
                 override fun IntrinsicMeasureScope.maxIntrinsicWidth(
                     measurables: List<IntrinsicMeasurable>,
                     height: Int,
-                ): Int = measurables[mainIndex].maxIntrinsicWidth(height)
+                ): Int = measurables.mainOrNull()?.maxIntrinsicWidth(height) ?: 0
 
                 override fun IntrinsicMeasureScope.minIntrinsicHeight(
                     measurables: List<IntrinsicMeasurable>,
                     width: Int,
-                ): Int = measurables[mainIndex].minIntrinsicHeight(width)
+                ): Int = measurables.mainOrNull()?.minIntrinsicHeight(width) ?: 0
 
                 override fun IntrinsicMeasureScope.maxIntrinsicHeight(
                     measurables: List<IntrinsicMeasurable>,
                     width: Int,
-                ): Int = measurables[mainIndex].maxIntrinsicHeight(width)
+                ): Int = measurables.mainOrNull()?.maxIntrinsicHeight(width) ?: 0
             },
         )
     }

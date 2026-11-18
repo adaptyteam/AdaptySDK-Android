@@ -30,6 +30,7 @@ public data class Animation<T> internal constructor(
     val repeatMode: RepeatMode?,
     val repeatMaxCount: Int,
     val role: Role,
+    internal val targetId: Int = 0,
 ) {
     public enum class RepeatMode {
         Normal, PingPong
@@ -39,6 +40,11 @@ public data class Animation<T> internal constructor(
         Offset, Scale, Rotation, Opacity, Background, Border, Box, Shadow, InnerShadow, Blur
     }
 }
+
+internal data class AnimationTarget(val role: Animation.Role, val targetId: Int = 0)
+
+internal val Animation<*>.target: AnimationTarget
+    get() = AnimationTarget(role, targetId)
 
 internal sealed class Interpolator {
     data class Named(val name: String): Interpolator()

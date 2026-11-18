@@ -19,6 +19,7 @@ import com.adapty.ui.internal.mapping.element.toBoxElement
 import com.adapty.ui.internal.mapping.element.toButtonElement
 import com.adapty.ui.internal.mapping.element.toColumnElement
 import com.adapty.ui.internal.mapping.element.toCompactDateTimePickerElement
+import com.adapty.ui.internal.mapping.element.toCustomElement
 import com.adapty.ui.internal.mapping.element.toFlexElement
 import com.adapty.ui.internal.mapping.element.toFlexStackElement
 import com.adapty.ui.internal.mapping.element.toGraphicalDateTimePickerElement
@@ -48,11 +49,11 @@ import com.adapty.ui.internal.mapping.element.toTimerElement
 import com.adapty.ui.internal.mapping.element.toTextFieldElement
 import com.adapty.ui.internal.mapping.element.toToggleElement
 import com.adapty.ui.internal.mapping.element.toVStackElement
+import com.adapty.ui.internal.mapping.element.toDeckElement
 import com.adapty.ui.internal.mapping.element.toZStackElement
 import com.adapty.ui.internal.ui.element.UIElement
-import com.adapty.ui.internal.utils.FORMAT_VERSION_5_0_0
 import com.adapty.ui.internal.utils.FlowMode
-import com.adapty.ui.internal.utils.isSameOrNewerVersionThan
+import com.adapty.ui.internal.utils.isLegacyConfigFormat
 
 internal typealias JsonObject = Map<String, Any?>
 internal typealias JsonArray = Iterable<JsonObject>
@@ -107,6 +108,7 @@ internal class ViewConfigurationMapper(
                 put("v_stack", container(Map<*, *>::toVStackElement))
                 put("h_stack", container(Map<*, *>::toHStackElement))
                 put("z_stack", container(Map<*, *>::toZStackElement))
+                put("deck", container(Map<*, *>::toDeckElement))
                 put("row", container(Map<*, *>::toRowElement))
                 put("legacy_row", container(Map<*, *>::toLegacyRowElement))
                 put("pager", container(Map<*, *>::toPagerElement))
@@ -115,6 +117,7 @@ internal class ViewConfigurationMapper(
                 put("flex", container(Map<*, *>::toFlexElement))
                 put("flex_stack", container(Map<*, *>::toFlexStackElement))
                 put("switch", container(Map<*, *>::toSwitchElement))
+                put("custom", container(Map<*, *>::toCustomElement))
 
                 videoMapperFn?.let { fn -> put("video", leaf(fn)) }
             }
@@ -164,8 +167,7 @@ internal class ViewConfigurationMapper(
         val showPurchaseLoader = behavior?.getAs<Boolean>("show_purchase_loader") ?: true
         val showRestoreLoader = behavior?.getAs<Boolean>("show_restore_loader") ?: true
 
-        val format = config.getAs<String>(FORMAT) ?: FORMAT_VERSION_5_0_0
-        val isLegacyFormat = !format.isSameOrNewerVersionThan(FORMAT_VERSION_5_0_0)
+        val isLegacyFormat = isLegacyConfigFormat(config.getAs<String>(FORMAT))
 
         return FlowConfiguration(
             id = id,

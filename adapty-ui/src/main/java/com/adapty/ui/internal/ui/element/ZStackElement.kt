@@ -90,6 +90,7 @@ private fun UIElement.isHeightGreedy(): Boolean {
     return when (this) {
         is PagerElement -> pageHeight is PageSize.PageFraction
         is ColumnElement -> (height ?: MainAxisBehaviour.FILL) == MainAxisBehaviour.FILL
+        is DeckElement -> height == MainAxisBehaviour.FILL
         is RowElement -> false
         is ImageElement -> aspectRatio != AspectRatio.FIT
         is SingleContainer -> content.isHeightGreedy()

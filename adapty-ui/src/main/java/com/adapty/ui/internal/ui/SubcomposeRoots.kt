@@ -1,5 +1,7 @@
 package com.adapty.ui.internal.ui
 
+import android.content.Context
+import android.view.View
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.snapping.SnapPosition
@@ -21,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -44,6 +47,40 @@ internal fun IntrinsicSafeBoxWithConstraints(
         ) {
             scope.content()
         }
+    }
+}
+
+@Composable
+internal fun IntrinsicSafeCustomContent(
+    modifier: Modifier = Modifier,
+    onSizeUnknown: () -> Unit = {},
+    content: @Composable () -> Unit,
+) {
+    val record = remember { NaturalHeightRecord() }
+    Box(
+        modifier = modifier.contentIntrinsicsOrRecordedHeight(record, onSizeUnknown),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .boundedByScrollViewport(LocalScrollViewport.current)
+                .recordNaturalHeight(record),
+            contentAlignment = Alignment.Center,
+            propagateMinConstraints = true,
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+internal fun <T : View> IntrinsicSafeAndroidView(
+    factory: (Context) -> T,
+    modifier: Modifier = Modifier,
+    update: (T) -> Unit = {},
+) {
+    IntrinsicSafeCustomContent(modifier) {
+        AndroidView(factory = factory, update = update)
     }
 }
 

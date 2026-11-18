@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -86,6 +87,14 @@ internal fun ForceAdjustResize() {
 private const val HERO_CONTENT_BOTTOM_RESERVE_FRACTION = 1f
 
 private const val HERO_COVER_PARALLAX_FACTOR = 0.5f
+
+internal fun heroCoverParallaxFactor(isLegacyFormat: Boolean): Float =
+    if (isLegacyFormat) 0f else HERO_COVER_PARALLAX_FACTOR
+
+internal fun heroCoverTranslationY(scrollOffsetPx: Int, parallaxFactor: Float): Float =
+    scrollOffsetPx * (1f - parallaxFactor)
+
+internal fun isFooterBackgroundGated(isLegacyFormat: Boolean): Boolean = !isLegacyFormat
 
 @Composable
 internal fun renderScreen(
@@ -169,7 +178,7 @@ internal fun renderHeroLayoutScreen(
         val density = LocalDensity.current
 
         val scrollState = rememberScrollState()
-        val coverParallaxFactor = if (LocalIsLegacyFormat.current) 0f else HERO_COVER_PARALLAX_FACTOR
+        val coverParallaxFactor = heroCoverParallaxFactor(LocalIsLegacyFormat.current)
 
         handleScrollCommand(scrollState, "content", dispatch)
         observeScrollValue(scrollState, screen.contentScrollValue, dispatch)
@@ -225,6 +234,7 @@ internal fun renderHeroLayoutScreen(
 
         CompositionLocalProvider(
             LocalOverscrollConfiguration provides null,
+            LocalScrollViewport provides remember { ScrollViewport() },
         ) {
             Box(
                 contentAlignment = Alignment.TopCenter,
@@ -233,6 +243,7 @@ internal fun renderHeroLayoutScreen(
                     .imePadding()
                     .fillMaxHeight()
                     .recordViewportHeight(footerGateGeometry)
+                    .recordScrollViewport(LocalScrollViewport.current)
                     .verticalScroll(scrollState),
             ) {
                 Box(
@@ -242,7 +253,7 @@ internal fun renderHeroLayoutScreen(
                         .height(coverHeight)
                         .onPlaced { footerGateGeometry.coverPx = it.size.height }
                         .graphicsLayer {
-                            translationY = scrollState.value * (1f - coverParallaxFactor)
+                            translationY = heroCoverTranslationY(scrollState.value, coverParallaxFactor)
                         },
                 ) {
                     screen.cover.content.render(dispatch)
@@ -268,37 +279,41 @@ internal fun renderHeroLayoutScreen(
             val footerFillsViewport =
                 measuredFooterHeightPx > 0 && measuredFooterHeightPx >= constraints.maxHeight
             val footerBackgroundAlpha =
-                if (LocalIsLegacyFormat.current) null
+                if (!isFooterBackgroundGated(LocalIsLegacyFormat.current)) null
                 else rememberFooterBackgroundAlpha(scrollState, footerFillerLaidOutState.value, footerGateGeometry)
 
+            val footerScrollState = rememberScrollState()
             if (footerFillsViewport) {
-                val footerScrollState = rememberScrollState()
                 handleScrollCommand(footerScrollState, "footer", dispatch)
                 observeScrollValue(footerScrollState, screen.footerScrollValue, dispatch)
-                CompositionLocalProvider(
-                    LocalOverscrollConfiguration provides null,
-                ) {
-                    Box(
-                        contentAlignment = Alignment.TopCenter,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxHeight()
-                            .verticalScroll(footerScrollState),
-                    ) {
-                        footer.render(
-                            dispatch,
-                            footerSizeProbe.fillWithBaseParams(footer, footerBackgroundAlpha),
-                        )
-                    }
-                }
-            } else {
-                footer.render(
-                    dispatch,
-                    Modifier
+            }
+            val footerScrollViewport = remember { ScrollViewport() }
+            CompositionLocalProvider(
+                LocalOverscrollConfiguration provides
+                    if (footerFillsViewport) null else LocalOverscrollConfiguration.current,
+                LocalScrollViewport provides footerScrollViewport,
+            ) {
+                Box(
+                    contentAlignment = Alignment.TopCenter,
+                    modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .then(footerSizeProbe)
-                        .fillWithBaseParams(footer, footerBackgroundAlpha),
-                )
+                        .then(
+                            if (footerFillsViewport)
+                                Modifier
+                                    .fillMaxHeight()
+                                    .recordScrollViewport(footerScrollViewport)
+                                    .verticalScroll(footerScrollState)
+                            else
+                                Modifier
+                                    .recordScrollViewport(footerScrollViewport)
+                                    .wrapContentHeight(Alignment.Bottom, unbounded = true)
+                        ),
+                ) {
+                    footer.render(
+                        dispatch,
+                        footerSizeProbe.fillWithBaseParams(footer, footerBackgroundAlpha),
+                    )
+                }
             }
         }
         renderAlignedElements(screen.overlays, dispatch, Modifier.matchParentSize())
@@ -336,6 +351,7 @@ internal fun renderFlatLayoutScreen(
 
         CompositionLocalProvider(
             LocalOverscrollConfiguration provides null,
+            LocalScrollViewport provides remember { ScrollViewport() },
         ) {
             Column(
                 horizontalAlignment = contentWrapper.contentAlign.toComposeHorizontalAlignment(),
@@ -343,6 +359,7 @@ internal fun renderFlatLayoutScreen(
                     .fillMaxWidth()
                     .imePadding()
                     .recordViewportHeight(footerGateGeometry)
+                    .recordScrollViewport(LocalScrollViewport.current)
                     .verticalScroll(contentScrollState)
                     .onPlaced { footerGateGeometry.contentColumnPx = it.size.height },
             ) {
@@ -376,37 +393,41 @@ internal fun renderFlatLayoutScreen(
             val footerFillsViewport =
                 measuredFooterHeightPx > 0 && measuredFooterHeightPx >= constraints.maxHeight
             val footerBackgroundAlpha =
-                if (LocalIsLegacyFormat.current) null
+                if (!isFooterBackgroundGated(LocalIsLegacyFormat.current)) null
                 else rememberFooterBackgroundAlpha(contentScrollState, footerFillerLaidOutState.value, footerGateGeometry)
 
+            val footerScrollState = rememberScrollState()
             if (footerFillsViewport) {
-                val footerScrollState = rememberScrollState()
                 handleScrollCommand(footerScrollState, "footer", dispatch)
                 observeScrollValue(footerScrollState, screen.footerScrollValue, dispatch)
-                CompositionLocalProvider(
-                    LocalOverscrollConfiguration provides null,
-                ) {
-                    Box(
-                        contentAlignment = Alignment.TopCenter,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxHeight()
-                            .verticalScroll(footerScrollState),
-                    ) {
-                        footer.render(
-                            dispatch,
-                            footerSizeProbe.fillWithBaseParams(footer, footerBackgroundAlpha),
-                        )
-                    }
-                }
-            } else {
-                footer.render(
-                    dispatch,
-                    Modifier
+            }
+            val footerScrollViewport = remember { ScrollViewport() }
+            CompositionLocalProvider(
+                LocalOverscrollConfiguration provides
+                    if (footerFillsViewport) null else LocalOverscrollConfiguration.current,
+                LocalScrollViewport provides footerScrollViewport,
+            ) {
+                Box(
+                    contentAlignment = Alignment.TopCenter,
+                    modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .then(footerSizeProbe)
-                        .fillWithBaseParams(footer, footerBackgroundAlpha),
-                )
+                        .then(
+                            if (footerFillsViewport)
+                                Modifier
+                                    .fillMaxHeight()
+                                    .recordScrollViewport(footerScrollViewport)
+                                    .verticalScroll(footerScrollState)
+                            else
+                                Modifier
+                                    .recordScrollViewport(footerScrollViewport)
+                                    .wrapContentHeight(Alignment.Bottom, unbounded = true)
+                        ),
+                ) {
+                    footer.render(
+                        dispatch,
+                        footerSizeProbe.fillWithBaseParams(footer, footerBackgroundAlpha),
+                    )
+                }
             }
         }
         renderAlignedElements(screen.overlays, dispatch, Modifier.matchParentSize())
@@ -441,11 +462,13 @@ internal fun renderTransparentLayoutScreen(
 
                 CompositionLocalProvider(
                     LocalOverscrollConfiguration provides null,
+                    LocalScrollViewport provides remember { ScrollViewport() },
                 ) {
                     Box(
                         contentAlignment = Alignment.BottomCenter,
                         modifier = Modifier
                             .fillMaxSize()
+                            .recordScrollViewport(LocalScrollViewport.current)
                             .verticalScroll(footerScrollState, reverseScrolling = true),
                     ) {
                         footer.render(dispatch, Modifier.fillWithBaseParams(footer))

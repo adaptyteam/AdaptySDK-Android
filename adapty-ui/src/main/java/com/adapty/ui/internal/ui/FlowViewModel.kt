@@ -7,7 +7,9 @@ import android.app.Activity
 import android.os.Looper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -21,13 +23,16 @@ import com.adapty.internal.utils.PriceFormatter
 import com.adapty.internal.utils.runOnMain
 import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.ui.AdaptyCustomAssets
+import com.adapty.ui.AdaptyCustomElementsResolver
 import com.adapty.ui.AdaptyFlowInsets
 import com.adapty.ui.AdaptyUI
 import com.adapty.ui.internal.cache.MediaFetchService
 import com.adapty.ui.internal.script.ActionHandler
+import com.adapty.ui.internal.script.FlowStateHandlers
 import com.adapty.ui.internal.script.StateAccessor
 import com.adapty.ui.internal.script.StateHandler
 import com.adapty.ui.internal.store.AnalyticsEffectHandler
+import com.adapty.ui.internal.store.AppMessageRequested
 import com.adapty.ui.internal.store.ConfigEffectHandler
 import com.adapty.ui.internal.store.DataLoadingEffectHandler
 import com.adapty.ui.internal.store.Effect
@@ -69,8 +74,14 @@ internal class FlowViewModel(
     val flowKey: String,
     private val isObserverMode: Boolean,
     private val textResolver: TextResolver,
-    private val stateHandler: StateHandler,
+    private val stateHandlers: FlowStateHandlers,
 ) : ViewModel() {
+
+    private var stateHandler: StateHandler? by mutableStateOf(null)
+    val currentStateHandler: StateHandler? get() = stateHandler
+
+    private var actionHandler: ActionHandler? = null
+    val currentActionHandler: ActionHandler? get() = actionHandler
 
     internal lateinit var effectHandlers: List<EffectHandler>
     
@@ -78,8 +89,13 @@ internal class FlowViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        if (stateHandler.onStateRefreshed === flushPendingNavigationOnRefresh)
-            stateHandler.onStateRefreshed = null
+        stateHandler?.let(::releaseFrom)
+    }
+
+    private fun releaseFrom(handler: StateHandler) {
+        if (handler.onStateRefreshed === flushPendingNavigationOnRefresh)
+            handler.onStateRefreshed = null
+        actionHandler?.let(handler::releaseActionHandler)
     }
 
     val dataState = mutableStateOf<UserArgs?>(null)
@@ -89,7 +105,7 @@ internal class FlowViewModel(
 
     var configChangeHandoffPending = false
 
-    var activityProvider: (() -> Activity)? = null
+    var activityProvider: (() -> Activity?)? = null
 
     internal var contextAwareListener: ContextAwareEventListener? = null
         private set
@@ -128,6 +144,10 @@ internal class FlowViewModel(
         effects.forEach { effect -> handleEffect(effect) }
     }
 
+    fun sendAppMessage(id: String, payload: Map<String, Any?>, source: Effect.SendSDKEvent.AppMessage.Source) {
+        dispatch(AppMessageRequested(id, payload, source))
+    }
+
     fun setNewData(newData: UserArgs) {
         if (_state.value?.config?.viewConfig !== newData.viewConfig) {
             var initial = buildInitialState(newData, isObserverMode, null)
@@ -150,7 +170,14 @@ internal class FlowViewModel(
                 )
             }
         }
-        stateHandler.onStateRefreshed = flushPendingNavigationOnRefresh
+        val handler = stateHandlers.handlerFor(newData.viewConfig)
+        val previousHandler = stateHandler
+        if (previousHandler !== handler) {
+            previousHandler?.let(::releaseFrom)
+            stateHandler = handler
+            actionHandler?.let(handler::setActionHandler)
+        }
+        handler.onStateRefreshed = flushPendingNavigationOnRefresh
         dataState.value = newData
         dispatch(Message.DataUpdated(newData))
     }
@@ -170,12 +197,13 @@ internal class FlowViewModel(
     }
 
     fun setActionHandler(handler: ActionHandler?) {
-        stateHandler.setActionHandler(handler)
+        actionHandler = handler
+        stateHandler?.setActionHandler(handler)
     }
     
     @Composable
     fun resolveState(): StateAccessor {
-        return stateHandler.observeState()
+        return stateHandler?.observeState() ?: EmptyStateAccessor
     }
 
     @Composable
@@ -200,6 +228,10 @@ internal class FlowViewModel(
 
 }
 
+private object EmptyStateAccessor : StateAccessor {
+    override fun get(key: String): Any? = null
+}
+
 internal class FlowViewModelFactory(
     private val vmArgs: FlowViewModelArgs,
 ) : ViewModelProvider.Factory {
@@ -210,7 +242,7 @@ internal class FlowViewModelFactory(
                     vmArgs.flowKey,
                     vmArgs.isObserverMode,
                     vmArgs.textResolver,
-                    vmArgs.stateHandler,
+                    vmArgs.stateHandlers,
                 )
                 vm.effectHandlers = buildEffectHandlers(vm, vmArgs)
                 @Suppress("UNCHECKED_CAST")
@@ -227,7 +259,7 @@ private fun buildEffectHandlers(
 ): List<EffectHandler> {
     val scope = vm.viewModelScope
     return listOf(
-        JsEffectHandler(scope, args.stateHandler),
+        JsEffectHandler(scope, { vm.currentStateHandler }, { vm.currentActionHandler }) { vm.state?.config?.viewConfig },
         PurchaseEffectHandler(scope, args.flowKey, { vm.activityProvider?.invoke() }, { vm.contextAwareListener }),
         ObserverModeEffectHandler(scope, args.flowKey),
         DataLoadingEffectHandler(scope, args.flowKey, args.mediaFetchService),
@@ -250,7 +282,7 @@ internal class FlowViewModelArgs(
     val cacheRepository: CacheRepository,
     val metaInfoRetriever: MetaInfoRetriever,
     val textResolver: TextResolver,
-    val stateHandler: StateHandler,
+    val stateHandlers: FlowStateHandlers,
     val extraEffectHandlerFactory: ((CoroutineScope) -> List<(Effect, (Message) -> Unit) -> Unit>)? = null,
 ) {
     companion object {
@@ -274,7 +306,7 @@ internal class FlowViewModelArgs(
                     locale,
                 )
                 val textResolver = TextResolver(tagResolver)
-                val stateHandler = Dependencies.injectInternal<StateHandler>()
+                val stateHandlers = Dependencies.injectInternal<FlowStateHandlers>()
                 FlowViewModelArgs(
                     flowKey,
                     isObserverMode,
@@ -282,7 +314,7 @@ internal class FlowViewModelArgs(
                     cacheRepository,
                     metaInfoRetriever,
                     textResolver,
-                    stateHandler,
+                    stateHandlers,
                 )
             }.getOrElse { e ->
                 log(ERROR) {
@@ -304,6 +336,7 @@ public class UserArgs internal constructor(
     internal val observerModeHandler: AdaptyUiObserverModeHandler?,
     internal val products: List<AdaptyPaywallProduct>,
     internal val productLoadingFailureCallback: ProductLoadingFailureCallback,
+    internal val customElementsResolver: AdaptyCustomElementsResolver?,
 ) {
     internal companion object {
         internal fun create(
@@ -316,6 +349,7 @@ public class UserArgs internal constructor(
             observerModeHandler: AdaptyUiObserverModeHandler?,
             products: List<AdaptyPaywallProduct>?,
             productLoadingFailureCallback: ProductLoadingFailureCallback,
+            customElementsResolver: AdaptyCustomElementsResolver? = null,
         ): UserArgs =
             UserArgs(
                 viewConfig,
@@ -327,6 +361,7 @@ public class UserArgs internal constructor(
                 observerModeHandler,
                 products.orEmpty(),
                 productLoadingFailureCallback,
+                customElementsResolver,
             )
     }
 }

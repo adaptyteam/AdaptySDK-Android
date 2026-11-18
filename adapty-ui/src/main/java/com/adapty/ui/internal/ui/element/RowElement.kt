@@ -12,12 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.adapty.internal.utils.InternalAdaptyApi
 import com.adapty.ui.internal.ui.attributes.DimSpec
-import com.adapty.ui.internal.ui.attributes.LocalParentImposesHeight
 import com.adapty.ui.internal.ui.attributes.MainAxisBehaviour
 import com.adapty.ui.internal.ui.attributes.toComposeAlignment
 import com.adapty.ui.internal.ui.attributes.toComposeVerticalAlignment
 import com.adapty.ui.internal.ui.allowHorizontalOverflow
-import com.adapty.ui.internal.ui.fillBoundedHeightOrIntrinsic
+import com.adapty.ui.internal.ui.allowVerticalOverflow
 import com.adapty.ui.internal.ui.fillWithBaseParams
 import com.adapty.ui.internal.ui.intrinsicHeightOrHug
 import com.adapty.ui.internal.store.Message
@@ -38,17 +37,15 @@ public class RowElement internal constructor(
         val spacing = spacing?.dp
         val mode = width ?: MainAxisBehaviour.FILL
         val horizontalArrangement = spacing?.let { Arrangement.spacedBy(it) } ?: Arrangement.Start
-        val parentImposesHeight = LocalParentImposesHeight.current
 
         when (mode) {
             MainAxisBehaviour.FILL -> {
                 val heightModifier = rowCrossAxisModifier(
                     hasExplicitFillCell = items.any { it.content.explicitlyFillsRowHeight() },
-                    parentImposesHeight = parentImposesHeight,
                 )
                 Row(
                     horizontalArrangement = horizontalArrangement,
-                    modifier = heightModifier.fillMaxWidth().then(modifier),
+                    modifier = heightModifier.fillMaxWidth().then(modifier).allowVerticalOverflow(),
                 ) {
                     items.forEach { item ->
                         item.withActiveAnimations(dispatch) {
@@ -71,7 +68,6 @@ public class RowElement internal constructor(
                 val fixedItems = items.filter { it.baseProps.weight == null }
                 val heightModifier = rowCrossAxisModifier(
                     hasExplicitFillCell = fixedItems.any { it.content.explicitlyFillsRowHeight() },
-                    parentImposesHeight = parentImposesHeight,
                 )
                 val noWidthFill =
                     items.size == fixedItems.size &&
@@ -81,8 +77,8 @@ public class RowElement internal constructor(
                                 it.content is SizeDrivenElement
                         }
                 val rowModifier =
-                    if (noWidthFill) heightModifier.then(modifier).allowHorizontalOverflow()
-                    else heightModifier.then(modifier)
+                    if (noWidthFill) heightModifier.then(modifier).allowVerticalOverflow().allowHorizontalOverflow()
+                    else heightModifier.then(modifier).allowVerticalOverflow()
                 Row(
                     horizontalArrangement = horizontalArrangement,
                     modifier = rowModifier,
@@ -107,11 +103,7 @@ public class RowElement internal constructor(
 
     private fun rowCrossAxisModifier(
         hasExplicitFillCell: Boolean,
-        parentImposesHeight: Boolean,
-    ): Modifier = when {
-        hasExplicitFillCell && parentImposesHeight -> Modifier.fillBoundedHeightOrIntrinsic()
-        hasExplicitFillCell -> Modifier.intrinsicHeightOrHug()
-        parentImposesHeight -> Modifier.fillMaxHeight()
-        else -> Modifier
-    }
+    ): Modifier =
+        if (hasExplicitFillCell) Modifier.intrinsicHeightOrHug()
+        else Modifier
 }

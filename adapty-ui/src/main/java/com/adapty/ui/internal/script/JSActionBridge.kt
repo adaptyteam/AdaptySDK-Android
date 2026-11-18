@@ -9,6 +9,7 @@ import com.adapty.internal.utils.runOnMain
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.NavigationEntry
 import com.adapty.ui.internal.utils.LOG_PREFIX
+import com.adapty.ui.internal.utils.LOG_PREFIX_ERROR
 import com.adapty.ui.internal.utils.log
 import com.adapty.utils.AdaptyLogLevel.Companion.ERROR
 import com.adapty.utils.AdaptyLogLevel.Companion.INFO
@@ -21,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 internal interface ActionHandler {
     fun onOpenUrl(source: Message.JSCallback.OpenUrl.Source, openIn: String?)
-    fun onUserCustomAction(userCustomId: String)
+    fun onUserCustomAction(userCustomId: String, arguments: Map<String, Any?>?)
     fun onPurchaseProduct(productId: String, paywallId: String?, callbackId: String?)
     fun onWebPurchaseProduct(productId: String, paywallId: String?, openIn: String?, callbackId: String?)
     fun onRestorePurchases(callbackId: String?)
@@ -40,6 +41,8 @@ internal interface ActionHandler {
         message: String?,
         actions: List<Message.JSCallback.ShowAlertDialog.AlertAction>,
         callbackId: String?,
+        titleStringId: String?,
+        messageStringId: String?,
     )
     fun onShowRequestPermission(
         permission: String?,
@@ -163,22 +166,24 @@ internal class JSActionBridge(private val gson: Gson) {
                 "SDK.openUrl" -> {
                     val source = (params["url"] as? String)?.let { Message.JSCallback.OpenUrl.Source.Url(it) }
                         ?: (params["stringId"] as? String)?.let { Message.JSCallback.OpenUrl.Source.StringId(it) }
-                        ?: return
+                        ?: return reportInvalidCall(method, "required parameter \"url\" or \"stringId\" is missing")
                     val openIn = params["openIn"] as? String
                     actionHandlerSubject.execute { it.onOpenUrl(source, openIn) }
                 }
                 "SDK.userCustomAction" -> {
-                    val userCustomId = params["userCustomId"] as? String ?: return
-                    actionHandlerSubject.execute { it.onUserCustomAction(userCustomId) }
+                    val userCustomId = params.requiredString(method, "userCustomId") ?: return
+                    @Suppress("UNCHECKED_CAST")
+                    val arguments = params["arguments"] as? Map<String, Any?>
+                    actionHandlerSubject.execute { it.onUserCustomAction(userCustomId, arguments) }
                 }
                 "SDK.purchaseProduct" -> {
-                    val productId = params["productId"] as? String ?: return
+                    val productId = params.requiredString(method, "productId") ?: return
                     val paywallId = params["paywallId"] as? String
                     val callbackId = params["__callback_id__"] as? String
                     actionHandlerSubject.execute { it.onPurchaseProduct(productId, paywallId, callbackId) }
                 }
                 "SDK.webPurchaseProduct" -> {
-                    val productId = params["productId"] as? String ?: return
+                    val productId = params.requiredString(method, "productId") ?: return
                     val paywallId = params["paywallId"] as? String
                     val openIn = params["openIn"] as? String
                     val callbackId = params["__callback_id__"] as? String
@@ -192,26 +197,17 @@ internal class JSActionBridge(private val gson: Gson) {
                     actionHandlerSubject.execute { it.onCloseAll() }
                 }
                 "SDK.onSelectProduct" -> {
-                    val productId = params["productId"] as? String ?: return
+                    val productId = params.requiredString(method, "productId") ?: return
                     val paywallId = params["paywallId"] as? String
                     actionHandlerSubject.execute { it.onSelectProduct(productId, paywallId) }
                 }
                 
                 "SDK.openScreen" -> {
-                    val screenInstanceId = params["instanceId"] as? String ?: run {
-                        log(WARN) { "$LOG_PREFIX openScreen ignored: missing or invalid 'instanceId'" }
-                        return
-                    }
-                    val screenType = params["type"] as? String ?: run {
-                        log(WARN) { "$LOG_PREFIX openScreen ignored: missing or invalid 'type'" }
-                        return
-                    }
-                    val contextPath = params["contextPath"] as? String
+                    val screenType = params.requiredString(method, "type") ?: return
+                    val screenInstanceId = params.requiredString(method, "instanceId") ?: return
+                    val contextPath = (params["contextPath"] as? String)?.takeIf { it.isNotEmpty() }
                     val navigatorId = params["navigatorId"] as? String ?: "default"
-                    val transitionId = params["transitionId"] as? String ?: run {
-                        log(WARN) { "$LOG_PREFIX openScreen ignored: missing or invalid 'transitionId'" }
-                        return
-                    }
+                    val transitionId = params.requiredString(method, "transitionId") ?: return
                     actionHandlerSubject.execute { it.onOpenScreen(NavigationEntry(screenInstanceId, screenType, contextPath, navigatorId, transitionId)) }
                 }
                 "SDK.closeScreen" -> {
@@ -220,9 +216,9 @@ internal class JSActionBridge(private val gson: Gson) {
                     actionHandlerSubject.execute { it.onCloseScreen(navigatorId, transitionId) }
                 }
                 "SDK.moveScroll" -> {
-                    val instanceId = params["instanceId"] as? String ?: return
-                    val kind = params["kind"] as? String ?: return
-                    val value = params["value"] as? String ?: return
+                    val instanceId = params.requiredString(method, "instanceId") ?: return
+                    val kind = params.requiredString(method, "kind", "is missing or corrupted") ?: return
+                    val value = params.requiredString(method, "value", "is missing or corrupted") ?: return
                     actionHandlerSubject.execute { it.onMoveScroll(instanceId, kind, value) }
                 }
                 "SDK.changeFocus" -> {
@@ -230,19 +226,18 @@ internal class JSActionBridge(private val gson: Gson) {
                     actionHandlerSubject.execute { it.onChangeFocus(focusId) }
                 }
                 "SDK.setTimer" -> {
-                    val timerId = params["id"] as? String ?: return
+                    val timerId = params.requiredString(method, "id") ?: return
                     val endAtMs = (params["endAt"] as? Number)?.toLong()
                     val durationSeconds = (params["duration"] as? Number)?.toLong()
                     val behavior = params["behavior"] as? String
                     actionHandlerSubject.execute { it.onSetTimer(timerId, endAtMs, durationSeconds, behavior) }
                 }
                 "SDK.sendAnalyticsEvent" -> {
-                    val name = params["name"] as? String ?: return
+                    val name = params.requiredString(method, "name", "is missing or corrupted") ?: return
                     actionHandlerSubject.execute { it.onSendAnalyticsEvent(name, params) }
                 }
                 "SDK.sendEvents" -> {
-                    val events = (params["events"] as? List<*>)?.mapNotNull { it as? String } ?: return
-                    if (events.isEmpty()) return
+                    val events = parseSendEventsIds(params) ?: return
                     val instanceId = params["instanceId"] as? String
                     actionHandlerSubject.execute { it.onSendEvents(instanceId, events) }
                 }
@@ -251,7 +246,9 @@ internal class JSActionBridge(private val gson: Gson) {
                 }
                 "SDK.showAlertDialog" -> {
                     val title = params["title"] as? String
+                    val titleStringId = params["titleStringId"] as? String
                     val message = params["message"] as? String
+                    val messageStringId = params["messageStringId"] as? String
                     val actions = (params["actions"] as? List<*>)?.mapNotNull { item ->
                         val map = item as? Map<*, *> ?: return@mapNotNull null
                         val actionTitle = map["title"] as? String
@@ -262,10 +259,11 @@ internal class JSActionBridge(private val gson: Gson) {
                             else -> Message.JSCallback.ShowAlertDialog.AlertAction.Style.DEFAULT
                         }
                         val actionId = (map["actionId"] as? String) ?: actionTitle
-                        Message.JSCallback.ShowAlertDialog.AlertAction(actionTitle, style, actionId)
+                        val actionTitleStringId = map["titleStringId"] as? String
+                        Message.JSCallback.ShowAlertDialog.AlertAction(actionTitle, style, actionId, actionTitleStringId)
                     } ?: emptyList()
                     val callbackId = params["__callback_id__"] as? String
-                    actionHandlerSubject.execute { it.onShowAlertDialog(title, message, actions, callbackId) }
+                    actionHandlerSubject.execute { it.onShowAlertDialog(title, message, actions, callbackId, titleStringId, messageStringId) }
                 }
                 "SDK.showRequestPermission" -> {
                     val permission = params["permission"] as? String
@@ -286,4 +284,26 @@ internal class JSActionBridge(private val gson: Gson) {
             log(WARN) { "$LOG_PREFIX Invalid RPC call: $jsonString: ${e.localizedMessage}" }
         }
     }
+
+    private fun reportInvalidCall(method: String, problem: String) {
+        log(ERROR) { "$LOG_PREFIX_ERROR $method: $problem" }
+    }
+
+    private fun Map<String, Any?>.requiredString(method: String, key: String, problem: String = "is missing"): String? =
+        this[key] as? String ?: run {
+            reportInvalidCall(method, "required parameter \"$key\" $problem")
+            null
+        }
+}
+
+internal fun parseSendEventsIds(params: Map<String, Any?>): List<String>? {
+    val raw = params["events"] as? List<*>
+    val events = raw.orEmpty().filterIsInstance<String>()
+    if (raw != null && events.size != raw.size)
+        log(ERROR) { "$LOG_PREFIX_ERROR SDK.sendEvents: dropped non-string items of \"events\": ${raw.filterNot { it is String }}" }
+    if (events.isEmpty()) {
+        log(ERROR) { "$LOG_PREFIX_ERROR SDK.sendEvents: required parameter \"events\" is missing or corrupted" }
+        return null
+    }
+    return events
 }
