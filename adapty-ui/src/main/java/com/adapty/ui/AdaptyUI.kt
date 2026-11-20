@@ -692,7 +692,7 @@ public object AdaptyUI {
 
     private fun contributeDepsOnAdaptyReady(appContext: Context) {
         val gson = Dependencies.injectInternal<Gson>("base")
-        val stateHandlers = if (JavaScriptSandbox.isSupported()) {
+        val stateHandlers = if (runCatching { JavaScriptSandbox.isSupported() }.getOrDefault(false)) {
             FlowStateHandlers.Isolated(appContext, gson)
         } else {
             FlowStateHandlers.Shared(
