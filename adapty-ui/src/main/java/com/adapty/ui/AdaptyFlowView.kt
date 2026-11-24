@@ -87,6 +87,11 @@ public class AdaptyFlowView @JvmOverloads constructor(
     }
     private val viewModel: FlowViewModel? by viewModelLazy
 
+    private var presentation: (() -> Unit)? = null
+    private var presentationPending = false
+
+    private var presentationGeneration = 0
+
     /**
      * Should be called only on UI thread
      *
@@ -135,11 +140,17 @@ public class AdaptyFlowView @JvmOverloads constructor(
 
         val presentationRequest =
             if (isAttachedToWindow) null else stateHandlers.requestPresentation(flowConfiguration)
-        runOnceWhenAttached {
-            val vm = viewModel ?: return@runOnceWhenAttached
+        val present = present@{
+            presentationPending = false
+            val generation = ++presentationGeneration
+            val vm = viewModel ?: return@present
 
             fun pushData() {
                 runOnceWhenAttached {
+                    if (generation != presentationGeneration) {
+                        log(VERBOSE) { "$LOG_PREFIX AdaptyFlowView (${hashCode()}) skipping data of a superseded presentation" }
+                        return@runOnceWhenAttached
+                    }
                     vm.setNewData(
                         UserArgs.create(
                             flowConfiguration,
@@ -164,7 +175,7 @@ public class AdaptyFlowView @JvmOverloads constructor(
                 stateHandlers.handlerFor(flowConfiguration).stateOwner === flowConfiguration
             ) {
                 pushData()
-                return@runOnceWhenAttached
+                return@present
             }
 
             if (configChangeHandoff && previousConfig != null &&
@@ -187,6 +198,9 @@ public class AdaptyFlowView @JvmOverloads constructor(
                 pushData()
             }
         }
+        presentation = present
+        presentationPending = !isAttachedToWindow
+        runOnceWhenAttached(present)
         presentationRequest?.let { request ->
             runOnceWhenAttached { flowConfiguration.completePresentationRequest(request) }
         }
@@ -216,8 +230,18 @@ public class AdaptyFlowView @JvmOverloads constructor(
     }
 
     override fun onAttachedToWindow() {
-        super.onAttachedToWindow()
         log(VERBOSE) { "$LOG_PREFIX AdaptyFlowView (${hashCode()}) onAttachedToWindow" }
+        presentAgainIfReattached()
+        super.onAttachedToWindow()
+    }
+
+    private fun presentAgainIfReattached() {
+        if (presentationPending || !viewModelLazy.isInitialized()) return
+        val vm = viewModelLazy.value ?: return
+        if (vm.dataState.value == null || vm.state?.navigation?.entries?.isEmpty() != true) return
+        val present = presentation ?: return
+        log(VERBOSE) { "$LOG_PREFIX AdaptyFlowView (${hashCode()}) re-attached with no screens; presenting again" }
+        present()
     }
 
     override fun onDetachedFromWindow() {

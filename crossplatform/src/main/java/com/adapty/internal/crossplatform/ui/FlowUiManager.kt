@@ -6,12 +6,19 @@ package com.adapty.internal.crossplatform.ui
 import android.content.Context
 import android.view.View
 import androidx.core.view.doOnAttach
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.adapty.Adapty
+import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.crossplatform.SerializationHelper
+import com.adapty.internal.crossplatform.ui.AdaptyUiEventListener.Companion.ERROR
 import com.adapty.internal.crossplatform.ui.AdaptyUiEventListener.Companion.EVENT_ID
+import com.adapty.internal.crossplatform.ui.AdaptyUiEventListener.Companion.FLOW_VIEW_DID_RECEIVE_ERROR
 import com.adapty.internal.crossplatform.ui.AdaptyUiEventListener.Companion.FLOW_VIEW_OBSERVER_DID_INITIATE_PURCHASE
 import com.adapty.internal.crossplatform.ui.AdaptyUiEventListener.Companion.FLOW_VIEW_OBSERVER_DID_INITIATE_RESTORE
 import com.adapty.internal.crossplatform.ui.AdaptyUiEventListener.Companion.PRODUCT
@@ -31,7 +38,9 @@ import com.adapty.ui.listeners.AdaptyUiObserverModeHandler
 import com.adapty.utils.AdaptyLogLevel
 import com.adapty.utils.AdaptyResult
 import java.lang.ref.WeakReference
+import java.util.Collections
 import java.util.UUID
+import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
 
 internal class FlowUiManager(
@@ -40,6 +49,7 @@ internal class FlowUiManager(
     private val cachedFlowUiData = ConcurrentHashMap<String, FlowUiData>()
 
     private val platformViewConfigs = ConcurrentHashMap<String, WeakReference<AdaptyUI.FlowConfiguration>>()
+    private val currentSetups = Collections.synchronizedMap(WeakHashMap<AdaptyFlowView, Any>())
     private val pendingDismissCallbacks = ConcurrentHashMap<String, MutableList<Callback<Unit>>>()
     private val permissionCallbacks = ConcurrentHashMap<String, PermissionCallback>()
     private val observerPurchaseCallbacks =
@@ -176,11 +186,33 @@ internal class FlowUiManager(
         platformViewOnEvent: ((viewId: String, eventId: String, eventData: String) -> Unit)? = null,
     ) {
         if (flowView.id == View.NO_ID) flowView.id = View.generateViewId()
+        flowView.useOwnViewModelStore()
+        (viewModelStoreOwner as? LifecycleOwner)?.let(flowView::setViewTreeLifecycleOwner)
+        (viewModelStoreOwner as? SavedStateRegistryOwner)?.let(flowView::setViewTreeSavedStateRegistryOwner)
+        val setup = Any()
+        currentSetups[flowView] = setup
+        fun isCurrentSetup() = currentSetups[flowView] === setup
         flowView.doOnAttach {
             if (flowView.findViewTreeViewModelStoreOwner() == null)
                 flowView.setViewTreeViewModelStoreOwner(viewModelStoreOwner)
-            val createFlowViewArgs = (args as? String)?.let { serializationHelper.parseJsonArgument<CreateFlowViewArgs>(it) } ?: kotlin.run {
+            val parsedArgs = runCatching {
+                (args as? String)?.takeIf(String::isNotEmpty)
+                    ?.let { serializationHelper.fromJson(it, CreateFlowViewArgs::class.java) }
+            }
+            val createFlowViewArgs = parsedArgs.getOrNull() ?: kotlin.run {
                 log(AdaptyLogLevel.ERROR, { "could not parse args as CreateFlowViewArgs ($args)" })
+                if (platformViewOnEvent != null) {
+                    val originalError = parsedArgs.exceptionOrNull()
+                    sendSetupError(
+                        platformViewOnEvent,
+                        AdaptyUiFlowView(id = id, placementId = "", variationId = ""),
+                        mapOf(
+                            "adapty_code" to AdaptyErrorCode.DECODING_FAILED,
+                            "message" to "Error while parsing parameter",
+                            "detail" to "Method: adapty_ui_create_flow_view, OriginalError: ${originalError?.localizedMessage ?: originalError?.message}",
+                        ),
+                    )
+                }
                 return@doOnAttach
             }
             val flow = createFlowViewArgs.flow
@@ -191,12 +223,14 @@ internal class FlowUiManager(
                 loadTimeout = createFlowViewArgs.loadTimeout ?: DEFAULT_PLACEMENT_TIMEOUT,
                 customLayoutId = createFlowViewArgs.customLayoutId,
             ) { viewConfigResult ->
+                if (!isCurrentSetup()) return@getFlowConfiguration
                 when (viewConfigResult) {
                     is AdaptyResult.Success -> {
                         val viewConfig = viewConfigResult.value
 
                         if (createFlowViewArgs.preloadProducts) {
                             Adapty.getPaywallProducts(flow) { productsResult ->
+                                if (!isCurrentSetup()) return@getPaywallProducts
                                 when (productsResult) {
                                     is AdaptyResult.Success -> {
                                         showFlowWithConfig(
@@ -233,10 +267,22 @@ internal class FlowUiManager(
                     }
                     is AdaptyResult.Error -> {
                         log(AdaptyLogLevel.ERROR, { "Failed to get view configuration: ${viewConfigResult.error.message}" })
+                        if (platformViewOnEvent != null) {
+                            sendSetupError(platformViewOnEvent, AdaptyUiFlowView(flow, id), viewConfigResult.error)
+                        }
                     }
                 }
             }
         }
+    }
+
+    private fun sendSetupError(
+        platformViewOnEvent: (viewId: String, eventId: String, eventData: String) -> Unit,
+        view: AdaptyUiFlowView,
+        error: Any,
+    ) {
+        val event = AdaptyUiEvent(FLOW_VIEW_DID_RECEIVE_ERROR, VIEW to view, ERROR to error)
+        platformViewOnEvent(view.id, event.id, serializationHelper.toJson(event.data))
     }
 
     private fun showFlowWithConfig(
@@ -313,12 +359,14 @@ internal class FlowUiManager(
     }
 
     fun clearFlowView(flowView: AdaptyFlowView) {
+        currentSetups.remove(flowView)
         runCatching {
             val method = flowView::class.java.getDeclaredMethod("getViewModel")
             method.isAccessible = true
             (method.invoke(flowView) as? FlowViewModel)
                 ?.dataState?.value = null
         }
+        flowView.clearOwnViewModelStore()
         flowView.setViewTreeViewModelStoreOwner(null)
     }
 

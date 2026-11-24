@@ -18,6 +18,7 @@ class FlowView @JvmOverloads constructor(
     internal val flowView = AdaptyFlowView(context, attrs)
         .apply {
             id = generateViewId()
+            useOwnViewModelStore()
             layoutParams = LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 LayoutParams.MATCH_PARENT

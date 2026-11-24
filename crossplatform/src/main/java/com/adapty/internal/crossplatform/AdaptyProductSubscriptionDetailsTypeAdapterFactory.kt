@@ -28,21 +28,18 @@ internal class AdaptyProductSubscriptionDetailsTypeAdapterFactory : TypeAdapterF
             override fun write(out: JsonWriter, value: AdaptyProductSubscriptionDetails) {
                 val jsonObject = delegateAdapter.toJsonTree(value).asJsonObject
 
-                jsonObject.remove("introductory_offer_phases")?.let { phases ->
-                    if (phases !is JsonArray || phases.isEmpty) return@let
-
-                    val offerIdentifier = jsonObject.remove("offer_id")?.let { offerId ->
-                        JsonObject().apply {
-                            add("id", offerId)
-                            addProperty("type", "introductory")
-                        }
-                    } ?: return@let
-
+                val phases = jsonObject.remove("introductory_offer_phases")
+                val offerId = jsonObject.remove("offer_id")
+                val offerTags = jsonObject.removeNode("offer_tags")
+                if (phases is JsonArray && !phases.isEmpty && offerId != null && !offerId.isJsonNull) {
                     val offerJsonObject = JsonObject().apply {
                         add("phases", phases)
-                        add("offer_identifier", offerIdentifier)
+                        add("offer_identifier", JsonObject().apply {
+                            add("id", offerId)
+                            addProperty("type", "introductory")
+                        })
+                        addNodeIfNotEmpty(offerTags)
                     }
-                    jsonObject.moveNodeIfExists(offerJsonObject, "offer_tags")
                     jsonObject.add("offer", offerJsonObject)
                 }
                 elementAdapter.write(out, jsonObject)
