@@ -14,13 +14,11 @@ import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
-import androidx.compose.ui.node.invalidateMeasurement
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Constraints
 import com.adapty.ui.internal.ui.attributes.Condition
 import com.adapty.ui.internal.ui.attributes.ConditionScope
 import com.adapty.ui.internal.utils.LocalScreenDimensions
-import kotlinx.coroutines.launch
 
 @Composable
 internal fun AdaptiveRootBox(
@@ -71,6 +69,14 @@ internal class NaturalExtent {
     )
 
     var onRecordedChanged: (() -> Unit)? = null
+
+    var changed = false
+
+    fun reportChange() {
+        if (!changed) return
+        changed = false
+        onRecordedChanged?.invoke()
+    }
 }
 
 private data class RecordedIntrinsicsElement(
@@ -79,21 +85,19 @@ private data class RecordedIntrinsicsElement(
     override fun create() = RecordedIntrinsicsNode(natural)
     override fun update(node: RecordedIntrinsicsNode) {
         node.natural = natural
-        natural.onRecordedChanged = node.invalidateAfterMeasure
+        natural.onRecordedChanged = node.invalidator.invalidate
     }
 }
 
 private class RecordedIntrinsicsNode(var natural: NaturalExtent) : Modifier.Node(), LayoutModifierNode {
-    val invalidateAfterMeasure: () -> Unit = {
-        if (isAttached) coroutineScope.launch { if (isAttached) invalidateMeasurement() }
-    }
+    val invalidator = RecordChangeInvalidator(this)
 
     override fun onAttach() {
-        natural.onRecordedChanged = invalidateAfterMeasure
+        natural.onRecordedChanged = invalidator.invalidate
     }
 
     override fun onDetach() {
-        if (natural.onRecordedChanged === invalidateAfterMeasure) natural.onRecordedChanged = null
+        if (natural.onRecordedChanged === invalidator.invalidate) natural.onRecordedChanged = null
     }
 
     override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
@@ -157,9 +161,12 @@ private class RecordNaturalExtentNode(var natural: NaturalExtent) : Modifier.Nod
                 }
             } catch (e: IllegalStateException) {
             }
-            if (!before.contentEquals(natural.snapshot())) natural.onRecordedChanged?.invoke()
+            if (!before.contentEquals(natural.snapshot())) natural.changed = true
         }
         val placeable = measurable.measure(constraints)
-        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+        return layout(placeable.width, placeable.height) {
+            placeable.place(0, 0)
+            natural.reportChange()
+        }
     }
 }

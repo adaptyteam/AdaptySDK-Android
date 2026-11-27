@@ -427,11 +427,10 @@ internal class AdaptyInternal(
 
     fun <T> getFlowViewConfiguration(
         flow: AdaptyFlow,
-        locale: String?,
         loadTimeout: TimeInterval,
         customLayoutId: String?,
         deviceInfoOverride: DeviceInfo?,
-        transform: (Map<String, Any>) -> T,
+        transform: suspend (Map<String, Any>) -> T,
         callback: ResultCallback<T>,
     ) {
         val requestEvent = SDKMethodRequestData.create("get_flow_builder")
@@ -451,7 +450,7 @@ internal class AdaptyInternal(
         }
         execute {
             flowInteractor
-                .getViewConfiguration(flow, locale, loadTimeout.coerceAtLeast(MIN_PLACEMENT_TIMEOUT).toMillis(), customLayoutId, deviceInfoOverride)
+                .getViewConfiguration(flow, loadTimeout.coerceAtLeast(MIN_PLACEMENT_TIMEOUT).toMillis(), customLayoutId, deviceInfoOverride)
                 .map { rawConfig ->
                     adaptyUiAccessor.preloadMedia(rawConfig)
                     transform(rawConfig)

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -222,7 +221,7 @@ public class PagerElement internal constructor(
                 IntrinsicSafeBoxWithConstraints {
                     val hasBoundedHeight = constraints.hasBoundedHeight
                     Column(modifier) {
-                        val viewportModifier = (if (hasBoundedHeight) Modifier.weight(1f) else Modifier)
+                        val viewportModifier = (if (hasBoundedHeight) Modifier.weight(1f, fill = false) else Modifier)
                             .graphicsLayer { clip = true }
                         when (pagerIndicator.vAlign) {
                             VerticalAlign.TOP -> {
@@ -362,19 +361,22 @@ public class PagerElement internal constructor(
             pageSpacing = spacing,
             contentPadding = pagerContentPadding,
             snapPosition = snapPosition,
-            beyondViewportPageCount = if (!maxAvailableHeight.isFinite || keepPagesComposed) pages.size else 0,
-            verticalAlignment = if (pageHeight != null) Alignment.Top else Alignment.CenterVertically,
+            beyondViewportPageCount = if (pageHeight == null || keepPagesComposed) pages.size else 0,
+            verticalAlignment = Alignment.CenterVertically,
             state = pagerState,
             userScrollEnabled = interactionBehavior != NONE,
-            modifier = if (pageHeight != null) pagerModifier.fillMaxHeight() else pagerModifier,
+            modifier = pagerModifier,
         ) { i ->
             Box(
                 if (pageHeight != null) Modifier.width(pageWidth).height(pageHeight)
-                else Modifier.width(pageWidth).fillMaxHeight(),
+                else Modifier.width(pageWidth),
                 contentAlignment = Alignment.Center,
             ) {
                 CompositionLocalProvider(LocalKeepPagesComposed provides keepPagesComposedRequest) {
-                    DeclaringLength(unspecifiedHorizontal = false, unspecifiedVertical = false) {
+                    DeclaringLength(
+                        unspecifiedHorizontal = false,
+                        unspecifiedVertical = if (pageHeight != null) false else null,
+                    ) {
                         pages[i].render(dispatch)
                     }
                 }

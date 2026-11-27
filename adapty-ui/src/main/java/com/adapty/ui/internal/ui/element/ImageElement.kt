@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Constraints
 import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.utils.InternalAdaptyApi
+import com.adapty.ui.internal.ui.FillCellMinHeightQuery
 import com.adapty.ui.internal.ui.IntrinsicSafeBoxWithConstraints
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset.Image.ScaleType
@@ -201,6 +202,7 @@ private class ImageIntrinsicsNode(
         width: Int,
     ): Int {
         if (naturalWidth <= 0 || naturalHeight <= 0) return 0
+        if (FillCellMinHeightQuery.active) return 0
         if (width == Constraints.Infinity) return naturalHeight
         return (width.toLong() * naturalHeight / naturalWidth).toInt()
     }

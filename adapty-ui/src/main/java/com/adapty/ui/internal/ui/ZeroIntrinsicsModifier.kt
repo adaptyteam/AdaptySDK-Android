@@ -10,7 +10,9 @@ import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.invalidateMeasurement
 import androidx.compose.ui.unit.Constraints
+import kotlinx.coroutines.launch
 
 @Suppress("DEPRECATION")
 internal object ZeroIntrinsicsModifier : LayoutModifier {
@@ -62,8 +64,21 @@ internal class NaturalHeightRecord {
     val height = mutableIntStateOf(0)
     var queried = false
 
+    private var changed = false
+
+    var onRecordedChanged: (() -> Unit)? = null
+
     fun write(value: Int) {
-        if (height.intValue != value) height.intValue = value
+        if (height.intValue != value) {
+            height.intValue = value
+            changed = true
+        }
+    }
+
+    fun reportChange() {
+        if (!changed) return
+        changed = false
+        onRecordedChanged?.invoke()
     }
 
     fun recordedOrZero(): Int {
@@ -92,8 +107,25 @@ private data class RecordedHeightIntrinsicsElement(
 }
 
 private class RecordedHeightIntrinsicsNode(
-    var record: NaturalHeightRecord,
+    record: NaturalHeightRecord,
 ) : Modifier.Node(), LayoutModifierNode {
+    private val invalidator = RecordChangeInvalidator(this)
+
+    var record: NaturalHeightRecord = record
+        set(value) {
+            if (field.onRecordedChanged === invalidator.invalidate) field.onRecordedChanged = null
+            field = value
+            if (isAttached) value.onRecordedChanged = invalidator.invalidate
+        }
+
+    override fun onAttach() {
+        record.onRecordedChanged = invalidator.invalidate
+    }
+
+    override fun onDetach() {
+        if (record.onRecordedChanged === invalidator.invalidate) record.onRecordedChanged = null
+    }
+
     override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
         val placeable = measurable.measure(constraints)
         return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
@@ -187,7 +219,10 @@ private class RecordNaturalHeightNode(
             }
         }
         val placeable = measurable.measure(constraints)
-        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+        return layout(placeable.width, placeable.height) {
+            placeable.place(0, 0)
+            record.reportChange()
+        }
     }
 
     override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
@@ -201,4 +236,24 @@ private class RecordNaturalHeightNode(
 
     override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int): Int =
         measurable.maxIntrinsicWidth(height)
+}
+
+internal class RecordChangeInvalidator(private val node: LayoutModifierNode) {
+    private var budget = SAME_PASS_BUDGET
+
+    val invalidate: () -> Unit = invalidate@{
+        val modifierNode = node.node
+        if (!modifierNode.isAttached) return@invalidate
+        if (budget > 0) {
+            if (budget == SAME_PASS_BUDGET) modifierNode.coroutineScope.launch { budget = SAME_PASS_BUDGET }
+            budget--
+            node.invalidateMeasurement()
+        } else {
+            modifierNode.coroutineScope.launch { if (modifierNode.isAttached) node.invalidateMeasurement() }
+        }
+    }
+
+    private companion object {
+        const val SAME_PASS_BUDGET = 8
+    }
 }

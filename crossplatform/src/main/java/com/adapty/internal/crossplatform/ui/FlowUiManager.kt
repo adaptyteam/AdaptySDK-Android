@@ -31,6 +31,7 @@ import com.adapty.models.AdaptyPaywallProduct
 import com.adapty.models.AdaptyPurchaseParameters
 import com.adapty.ui.AdaptyFlowView
 import com.adapty.ui.AdaptyUI
+import com.adapty.ui.AdaptyUiLocalizationStrategy
 import com.adapty.ui.internal.ui.FlowViewModel
 import com.adapty.ui.listeners.AdaptyFlowEventListener.PermissionCallback
 import com.adapty.ui.listeners.AdaptyFlowEventListener.PurchaseParamsCallback
@@ -57,7 +58,22 @@ internal class FlowUiManager(
     private val observerRestoreCallbacks =
         ConcurrentHashMap<String, Pair<AdaptyUiObserverModeHandler.RestoreStartCallback, AdaptyUiObserverModeHandler.RestoreFinishCallback>>()
 
+    private val localizationRequests = LocalizationRequestRegistry()
+
     var isObserverMode = false
+
+    fun localizationStrategy(args: CreateFlowViewArgs): AdaptyUiLocalizationStrategy =
+        args.localizationStrategy.toStrategy { customId ->
+            PluginLocalizationResolver(customId, localizationRequests, { uiEventsObserver })
+        }
+
+    fun resolveLocalization(eventId: String, result: String?) {
+        localizationRequests.resolve(eventId, result)
+    }
+
+    fun flushLocalizationRequests() {
+        localizationRequests.flushCancelled()
+    }
 
     private fun registerPermissionRequest(callback: PermissionCallback): String {
         val eventId = UUID.randomUUID().toString()
@@ -219,7 +235,8 @@ internal class FlowUiManager(
 
             AdaptyUI.getFlowConfiguration(
                 flow,
-                locale = createFlowViewArgs.locale,
+                preferredLocales = createFlowViewArgs.preferredLocales,
+                localizationStrategy = localizationStrategy(createFlowViewArgs),
                 loadTimeout = createFlowViewArgs.loadTimeout ?: DEFAULT_PLACEMENT_TIMEOUT,
                 customLayoutId = createFlowViewArgs.customLayoutId,
             ) { viewConfigResult ->

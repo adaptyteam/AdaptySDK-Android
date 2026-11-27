@@ -55,6 +55,7 @@ class CrossplatformHelper internal constructor(
                 return true
             } else {
                 shared.callHandler.onNewEvent[frameworkPluginInstance?.toString()] = onNewEvent
+                shared.callHandler.flushHostRequests()
             }
             return false
         }
@@ -80,10 +81,12 @@ class CrossplatformHelper internal constructor(
 
     fun release() {
         callHandler.onNewEvent.clear()
+        callHandler.flushHostRequests()
     }
 
     fun release(frameworkPluginInstance: Any) {
         callHandler.onNewEvent.remove(frameworkPluginInstance.toString())
+        if (callHandler.onNewEvent.isEmpty()) callHandler.flushHostRequests()
     }
 
     fun openUrl(url: String, presentation: AdaptyWebPresentation) {

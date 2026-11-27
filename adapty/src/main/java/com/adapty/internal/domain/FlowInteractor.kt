@@ -8,7 +8,6 @@ import com.adapty.errors.AdaptyErrorCode
 import com.adapty.internal.data.cache.CacheRepository
 import com.adapty.internal.data.cloud.CloudRepository
 import com.adapty.internal.data.models.DeviceInfo
-import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
 import com.adapty.internal.utils.DeviceInfoResolver
 import com.adapty.internal.utils.FlowMapper
 import com.adapty.internal.utils.INF_PLACEMENT_TIMEOUT_MILLIS
@@ -51,12 +50,10 @@ internal class FlowInteractor(
 
     fun getViewConfiguration(
         flow: AdaptyFlow,
-        locale: String?,
         loadTimeout: Int,
         customLayoutId: String? = null,
         deviceInfoOverride: DeviceInfo? = null,
     ): Flow<Map<String, Any>> {
-        val locale = locale?.trim()?.takeIf { it.isNotEmpty() } ?: DEFAULT_PLACEMENT_LOCALE
         val layoutsConfiguration = flow.layoutsConfiguration ?: return noViewConfigurationError()
         val flowLayout = try {
             layoutsConfiguration.getLayout(deviceInfoOverride ?: deviceInfoResolver.current(), customLayoutId)
@@ -67,14 +64,14 @@ internal class FlowInteractor(
         val layoutId = flowLayout.id
 
         flow.viewConfig?.let { embeddedConfig ->
-            return flowOf(wrapViewConfigIfNeeded(embeddedConfig, versionId, locale))
+            return flowOf(wrapViewConfigIfNeeded(embeddedConfig, versionId))
         }
 
         val isTestUser = cacheRepository.getProfile()?.isTestUser == true
 
         if (!isTestUser) {
             getLocalViewConfig(flow.id, versionId, layoutId)?.let { localConfig ->
-                return flowOf(wrapViewConfigIfNeeded(localConfig, versionId, locale))
+                return flowOf(wrapViewConfigIfNeeded(localConfig, versionId))
             }
         }
 
@@ -103,7 +100,7 @@ internal class FlowInteractor(
             }
             .map { rawConfig ->
                 cacheRepository.saveFlowViewConfig(flow.id, versionId, layoutId, rawConfig)
-                wrapViewConfigIfNeeded(rawConfig, versionId, locale)
+                wrapViewConfigIfNeeded(rawConfig, versionId)
             }
     }
 
@@ -121,7 +118,6 @@ internal class FlowInteractor(
     private fun wrapViewConfigIfNeeded(
         rawConfig: Map<String, Any>,
         versionId: String,
-        locale: String?,
     ): Map<String, Any> {
         val alreadyWrapped = rawConfig.containsKey(PAYWALL_BUILDER_CONFIG_KEY) ||
             (rawConfig[DATA_KEY] as? Map<*, *>)?.containsKey(PAYWALL_BUILDER_CONFIG_KEY) == true
@@ -130,7 +126,6 @@ internal class FlowInteractor(
         return buildMap {
             put(PAYWALL_BUILDER_ID_KEY, versionId)
             put(PAYWALL_BUILDER_CONFIG_KEY, rawConfig)
-            if (locale != null) put(LANG_KEY, locale)
         }
     }
 
@@ -138,6 +133,5 @@ internal class FlowInteractor(
         const val DATA_KEY = "data"
         const val PAYWALL_BUILDER_ID_KEY = "paywall_builder_id"
         const val PAYWALL_BUILDER_CONFIG_KEY = "paywall_builder_config"
-        const val LANG_KEY = "lang"
     }
 }

@@ -476,6 +476,7 @@ internal fun Any.toDimSpec(dimAxis: DimSpec.Axis): DimSpec {
         this["fill_max"] == true -> DimSpec.FillMax(dimAxis)
         min != null -> DimSpec.Min(min.toDimUnit(), max?.toDimUnit(), dimAxis)
         shrink != null -> DimSpec.Shrink(shrink.toDimUnit(), max?.toDimUnit(), dimAxis)
+        max != null -> DimSpec.Min(DimUnit.Exact(0f), max.toDimUnit(), dimAxis)
         else -> DimSpec.Specified(this.toDimUnit(), dimAxis)
     }
 }

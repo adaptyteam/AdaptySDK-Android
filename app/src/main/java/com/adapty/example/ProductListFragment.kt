@@ -3,6 +3,7 @@ package com.adapty.example
 import android.app.ProgressDialog
 import android.os.Bundle
 import android.view.View
+import androidx.core.os.LocaleListCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.RecyclerView
@@ -131,7 +132,8 @@ class ProductListFragment : Fragment(R.layout.fragment_list) {
 
             if (hasViewConfiguration) {
                 setOnClickListener {
-                    AdaptyUI.getFlowConfiguration(flow) { configResult ->
+                    val preferredLocales = LocaleListCompat.getAdjustedDefault().toLanguageTags().split(",")
+                    AdaptyUI.getFlowConfiguration(flow, preferredLocales) { configResult ->
                         progressDialog.cancel()
                         when (configResult) {
                             is AdaptyResult.Success -> {

@@ -138,7 +138,7 @@ public object Adapty {
      * that will be displayed in your app.
      *
      * Unlike onboardings, a flow is fetched without a locale: the locale is applied
-     * later, when the view configuration is requested via `AdaptyUI.getFlowConfiguration(flow, callback)`.
+     * later, when the view configuration is requested via `AdaptyUI.getFlowConfiguration(flow, preferredLocales, callback)`.
      *
      * Should not be called before [activate]
      *
@@ -259,11 +259,10 @@ public object Adapty {
     @JvmSynthetic
     internal fun <T> getFlowViewConfiguration(
         flow: AdaptyFlow,
-        locale: String?,
         loadTimeout: TimeInterval,
         customLayoutId: String?,
         deviceInfoOverride: DeviceInfo?,
-        transform: (Map<String, Any>) -> T,
+        transform: suspend (Map<String, Any>) -> T,
         callback: ResultCallback<T>,
     ) {
         if (!isActivated) {
@@ -271,7 +270,7 @@ public object Adapty {
             callback.onResult(AdaptyResult.Error(notInitializedError))
             return
         }
-        adaptyInternal.getFlowViewConfiguration(flow, locale, loadTimeout, customLayoutId, deviceInfoOverride, transform, callback)
+        adaptyInternal.getFlowViewConfiguration(flow, loadTimeout, customLayoutId, deviceInfoOverride, transform, callback)
     }
 
     /**

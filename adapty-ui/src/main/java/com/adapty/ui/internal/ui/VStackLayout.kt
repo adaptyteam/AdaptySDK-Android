@@ -13,10 +13,14 @@ import androidx.compose.ui.layout.MeasurePolicy
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.node.LayoutModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.adapty.internal.utils.InternalAdaptyApi
 
 internal enum class VStackCellKind { DEFAULT, TEXT_LIKE, SIZE_DRIVEN_UNSIZED, SIZE_DRIVEN_SIZED, SPACER, FILL_HEIGHT, GREEDY_ROOT }
 
@@ -43,6 +47,48 @@ internal object VStackMinHeightQuery {
             depth = saved
         }
     }
+}
+
+internal object FillCellMinHeightQuery {
+    private var depth = 0
+
+    val active: Boolean get() = depth > 0
+
+    fun minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int {
+        depth++
+        try {
+            return measurable.minIntrinsicHeight(width)
+        } finally {
+            depth--
+        }
+    }
+}
+
+@InternalAdaptyApi
+public fun Modifier.resizableMediaMinHeight(): Modifier = this.then(ResizableMediaMinHeightElement)
+
+private object ResizableMediaMinHeightElement : ModifierNodeElement<ResizableMediaMinHeightNode>() {
+    override fun create() = ResizableMediaMinHeightNode()
+
+    override fun update(node: ResizableMediaMinHeightNode) = Unit
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "resizableMediaMinHeight"
+    }
+
+    override fun equals(other: Any?): Boolean = other === this
+
+    override fun hashCode(): Int = javaClass.hashCode()
+}
+
+private class ResizableMediaMinHeightNode : Modifier.Node(), LayoutModifierNode {
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int): Int =
+        if (FillCellMinHeightQuery.active) 0 else measurable.minIntrinsicHeight(width)
 }
 
 internal data class VStackCellSpec(
@@ -219,7 +265,7 @@ internal class VStackMeasurePolicy(
                             flexibility[i] = 0
                         }
                         VStackCellKind.FILL_HEIGHT -> {
-                            minHeights[i] = if (cell.minFromContent) measurable.minIntrinsicHeight(intrinsicWidth) else 0
+                            minHeights[i] = if (cell.minFromContent) FillCellMinHeightQuery.minIntrinsicHeight(measurable, intrinsicWidth) else 0
                             flexibility[i] = Long.MAX_VALUE
                         }
                         VStackCellKind.SPACER, VStackCellKind.GREEDY_ROOT -> {

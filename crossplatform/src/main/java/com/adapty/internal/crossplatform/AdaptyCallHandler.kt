@@ -48,6 +48,10 @@ internal class AdaptyCallHandler(
             uiHelper.activity = value
         }
 
+    fun flushHostRequests() {
+        uiHelper.flushHostRequests()
+    }
+
     fun onMethodCall(
         argument: Any?,
         methodName: String?,
@@ -97,6 +101,7 @@ internal class AdaptyCallHandler(
             ADAPTY_UI_OPEN_URL -> handleAdaptyUiOpenUrl(argument, onResult)
             ADAPTY_UI_REQUEST_APP_REVIEW -> handleAdaptyUiRequestAppReview(onResult)
             FLOW_VIEW_DID_ANSWER_PERMISSION -> handleFlowViewDidAnswerPermission(argument, onResult)
+            FLOW_VIEW_DID_ANSWER_LOCALIZATION -> handleFlowViewDidAnswerLocalization(argument, onResult)
             OBSERVER_PURCHASE_DID_START -> handleObserverPurchaseDidStart(argument, onResult)
             OBSERVER_PURCHASE_DID_FINISH -> handleObserverPurchaseDidFinish(argument, onResult)
             OBSERVER_RESTORE_DID_START -> handleObserverRestoreDidStart(argument, onResult)
@@ -573,6 +578,18 @@ internal class AdaptyCallHandler(
         onResult(success())
     }
 
+    private fun handleFlowViewDidAnswerLocalization(argument: Any?, onResult: ResultCallback<String>) {
+        val args = parseJsonArgument<FlowViewDidAnswerLocalizationArgs>(argument)
+            ?.takeIf { !it.eventId.isNullOrEmpty() }
+            ?: kotlin.run {
+                onResult(callParameterError(FLOW_VIEW_DID_ANSWER_LOCALIZATION))
+                return
+            }
+
+        uiHelper.answerLocalization(args.eventId, args.result)
+        onResult(success())
+    }
+
     private fun handleObserverPurchaseDidStart(argument: Any?, onResult: ResultCallback<String>) {
         val args = parseObserverModeArgs(argument, OBSERVER_PURCHASE_DID_START, onResult) ?: return
         uiHelper.observerPurchaseDidStart(args.eventId)
@@ -793,6 +810,7 @@ internal class AdaptyCallHandler(
         const val ADAPTY_UI_OPEN_URL = "adapty_ui_open_url"
         const val ADAPTY_UI_REQUEST_APP_REVIEW = "adapty_ui_request_app_review"
         const val FLOW_VIEW_DID_ANSWER_PERMISSION = "flow_view_did_answer_permission"
+        const val FLOW_VIEW_DID_ANSWER_LOCALIZATION = "flow_view_did_answer_localization"
         const val OBSERVER_PURCHASE_DID_START = "observer_purchase_did_start"
         const val OBSERVER_PURCHASE_DID_FINISH = "observer_purchase_did_finish"
         const val OBSERVER_RESTORE_DID_START = "observer_restore_did_start"

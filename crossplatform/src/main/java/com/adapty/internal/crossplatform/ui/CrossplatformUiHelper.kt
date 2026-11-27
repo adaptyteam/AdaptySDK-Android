@@ -44,7 +44,12 @@ class CrossplatformUiHelper internal constructor(
             field = value
             flowUiManager.uiEventsObserver = field
             onboardingUiManager.uiEventsObserver = field
+            flushHostRequests()
         }
+
+    fun flushHostRequests() {
+        flowUiManager.flushLocalizationRequests()
+    }
 
     fun handlePresentView(
         id: String,
@@ -196,6 +201,10 @@ class CrossplatformUiHelper internal constructor(
         flowUiManager.resolvePermission(eventId, granted, detail)
     }
 
+    fun answerLocalization(eventId: String, result: String?) {
+        flowUiManager.resolveLocalization(eventId, result)
+    }
+
     fun observerPurchaseDidStart(eventId: String) {
         flowUiManager.resolveObserverPurchaseStart(eventId)
     }
@@ -251,7 +260,8 @@ class CrossplatformUiHelper internal constructor(
     ) {
         AdaptyUI.getFlowConfiguration(
             args.flow,
-            locale = args.locale,
+            preferredLocales = args.preferredLocales,
+            localizationStrategy = flowUiManager.localizationStrategy(args),
             loadTimeout = args.loadTimeout ?: DEFAULT_PLACEMENT_TIMEOUT,
             customLayoutId = args.customLayoutId,
         ) { viewConfigResult ->

@@ -211,6 +211,10 @@ internal abstract class AdaptyUiEventListener(
         const val CUSTOM_ARGS = "custom_args"
         const val NAME = "name"
         const val PARAMS = "params"
+        const val RESOLVER_ID = "resolver_id"
+        const val PREFERRED_LOCALES = "preferred_locales"
+        const val LOCALES = "locales"
+        const val DEFAULT_LOCALE = "default_locale"
 
         const val FLOW_VIEW_DID_PERFORM_ACTION = "flow_view_did_perform_action"
         const val FLOW_VIEW_DID_SELECT_PRODUCT = "flow_view_did_select_product"
@@ -226,6 +230,7 @@ internal abstract class AdaptyUiEventListener(
         const val FLOW_VIEW_DID_DISAPPEAR = "flow_view_did_disappear"
         const val FLOW_VIEW_DID_FINISH_WEB_PAYMENT_NAVIGATION = "flow_view_did_finish_web_payment_navigation"
         const val FLOW_VIEW_DID_ASK_PERMISSION = "flow_view_did_ask_permission"
+        const val FLOW_VIEW_DID_ASK_LOCALIZATION = "flow_view_did_ask_localization"
         const val FLOW_VIEW_DID_REQUEST_APP_REVIEW = "flow_view_did_request_app_review"
         const val FLOW_VIEW_DID_RECEIVE_ANALYTIC_EVENT = "flow_view_did_receive_analytic_event"
         const val FLOW_VIEW_OBSERVER_DID_INITIATE_PURCHASE = "flow_view_observer_did_initiate_purchase"

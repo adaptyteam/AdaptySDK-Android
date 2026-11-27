@@ -9,6 +9,7 @@ import com.adapty.internal.utils.adaptyError
 import com.adapty.internal.utils.getAs
 import com.adapty.models.AdaptyFlow
 import com.adapty.ui.AdaptyUI.FlowConfiguration
+import com.adapty.ui.AdaptyUiLocalizationSource
 import com.adapty.ui.internal.mapping.element.Assets
 import com.adapty.ui.internal.mapping.element.ElementMapper
 import com.adapty.ui.internal.mapping.element.UIElementFactory
@@ -125,11 +126,11 @@ internal class ViewConfigurationMapper(
         }
     }
 
-    fun map(data: JsonObject, flow: AdaptyFlow): FlowConfiguration {
-        return map(data, FlowMode.Live(flow))
+    fun map(data: JsonObject, flow: AdaptyFlow, localeId: String): FlowConfiguration {
+        return map(data, FlowMode.Live(flow), localeId)
     }
 
-    fun map(data: JsonObject, mode: FlowMode): FlowConfiguration {
+    fun map(data: JsonObject, mode: FlowMode, localeId: String? = null): FlowConfiguration {
         val data = data.getAs<JsonObject>(DATA) ?: data
         val id = data.getAs<String>(PAYWALL_BUILDER_ID) ?: throw adaptyError(
             message = "id in ViewConfiguration should not be null",
@@ -142,7 +143,7 @@ internal class ViewConfigurationMapper(
 
         val localesOrderedDesc = setOfNotNull<String>(
             config.getAs(DEFAULT_LOCALIZATION),
-            data.getAs(LANG),
+            localeId ?: data.getAs(LANG),
         )
 
         val screenStateMap = mutableMapOf<String, Any>()
@@ -187,6 +188,22 @@ internal class ViewConfigurationMapper(
             isLegacyFormat = isLegacyFormat,
         )
     }
+
+    fun mapToLocalizationSource(data: JsonObject): AdaptyUiLocalizationSource {
+        val config = configOf(data)
+        val locales = config?.getAs<JsonArray>(LOCALIZATIONS)
+            ?.mapNotNull { it.getAs<String>(ID) }
+            ?.distinct()
+            .orEmpty()
+        val defaultLocale = config?.getAs<String>(DEFAULT_LOCALIZATION)?.takeIf { it in locales }
+        return AdaptyUiLocalizationSource(locales, defaultLocale)
+    }
+
+    fun isLegacyFormat(data: JsonObject): Boolean =
+        isLegacyConfigFormat(configOf(data)?.getAs<String>(FORMAT))
+
+    private fun configOf(data: JsonObject): JsonObject? =
+        (data.getAs<JsonObject>(DATA) ?: data).getAs<JsonObject>(PAYWALL_BUILDER_CONFIG)
 
     fun mapToMediaUrls(data: JsonObject): Pair<String, Set<String>> {
         val id = data.getAs<String>(PAYWALL_BUILDER_ID) ?: throw adaptyError(

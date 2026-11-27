@@ -7,7 +7,8 @@ import com.adapty.utils.TimeInterval
 
 class CreateFlowViewArgs(
     val flow: AdaptyFlow,
-    val locale: String?,
+    val preferredLocales: List<String>,
+    val localizationStrategy: LocalizationStrategyArgs,
     val customLayoutId: String?,
     val loadTimeout: TimeInterval?,
     val preloadProducts: Boolean,
@@ -17,3 +18,15 @@ class CreateFlowViewArgs(
     val productPurchaseParameters: Map<String, AdaptyPurchaseParameters>?,
     val enableSafeAreaPaddings: Boolean,
 )
+
+class LocalizationStrategyArgs(
+    val resolver: String,
+    val customId: String?,
+) {
+    internal companion object {
+        const val AUTO = "auto"
+        const val SYSTEM = "system"
+        const val LEGACY = "legacy"
+        val RESOLVERS = setOf(AUTO, SYSTEM, LEGACY)
+    }
+}

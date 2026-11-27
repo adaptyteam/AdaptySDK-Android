@@ -112,6 +112,11 @@ class FlowViewDidAnswerPermissionArgs(
     val detail: String?,
 )
 
+class FlowViewDidAnswerLocalizationArgs(
+    val eventId: String,
+    val result: String?,
+)
+
 class ObserverModeRequestArgs(
     val eventId: String,
 )

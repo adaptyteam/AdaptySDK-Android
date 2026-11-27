@@ -15,6 +15,7 @@ import com.adapty.Adapty
 import com.adapty.internal.di.Dependencies
 import com.adapty.internal.data.models.DeviceInfo
 import com.adapty.internal.di.Dependencies.inject
+import com.adapty.internal.utils.DEFAULT_PLACEMENT_LOCALE
 import com.adapty.internal.utils.DEFAULT_PLACEMENT_TIMEOUT
 import com.adapty.internal.utils.HashingHelper
 import com.adapty.internal.utils.InternalAdaptyApi
@@ -29,6 +30,7 @@ import com.adapty.ui.internal.cache.MediaDownloader
 import com.adapty.ui.internal.cache.MediaFetchService
 import com.adapty.ui.internal.cache.MediaSaver
 import com.adapty.ui.internal.cache.SingleMediaHandlerFactory
+import com.adapty.ui.internal.localization.resolve
 import com.adapty.ui.internal.mapping.viewconfig.ViewConfigurationMapper
 import com.adapty.ui.internal.script.JSStateHandler
 import com.adapty.ui.internal.script.JSStateMachine
@@ -161,9 +163,16 @@ public object AdaptyUI {
      *
      * @param[flow] The [AdaptyFlow] for which you want to get a configuration.
      *
-     * @param[locale] The locale whose localization will be used for rendering. If `null`,
-     * the `en` localization is used if present, otherwise the default localization
-     * of the view configuration.
+     * @param[preferredLocales] Locale identifiers (BCP 47, e.g. `en-US`) in order of preference.
+     * The best matching flow localization is used; with an empty list, the built-in resolvers
+     * use the default localization of the flow. To follow the app locales:
+     * `LocaleListCompat.getAdjustedDefault().toLanguageTags().split(",")`. Below API 33, a language
+     * set with `AppCompatDelegate.setApplicationLocales` is applied only when the first
+     * `AppCompatActivity` is created, so take the list after that, not in `Application.onCreate`.
+     *
+     * @param[localizationStrategy] How the flow localization is chosen for [preferredLocales],
+     * see [AdaptyUiLocalizationStrategy]. [AdaptyUiLocalizationStrategy.Auto] by default. Without
+     * a match, the default localization of the flow is used.
      *
      * @param[loadTimeout] This value limits the timeout for this method. The minimum value is 1 second.
      * If a timeout is not required, you can pass [TimeInterval.INFINITE].
@@ -179,30 +188,56 @@ public object AdaptyUI {
     @JvmOverloads
     public fun getFlowConfiguration(
         flow: AdaptyFlow,
+        preferredLocales: List<String>,
+        localizationStrategy: AdaptyUiLocalizationStrategy = AdaptyUiLocalizationStrategy.Auto,
+        loadTimeout: TimeInterval = DEFAULT_PLACEMENT_TIMEOUT,
+        customLayoutId: String? = null,
+        callback: ResultCallback<FlowConfiguration>
+    ) {
+        getFlowConfigurationInternal(flow, preferredLocales, localizationStrategy, loadTimeout, customLayoutId, deviceInfoOverride = null, callback = callback)
+    }
+
+    @Deprecated(
+        message = "Pass preferredLocales: LocaleListCompat.getAdjustedDefault().toLanguageTags().split(\",\") to show the flow in the app's languages, or emptyList() to use the flow's default localization.",
+        level = DeprecationLevel.ERROR,
+    )
+    @JvmStatic
+    @JvmOverloads
+    public fun getFlowConfiguration(
+        flow: AdaptyFlow,
         locale: String? = null,
         loadTimeout: TimeInterval = DEFAULT_PLACEMENT_TIMEOUT,
         customLayoutId: String? = null,
         callback: ResultCallback<FlowConfiguration>
     ) {
-        getFlowConfigurationInternal(flow, locale, loadTimeout, customLayoutId, deviceInfoOverride = null, callback = callback)
+        getFlowConfigurationInternal(flow, listOfNotNull(locale), AdaptyUiLocalizationStrategy.Auto, loadTimeout, customLayoutId, deviceInfoOverride = null, callback = callback)
     }
 
     @JvmSynthetic
     internal fun getFlowConfigurationInternal(
         flow: AdaptyFlow,
-        locale: String?,
+        preferredLocales: List<String>,
+        localizationStrategy: AdaptyUiLocalizationStrategy,
         loadTimeout: TimeInterval,
         customLayoutId: String?,
         deviceInfoOverride: DeviceInfo?,
         callback: ResultCallback<FlowConfiguration>,
     ) {
+        val preferredLocales = preferredLocales.map(String::trim).filter(String::isNotEmpty)
         Adapty.getFlowViewConfiguration(
             flow,
-            locale,
             loadTimeout,
             customLayoutId,
             deviceInfoOverride,
-            transform = { rawConfig -> viewConfigMapper.map(rawConfig, flow) },
+            transform = { rawConfig ->
+                val localeId = localizationStrategy.resolve(
+                    preferredLocales,
+                    viewConfigMapper.mapToLocalizationSource(rawConfig),
+                    viewConfigMapper.isLegacyFormat(rawConfig),
+                ) ?: DEFAULT_PLACEMENT_LOCALE
+                log(VERBOSE) { "$LOG_PREFIX getFlowConfiguration: preferredLocales = $preferredLocales, strategy = $localizationStrategy -> $localeId" }
+                viewConfigMapper.map(rawConfig, flow, localeId)
+            },
             callback = callback,
         )
     }

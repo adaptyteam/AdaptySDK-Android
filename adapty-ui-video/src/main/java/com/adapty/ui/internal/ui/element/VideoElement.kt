@@ -40,6 +40,7 @@ import com.adapty.ui.AdaptyUI.FlowConfiguration.Asset
 import com.adapty.ui.internal.ui.attributes.AspectRatio
 import com.adapty.ui.internal.ui.attributes.LocalContentAlignment
 import com.adapty.ui.internal.ui.fillWithBaseParams
+import com.adapty.ui.internal.ui.resizableMediaMinHeight
 import com.adapty.ui.internal.ui.resolveAssets
 import com.adapty.ui.internal.store.Message
 import com.adapty.ui.internal.ui.LocalScreenInstance
@@ -165,14 +166,14 @@ public class VideoElement internal constructor(
 
         val ratio = video.ratio
         val containerModifier = if (ratio != null) {
-            modifier.videoAspectLayout(
+            modifier.resizableMediaMinHeight().videoAspectLayout(
                 ratio = ratio,
                 cover = aspectRatio != AspectRatio.FIT,
                 alignment = LocalContentAlignment.current,
                 layoutDirection = LocalLayoutDirection.current,
             )
         } else {
-            modifier.fillMaxWidth().fillMaxHeight()
+            modifier.resizableMediaMinHeight().fillMaxWidth().fillMaxHeight()
         }
 
         Box(modifier = containerModifier, contentAlignment = Alignment.Center) {
